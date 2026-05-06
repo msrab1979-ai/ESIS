@@ -1,0 +1,11 @@
+# Firebase service account key — SENSITIVE, jangan commit
+sistem-esis-firebase-adminsdk-*.json
+
+# Node modules
+node_modules/
+
+# Firebase cache
+.firebase/
+
+# OS files
+.DS_Store
