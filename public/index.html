@@ -1257,7 +1257,13 @@
                 <!-- Filter Section -->
                 <div class="border border-gray-300 p-6 rounded-lg bg-gray-50">
                     <h4 class="text-lg font-semibold text-gray-800 mb-4">Pilihan Filter</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                        <div>
+                            <label for="slip-cal-year" class="block text-sm font-medium text-gray-700 mb-2">Tahun Kalendar</label>
+                            <select id="slip-cal-year" onchange="onSlipCalYearChange()" class="w-full px-4 py-2 border border-gray-300 rounded-md">
+                                <option value="">-- Pilih Tahun --</option>
+                            </select>
+                        </div>
                         <div>
                             <label for="slip-tahun" class="block text-sm font-medium text-gray-700 mb-2">Darjah</label>
                             <select id="slip-tahun" onchange="onSlipTahunChange()" class="w-full px-4 py-2 border border-gray-300 rounded-md">
@@ -1303,7 +1309,7 @@
                     
                     <!-- Ranking Selection Checkboxes -->
                     <div class="mt-4 border-t border-gray-200 pt-4">
-                        <h5 class="text-sm font-semibold text-gray-800 mb-3">Pilih Kedudukan untuk Slip:</h5>
+                        <h5 class="text-sm font-semibold text-gray-800 mb-3">Pilih Maklumat Tambahan untuk Slip:</h5>
                         <div class="flex flex-wrap gap-4">
                             <div class="flex items-center">
                                 <input type="checkbox" id="slip-ranking-class" class="mr-2 w-4 h-4 text-orange-600" checked>
@@ -1313,18 +1319,30 @@
                                 <input type="checkbox" id="slip-ranking-year" class="mr-2 w-4 h-4 text-orange-600" checked>
                                 <label for="slip-ranking-year" class="text-sm cursor-pointer font-medium">Kedudukan Dalam Tahun</label>
                             </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" id="slip-purata-peratus" class="mr-2 w-4 h-4 text-orange-600">
+                                <label for="slip-purata-peratus" class="text-sm cursor-pointer font-medium">Peratus Markah</label>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Download Pukal Ikut Darjah (ZIP dipisah folder kelas) -->
+                    <!-- Download Pukal Ikut Darjah (pilih darjah, ZIP dipisah folder darjah/kelas) -->
                     <div class="mt-4 border-t border-gray-200 pt-4">
-                        <h5 class="text-sm font-semibold text-gray-800 mb-2">Muat Turun Pukal Seluruh Darjah:</h5>
-                        <p class="text-xs text-gray-500 mb-3">Jana slip untuk <strong>semua kelas</strong> dalam Darjah &amp; Jenis Peperiksaan yang dipilih di atas. Fail ZIP akan dipisahkan mengikut folder kelas (cth: <code>4 INTEL/</code>, <code>4 BYTECH/</code>). Menggunakan subjek &amp; kedudukan yang ditick.</p>
+                        <h5 class="text-sm font-semibold text-gray-800 mb-2">Muat Turun Pukal (Pilih Darjah):</h5>
+                        <p class="text-xs text-gray-500 mb-3">Tandakan darjah yang dikehendaki, kemudian jana slip untuk <strong>semua kelas</strong> dalam darjah tersebut. Guna <strong>Tahun Kalendar &amp; Jenis Peperiksaan</strong> yang dipilih di atas. ZIP dipisah ikut folder darjah &amp; kelas (cth: <code>DARJAH 4/4 INTEL/</code>). Menggunakan subjek &amp; kedudukan yang ditick.</p>
+                        <div class="flex flex-wrap gap-x-5 gap-y-2 mb-3">
+                            <label class="flex items-center text-sm cursor-pointer"><input type="checkbox" class="slip-pukal-darjah mr-2 w-4 h-4 text-indigo-600" value="SATU" checked> Darjah 1</label>
+                            <label class="flex items-center text-sm cursor-pointer"><input type="checkbox" class="slip-pukal-darjah mr-2 w-4 h-4 text-indigo-600" value="DUA" checked> Darjah 2</label>
+                            <label class="flex items-center text-sm cursor-pointer"><input type="checkbox" class="slip-pukal-darjah mr-2 w-4 h-4 text-indigo-600" value="TIGA" checked> Darjah 3</label>
+                            <label class="flex items-center text-sm cursor-pointer"><input type="checkbox" class="slip-pukal-darjah mr-2 w-4 h-4 text-indigo-600" value="EMPAT" checked> Darjah 4</label>
+                            <label class="flex items-center text-sm cursor-pointer"><input type="checkbox" class="slip-pukal-darjah mr-2 w-4 h-4 text-indigo-600" value="LIMA" checked> Darjah 5</label>
+                            <label class="flex items-center text-sm cursor-pointer"><input type="checkbox" class="slip-pukal-darjah mr-2 w-4 h-4 text-indigo-600" value="ENAM" checked> Darjah 6</label>
+                        </div>
                         <button onclick="downloadSlipDarjah()" class="w-full sm:w-auto bg-indigo-600 text-white py-2.5 px-6 rounded-md hover:bg-indigo-700 transition font-semibold flex items-center justify-center">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                             </svg>
-                            Muat Turun Semua Slip Darjah (ZIP ikut Kelas)
+                            Muat Turun Slip Darjah Dipilih (ZIP)
                         </button>
                     </div>
                 </div>
@@ -4150,10 +4168,33 @@
         // ==========================================================
         
         function loadSlipDropdowns() {
-            // This function is called when tab opens - just populate tahun dropdown
-            // Kelas will be populated by onSlipTahunChange()
+            // Dipanggil bila tab slip dibuka — isi dropdown Tahun Kalendar
+            populatePanelYearDropdown('slip-cal-year', muridTerbaikYear);
+            // Pastikan examTypes untuk tahun terpilih dimuat
+            onSlipCalYearChange();
         }
-        
+
+        // Bila Tahun Kalendar slip berubah — set muridTerbaikYear & muat examTypes tahun itu
+        async function onSlipCalYearChange() {
+            const yearEl = document.getElementById('slip-cal-year');
+            if (!yearEl) return;
+            const year = yearEl.value || new Date().getFullYear().toString();
+            muridTerbaikYear = year;
+
+            // Muat examTypes untuk tahun ini supaya dropdown Jenis Peperiksaan tepat
+            await loadExamTypes(parseInt(year));
+
+            // Reset dropdown Darjah & Kelas
+            const tahunSelect = document.getElementById('slip-tahun');
+            if (tahunSelect) tahunSelect.value = '';
+            const kelasSelect = document.getElementById('slip-kelas');
+            if (kelasSelect) kelasSelect.innerHTML = '<option value="">-- Pilih Kelas --</option>';
+
+            // Isi dropdown Jenis Peperiksaan dengan SEMUA exam tahun ini (tanpa darjah)
+            // supaya boleh terus guna untuk Muat Turun Pukal tanpa pilih darjah dulu.
+            filterSlipExamDropdown('');
+        }
+
         function onSlipTahunChange() {
             const tahunSelect = document.getElementById('slip-tahun');
             const kelasSelect = document.getElementById('slip-kelas');
@@ -4174,7 +4215,36 @@
                 });
             }
 
-            filterExamDropdownByDarjah(selectedTahun, 'slip-peperiksaan');
+            filterSlipExamDropdown(selectedTahun);
+        }
+
+        // Tapis dropdown Jenis Peperiksaan slip: ikut TAHUN KALENDAR terpilih + darjah.
+        // Tunjuk SEMUA exam (termasuk yang aktif=false) — slip perlu boleh dijana walau exam dikunci.
+        function filterSlipExamDropdown(tahunDarjah) {
+            const el = document.getElementById('slip-peperiksaan');
+            if (!el) return;
+            const yearInt = parseInt(document.getElementById('slip-cal-year').value) || new Date().getFullYear();
+            const darjahNum = _tahunToDarjah[tahunDarjah] || parseInt(tahunDarjah);
+
+            const list = (_examTypesCache[yearInt] && _examTypesCache[yearInt].data)
+                ? _examTypesCache[yearInt].data
+                : GLOBAL_DATA.examTypes.filter(et => (et.tahunKalendar || new Date().getFullYear()) === yearInt);
+
+            const currentVal = el.value;
+            el.innerHTML = '<option value="">-- Pilih Jenis --</option>';
+
+            const filtered = (!tahunDarjah || isNaN(darjahNum))
+                ? list
+                : list.filter(et => Array.isArray(et.darjah) && et.darjah.includes(darjahNum));
+
+            filtered.forEach(et => {
+                const opt = document.createElement('option');
+                opt.value = et.nama;
+                opt.textContent = et.nama + (et.aktif === false ? ' (dikunci)' : '');
+                el.appendChild(opt);
+            });
+
+            if (currentVal && filtered.some(et => et.nama === currentVal)) el.value = currentVal;
         }
         
         async function loadSlipMurid() {
@@ -4523,7 +4593,7 @@
         // ==========================================================
         function binaSlipBlobMurid(student, ctx) {
             const { tahun, jenisPeperiksaan, selectedSubjects, slipSettings,
-                    logoData, jataData, ttdData, showClassRank, showYearRank } = ctx;
+                    logoData, jataData, ttdData, showClassRank, showYearRank, showPurata } = ctx;
             const noKp = student.no_kp;
             const kelas = student.kelas;
 
@@ -4538,6 +4608,7 @@
             // Bina data jadual (BIL, SUBJEK, MARKAH, GRED) + kira jumlah markah
             const tableData = [];
             let jumlahMarkah = 0;
+            let bilSubjekAdaMarkah = 0; // subjek yang ada markah sebenar (langkau '-') — untuk purata %
             let bil = 0;
             selectedSubjects.forEach(subjectName => {
                 let markRecord = allStudentMarks.find(r => r.subjek === subjectName);
@@ -4549,10 +4620,15 @@
                 const markah = markRecord ? markRecord.markah : '-';
                 const gred = markRecord ? markRecord.gred : '-';
                 const markahNum = parseFloat(markah);
-                if (!isNaN(markahNum)) jumlahMarkah += markahNum;
+                if (!isNaN(markahNum)) { jumlahMarkah += markahNum; bilSubjekAdaMarkah++; }
                 bil++;
                 tableData.push([String(bil), subjectName, markah, gred]);
             });
+
+            // Peratus markah: jumlah markah ÷ (bil subjek ada markah × 100) × 100. Langkau subjek '-'.
+            const purataPeratus = bilSubjekAdaMarkah > 0
+                ? (jumlahMarkah / (bilSubjekAdaMarkah * 100) * 100).toFixed(1) + '%'
+                : '-';
 
             const rankings = slipRankingsData[noKp] || {};
 
@@ -4618,12 +4694,18 @@
                 pdf.text(`:  ${kelas}`, 42, yPos);
                 yPos += 8;
 
+                // Baris footer: JUMLAH MARKAH + (optional) PURATA (%)
+                const footRows = [['', 'JUMLAH MARKAH', String(jumlahMarkah), '']];
+                if (showPurata) {
+                    footRows.push(['', 'PERATUS MARKAH', purataPeratus, '']);
+                }
+
                 // Jadual markah
                 pdf.autoTable({
                     startY: yPos,
                     head: [['BIL', 'SUBJEK', 'MARKAH', 'GRED']],
                     body: tableData,
-                    foot: [['', 'JUMLAH MARKAH', String(jumlahMarkah), '']],
+                    foot: footRows,
                     theme: 'grid',
                     headStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center', fontSize: 10, cellPadding: 2.5, lineColor: [0, 0, 0], lineWidth: 0.25 },
                     footStyles: { fillColor: [235, 235, 235], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 10, cellPadding: 2.5, lineColor: [0, 0, 0], lineWidth: 0.25 },
@@ -4660,14 +4742,15 @@
                     yPos += 6;
                 }
 
-                // Pastikan cukup ruang untuk blok Guru Besar
-                if (yPos > 250) yPos = 245;
+                // Pastikan cukup ruang untuk blok Guru Besar (tandatangan lebih besar)
+                if (yPos > 240) yPos = 235;
 
-                // Tandatangan (dataURL dipramuat)
+                // Tandatangan (dataURL dipramuat) — saiz sederhana, nama RAPAT di bawah
+                // (macam tandatangan sebenar di atas kertas).
                 if (ttdData) {
                     try {
-                        pdf.addImage(ttdData, 'JPEG', 20, yPos, 35, 18);
-                        yPos += 20;
+                        pdf.addImage(ttdData, 'PNG', 20, yPos, 42, 21);
+                        yPos += 22;   // rapat: nama terus di bawah coretan (~1mm gap)
                     } catch (e) {
                         yPos += 2;
                     }
@@ -4710,7 +4793,8 @@
         // Muat URL imej -> JPEG dataURL kecil (latar putih) supaya PDF SANGAT RINGAN & laju.
         // JPEG kekal termampat dalam PDF (PNG dinyahmampat -> PDF besar). Slip latar putih,
         // jadi latar putih pada imej nampak sama sahaja. ~13x lebih kecil dari PNG.
-        async function _imgToDataURL(url, maxPx = 300) {
+        // tajamkan=true: tingkatkan kontras (garis jadi hitam pekat) & guna PNG — untuk tandatangan.
+        async function _imgToDataURL(url, maxPx = 300, tajamkan = false) {
             if (!url) return '';
             try {
                 const blob = await fetch(url, { cache: 'force-cache' }).then(r => {
@@ -4735,9 +4819,25 @@
                 const cv = document.createElement('canvas');
                 cv.width = w; cv.height = h;
                 const c = cv.getContext('2d');
-                c.fillStyle = '#FFFFFF';       // latar putih (JPEG tiada telus)
+                c.fillStyle = '#FFFFFF';       // latar putih
                 c.fillRect(0, 0, w, h);
                 c.drawImage(img, 0, 0, w, h);
+
+                if (tajamkan) {
+                    // Tingkatkan kontras: piksel gelap -> hitam pekat, terang -> putih.
+                    // Buat tandatangan nampak lebih terang/jelas bila dicetak.
+                    const imgData = c.getImageData(0, 0, w, h);
+                    const d = imgData.data;
+                    for (let i = 0; i < d.length; i += 4) {
+                        const lum = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+                        // Ambang 200: gelap sikit pun jadi HITAM pekat, latar kekal putih
+                        const v = lum < 200 ? 0 : 255;
+                        d[i] = d[i+1] = d[i+2] = v;
+                    }
+                    c.putImageData(imgData, 0, 0);
+                    return cv.toDataURL('image/png'); // PNG kekal garis tajam
+                }
+
                 return cv.toDataURL('image/jpeg', 0.85);
             } catch (e) {
                 console.warn('⚠️ Gagal muat/kecilkan imej:', url, e);
@@ -4753,11 +4853,12 @@
             };
             const logoUrl = slipSettings.logoUrl || GLOBAL_DATA.settings.logoUrl;
 
-            // Pramuat semua imej serentak
+            // Pramuat semua imej serentak. Tandatangan guna resolusi lebih tinggi (500px)
+            // supaya garis tajam & jelas bila dipaparkan besar dalam slip.
             const [logoData, jataData, ttdData] = await Promise.all([
                 _imgToDataURL(logoUrl),
                 _imgToDataURL(slipSettings.jataUrl),
-                _imgToDataURL(slipSettings.tandatanganGB)
+                _imgToDataURL(slipSettings.tandatanganGB, 500, true)
             ]);
 
             return {
@@ -4769,55 +4870,35 @@
                 jataData,   // dataURL jata
                 ttdData,    // dataURL tandatangan
                 showClassRank: document.getElementById('slip-ranking-class').checked,
-                showYearRank: document.getElementById('slip-ranking-year').checked
+                showYearRank: document.getElementById('slip-ranking-year').checked,
+                showPurata: (document.getElementById('slip-purata-peratus') || {}).checked || false
             };
         }
 
         // ==========================================================
-        // DOWNLOAD PUKAL: Semua slip 1 DARJAH, ZIP dipisah ikut folder KELAS
+        // DOWNLOAD PUKAL: Slip untuk DARJAH DIPILIH (checkbox), ZIP dipisah
+        // ikut folder DARJAH X / KELAS Y.
         // ==========================================================
         async function downloadSlipDarjah() {
-            const tahun = document.getElementById('slip-tahun').value;
             const jenisPeperiksaan = document.getElementById('slip-peperiksaan').value;
 
-            if (!tahun) { showNotification("Ralat", "Sila pilih Darjah dahulu.", true); return; }
             if (!jenisPeperiksaan) { showNotification("Ralat", "Sila pilih Jenis Peperiksaan dahulu.", true); return; }
 
-            // Subjek ikut checkbox semasa; jika kosong, muatkan subjek darjah ini automatik
-            let selectedSubjects = getSelectedSlipSubjects();
-            if (selectedSubjects.length === 0) {
-                const uniq = new Set();
-                GLOBAL_DATA.allMarks.forEach(m => {
-                    if (m.tahun === tahun && m["JENIS PEPERIKSAAN"] === jenisPeperiksaan) uniq.add(m.subjek);
-                });
-                selectedSubjects = Array.from(uniq).sort();
-                if (selectedSubjects.length === 0) {
-                    showNotification("Ralat", "Tiada subjek dijumpai. Sila 'Papar Murid' & tick subjek dahulu.", true);
-                    return;
-                }
-            }
-
-            // Semua murid dalam darjah ini, dikumpul ikut kelas
-            const muridDarjah = GLOBAL_DATA.students.filter(s => s.tahun === tahun);
-            if (muridDarjah.length === 0) {
-                showNotification("Tiada Data", `Tiada murid dijumpai untuk Darjah ${tahun}.`, true);
+            // Darjah yang ditick
+            const darjahDipilih = Array.from(document.querySelectorAll('.slip-pukal-darjah:checked')).map(c => c.value);
+            if (darjahDipilih.length === 0) {
+                showNotification("Ralat", "Sila tandakan sekurang-kurangnya satu darjah.", true);
                 return;
             }
+
+            // Susun ikut turutan darjah 1..6
+            const urutanDarjah = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
+            const darjahSenarai = urutanDarjah.filter(d => darjahDipilih.includes(d));
 
             await ensurePdfLibs();
             await ensureJSZip();
 
-            const ctxAsas = await bacaSlipCtx(tahun, jenisPeperiksaan, selectedSubjects);
-
-            // Kumpul ikut kelas
-            const ikutKelas = {};
-            muridDarjah.forEach(s => {
-                const k = s.kelas || 'TANPA_KELAS';
-                (ikutKelas[k] = ikutKelas[k] || []).push(s);
-            });
-            const senaraiKelas = Object.keys(ikutKelas).sort();
-
-            // Progress — pastikan bahagian murid nampak supaya progress bar kelihatan
+            // Progress
             const muridSection = document.getElementById('slip-murid-section');
             if (muridSection) muridSection.classList.remove('hidden');
             const progressSection = document.getElementById('slip-progress');
@@ -4827,48 +4908,87 @@
             progressBar.style.width = '0%';
 
             const zip = new JSZip();
-            const total = muridDarjah.length;
-            let completed = 0;
+            const namaDarjah = { SATU:'1', DUA:'2', TIGA:'3', EMPAT:'4', LIMA:'5', ENAM:'6' };
+            let completed = 0, jumlahSlip = 0, darjahDijana = 0, kelasDijana = 0;
 
-            for (const kelas of senaraiKelas) {
-                // Kira ranking untuk kelas ini (guna checkbox subjek semasa)
-                calculateSlipRankings(tahun, kelas, jenisPeperiksaan);
+            // Kira jumlah keseluruhan murid (untuk progress)
+            const totalMurid = GLOBAL_DATA.students.filter(s => darjahSenarai.includes(s.tahun)).length;
+            if (totalMurid === 0) {
+                showNotification("Tiada Data", "Tiada murid dijumpai untuk darjah yang dipilih.", true);
+                progressSection.classList.add('hidden');
+                return;
+            }
 
-                const folderKelas = zip.folder(kelas.replace(/[\/\\:*?"<>|]/g, '-'));
-                const ctx = { ...ctxAsas };
+            for (const tahun of darjahSenarai) {
+                const muridDarjah = GLOBAL_DATA.students.filter(s => s.tahun === tahun);
+                if (muridDarjah.length === 0) continue;
 
-                for (const student of ikutKelas[kelas]) {
-                    const hasil = binaSlipBlobMurid(student, ctx);
-                    if (hasil) {
-                        folderKelas.file(hasil.filename, hasil.blob);
-                    }
-                    completed++;
-                    // Kemas kini UI setiap 5 murid sahaja supaya laju & tak beku
-                    if (completed % 5 === 0 || completed === total) {
-                        progressText.textContent = `Menjana ${kelas} — ${completed}/${total}...`;
-                        progressBar.style.width = Math.round((completed / total) * 100) + '%';
-                        await new Promise(r => setTimeout(r, 0)); // lepaskan UI sekejap
+                // Subjek: ikut checkbox semasa; jika kosong, ambil subjek darjah ini automatik
+                let selectedSubjects = getSelectedSlipSubjects();
+                if (selectedSubjects.length === 0) {
+                    const uniq = new Set();
+                    GLOBAL_DATA.allMarks.forEach(m => {
+                        if (m.tahun === tahun && m["JENIS PEPERIKSAAN"] === jenisPeperiksaan) uniq.add(m.subjek);
+                    });
+                    selectedSubjects = Array.from(uniq).sort();
+                }
+                if (selectedSubjects.length === 0) continue; // langkau darjah tanpa subjek
+
+                const ctx = await bacaSlipCtx(tahun, jenisPeperiksaan, selectedSubjects);
+
+                // Folder darjah
+                const folderDarjah = zip.folder(`DARJAH ${namaDarjah[tahun] || tahun}`);
+                darjahDijana++;
+
+                // Kumpul ikut kelas
+                const ikutKelas = {};
+                muridDarjah.forEach(s => {
+                    const k = s.kelas || 'TANPA_KELAS';
+                    (ikutKelas[k] = ikutKelas[k] || []).push(s);
+                });
+                const senaraiKelas = Object.keys(ikutKelas).sort();
+
+                for (const kelas of senaraiKelas) {
+                    calculateSlipRankings(tahun, kelas, jenisPeperiksaan);
+                    const folderKelas = folderDarjah.folder(kelas.replace(/[\/\\:*?"<>|]/g, '-'));
+                    kelasDijana++;
+
+                    for (const student of ikutKelas[kelas]) {
+                        const hasil = binaSlipBlobMurid(student, ctx);
+                        if (hasil) { folderKelas.file(hasil.filename, hasil.blob); jumlahSlip++; }
+                        completed++;
+                        if (completed % 5 === 0 || completed === totalMurid) {
+                            progressText.textContent = `Menjana Darjah ${namaDarjah[tahun]} — ${kelas} (${completed}/${totalMurid})...`;
+                            progressBar.style.width = Math.round((completed / totalMurid) * 100) + '%';
+                            await new Promise(r => setTimeout(r, 0));
+                        }
                     }
                 }
+            }
+
+            if (jumlahSlip === 0) {
+                showNotification("Ralat", "Tiada slip dijana. Pastikan darjah dipilih ada data markah.", true);
+                progressSection.classList.add('hidden');
+                return;
             }
 
             progressText.textContent = `Menyediakan fail ZIP...`;
             try {
                 const zipBlob = await zip.generateAsync({ type: 'blob', compression: "STORE" });
-                const zipName = `Slip_Darjah${tahun}_${jenisPeperiksaan}_${muridTerbaikYear}.zip`;
+                const zipName = `Slip_${jenisPeperiksaan}_${muridTerbaikYear}.zip`;
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(zipBlob);
                 link.download = zipName;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                progressText.textContent = `✅ Selesai! ${completed} slip (${senaraiKelas.length} kelas) dalam ${zipName}`;
-                showNotification("Berjaya", `${completed} slip Darjah ${tahun} dijana, dipisah ikut ${senaraiKelas.length} folder kelas.`, false);
+                progressText.textContent = `✅ Selesai! ${jumlahSlip} slip (${darjahDijana} darjah, ${kelasDijana} kelas) dalam ${zipName}`;
+                showNotification("Berjaya", `${jumlahSlip} slip dijana — ${darjahDijana} darjah, ${kelasDijana} kelas.`, false);
             } catch (error) {
                 console.error('❌ Error creating ZIP:', error);
                 showNotification("Ralat", "Gagal membuat fail ZIP.", true);
             }
-            setTimeout(() => progressSection.classList.add('hidden'), 5000);
+            setTimeout(() => progressSection.classList.add('hidden'), 6000);
         }
 
         async function generateSlipPDF() {

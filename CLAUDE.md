@@ -23,10 +23,12 @@ There is no build step, no package.json, no linting, and no test suite — this 
 
 ## Architecture
 
-The entire application lives in a **single file**: `public/index.html` (~8,350 lines). All HTML, CSS, and JavaScript are inline in this one file. JavaScript begins at line 1517. `public/index.backup.html` is a manual backup snapshot — do not edit it.
+The entire application lives in a **single file**: `public/index.html` (~10,070 lines). All HTML, CSS, and JavaScript are inline in this one file. `public/index.backup.html` is a manual backup snapshot — do not edit it.
 
 **Firebase project:** `sistem-esis` (see `.firebaserc`)  
-**Firebase services used:** Firestore (database) + Hosting (static serving)
+**Firebase services used:** Firestore (database) + Hosting (static serving) + Storage (slip images: logo, Jata Negara, GB signature)
+
+`storage.rules` — folder `public/` allows public read, image-only writes under 5MB. `cors.json` sets CORS on the Storage bucket (`gsutil cors set cors.json gs://sistem-esis.firebasestorage.app`) — required because jsPDF `addImage` fails silently on cross-origin Storage URLs without it.
 
 ### Firestore Collections
 
@@ -53,18 +55,27 @@ The entire application lives in a **single file**: `public/index.html` (~8,350 l
 
 | Area | Location in index.html |
 |---|---|
-| Firebase config | ~line 1548 |
-| CDN lazy-loader (`loadScript`) | ~line 1523 |
-| Data normalization helpers | ~line 1563 |
-| Global year filter (`onGlobalYearChange`) | ~line 1664 |
-| Filtered marks getter (`getFilteredMarks`) | ~line 1678 |
-| Main data load (`bacaInitialData`) | ~line 4161 |
-| Admin login (`handleLogin`) | ~line 4450 |
-| Panel navigation (`showPanel`) | ~line 4465 |
-| Save marks (`simpanMarkah`) | ~line 4845 |
-| Exam slip PDF generation (`generateSlipPDF`) | ~line 3524 |
-| Edit marks table (`renderEditTable`) | ~line 5053 |
-| Analysis table (`renderAnalisaTable`) | ~line 5124 |
+| CDN lazy-loader (`loadScript`) | ~line 1732 |
+| Firebase config | ~line 1757 |
+| Main data load (`bacaInitialData`) | ~line 5310 |
+| Admin login (`handleLogin`) | ~line 5660 |
+| Panel navigation (`showPanel`) | ~line 5692 |
+| Save marks — new entry (`simpanMarkah`) | ~line 6085 |
+| Save marks — edit form (`simpanEditMarkah`) | ~line 6520 |
+| Delete marks (`deleteMarkahByFilter`) | ~line 2278 |
+| Edit marks table (`renderEditTable`) | ~line 6359 |
+| Analysis table (`renderAnalisaTable`) | ~line 6458 |
+| Read-only exam check (`isEditExamReadOnly`) | ~line 6520 |
+| Slip PDF — single student builder (`binaSlipBlobMurid`) | ~line 4524 |
+| Slip PDF — settings + preloaded images (`bacaSlipCtx`) | ~line 4714 |
+| Slip PDF — generate for selected students (`generateSlipPDF`) | ~line 4874 |
+| Slip PDF — bulk download by darjah, ZIP per kelas folder (`downloadSlipDarjah`) | ~line 4779 |
+| Slip image upload to Storage (`uploadSlipImage`) | ~line 4271 |
+| Image → JPEG dataURL resize helper (`_imgToDataURL`) | search in file |
+
+### Exam "Aktif" Toggle (Urus Jenis Peperiksaan)
+
+Each exam type in `examTypes` has an `aktif` boolean, toggled in Admin. `aktif: false` puts the exam into **view-only mode** in Rekod & Laporan: teachers can view marks, print PDF, and export CSV, but cannot add/edit/delete marks (Simpan/Padam buttons hidden, no input fields, "Mod Baca Sahaja" banner shown). `isEditExamReadOnly()` also guards `simpanEditMarkah()`/`deleteMarkahByFilter()` server-side against bypass. This is separate from the global `settings.markahEnabled` flag, which blocks entry to the whole Rekod & Laporan panel.
 
 ### Caching
 
@@ -90,3 +101,7 @@ Delete confirmations require typing `"PADAM"` to confirm. Deleted Firestore docu
 - **JSZip** — batch file downloads
 
 jsPDF, html2pdf, and JSZip are lazy-loaded on demand via `loadScript()` / `ensurePdfLibs()` / `ensureJSZip()` to avoid blocking initial page load.
+
+### Exam Slip PDFs
+
+Slip layout (black/white, no color): Jata Negara (left) + school logo (right) header with double rule, BIL/SUBJEK/MARKAH/GRED table with a JUMLAH MARKAH footer row (sums only ticked subjects, skips '-'), bold black text, class/year ranking (optional), print date. Images are fetched once per batch via `bacaSlipCtx()`, resized and re-encoded as JPEG on white background (`_imgToDataURL`) — this is ~17x smaller than embedding the original PNGs and is what makes bulk ZIP generation fast. `downloadSlipDarjah()` generates every student in a darjah, grouped into one folder per kelas inside the ZIP.
