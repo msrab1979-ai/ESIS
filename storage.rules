@@ -1,0 +1,22 @@
+rules_version = '2';
+
+// Peraturan keselamatan Firebase Storage untuk Sistem ESIS
+// - Imej awam (logo, jata, tandatangan) di bawah folder 'public/' boleh DIBACA oleh sesiapa
+//   supaya slip PDF boleh papar imej tersebut.
+// - Tulis (upload) dibenarkan untuk imej sahaja & bersaiz munasabah (<5MB).
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Folder awam — imej yang dipaparkan dalam slip peperiksaan
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Selain itu — tutup
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

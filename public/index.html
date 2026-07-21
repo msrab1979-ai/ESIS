@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem ESIS - Masuk Markah</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="shortcut icon" href="favicon.svg">
     <!-- Tailwind CSS (URL DIJAMIN BETUL) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- PapaParse for CSV handling -->
@@ -35,6 +37,35 @@
         /* Toggle Aktif Exam Type */
         .toggle-track { transition: background-color 0.2s ease; }
         .toggle-thumb { transition: transform 0.2s ease; }
+
+        /* Panel slide-in animation */
+        .panel-enter {
+            animation: slideInRight 0.22s cubic-bezier(0.4,0,0.2,1) both;
+        }
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(32px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Back button */
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 16px;
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            cursor: pointer;
+            transition: background 0.15s, box-shadow 0.15s;
+        }
+        .btn-back:hover {
+            background: #e5e7eb;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
 
         /* Print Styles (Gaya Cetakan) */
         @media print {
@@ -75,6 +106,9 @@
             
             /* Status Pengisian Markah Print Styling */
             #guru-kelas-panel { display: block !important; }
+            #analisa-kelas-panel { display: block !important; }
+            #analisa-kelas-panel #ak-print-header { display: block !important; }
+            #analisa-kelas-panel #ak-empty { display: none !important; }
             #guru-kelas-status { display: block !important; }
             #status-pengisian-container { display: block !important; }
             
@@ -232,20 +266,12 @@
 
         <!-- Menu Utama -->
         <div id="main-menu" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 hidden">
-            <div id="rekod-markah-card" onclick="showPanel('markah')" class="card-menu bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg cursor-pointer">
+            <div id="rekod-laporan-card" onclick="showPanel('rekod-laporan')" class="card-menu bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-6 rounded-xl shadow-lg cursor-pointer">
                 <div class="flex items-center justify-between">
                     <span class="text-4xl">📝</span>
-                    <h2 class="text-xl font-bold">Rekod Markah</h2>
+                    <h2 class="text-xl font-bold">Rekod & Laporan</h2>
                 </div>
-                <p class="mt-2 text-sm">Klik untuk memasukkan markah peperiksaan.</p>
-            </div>
-            
-            <div id="edit-cetak-card" onclick="showPanel('edit-cetak')" class="card-menu bg-gradient-to-r from-purple-500 to-indigo-600 text-white p-6 rounded-xl shadow-lg cursor-pointer">
-                <div class="flex items-center justify-between">
-                    <span class="text-4xl">📄</span>
-                    <h2 class="text-xl font-bold">Edit & Cetak</h2>
-                </div>
-                <p class="mt-2 text-sm">Lihat, kemas kini markah dan cetak laporan.</p>
+                <p class="mt-2 text-sm">Rekod, edit markah dan cetak laporan.</p>
             </div>
             
             <!-- MENU ANALISA KESELURUHAN -->
@@ -284,6 +310,15 @@
                 <p class="mt-2 text-sm">Tambah & urus data murid.</p>
             </div>
             
+            <!-- MENU ANALISA KELAS (BARU) -->
+            <div id="analisa-kelas-card" onclick="showPanel('analisa-kelas')" class="card-menu bg-gradient-to-r from-purple-500 to-violet-600 text-white p-6 rounded-xl shadow-lg cursor-pointer">
+                <div class="flex items-center justify-between">
+                    <span class="text-4xl">🏫</span>
+                    <h2 class="text-xl font-bold">Analisa Kelas</h2>
+                </div>
+                <p class="mt-2 text-sm">Bandingkan pencapaian gred semua kelas.</p>
+            </div>
+
             <!-- PANEL ADMIN -->
             <div id="admin-menu-card" onclick="showPanel('admin')" class="card-menu bg-gradient-to-r from-red-500 to-red-600 text-white p-6 rounded-xl shadow-lg cursor-pointer hidden">
                 <div class="flex items-center justify-between">
@@ -294,192 +329,141 @@
             </div>
         </div>
 
-        <!-- Panel Rekod Markah (Data Entry) -->
-        <div id="markah-panel" class="hidden bg-white p-6 rounded-xl shadow-xl">
-            <div class="flex items-center justify-between border-b pb-3 mb-6">
-                <h2 class="text-2xl font-bold text-gray-800">Menu Masuk Markah</h2>
-                <span class="bg-green-100 text-green-800 text-sm font-bold px-4 py-1.5 rounded-full">
-                    Merekod untuk Tahun: <span id="rekod-cal-year"></span>
+        <!-- PANEL REKOD & LAPORAN (GABUNGAN) -->
+        <div id="markah-panel" class="hidden bg-white p-6 rounded-xl shadow-xl print-panel">
+
+            <!-- Header -->
+            <div class="flex items-center justify-between border-b pb-3 mb-6 no-print">
+                <div class="flex items-center gap-3">
+                    <button onclick="goHome()" class="btn-back">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+                        Kembali
+                    </button>
+                    <h2 class="text-2xl font-bold text-gray-800">Rekod & Laporan</h2>
+                </div>
+                <span class="bg-green-100 text-green-800 text-sm font-bold px-4 py-1.5 rounded-full no-print">
+                    Tahun: <span id="rekod-cal-year"></span>
                 </span>
             </div>
-            
-            <!-- Borang Pilihan -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+
+            <!-- Borang Pilihan — guna ID edit-* supaya semua fungsi JS sedia ada kekal berfungsi -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-4 mb-6 no-print">
 
                 <div>
-                    <label for="pilih-peperiksaan" class="block text-sm font-medium text-gray-700">Jenis Peperiksaan</label>
-                    <select id="pilih-peperiksaan" onchange="onKelasChange()" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                    <label class="block text-sm font-medium text-gray-700">Tahun (Kalendar)</label>
+                    <select id="edit-year" onchange="onEditYearChange()" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md bg-green-50 font-semibold">
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Jenis Peperiksaan</label>
+                    <select id="edit-peperiksaan" onchange="onEditPeperiksaanChange()" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md" disabled>
                         <option value="">-- Pilih Jenis --</option>
                     </select>
                 </div>
 
                 <div>
-                    <label for="pilih-tahun" class="block text-sm font-medium text-gray-700">Pilih Darjah</label>
-                    <select id="pilih-tahun" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                    <label class="block text-sm font-medium text-gray-700">Pilih Darjah</label>
+                    <select id="edit-tahun" onchange="onEditTahunChange()" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md" disabled>
                         <option value="">-- Pilih Darjah --</option>
                     </select>
                 </div>
 
                 <div>
-                    <label for="pilih-kelas" class="block text-sm font-medium text-gray-700">Pilih Kelas</label>
-                    <select id="pilih-kelas" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md" disabled>
+                    <label class="block text-sm font-medium text-gray-700">Pilih Kelas</label>
+                    <select id="edit-kelas" onchange="onEditKelasChange()" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md" disabled>
                         <option value="">-- Pilih Kelas --</option>
                     </select>
                 </div>
 
                 <div>
-                    <label for="pilih-subjek" class="block text-sm font-medium text-gray-700">Pilih Subjek</label>
-                    <select id="pilih-subjek" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
-                        <option value="">-- Pilih Subjek --</option>
-                    </select>
-                </div>
-
-                <div class="flex items-end">
-                    <button onclick="cariPelajar()" class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition font-semibold">Cari</button>
-                </div>
-            </div>
-
-            <!-- Jadual Markah -->
-            <div class="mt-8 border-t pt-6">
-                <h3 class="text-xl font-bold text-gray-800 mb-4">Senarai Pelajar & Masuk Markah</h3>
-                
-                <div id="table-loader" class="hidden justify-center items-center p-8">
-                     <div class="spinner w-8 h-8 border-2 border-gray-200 border-t-2 border-indigo-500 rounded-full animate-spin"></div>
-                     <p class="ml-3 text-gray-600">Memuatkan senarai pelajar...</p>
-                </div>
-
-                <div id="markah-table-container" class="overflow-x-auto">
-                    <table id="markah-table" class="min-w-full divide-y divide-gray-200 hidden">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/12">Bil</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-4/12">Nama Pelajar</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/12">No. KP</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/12">Markah (1-100) *Wajib</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/12">Gred</th>
-                            </tr>
-                        </thead>
-                        <tbody id="markah-table-body" class="bg-white divide-y divide-gray-200">
-                            <tr>
-                                <td colspan="5" class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500">Sila klik 'Cari' untuk memuatkan senarai pelajar.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div id="simpan-container" class="mt-6 hidden">
-                    <button onclick="simpanMarkah()" class="w-full bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 transition font-semibold">Simpan Markah</button>
-                    <p id="simpan-status" class="mt-2 text-sm font-medium text-center"></p>
-                </div>
-            </div>
-        </div>
-
-        <!-- PANEL EDIT DAN CETAK -->
-        <div id="edit-cetak-panel" class="hidden bg-white p-6 rounded-xl shadow-xl print-panel">
-            <div class="flex justify-between items-center border-b pb-3 mb-6 no-print">
-                 <h2 class="text-2xl font-bold text-gray-800">Edit Markah & Laporan</h2>
-                 <button onclick="showPanel('markah')" class="text-sm text-gray-600 hover:text-gray-800 flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-1">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                    Tutup
-                 </button>
-            </div>
-            
-            <!-- Borang Pilihan Rekod -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-4 mb-6 no-print">
-
-                <div>
-                    <label for="edit-year" class="block text-sm font-medium text-gray-700">Tahun (Kalendar)</label>
-                    <select id="edit-year" onchange="editYear = this.value" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md bg-green-50 font-semibold">
-                    </select>
-                </div>
-
-                <div>
-                    <label for="edit-tahun" class="block text-sm font-medium text-gray-700">Pilih Darjah</label>
-                    <select id="edit-tahun" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
-                        <option value="">-- Pilih Darjah --</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <label for="edit-kelas" class="block text-sm font-medium text-gray-700">Pilih Kelas</label>
-                    <select id="edit-kelas" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md" disabled>
-                        <option value="">-- Pilih Kelas --</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <label for="edit-subjek" class="block text-sm font-medium text-gray-700">Pilih Subjek</label>
+                    <label class="block text-sm font-medium text-gray-700">Pilih Subjek</label>
                     <select id="edit-subjek" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md" disabled>
                         <option value="">-- Pilih Subjek --</option>
                     </select>
                 </div>
 
-                 <div>
-                    <label for="edit-peperiksaan" class="block text-sm font-medium text-gray-700">Jenis Peperiksaan</label>
-                    <select id="edit-peperiksaan" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md" disabled>
-                        <option value="">-- Pilih Jenis --</option>
-                    </select>
-                </div>
-                
                 <div class="flex items-end">
                     <button onclick="cariMarkahEdit()" class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition font-semibold">Cari</button>
                 </div>
             </div>
 
-            <!-- Kontena Laporan -->
+            <!-- Banner Mod Baca Sahaja -->
+            <div id="edit-readonly-banner" class="hidden mb-4 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 flex items-center gap-2 no-print">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                <span class="text-amber-700 font-semibold text-sm">Mod Baca Sahaja — Peperiksaan ini tidak aktif. Cikgu boleh lihat dan cetak sahaja.</span>
+            </div>
+
+            <!-- Loader -->
+            <div id="table-loader" class="hidden justify-center items-center p-8 no-print">
+                <div class="spinner w-8 h-8 border-2 border-gray-200 border-t-2 border-indigo-500 rounded-full animate-spin"></div>
+                <p class="ml-3 text-gray-600">Memuatkan data...</p>
+            </div>
+
+            <!-- Kontena Laporan (muncul selepas Cari) -->
             <div id="laporan-container" class="hidden">
-                 <div id="print-content" class="p-4">
+                <div id="print-content" class="p-4">
+
                     <!-- Header Laporan -->
                     <div class="mb-6 border-b pb-4">
                         <h3 id="laporan-tajuk" class="text-2xl font-bold text-gray-800 mb-2 text-center"></h3>
-                        <div id="laporan-metadata" class="text-center space-y-1">
-                            <!-- Metadata akan dimuatkan di sini -->
-                        </div>
+                        <div id="laporan-metadata" class="text-center space-y-1"></div>
                     </div>
-                    
-                    <!-- Jadual Markah Pelajar -->
+
+                    <!-- Jadual Markah -->
                     <h4 class="text-lg font-semibold text-gray-800 mt-2 mb-3">Senarai Markah Pelajar</h4>
                     <div id="markah-edit-table-container" class="overflow-x-auto mb-8">
                         <table id="markah-table-edit" class="min-w-full divide-y divide-gray-200 border">
-                            <thead class="bg-gray-50">
-                                <!-- Header akan dimuatkan oleh JS -->
-                            </thead>
-                            <tbody id="markah-table-edit-body" class="bg-white divide-y divide-gray-200">
-                                <!-- Data Markah akan dimuatkan di sini -->
-                            </tbody>
+                            <thead class="bg-gray-50"></thead>
+                            <tbody id="markah-table-edit-body" class="bg-white divide-y divide-gray-200"></tbody>
                         </table>
                     </div>
-                    
-                    <!-- Jadual Analisis Gred (DI BAWAH table markah) -->
+
+                    <!-- Analisis Gred -->
                     <h4 class="text-lg font-semibold text-gray-800 mt-6 mb-3">Analisis Gred</h4>
-                    <div id="analisa-table" class="overflow-x-auto mb-6">
-                        <!-- Table Analisis akan dimuatkan di sini -->
-                    </div>
+                    <div id="analisa-table" class="overflow-x-auto mb-6"></div>
                 </div>
 
                 <!-- Butang Tindakan -->
                 <div id="edit-actions" class="mt-6 flex flex-col sm:flex-row gap-3 no-print">
-                    <button onclick="simpanEditMarkah()" class="bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 transition font-semibold sm:w-1/4">Simpan Markah Yang Diedit</button>
-                    <button onclick="deleteMarkahByFilter()" class="bg-red-600 text-white py-3 rounded-md hover:bg-red-700 transition font-semibold sm:w-1/4">🗑️ Padam Markah</button>
+                    <button id="btn-simpan-edit" onclick="simpanEditMarkah()" class="bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 transition font-semibold sm:w-1/4">Simpan Markah</button>
+                    <button id="btn-padam-markah" onclick="deleteMarkahByFilter()" class="bg-red-600 text-white py-3 rounded-md hover:bg-red-700 transition font-semibold sm:w-1/4">🗑️ Padam Markah</button>
                     <button onclick="exportCSVEdit()" class="bg-indigo-600 text-white py-3 rounded-md hover:bg-indigo-700 transition font-semibold sm:w-1/4">Eksport CSV</button>
                     <button onclick="cetakLaporanEditPDF()" class="bg-gray-600 text-white py-3 rounded-md hover:bg-gray-700 transition font-semibold sm:w-1/4">Cetak Laporan (PDF)</button>
                 </div>
                 <p id="edit-status" class="mt-2 text-sm font-medium text-center"></p>
             </div>
+
+            <!-- Simpan baru (untuk rekod baru — tiada dalam DB lagi) — hidden by default -->
+            <div id="simpan-container" class="hidden no-print">
+                <button onclick="simpanMarkah()" class="w-full bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 transition font-semibold">Simpan Markah</button>
+                <p id="simpan-status" class="mt-2 text-sm font-medium text-center"></p>
+            </div>
+
+            <!-- Hidden elements untuk kekalkan ID lama yang dirujuk JS -->
+            <div class="hidden">
+                <select id="pilih-peperiksaan"><option value="">--</option></select>
+                <select id="pilih-tahun"><option value="">--</option></select>
+                <select id="pilih-kelas"><option value="">--</option></select>
+                <select id="pilih-subjek"><option value="">--</option></select>
+                <table id="markah-table"><tbody id="markah-table-body"></tbody></table>
+                <div id="markah-table-container"></div>
+            </div>
         </div>
+
+        <!-- dummy panel edit-cetak untuk kekalkan rujukan JS -->
+        <div id="edit-cetak-panel" class="hidden"></div>
 
         <!-- PANEL ANALISA KESELURUHAN -->
         <div id="analisa-panel" class="hidden bg-white p-6 rounded-xl shadow-xl print-panel">
             <div class="flex justify-between items-center border-b pb-3 mb-6">
-                 <h2 class="text-2xl font-bold text-gray-800">Analisa Markah Keseluruhan</h2>
-                 <button onclick="showPanel('markah')" class="text-sm text-gray-600 hover:text-gray-800 flex items-center no-print">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-1">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                    Tutup
-                 </button>
+                <div class="flex items-center gap-3">
+                    <button onclick="goHome()" class="btn-back no-print">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+                        Kembali
+                    </button>
+                    <h2 class="text-2xl font-bold text-gray-800">Analisa Markah Keseluruhan</h2>
+                </div>
             </div>
             
             <!-- Borang Pilihan Analisa -->
@@ -542,19 +526,17 @@
         <div id="analisa-subjek-panel" class="hidden bg-white p-6 rounded-xl shadow-xl print-panel">
             <div class="flex justify-between items-center border-b pb-3 mb-6">
                  <div class="flex items-center gap-4">
+                     <button onclick="goHome()" class="btn-back no-print">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+                         Kembali
+                     </button>
                      <h2 class="text-2xl font-bold text-gray-800">Dashboard Analisa Subjek</h2>
                      <div class="flex items-center gap-2 bg-green-50 border border-green-300 rounded-lg px-3 py-1.5 no-print">
                          <label for="analisa-subjek-year" class="text-xs font-bold text-green-800 whitespace-nowrap">Tahun:</label>
-                         <select id="analisa-subjek-year" onchange="analisaSubjekYear = this.value; loadDashboardSubjek();" class="text-sm border-0 bg-transparent font-semibold text-green-700 focus:ring-0 focus:outline-none">
+                         <select id="analisa-subjek-year" onchange="onAnalisaSubjekYearChange()" class="text-sm border-0 bg-transparent font-semibold text-green-700 focus:ring-0 focus:outline-none">
                          </select>
                      </div>
                  </div>
-                 <button onclick="showPanel('markah')" class="text-sm text-gray-600 hover:text-gray-800 flex items-center no-print">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-1">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                    Tutup
-                 </button>
             </div>
 
             <!-- DASHBOARD KESELURUHAN SUBJEK (AUTO-LOAD) -->
@@ -650,25 +632,46 @@
             <!-- BAHAGIAN ANALISA SUBJEK SPESIFIK (OPTIONAL) -->
             <h3 class="text-lg font-bold text-gray-700 mb-4 no-print">Analisa Terperinci Subjek Individu</h3>
             
+            <!-- Pilih Mod Analisa -->
+            <div class="flex flex-wrap gap-4 mb-4 no-print">
+                <label class="flex items-center gap-2 cursor-pointer bg-blue-50 border border-blue-300 rounded-lg px-4 py-2">
+                    <input type="radio" name="analisa-subjek-mod" value="darjah" id="analisa-mod-darjah" checked onchange="onAnalisaSubjekModChange()">
+                    <span class="text-sm font-semibold text-blue-800">Merentas Darjah <span class="text-xs font-normal text-blue-600">(1 tahun, semua darjah)</span></span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer bg-purple-50 border border-purple-300 rounded-lg px-4 py-2">
+                    <input type="radio" name="analisa-subjek-mod" value="tahun" id="analisa-mod-tahun" onchange="onAnalisaSubjekModChange()">
+                    <span class="text-sm font-semibold text-purple-800">Merentas Tahun Kalendar <span class="text-xs font-normal text-purple-600">(1 darjah, semua tahun)</span></span>
+                </label>
+            </div>
+
             <!-- Borang Pilihan Analisa Subjek -->
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6 no-print">
                 <div class="bg-blue-100 border-2 border-blue-400 rounded-lg p-3">
                     <label for="analisa-subjek-subjek" class="block text-xs font-bold text-blue-800 mb-1 uppercase">Pilih Subjek</label>
-                    <select id="analisa-subjek-subjek" class="block w-full px-3 py-2 text-sm border-2 border-blue-500 rounded-md focus:ring-2 focus:ring-blue-600 focus:border-blue-600 bg-white font-medium">
+                    <select id="analisa-subjek-subjek" onchange="onAnalisaSubjekSubjekChange()" class="block w-full px-3 py-2 text-sm border-2 border-blue-500 rounded-md focus:ring-2 focus:ring-blue-600 focus:border-blue-600 bg-white font-medium">
                         <option value="">-- Pilih Subjek --</option>
                     </select>
                 </div>
 
                 <div class="bg-yellow-100 border-2 border-yellow-400 rounded-lg p-3">
                     <label for="analisa-subjek-peperiksaan" class="block text-xs font-bold text-yellow-800 mb-1 uppercase">Pilih Jenis Peperiksaan</label>
-                    <select id="analisa-subjek-peperiksaan" class="block w-full px-3 py-2 text-sm border-2 border-yellow-500 rounded-md focus:ring-2 focus:ring-yellow-600 focus:border-yellow-600 bg-white font-medium">
+                    <select id="analisa-subjek-peperiksaan" onchange="onAnalisaSubjekPerikChange()" class="block w-full px-3 py-2 text-sm border-2 border-yellow-500 rounded-md focus:ring-2 focus:ring-yellow-600 focus:border-yellow-600 bg-white font-medium">
                         <option value="">-- Pilih Jenis --</option>
                     </select>
                 </div>
 
-                <div class="bg-gray-50 border-2 border-gray-300 rounded-lg p-3">
-                    <label class="block text-xs font-bold text-gray-700 mb-1 uppercase">Gunakan Tahun Panel</label>
-                    <p class="text-sm font-semibold text-green-700" id="analisa-subjek-year-display">-</p>
+                <!-- Kolum 3: Tahun info (Mod 1) atau Darjah dropdown (Mod 2) -->
+                <div>
+                    <div id="analisa-col3-year" class="bg-gray-50 border-2 border-gray-300 rounded-lg p-3 h-full">
+                        <label class="block text-xs font-bold text-gray-700 mb-1 uppercase">Tahun Kalendar</label>
+                        <p class="text-sm font-semibold text-green-700" id="analisa-subjek-year-display">-</p>
+                    </div>
+                    <div id="analisa-col3-darjah" class="hidden bg-purple-100 border-2 border-purple-400 rounded-lg p-3 h-full">
+                        <label for="analisa-subjek-darjah" class="block text-xs font-bold text-purple-800 mb-1 uppercase">Pilih Darjah</label>
+                        <select id="analisa-subjek-darjah" class="block w-full px-3 py-2 text-sm border-2 border-purple-500 rounded-md focus:ring-2 focus:ring-purple-600 focus:border-purple-600 bg-white font-medium">
+                            <option value="">-- Pilih Darjah --</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="flex items-end">
@@ -683,13 +686,13 @@
                     <p id="analisa-subjek-laporan-metadata" class="text-sm text-gray-600 mb-4"></p>
                     
                     <!-- Carta Bar Subjek -->
-                    <h4 class="text-lg font-semibold text-gray-800 mt-6 mb-3">Carta Analisa Gred Merentas Tahun (Peratus Pelajar)</h4>
+                    <h4 id="analisa-subjek-chart-title" class="text-lg font-semibold text-gray-800 mt-6 mb-3">Carta Analisa Gred Merentas Darjah (Peratus Pelajar)</h4>
                     <div class="w-full h-96 bg-gray-50 p-2 rounded-lg shadow-inner">
                         <canvas id="analisa-subjek-chart"></canvas>
                     </div>
 
                     <!-- Jadual Analisis Gred Subjek -->
-                    <h4 class="text-lg font-semibold text-gray-800 mt-6 mb-3">Jadual Analisa Gred Merentas Tahun</h4>
+                    <h4 id="analisa-subjek-table-title" class="text-lg font-semibold text-gray-800 mt-6 mb-3">Jadual Analisa Gred Merentas Darjah</h4>
                     <div id="analisa-subjek-data-table" class="overflow-x-auto mb-8">
                         <!-- Table Analisis akan dimuatkan di sini -->
                     </div>
@@ -707,13 +710,13 @@
         <!-- PANEL MURID TERBAIK (BARU & BERASINGAN) -->
         <div id="murid-terbaik-panel" class="hidden bg-white p-6 rounded-xl shadow-xl print-panel">
             <div class="flex justify-between items-center border-b pb-3 mb-6">
-                 <h2 class="text-2xl font-bold text-gray-800">Murid Terbaik Mengikut Subjek</h2>
-                 <button onclick="showPanel('markah')" class="text-sm text-gray-600 hover:text-gray-800 flex items-center no-print">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-1">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                    Tutup
-                 </button>
+                <div class="flex items-center gap-3">
+                    <button onclick="goHome()" class="btn-back no-print">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+                        Kembali
+                    </button>
+                    <h2 class="text-2xl font-bold text-gray-800">Murid Terbaik Mengikut Subjek</h2>
+                </div>
             </div>
 
             <!-- Borang Pilihan Murid Terbaik -->
@@ -776,13 +779,13 @@
         <!-- PANEL GURU KELAS (BARU) -->
         <div id="guru-kelas-panel" class="hidden bg-white p-6 rounded-xl shadow-xl print-panel">
             <div class="flex justify-between items-center border-b pb-3 mb-6">
-                 <h2 class="text-2xl font-bold text-gray-800">Urusan Guru Kelas</h2>
-                 <button onclick="showPanel('markah')" class="text-sm text-gray-600 hover:text-gray-800 flex items-center no-print">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-1">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                    Tutup
-                 </button>
+                <div class="flex items-center gap-3">
+                    <button onclick="goHome()" class="btn-back no-print">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+                        Kembali
+                    </button>
+                    <h2 class="text-2xl font-bold text-gray-800">Urusan Guru Kelas</h2>
+                </div>
             </div>
 
             <!-- TAB NAVIGATION -->
@@ -932,9 +935,94 @@
         </div>
 
         
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- PANEL ANALISA KELAS                                     -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <div id="analisa-kelas-panel" class="hidden bg-white p-6 rounded-xl shadow-xl print-panel">
+            <div class="flex items-center justify-between border-b pb-3 mb-6 no-print">
+                <h2 class="text-xl font-bold text-gray-800">🏫 Analisa Mengikut Kelas</h2>
+                <button onclick="goHome()" class="btn-back">← Utama</button>
+            </div>
+
+            <!-- FILTER -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 no-print">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-600 mb-1">Tahun Kalendar</label>
+                    <select id="ak-year" class="w-full border rounded-lg px-3 py-2 text-sm" onchange="onAKYearChange()">
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-600 mb-1">Jenis Peperiksaan</label>
+                    <select id="ak-peperiksaan" class="w-full border rounded-lg px-3 py-2 text-sm" onchange="onAKPeperiksaanChange()" disabled>
+                        <option value="">-- Pilih Peperiksaan --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-600 mb-1">Tahun Darjah</label>
+                    <select id="ak-tahun" class="w-full border rounded-lg px-3 py-2 text-sm" onchange="onAKTahunChange()" disabled>
+                        <option value="">-- Pilih Tahun --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-600 mb-1">Subjek</label>
+                    <select id="ak-subjek" class="w-full border rounded-lg px-3 py-2 text-sm" onchange="renderAnalisaKelas()" disabled>
+                        <option value="">-- Pilih Subjek --</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- JADUAL ANALISA -->
+            <div id="ak-container" class="hidden">
+                <!-- Tajuk untuk cetakan sahaja -->
+                <div class="hidden print-only mb-4" id="ak-print-header" style="display:none;">
+                    <h2 class="text-xl font-bold text-center text-gray-800">🏫 Analisa Mengikut Kelas</h2>
+                    <p id="ak-print-info" class="text-center text-sm text-gray-600 mt-1"></p>
+                </div>
+                <div class="flex items-center justify-between mb-3 no-print">
+                    <p id="ak-info" class="text-sm text-gray-500"></p>
+                    <button onclick="cetakAnalisaKelas()" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-600">🖨️ Cetak</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-gray-700 text-white">
+                                <th class="px-4 py-3 text-left rounded-tl-lg">KELAS</th>
+                                <th class="px-3 py-3 text-center bg-green-700">A</th>
+                                <th class="px-3 py-3 text-center bg-green-600">%</th>
+                                <th class="px-3 py-3 text-center bg-blue-700">B</th>
+                                <th class="px-3 py-3 text-center bg-blue-600">%</th>
+                                <th class="px-3 py-3 text-center bg-yellow-600">C</th>
+                                <th class="px-3 py-3 text-center bg-yellow-500">%</th>
+                                <th class="px-3 py-3 text-center bg-orange-600">D</th>
+                                <th class="px-3 py-3 text-center bg-orange-500">%</th>
+                                <th class="px-3 py-3 text-center bg-red-700">E</th>
+                                <th class="px-3 py-3 text-center bg-red-600">%</th>
+                                <th class="px-3 py-3 text-center rounded-tr-lg">JML</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ak-tbody"></tbody>
+                        <tfoot id="ak-tfoot"></tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- EMPTY STATE -->
+            <div id="ak-empty" class="text-center py-16 text-gray-400">
+                <div class="text-6xl mb-4">🏫</div>
+                <p class="text-lg font-semibold text-gray-500">Pilih Peperiksaan, Tahun dan Subjek</p>
+                <p class="text-sm mt-1">Jadual analisa semua kelas akan muncul di sini</p>
+            </div>
+        </div>
+
         <!-- PANEL ADMIN -->
         <div id="admin-panel" class="hidden bg-white p-6 rounded-xl shadow-xl">
-            <h2 class="text-2xl font-bold text-gray-800 border-b pb-3 mb-6">Panel Admin: Import Data Pelajar</h2>
+            <div class="flex items-center gap-3 border-b pb-3 mb-6">
+                <button onclick="goHome()" class="btn-back no-print">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+                    Kembali
+                </button>
+                <h2 class="text-2xl font-bold text-gray-800">Panel Admin</h2>
+            </div>
             
             <!-- TAB NAVIGATION -->
             <div class="flex border-b mb-6 no-print flex-wrap">
@@ -1117,8 +1205,21 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label for="slip-setting-logo" class="block text-sm font-medium text-gray-700 mb-2">URL Logo Sekolah</label>
-                            <input type="url" id="slip-setting-logo" placeholder="https://i.postimg.cc/gJDV1vYg/SKSI.png" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm">
+                            <div class="flex gap-2">
+                                <input type="url" id="slip-setting-logo" placeholder="https://i.postimg.cc/gJDV1vYg/SKSI.png" class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm">
+                                <input type="file" id="slip-upload-logo" accept="image/*" class="hidden" onchange="uploadSlipImage(this, 'slip-setting-logo', 'logo')">
+                                <button type="button" onclick="document.getElementById('slip-upload-logo').click()" class="whitespace-nowrap bg-gray-600 text-white px-3 py-2 rounded-md hover:bg-gray-700 transition text-sm font-medium">Upload</button>
+                            </div>
                             <p class="text-xs text-gray-500 mt-1">Kosongkan untuk guna logo dari header utama</p>
+                        </div>
+                        <div>
+                            <label for="slip-setting-jata" class="block text-sm font-medium text-gray-700 mb-2">URL Jata Negara Malaysia</label>
+                            <div class="flex gap-2">
+                                <input type="url" id="slip-setting-jata" placeholder="https://.../jata-negara.png" class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm">
+                                <input type="file" id="slip-upload-jata" accept="image/*" class="hidden" onchange="uploadSlipImage(this, 'slip-setting-jata', 'jata')">
+                                <button type="button" onclick="document.getElementById('slip-upload-jata').click()" class="whitespace-nowrap bg-gray-600 text-white px-3 py-2 rounded-md hover:bg-gray-700 transition text-sm font-medium">Upload</button>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">Kosongkan jika tidak perlu Jata Negara</p>
                         </div>
                         <div>
                             <label for="slip-setting-sekolah" class="block text-sm font-medium text-gray-700 mb-2">Nama Sekolah</label>
@@ -1130,7 +1231,11 @@
                         </div>
                         <div>
                             <label for="slip-setting-tandatangan" class="block text-sm font-medium text-gray-700 mb-2">URL Tandatangan Guru Besar</label>
-                            <input type="url" id="slip-setting-tandatangan" placeholder="https://example.com/signature.png" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm">
+                            <div class="flex gap-2">
+                                <input type="url" id="slip-setting-tandatangan" placeholder="https://example.com/signature.png" class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm">
+                                <input type="file" id="slip-upload-tandatangan" accept="image/*" class="hidden" onchange="uploadSlipImage(this, 'slip-setting-tandatangan', 'tandatangan')">
+                                <button type="button" onclick="document.getElementById('slip-upload-tandatangan').click()" class="whitespace-nowrap bg-gray-600 text-white px-3 py-2 rounded-md hover:bg-gray-700 transition text-sm font-medium">Upload</button>
+                            </div>
                             <p class="text-xs text-gray-500 mt-1">Kosongkan jika tidak perlu</p>
                         </div>
                         <div>
@@ -1209,6 +1314,18 @@
                                 <label for="slip-ranking-year" class="text-sm cursor-pointer font-medium">Kedudukan Dalam Tahun</label>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Download Pukal Ikut Darjah (ZIP dipisah folder kelas) -->
+                    <div class="mt-4 border-t border-gray-200 pt-4">
+                        <h5 class="text-sm font-semibold text-gray-800 mb-2">Muat Turun Pukal Seluruh Darjah:</h5>
+                        <p class="text-xs text-gray-500 mb-3">Jana slip untuk <strong>semua kelas</strong> dalam Darjah &amp; Jenis Peperiksaan yang dipilih di atas. Fail ZIP akan dipisahkan mengikut folder kelas (cth: <code>4 INTEL/</code>, <code>4 BYTECH/</code>). Menggunakan subjek &amp; kedudukan yang ditick.</p>
+                        <button onclick="downloadSlipDarjah()" class="w-full sm:w-auto bg-indigo-600 text-white py-2.5 px-6 rounded-md hover:bg-indigo-700 transition font-semibold flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                            </svg>
+                            Muat Turun Semua Slip Darjah (ZIP ikut Kelas)
+                        </button>
                     </div>
                 </div>
                 
@@ -1604,6 +1721,7 @@
     -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
     <script>
         // ==========================================================
@@ -1671,6 +1789,7 @@
 
         // Pembolehubah Global
         let db;
+        let storage;
         let GLOBAL_DATA = {
             students: [],
             grades: [],
@@ -1702,6 +1821,7 @@
         let collectionToDelete = ''; // Simpan nama koleksi untuk dipadam
         let analisaChartInstance = null; // Simpan rujukan carta
         let analisaSubjekChartInstance = null; // Carta baru
+        let analisaSubjekMod = 'darjah'; // 'darjah' = Merentas Darjah, 'tahun' = Merentas Tahun Kalendar
         let dashboardSubjekChartInstance = null; // Carta dashboard keseluruhan subjek
         let analisaReportData = []; // Simpan data agregat untuk CSV
         let analisaSubjekReportData = []; // Simpan data agregat untuk CSV Analisa Subjek
@@ -1756,15 +1876,19 @@
             console.log('📅 Year filter populated. Available years:', availableYears, '| Default: Tahun', selectedYear);
         }
 
-        function onGlobalYearChange() {
+        async function onGlobalYearChange() {
             const yearFilterDropdown = document.getElementById('global-year-filter');
             selectedYear = yearFilterDropdown.value;
-            
+
             // Save to localStorage
             localStorage.setItem('selectedYear', selectedYear);
 
             // Show notification
             showNotification("PENAPIS TAHUN", `Data ditapis untuk: Tahun ${selectedYear}`, false);
+
+            // Reload exam types untuk tahun yang dipilih supaya dropdown Jenis Peperiksaan betul
+            await loadExamTypes(parseInt(selectedYear));
+            populateAllExamDropdowns();
 
             // Refresh current panel if open
             refreshCurrentPanel();
@@ -1936,9 +2060,6 @@
                  kelasSelect.disabled = false;
              }
 
-             // Tapis dropdown jenis peperiksaan mengikut darjah yang dipilih
-             filterExamDropdownByDarjah(tahun, 'pilih-peperiksaan');
-
              onKelasChange();
              document.getElementById('markah-table').classList.add('hidden');
              document.getElementById('simpan-container').classList.add('hidden');
@@ -1990,119 +2111,176 @@
              document.getElementById('simpan-container').classList.add('hidden');
         }
 
-        function onEditTahunChange() {
-            const tahun = document.getElementById('edit-tahun').value;
+        // Aliran baru: Year → Peperiksaan → Darjah → Kelas → Subjek → Cari
+
+        async function onEditYearChange() {
+            editYear = document.getElementById('edit-year').value;
+            // Reset semua dropdown bawah
+            const perikSelect = document.getElementById('edit-peperiksaan');
+            perikSelect.innerHTML = '<option value="">-- Pilih Jenis --</option>';
+            perikSelect.disabled = true;
+            const tahunSelect = document.getElementById('edit-tahun');
+            tahunSelect.innerHTML = '<option value="">-- Pilih Darjah --</option>';
+            tahunSelect.disabled = true;
             const kelasSelect = document.getElementById('edit-kelas');
-            
             kelasSelect.innerHTML = '<option value="">-- Pilih Kelas --</option>';
             kelasSelect.disabled = true;
             document.getElementById('edit-subjek').innerHTML = '<option value="">-- Pilih Subjek --</option>';
             document.getElementById('edit-subjek').disabled = true;
-            document.getElementById('edit-peperiksaan').disabled = true;
-
-            if (!tahun) {
-                document.getElementById('laporan-container').classList.add('hidden');
-                return;
-            }
-
-            // Get unique classes directly from rekodMarkah (allMarks)
-            const classesWithMarks = new Set(
-                GLOBAL_DATA.allMarks
-                    .filter(m => m.tahun === tahun)
-                    .map(m => m.kelas)
-                    .filter(k => k) // Remove empty values
-            );
-            
-            if (classesWithMarks.size > 0) { 
-                // Convert Set to Array and sort
-                const availableClasses = Array.from(classesWithMarks).sort();
-                
-                availableClasses.forEach(kelas => {
-                    const option = document.createElement('option');
-                    option.value = kelas;
-                    option.textContent = kelas;
-                    kelasSelect.appendChild(option);
-                });
-                kelasSelect.disabled = false;
-                
-                console.log(`✅ Edit panel: ${availableClasses.length} kelas tersedia untuk tahun ${tahun}:`, availableClasses);
-            } else {
-                console.log(`⚠️ Edit panel: Tiada kelas dengan markah untuk tahun ${tahun}`);
-            }
             document.getElementById('laporan-container').classList.add('hidden');
+            setEditReadOnly(false);
+
+            if (!editYear) return;
+
+            // Pastikan data marks untuk tahun ini sudah diload ke cache
+            await ensureMarksLoaded(parseInt(editYear));
+            // Pre-load examTypes untuk tahun dipilih (untuk semak aktif)
+            await loadExamTypes(parseInt(editYear));
+
+            // Isi edit-peperiksaan dengan jenis yang ada rekod untuk tahun ini.
+            // NOTA: SEMUA exam ditunjukkan (aktif & tidak aktif). Exam yang tidak aktif
+            // masih boleh dipilih untuk MOD TENGOK SAHAJA (view + cetak, tanpa edit/simpan/padam).
+            const examsForYear = new Set(
+                getMarksByYear(editYear).map(m => m["JENIS PEPERIKSAAN"]).filter(Boolean)
+            );
+            if (examsForYear.size > 0) {
+                Array.from(examsForYear).sort().forEach(examName => {
+                    const opt = document.createElement('option');
+                    opt.value = examName;
+                    opt.textContent = examName;
+                    perikSelect.appendChild(opt);
+                });
+                perikSelect.disabled = false;
+            }
         }
 
+        // Peperiksaan dipilih → isi Darjah
+        function onEditPeperiksaanChange() {
+            const peperiksaan = document.getElementById('edit-peperiksaan').value;
+            const tahunSelect = document.getElementById('edit-tahun');
+            const kelasSelect = document.getElementById('edit-kelas');
+            const subjekSelect = document.getElementById('edit-subjek');
+
+            tahunSelect.innerHTML = '<option value="">-- Pilih Darjah --</option>';
+            tahunSelect.disabled = true;
+            kelasSelect.innerHTML = '<option value="">-- Pilih Kelas --</option>';
+            kelasSelect.disabled = true;
+            subjekSelect.innerHTML = '<option value="">-- Pilih Subjek --</option>';
+            subjekSelect.disabled = true;
+            document.getElementById('laporan-container').classList.add('hidden');
+
+            if (!peperiksaan) return;
+
+            // Darjah yang ada rekod untuk year + peperiksaan ini
+            const darjahOrder = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
+            const darjahWithMarks = new Set(
+                getMarksByYear(editYear)
+                    .filter(m => m["JENIS PEPERIKSAAN"] === peperiksaan)
+                    .map(m => m.tahun)
+                    .filter(Boolean)
+            );
+            if (darjahWithMarks.size > 0) {
+                Array.from(darjahWithMarks)
+                    .sort((a, b) => {
+                        const ai = darjahOrder.indexOf(a);
+                        const bi = darjahOrder.indexOf(b);
+                        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+                    })
+                    .forEach(d => {
+                        const opt = document.createElement('option');
+                        opt.value = d;
+                        opt.textContent = d;
+                        tahunSelect.appendChild(opt);
+                    });
+                tahunSelect.disabled = false;
+            }
+        }
+
+        // Darjah dipilih → isi Kelas
+        function onEditTahunChange() {
+            const peperiksaan = document.getElementById('edit-peperiksaan').value;
+            const tahun = document.getElementById('edit-tahun').value;
+            const kelasSelect = document.getElementById('edit-kelas');
+            const subjekSelect = document.getElementById('edit-subjek');
+
+            kelasSelect.innerHTML = '<option value="">-- Pilih Kelas --</option>';
+            kelasSelect.disabled = true;
+            subjekSelect.innerHTML = '<option value="">-- Pilih Subjek --</option>';
+            subjekSelect.disabled = true;
+            document.getElementById('laporan-container').classList.add('hidden');
+
+            if (!peperiksaan || !tahun) return;
+
+            const classesWithMarks = new Set(
+                getMarksByYear(editYear)
+                    .filter(m => m["JENIS PEPERIKSAAN"] === peperiksaan && m.tahun === tahun)
+                    .map(m => m.kelas)
+                    .filter(k => k)
+            );
+            if (classesWithMarks.size > 0) {
+                Array.from(classesWithMarks).sort().forEach(kelas => {
+                    const opt = document.createElement('option');
+                    opt.value = kelas;
+                    opt.textContent = kelas;
+                    kelasSelect.appendChild(opt);
+                });
+                kelasSelect.disabled = false;
+            }
+        }
+
+        // Kelas dipilih → isi Subjek
         function onEditKelasChange() {
+            const peperiksaan = document.getElementById('edit-peperiksaan').value;
             const tahun = document.getElementById('edit-tahun').value;
             const kelas = document.getElementById('edit-kelas').value;
             const subjekSelect = document.getElementById('edit-subjek');
-            const examSelect = document.getElementById('edit-peperiksaan');
 
             subjekSelect.innerHTML = '<option value="">-- Pilih Subjek --</option>';
             subjekSelect.disabled = true;
-            examSelect.innerHTML = '<option value="">-- Pilih Jenis --</option>';
-            examSelect.disabled = true;
+            document.getElementById('laporan-container').classList.add('hidden');
 
-            if (!tahun || !kelas) return;
-            
-            const marksForClass = GLOBAL_DATA.allMarks.filter(mark => 
-                mark.tahun === tahun && mark.kelas === kelas
+            if (!peperiksaan || !tahun || !kelas) return;
+
+            // Subjek yang sudah ada rekod
+            const subjectsWithRecords = new Set(
+                getMarksByYear(editYear)
+                    .filter(m => m["JENIS PEPERIKSAAN"] === peperiksaan && m.tahun === tahun && m.kelas === kelas)
+                    .map(m => m.subjek)
+                    .filter(Boolean)
             );
-            
-            const subjectsCompleted = new Set(marksForClass.map(m => m.subjek));
-            
-            if (subjectsCompleted.size > 0) {
-                 subjectsCompleted.forEach(subjectName => {
-                    const option = document.createElement('option');
-                    option.value = subjectName;
-                    option.textContent = subjectName;
-                    subjekSelect.appendChild(option);
+
+            // Tunjuk SEMUA subjek — tandakan yang sudah ada rekod
+            const darjahNum = { 'SATU':1,'DUA':2,'TIGA':3,'EMPAT':4,'LIMA':5,'ENAM':6 }[tahun];
+            const allSubjek = GLOBAL_DATA.allSubjects
+                .filter(s => s.nama_penuh)
+                .sort((a, b) => (a.nama_penuh).localeCompare(b.nama_penuh));
+
+            if (allSubjek.length > 0) {
+                allSubjek.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.nama_penuh;
+                    const hasRecord = subjectsWithRecords.has(s.nama_penuh);
+                    opt.textContent = hasRecord ? `${s.nama_penuh} ✓` : s.nama_penuh;
+                    subjekSelect.appendChild(opt);
                 });
                 subjekSelect.disabled = false;
             }
-            document.getElementById('laporan-container').classList.add('hidden');
         }
 
+        // Subjek tukar → sembunyikan laporan lama
         function onEditSubjekChange() {
-            const tahun = document.getElementById('edit-tahun').value;
-            const kelas = document.getElementById('edit-kelas').value;
-            const subjek = document.getElementById('edit-subjek').value;
-            const examSelect = document.getElementById('edit-peperiksaan');
-
-            examSelect.innerHTML = '<option value="">-- Pilih Jenis --</option>';
-            examSelect.disabled = true;
-            
-            if (!tahun || !kelas || !subjek) return;
-
-            const examsForSubject = new Set(GLOBAL_DATA.allMarks.filter(mark => 
-                mark.tahun === tahun && mark.kelas === kelas && mark.subjek === subjek
-            ).map(m => m["JENIS PEPERIKSAAN"])); 
-
-            if (examsForSubject.size > 0) {
-                 examsForSubject.forEach(examName => {
-                    const option = document.createElement('option');
-                    option.value = examName;
-                    option.textContent = examName;
-                    examSelect.appendChild(option);
-                });
-                examSelect.disabled = false;
-            }
             document.getElementById('laporan-container').classList.add('hidden');
-        }
-        
-        // AUTO-REFRESH when peperiksaan changes
-        function onEditPeperiksaanChange() {
-            const peperiksaan = document.getElementById('edit-peperiksaan').value;
-            if (peperiksaan) {
-                console.log('🔄 Auto-refreshing edit table for:', peperiksaan);
-                cariMarkahEdit();
-            }
         }
 
         // ==========================================================
         // DELETE MARKAH FUNCTION (GUNA EDIT DROPDOWNS)
         // ==========================================================
         async function deleteMarkahByFilter() {
+            // Penjaga: mod tengok sahaja tidak boleh padam
+            if (isEditExamReadOnly()) {
+                showNotification("MOD TENGOK SAHAJA", "Peperiksaan ini dikunci oleh admin. Anda hanya boleh melihat dan mencetak.", true);
+                return;
+            }
             const tahun = document.getElementById('edit-tahun').value;
             const kelas = document.getElementById('edit-kelas').value;
             const subjek = document.getElementById('edit-subjek').value;
@@ -2240,20 +2418,21 @@
             }
         }
 
-        // Isi dropdown status-peperiksaan mengikut tahun
+        // Isi dropdown status-peperiksaan mengikut tahun — sumber: rekodMarkah (tunjuk semua)
         async function _populateStatusPerikDropdown(year) {
             const el = document.getElementById('status-peperiksaan');
             if (!el) return;
-            const examTypes = await getExamTypesForYear(year);
+            await ensureMarksLoaded(year);
+            const marks = getMarksByYear(year);
+            const examNames = [...new Set(marks.map(m => m["JENIS PEPERIKSAAN"]).filter(Boolean))].sort();
             const currentVal = el.value;
             el.innerHTML = '<option value="">-- Pilih Jenis Peperiksaan --</option>';
-            examTypes.forEach(et => {
+            examNames.forEach(e => {
                 const opt = document.createElement('option');
-                opt.value = et.nama;
-                opt.textContent = et.nama;
+                opt.value = e; opt.textContent = e;
                 el.appendChild(opt);
             });
-            if (currentVal && examTypes.some(et => et.nama === currentVal)) el.value = currentVal;
+            if (currentVal && examNames.includes(currentVal)) el.value = currentVal;
         }
 
         async function loadStatusPengisian() {
@@ -2276,12 +2455,22 @@
             const currentYear = statusYearEl ? parseInt(statusYearEl.value) : new Date().getFullYear();
             const darjahToTahun = { 1: 'SATU', 2: 'DUA', 3: 'TIGA', 4: 'EMPAT', 5: 'LIMA', 6: 'ENAM' };
 
-            // Ambil exam types terus untuk tahun yang dipilih — jangan bergantung pada cache sahaja
+            // Cuba ambil darjah dari examTypes, fallback ke rekodMarkah jika tiada
             const examTypesForYear = await getExamTypesForYear(currentYear);
             const examTypeDef = examTypesForYear.find(et => et.nama === jenisPeperiksaan);
-            const darjahTerlibat = examTypeDef && Array.isArray(examTypeDef.darjah) && examTypeDef.darjah.length > 0
-                ? examTypeDef.darjah.map(Number).sort((a,b) => a-b)
-                : [];
+            let darjahTerlibat = [];
+            if (examTypeDef && Array.isArray(examTypeDef.darjah) && examTypeDef.darjah.length > 0) {
+                darjahTerlibat = examTypeDef.darjah.map(Number).sort((a,b) => a-b);
+            } else {
+                // Fallback: derive darjah dari rekodMarkah yang sebenar
+                const _tahunToDarjahLocal = { 'SATU':1,'DUA':2,'TIGA':3,'EMPAT':4,'LIMA':5,'ENAM':6 };
+                darjahTerlibat = [...new Set(
+                    getMarksByYear(currentYear)
+                        .filter(m => m["JENIS PEPERIKSAAN"] === jenisPeperiksaan)
+                        .map(m => _tahunToDarjahLocal[m.tahun])
+                        .filter(Boolean)
+                )].sort((a,b) => a-b);
+            }
 
             // Semua subjek dari sistem (nama_penuh), disusun mengikut nama_pendek
             const sortedSubjects = GLOBAL_DATA.allSubjects
@@ -2722,8 +2911,8 @@
                     statusDiv.textContent = `Penyimpanan ${updatesCount} rekod murid BERJAYA!`;
                     statusDiv.className = 'mt-2 text-sm font-medium text-green-600';
                     
-                    // Muatkan semula data global dan jadual
-                    await bacaInitialData();
+                    // Muatkan semula data global dari Firestore (bukan cache) supaya perubahan agama/kelas segera berkesan
+                    await bacaInitialData(true);
                     cariMuridUntukEdit();
                 } catch (error) {
                     showNotification("RALAT SIMPAN", `Gagal menyimpan murid yang diedit. Ralat: ${error.message}`, true);
@@ -2949,16 +3138,15 @@
 
         // Refresh sub-dropdown Analisa berdasarkan tahun dipilih
         async function refreshAnalisaSubDropdowns(year) {
+            await ensureMarksLoaded(year);
             const marks = getMarksByYear(year);
             const tahunSet = new Set(marks.map(m => m.tahun).filter(Boolean));
 
-            // Exam types dari examTypes DB (bukan rekodMarkah) — terkawal & year-filtered
-            const etForYear = await getExamTypesForYear(parseInt(year));
-            const examNames = etForYear.map(et => et.nama).sort();
+            // Tunjuk semua exam — tiada tapis aktif untuk menu Analisa
+            const examNames = [...new Set(marks.map(m => m["JENIS PEPERIKSAAN"]).filter(Boolean))].sort();
 
-            const tahunDrop    = document.getElementById('analisa-tahun');
-            const examDrop     = document.getElementById('analisa-peperiksaan');
-            const subjekExamDrop = document.getElementById('analisa-subjek-peperiksaan');
+            const tahunDrop = document.getElementById('analisa-tahun');
+            const examDrop  = document.getElementById('analisa-peperiksaan');
 
             if (tahunDrop) {
                 tahunDrop.innerHTML = '<option value="">-- Pilih Darjah --</option>';
@@ -2968,30 +3156,28 @@
                     tahunDrop.appendChild(opt);
                 });
             }
-            // Analisa Keseluruhan & Analisa Subjek individu — sumber sama: examTypes
-            [examDrop, subjekExamDrop].forEach(drop => {
-                if (!drop) return;
-                drop.innerHTML = '<option value="">-- Pilih Jenis --</option>';
+            if (examDrop) {
+                examDrop.innerHTML = '<option value="">-- Pilih Jenis --</option>';
                 examNames.forEach(e => {
                     const opt = document.createElement('option');
                     opt.value = e; opt.textContent = e;
-                    drop.appendChild(opt);
+                    examDrop.appendChild(opt);
                 });
-            });
-            // Sembunyikan hasil lama
+            }
+            // analisa-subjek-peperiksaan kini cascade dari Subjek — tidak diisi di sini
             const container = document.getElementById('analisa-laporan-container');
             if (container) container.classList.add('hidden');
         }
 
         // Refresh sub-dropdown Murid Terbaik berdasarkan tahun dipilih
         async function refreshMuridTerbaikSubDropdowns(year) {
+            await ensureMarksLoaded(year);
             const marks = getMarksByYear(year);
             const tahunSet  = new Set(marks.map(m => m.tahun).filter(Boolean));
             const subjekSet = new Set(marks.map(m => m.subjek).filter(Boolean));
 
-            // Exam types dari examTypes DB (bukan rekodMarkah) — terkawal & year-filtered
-            const etForYear = await getExamTypesForYear(parseInt(year));
-            const examNames = etForYear.map(et => et.nama).sort();
+            // Tunjuk semua exam — tiada tapis aktif untuk menu Murid Terbaik
+            const examNames = [...new Set(marks.map(m => m["JENIS PEPERIKSAAN"]).filter(Boolean))].sort();
 
             const tahunDrop  = document.getElementById('terbaik-tahun');
             const examDrop   = document.getElementById('terbaik-peperiksaan');
@@ -3032,6 +3218,103 @@
             analisaYear = year;
             await ensureMarksLoaded(year);
             refreshAnalisaSubDropdowns(year);
+        }
+
+        // Handler: user tukar tahun dalam Analisa Subjek
+        async function onAnalisaSubjekYearChange() {
+            const year = document.getElementById('analisa-subjek-year').value;
+            analisaSubjekYear = year;
+            await ensureMarksLoaded(year);
+            await loadDashboardSubjek();
+            populateExamTypeDropdown();
+            refreshAnalisaSubDropdowns(year);
+            // Reset bahagian analisa terperinci
+            document.getElementById('analisa-subjek-peperiksaan').innerHTML = '<option value="">-- Pilih Jenis --</option>';
+            document.getElementById('analisa-subjek-darjah').innerHTML = '<option value="">-- Pilih Darjah --</option>';
+            document.getElementById('analisa-subjek-laporan-container').classList.add('hidden');
+            // Re-populate peperiksaan jika subjek sudah dipilih
+            const subjek = document.getElementById('analisa-subjek-subjek').value;
+            if (subjek) onAnalisaSubjekSubjekChange();
+        }
+
+        // Handler: user tukar mod (Merentas Darjah / Merentas Tahun Kalendar)
+        async function onAnalisaSubjekModChange() {
+            analisaSubjekMod = document.querySelector('input[name="analisa-subjek-mod"]:checked').value;
+            // Toggle kolum 3
+            document.getElementById('analisa-col3-year').classList.toggle('hidden', analisaSubjekMod === 'tahun');
+            document.getElementById('analisa-col3-darjah').classList.toggle('hidden', analisaSubjekMod === 'darjah');
+            // Reset downstream
+            document.getElementById('analisa-subjek-peperiksaan').innerHTML = '<option value="">-- Pilih Jenis --</option>';
+            document.getElementById('analisa-subjek-darjah').innerHTML = '<option value="">-- Pilih Darjah --</option>';
+            document.getElementById('analisa-subjek-laporan-container').classList.add('hidden');
+            // Re-populate peperiksaan kalau subjek sudah ada
+            const subjek = document.getElementById('analisa-subjek-subjek').value;
+            if (subjek) await onAnalisaSubjekSubjekChange();
+        }
+
+        // Handler: user pilih Subjek dalam Analisa Terperinci
+        async function onAnalisaSubjekSubjekChange() {
+            const subjek = document.getElementById('analisa-subjek-subjek').value;
+            const perikSel = document.getElementById('analisa-subjek-peperiksaan');
+            perikSel.innerHTML = '<option value="">-- Pilih Jenis --</option>';
+            document.getElementById('analisa-subjek-darjah').innerHTML = '<option value="">-- Pilih Darjah --</option>';
+            document.getElementById('analisa-subjek-laporan-container').classList.add('hidden');
+            if (!subjek) return;
+
+            // Tunjuk semua exam — tiada tapis aktif untuk Analisa Subjek
+            let examNames;
+            if (analisaSubjekMod === 'darjah') {
+                // Mod 1: tapis ikut tahun panel sahaja
+                examNames = [...new Set(
+                    getMarksByYear(analisaSubjekYear)
+                        .filter(m => m.subjek === subjek)
+                        .map(m => m['JENIS PEPERIKSAAN'])
+                        .filter(Boolean)
+                )].sort();
+            } else {
+                // Mod 2: tapis dari semua tahun yang ada
+                await Promise.all(availableYears.map(y => ensureMarksLoaded(y)));
+                const allMarks = Object.values(marksCache).flat();
+                examNames = [...new Set(
+                    allMarks.filter(m => m.subjek === subjek)
+                        .map(m => m['JENIS PEPERIKSAAN'])
+                        .filter(Boolean)
+                )].sort();
+            }
+
+            examNames.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                perikSel.appendChild(opt);
+            });
+        }
+
+        // Handler: user pilih Jenis Peperiksaan dalam Analisa Terperinci
+        async function onAnalisaSubjekPerikChange() {
+            const subjek = document.getElementById('analisa-subjek-subjek').value;
+            const perik = document.getElementById('analisa-subjek-peperiksaan').value;
+            document.getElementById('analisa-subjek-laporan-container').classList.add('hidden');
+
+            // Darjah dropdown hanya untuk Mod 2
+            if (analisaSubjekMod !== 'tahun' || !subjek || !perik) return;
+
+            const darjahSel = document.getElementById('analisa-subjek-darjah');
+            darjahSel.innerHTML = '<option value="">-- Pilih Darjah --</option>';
+            const darjahOrder = ['SATU','DUA','TIGA','EMPAT','LIMA','ENAM'];
+            const allMarks = Object.values(marksCache).flat();
+            const darjahs = [...new Set(
+                allMarks.filter(m => m.subjek === subjek && m['JENIS PEPERIKSAAN'] === perik)
+                    .map(m => m.tahun)
+                    .filter(Boolean)
+            )].sort((a, b) => darjahOrder.indexOf(a) - darjahOrder.indexOf(b));
+
+            darjahs.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d;
+                opt.textContent = d;
+                darjahSel.appendChild(opt);
+            });
         }
 
         // Handler: user tukar tahun dalam Murid Terbaik
@@ -3599,7 +3882,7 @@
                  showNotification("BERJAYA!", `Filter agama untuk ${selectedName} berjaya ditetapkan kepada '${filterValue}'.`, false);
                  statusDiv.textContent = 'Penyimpanan Berjaya!';
                  
-                 await bacaInitialData(); // Muat semula data subjek global
+                 await bacaInitialData(true); // Force refresh — pastikan agama_filter baru segera berkesan
                  renderSubjekFilterList();
 
              } catch (error) {
@@ -3976,6 +4259,7 @@
             
             // Populate form fields
             document.getElementById('slip-setting-logo').value = settings.logoUrl || '';
+            document.getElementById('slip-setting-jata').value = settings.jataUrl || '';
             document.getElementById('slip-setting-sekolah').value = settings.namaSekolah || '';
             document.getElementById('slip-setting-tajuk').value = settings.namaSlip || '';
             document.getElementById('slip-setting-tandatangan').value = settings.tandatanganGB || '';
@@ -3983,6 +4267,52 @@
             document.getElementById('slip-setting-jawatan').value = settings.jawatan || '';
         }
         
+        // Upload imej slip (logo / jata / tandatangan) ke Firebase Storage
+        async function uploadSlipImage(inputEl, targetFieldId, jenis) {
+            const file = inputEl.files && inputEl.files[0];
+            if (!file) return;
+
+            // Semak jenis & saiz fail
+            if (!file.type.startsWith('image/')) {
+                showNotification("Ralat", "Sila pilih fail imej sahaja (PNG/JPG).", true);
+                inputEl.value = '';
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                showNotification("Ralat", "Saiz imej terlalu besar (maksimum 5MB).", true);
+                inputEl.value = '';
+                return;
+            }
+            if (!storage) {
+                showNotification("Ralat", "Firebase Storage belum bersedia. Muat semula halaman.", true);
+                return;
+            }
+
+            try {
+                showLoader(true);
+                // Nama fail unik supaya tidak bertindih & cache dikosongkan
+                const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+                const path = `public/slip/${jenis}_${Date.now()}.${ext}`;
+                const ref = storage.ref().child(path);
+
+                await ref.put(file);
+                const url = await ref.getDownloadURL();
+
+                // Isi URL ke dalam field berkaitan
+                document.getElementById(targetFieldId).value = url;
+
+                showLoader(false);
+                showNotification("Berjaya", `Imej ${jenis} berjaya dimuat naik. Klik 'Simpan Tetapan' untuk kekalkan.`, false);
+                console.log(`✅ Uploaded ${jenis} -> ${url}`);
+            } catch (err) {
+                showLoader(false);
+                console.error('❌ Upload gagal:', err);
+                showNotification("Ralat", `Gagal muat naik imej: ${err.message}`, true);
+            } finally {
+                inputEl.value = '';
+            }
+        }
+
         // Save slip settings from form inputs to GLOBAL_DATA
         function saveSlipSettings() {
             // Initialize slipTemplate if not exists
@@ -3992,6 +4322,7 @@
             
             // Save values from form
             GLOBAL_DATA.settings.slipTemplate.logoUrl = document.getElementById('slip-setting-logo').value.trim();
+            GLOBAL_DATA.settings.slipTemplate.jataUrl = document.getElementById('slip-setting-jata').value.trim();
             GLOBAL_DATA.settings.slipTemplate.namaSekolah = document.getElementById('slip-setting-sekolah').value.trim();
             GLOBAL_DATA.settings.slipTemplate.namaSlip = document.getElementById('slip-setting-tajuk').value.trim();
             GLOBAL_DATA.settings.slipTemplate.tandatanganGB = document.getElementById('slip-setting-tandatangan').value.trim();
@@ -4184,6 +4515,362 @@
             console.log('✅ Rankings calculated:', slipRankingsData);
         }
         
+        // ==========================================================
+        // BINA 1 SLIP PDF UNTUK 1 MURID — fungsi guna semula
+        // ctx: { tahun, jenisPeperiksaan, selectedSubjects, slipSettings,
+        //        logoUrl, showClassRank, showYearRank }
+        // Pulangkan { blob, filename } atau null jika gagal.
+        // ==========================================================
+        function binaSlipBlobMurid(student, ctx) {
+            const { tahun, jenisPeperiksaan, selectedSubjects, slipSettings,
+                    logoData, jataData, ttdData, showClassRank, showYearRank } = ctx;
+            const noKp = student.no_kp;
+            const kelas = student.kelas;
+
+            // Markah murid ini untuk peperiksaan ini
+            const allStudentMarks = getMarksByYear(muridTerbaikYear).filter(r =>
+                r.no_kp === noKp &&
+                r.tahun === tahun &&
+                r.kelas === kelas &&
+                r["JENIS PEPERIKSAAN"] === jenisPeperiksaan
+            );
+
+            // Bina data jadual (BIL, SUBJEK, MARKAH, GRED) + kira jumlah markah
+            const tableData = [];
+            let jumlahMarkah = 0;
+            let bil = 0;
+            selectedSubjects.forEach(subjectName => {
+                let markRecord = allStudentMarks.find(r => r.subjek === subjectName);
+                if (!markRecord) {
+                    markRecord = allStudentMarks.find(r =>
+                        r.subjek.toLowerCase().trim() === subjectName.toLowerCase().trim()
+                    );
+                }
+                const markah = markRecord ? markRecord.markah : '-';
+                const gred = markRecord ? markRecord.gred : '-';
+                const markahNum = parseFloat(markah);
+                if (!isNaN(markahNum)) jumlahMarkah += markahNum;
+                bil++;
+                tableData.push([String(bil), subjectName, markah, gred]);
+            });
+
+            const rankings = slipRankingsData[noKp] || {};
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('portrait', 'mm', 'a4');
+
+                // === HEADER: Jata kiri + Logo kanan (guna dataURL yang dipramuat) ===
+                const headerTop = 15;
+                const imgSize = 26;
+                if (jataData) {
+                    try { pdf.addImage(jataData, 'JPEG', 20, headerTop, imgSize, imgSize); } catch (e) { console.warn('Jata gagal:', e); }
+                }
+                if (logoData) {
+                    try { pdf.addImage(logoData, 'JPEG', 190 - imgSize, headerTop, imgSize, imgSize); } catch (e) { console.warn('Logo gagal:', e); }
+                }
+
+                // Nama sekolah + tajuk di tengah (selari dengan imej)
+                let yPos = headerTop + 9;
+                pdf.setTextColor(0, 0, 0);
+                pdf.setFontSize(15);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text(slipSettings.namaSekolah || 'SEKOLAH KEBANGSAAN', 105, yPos, { align: 'center' });
+                yPos += 8;
+
+                pdf.setFontSize(11.5);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text(slipSettings.namaSlip || 'SLIP KEPUTUSAN PEPERIKSAAN', 105, yPos, { align: 'center' });
+
+                // Pastikan turun di bawah imej header
+                yPos = Math.max(yPos, headerTop + imgSize) + 3;
+
+                // Garis berkembar (dua garis nipis, rasmi)
+                pdf.setDrawColor(0, 0, 0);
+                pdf.setLineWidth(0.5);
+                pdf.line(20, yPos, 190, yPos);
+                pdf.setLineWidth(0.2);
+                pdf.line(20, yPos + 1.2, 190, yPos + 1.2);
+                yPos += 9;
+
+                // Maklumat murid
+                pdf.setTextColor(0, 0, 0);
+                pdf.setFontSize(11);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('Nama', 20, yPos);
+                pdf.setFont('helvetica', 'normal');
+                pdf.text(`:  ${student.nama.toUpperCase()}`, 42, yPos);
+                yPos += 6.5;
+
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('No. KP', 20, yPos);
+                pdf.setFont('helvetica', 'normal');
+                pdf.text(`:  ${student.no_kp}`, 42, yPos);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('Tahun', 120, yPos);
+                pdf.setFont('helvetica', 'normal');
+                pdf.text(`:  ${tahun}`, 140, yPos);
+                yPos += 6.5;
+
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('Kelas', 20, yPos);
+                pdf.setFont('helvetica', 'normal');
+                pdf.text(`:  ${kelas}`, 42, yPos);
+                yPos += 8;
+
+                // Jadual markah
+                pdf.autoTable({
+                    startY: yPos,
+                    head: [['BIL', 'SUBJEK', 'MARKAH', 'GRED']],
+                    body: tableData,
+                    foot: [['', 'JUMLAH MARKAH', String(jumlahMarkah), '']],
+                    theme: 'grid',
+                    headStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center', fontSize: 10, cellPadding: 2.5, lineColor: [0, 0, 0], lineWidth: 0.25 },
+                    footStyles: { fillColor: [235, 235, 235], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 10, cellPadding: 2.5, lineColor: [0, 0, 0], lineWidth: 0.25 },
+                    bodyStyles: { textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.25 },
+                    styles: { fontSize: 10, cellPadding: 2.5, minCellHeight: 7, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.25 },
+                    columnStyles: { 0: { halign: 'center', cellWidth: 15 }, 1: { halign: 'left' }, 2: { halign: 'center', cellWidth: 28 }, 3: { halign: 'center', cellWidth: 22 } },
+                    didParseCell: function(data) {
+                        if (data.section === 'foot' && data.column.index === 1) data.cell.styles.halign = 'right';
+                        if (data.section === 'foot' && data.column.index === 2) data.cell.styles.halign = 'center';
+                    },
+                    margin: { top: yPos, bottom: 55 }
+                });
+
+                yPos = pdf.lastAutoTable.finalY + 8;
+
+                // Kedudukan (bila dipilih sahaja)
+                if (showClassRank || showYearRank) {
+                    pdf.setTextColor(0, 0, 0);
+                    pdf.setFontSize(11);
+                    if (showClassRank) {
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.text('Kedudukan Dalam Kelas', 20, yPos);
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.text(`:  ${rankings.classRank || '-'} / ${rankings.classTotal || '-'}`, 78, yPos);
+                        yPos += 6.5;
+                    }
+                    if (showYearRank) {
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.text('Kedudukan Dalam Tahun', 20, yPos);
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.text(`:  ${rankings.yearRank || '-'} / ${rankings.yearTotal || '-'}`, 78, yPos);
+                        yPos += 6.5;
+                    }
+                    yPos += 6;
+                }
+
+                // Pastikan cukup ruang untuk blok Guru Besar
+                if (yPos > 250) yPos = 245;
+
+                // Tandatangan (dataURL dipramuat)
+                if (ttdData) {
+                    try {
+                        pdf.addImage(ttdData, 'JPEG', 20, yPos, 35, 18);
+                        yPos += 20;
+                    } catch (e) {
+                        yPos += 2;
+                    }
+                }
+
+                // Maklumat Guru Besar
+                pdf.setTextColor(0, 0, 0);
+                pdf.setFontSize(10);
+                if (slipSettings.namaGuruBesar) {
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.text(slipSettings.namaGuruBesar, 20, yPos);
+                    yPos += 5;
+                }
+                pdf.setFont('helvetica', 'normal');
+                if (slipSettings.jawatan) {
+                    pdf.text(slipSettings.jawatan, 20, yPos);
+                    yPos += 5;
+                }
+                if (slipSettings.sekolah || slipSettings.namaSekolah) {
+                    pdf.text(slipSettings.sekolah || slipSettings.namaSekolah, 20, yPos);
+                }
+
+                // Tarikh cetak
+                const bulanBM = ['Januari','Februari','Mac','April','Mei','Jun','Julai','Ogos','September','Oktober','November','Disember'];
+                const kini = new Date();
+                pdf.setTextColor(0, 0, 0);
+                pdf.setFontSize(9);
+                pdf.setFont('helvetica', 'normal');
+                pdf.text(`Tarikh cetak: ${kini.getDate()} ${bulanBM[kini.getMonth()]} ${kini.getFullYear()}`, 190, 285, { align: 'right' });
+
+                const pdfBlob = pdf.output('blob');
+                const filename = `${student.nama}_${noKp}_${jenisPeperiksaan}.pdf`;
+                return { blob: pdfBlob, filename };
+            } catch (error) {
+                console.error('❌ Error generating PDF for', student.nama, error);
+                return null;
+            }
+        }
+
+        // Muat URL imej -> JPEG dataURL kecil (latar putih) supaya PDF SANGAT RINGAN & laju.
+        // JPEG kekal termampat dalam PDF (PNG dinyahmampat -> PDF besar). Slip latar putih,
+        // jadi latar putih pada imej nampak sama sahaja. ~13x lebih kecil dari PNG.
+        async function _imgToDataURL(url, maxPx = 300) {
+            if (!url) return '';
+            try {
+                const blob = await fetch(url, { cache: 'force-cache' }).then(r => {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.blob();
+                });
+                const dataUrlAsal = await new Promise((res, rej) => {
+                    const fr = new FileReader();
+                    fr.onload = () => res(fr.result);
+                    fr.onerror = rej;
+                    fr.readAsDataURL(blob);
+                });
+                const img = await new Promise((res, rej) => {
+                    const im = new Image();
+                    im.onload = () => res(im);
+                    im.onerror = rej;
+                    im.src = dataUrlAsal;
+                });
+                const skala = Math.min(maxPx / img.naturalWidth, maxPx / img.naturalHeight, 1);
+                const w = Math.round(img.naturalWidth * skala);
+                const h = Math.round(img.naturalHeight * skala);
+                const cv = document.createElement('canvas');
+                cv.width = w; cv.height = h;
+                const c = cv.getContext('2d');
+                c.fillStyle = '#FFFFFF';       // latar putih (JPEG tiada telus)
+                c.fillRect(0, 0, w, h);
+                c.drawImage(img, 0, 0, w, h);
+                return cv.toDataURL('image/jpeg', 0.85);
+            } catch (e) {
+                console.warn('⚠️ Gagal muat/kecilkan imej:', url, e);
+                return ''; // biar slip tetap dijana tanpa imej ini
+            }
+        }
+
+        // Bina objek tetapan (ctx) yang dikongsi semua slip — pramuat imej sebagai dataURL
+        async function bacaSlipCtx(tahun, jenisPeperiksaan, selectedSubjects) {
+            const slipSettings = GLOBAL_DATA.settings.slipTemplate || {
+                logoUrl: '', jataUrl: '', namaSekolah: '', namaSlip: 'SLIP KEPUTUSAN PEPERIKSAAN',
+                tandatanganGB: '', namaGuruBesar: '', jawatan: '', sekolah: ''
+            };
+            const logoUrl = slipSettings.logoUrl || GLOBAL_DATA.settings.logoUrl;
+
+            // Pramuat semua imej serentak
+            const [logoData, jataData, ttdData] = await Promise.all([
+                _imgToDataURL(logoUrl),
+                _imgToDataURL(slipSettings.jataUrl),
+                _imgToDataURL(slipSettings.tandatanganGB)
+            ]);
+
+            return {
+                tahun,
+                jenisPeperiksaan,
+                selectedSubjects,
+                slipSettings,
+                logoData,   // dataURL logo
+                jataData,   // dataURL jata
+                ttdData,    // dataURL tandatangan
+                showClassRank: document.getElementById('slip-ranking-class').checked,
+                showYearRank: document.getElementById('slip-ranking-year').checked
+            };
+        }
+
+        // ==========================================================
+        // DOWNLOAD PUKAL: Semua slip 1 DARJAH, ZIP dipisah ikut folder KELAS
+        // ==========================================================
+        async function downloadSlipDarjah() {
+            const tahun = document.getElementById('slip-tahun').value;
+            const jenisPeperiksaan = document.getElementById('slip-peperiksaan').value;
+
+            if (!tahun) { showNotification("Ralat", "Sila pilih Darjah dahulu.", true); return; }
+            if (!jenisPeperiksaan) { showNotification("Ralat", "Sila pilih Jenis Peperiksaan dahulu.", true); return; }
+
+            // Subjek ikut checkbox semasa; jika kosong, muatkan subjek darjah ini automatik
+            let selectedSubjects = getSelectedSlipSubjects();
+            if (selectedSubjects.length === 0) {
+                const uniq = new Set();
+                GLOBAL_DATA.allMarks.forEach(m => {
+                    if (m.tahun === tahun && m["JENIS PEPERIKSAAN"] === jenisPeperiksaan) uniq.add(m.subjek);
+                });
+                selectedSubjects = Array.from(uniq).sort();
+                if (selectedSubjects.length === 0) {
+                    showNotification("Ralat", "Tiada subjek dijumpai. Sila 'Papar Murid' & tick subjek dahulu.", true);
+                    return;
+                }
+            }
+
+            // Semua murid dalam darjah ini, dikumpul ikut kelas
+            const muridDarjah = GLOBAL_DATA.students.filter(s => s.tahun === tahun);
+            if (muridDarjah.length === 0) {
+                showNotification("Tiada Data", `Tiada murid dijumpai untuk Darjah ${tahun}.`, true);
+                return;
+            }
+
+            await ensurePdfLibs();
+            await ensureJSZip();
+
+            const ctxAsas = await bacaSlipCtx(tahun, jenisPeperiksaan, selectedSubjects);
+
+            // Kumpul ikut kelas
+            const ikutKelas = {};
+            muridDarjah.forEach(s => {
+                const k = s.kelas || 'TANPA_KELAS';
+                (ikutKelas[k] = ikutKelas[k] || []).push(s);
+            });
+            const senaraiKelas = Object.keys(ikutKelas).sort();
+
+            // Progress — pastikan bahagian murid nampak supaya progress bar kelihatan
+            const muridSection = document.getElementById('slip-murid-section');
+            if (muridSection) muridSection.classList.remove('hidden');
+            const progressSection = document.getElementById('slip-progress');
+            const progressBar = document.getElementById('slip-progress-bar');
+            const progressText = document.getElementById('slip-progress-text');
+            progressSection.classList.remove('hidden');
+            progressBar.style.width = '0%';
+
+            const zip = new JSZip();
+            const total = muridDarjah.length;
+            let completed = 0;
+
+            for (const kelas of senaraiKelas) {
+                // Kira ranking untuk kelas ini (guna checkbox subjek semasa)
+                calculateSlipRankings(tahun, kelas, jenisPeperiksaan);
+
+                const folderKelas = zip.folder(kelas.replace(/[\/\\:*?"<>|]/g, '-'));
+                const ctx = { ...ctxAsas };
+
+                for (const student of ikutKelas[kelas]) {
+                    const hasil = binaSlipBlobMurid(student, ctx);
+                    if (hasil) {
+                        folderKelas.file(hasil.filename, hasil.blob);
+                    }
+                    completed++;
+                    // Kemas kini UI setiap 5 murid sahaja supaya laju & tak beku
+                    if (completed % 5 === 0 || completed === total) {
+                        progressText.textContent = `Menjana ${kelas} — ${completed}/${total}...`;
+                        progressBar.style.width = Math.round((completed / total) * 100) + '%';
+                        await new Promise(r => setTimeout(r, 0)); // lepaskan UI sekejap
+                    }
+                }
+            }
+
+            progressText.textContent = `Menyediakan fail ZIP...`;
+            try {
+                const zipBlob = await zip.generateAsync({ type: 'blob', compression: "STORE" });
+                const zipName = `Slip_Darjah${tahun}_${jenisPeperiksaan}_${muridTerbaikYear}.zip`;
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(zipBlob);
+                link.download = zipName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                progressText.textContent = `✅ Selesai! ${completed} slip (${senaraiKelas.length} kelas) dalam ${zipName}`;
+                showNotification("Berjaya", `${completed} slip Darjah ${tahun} dijana, dipisah ikut ${senaraiKelas.length} folder kelas.`, false);
+            } catch (error) {
+                console.error('❌ Error creating ZIP:', error);
+                showNotification("Ralat", "Gagal membuat fail ZIP.", true);
+            }
+            setTimeout(() => progressSection.classList.add('hidden'), 5000);
+        }
+
         async function generateSlipPDF() {
             await ensurePdfLibs();
             await ensureJSZip();
@@ -4248,233 +4935,33 @@
             const zip = new JSZip();
             const pdfFolder = zip.folder("Slip_Peperiksaan");
             
-            // Process each student
+            // Bina ctx dikongsi & proses setiap murid guna fungsi bersama
+            const ctx = await bacaSlipCtx(tahun, jenisPeperiksaan, selectedSubjects);
             for (const checkbox of selectedCheckboxes) {
                 const noKp = checkbox.dataset.nokp;
                 const student = GLOBAL_DATA.students.find(m => m.no_kp === noKp);
-                
                 if (!student) continue;
-                
-                // Update progress
+
                 progressText.textContent = `Menjana slip ${completed + 1}/${total}: ${student.nama}...`;
-                
-                // Get ALL student's marks for this exam (don't filter by selected subjects yet)
-                const allStudentMarks = getMarksByYear(muridTerbaikYear).filter(r =>
-                    r.no_kp === noKp &&
-                    r.tahun === tahun &&
-                    r.kelas === kelas &&
-                    r["JENIS PEPERIKSAAN"] === jenisPeperiksaan
-                );
-                
-                console.log(`   📄 Creating PDF for student: ${student.nama}`);
-                console.log(`      Total marks found for this exam: ${allStudentMarks.length}`);
-                console.log(`      Selected subjects: ${selectedSubjects.length}`);
-                console.log(`      All marks:`, allStudentMarks.map(m => `${m.subjek}: ${m.markah}`));
-                
-                // Build table data for jsPDF autoTable
-                const tableData = [];
-                selectedSubjects.forEach(subjectName => {
-                    // Try exact match first
-                    let markRecord = allStudentMarks.find(r => r.subjek === subjectName);
-                    
-                    // If not found, try case-insensitive match
-                    if (!markRecord) {
-                        markRecord = allStudentMarks.find(r => 
-                            r.subjek.toLowerCase().trim() === subjectName.toLowerCase().trim()
-                        );
-                    }
-                    
-                    const markah = markRecord ? markRecord.markah : '-';
-                    const gred = markRecord ? markRecord.gred : '-';
-                    
-                    if (!markRecord) {
-                        console.log(`      ℹ️ Subject "${subjectName}" not taken by this student (will show "-" in PDF)`);
-                    } else {
-                        console.log(`      ✅ Found marks for "${subjectName}": ${markah}/${gred}`);
-                    }
-                    
-                    tableData.push([subjectName, markah, gred]);
-                });
-                
-                // Build rankings
-                const rankings = slipRankingsData[noKp] || {};
-                
-                console.log(`      Table data rows:`, tableData.length);
-                
-                try {
-                    // Create PDF using jsPDF (same approach as working PDFs)
-                    const { jsPDF } = window.jspdf;
-                    const pdf = new jsPDF('portrait', 'mm', 'a4');
-                    console.log(`      ✅ jsPDF instance created`);
-                    let yPos = 20;
-                    
-                    // Logo (if available) - SMALLER
-                    if (logoUrl) {
-                        try {
-                            pdf.addImage(logoUrl, 'PNG', 88, yPos, 34, 34);
-                            yPos += 37;
-                        } catch (e) {
-                            yPos += 3;
-                        }
-                    }
-                    
-                    // School name - SMALLER
-                    pdf.setFontSize(12);
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.text(slipSettings.namaSekolah || 'SEKOLAH KEBANGSAAN', 105, yPos, { align: 'center' });
-                    yPos += 8;
-                    
-                    // Slip title - SMALLER
-                    pdf.setFontSize(11);
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.text(examTitle, 105, yPos, { align: 'center' });
-                    pdf.line(70, yPos + 1, 140, yPos + 1);
-                    yPos += 10;
-                    
-                    // Student name (left aligned) - WITH LABEL
-                    pdf.setFontSize(10);
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.text(`Nama: ${student.nama.toUpperCase()}`, 20, yPos);
-                    yPos += 8;
-                    
-                    // Student info - COMPACT
-                    pdf.setFontSize(9);
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.text(`No. KP: ${student.no_kp}`, 20, yPos);
-                    yPos += 5;
-                    pdf.text(`Tahun: ${tahun}`, 20, yPos);
-                    yPos += 5;
-                    pdf.text(`Kelas: ${kelas}`, 20, yPos);
-                    yPos += 8;
-                    
-                    // Marks table - COMPACT for 1 page
-                    pdf.autoTable({
-                        startY: yPos,
-                        head: [['SUBJEK', 'MARKAH', 'GRED']],
-                        body: tableData,
-                        theme: 'grid',
-                        headStyles: { 
-                            fillColor: [240, 240, 240], 
-                            textColor: [0, 0, 0], 
-                            fontStyle: 'bold', 
-                            halign: 'center',
-                            fontSize: 8,
-                            cellPadding: 2
-                        },
-                        styles: { 
-                            fontSize: 7.5, 
-                            cellPadding: 1.5,
-                            minCellHeight: 5
-                        },
-                        columnStyles: {
-                            0: { halign: 'left' },
-                            1: { halign: 'center', cellWidth: 20 },
-                            2: { halign: 'center', cellWidth: 15 }
-                        },
-                        margin: { top: yPos, bottom: 60 }
-                    });
-                    
-                    yPos = pdf.lastAutoTable.finalY + 6;
-                    
-                    // Rankings - COMPACT
-                    if (showClassRank || showYearRank) {
-                        pdf.setFontSize(8);
-                        if (showClassRank) {
-                            pdf.text(`Kedudukan Dalam Kelas: ${rankings.classRank || '-'}/${rankings.classTotal || '-'}`, 20, yPos);
-                            yPos += 5;
-                        }
-                        if (showYearRank) {
-                            pdf.text(`Kedudukan Dalam Tahun: ${rankings.yearRank || '-'}/${rankings.yearTotal || '-'}`, 20, yPos);
-                            yPos += 5;
-                        }
-                        yPos += 6;
-                    }
-                    
-                    // Principal signature and info - ENSURE IT RENDERS
-                    console.log(`      Principal info at yPos ${yPos}:`, {
-                        signature: slipSettings.tandatanganGB ? 'YES' : 'NO',
-                        name: slipSettings.namaGuruBesar,
-                        jawatan: slipSettings.jawatan,
-                        sekolah: slipSettings.sekolah
-                    });
-                    
-                    // Ensure enough space for principal block (check page bounds)
-                    const pageHeight = 297; // A4 height in mm
-                    if (yPos > 250) {
-                        console.warn(`      ⚠️ yPos too low (${yPos}mm), adjusting to fit principal info`);
-                        yPos = 245; // Force position to ensure visibility
-                    }
-                    
-                    // Signature image
-                    if (slipSettings.tandatanganGB) {
-                        try {
-                            pdf.addImage(slipSettings.tandatanganGB, 'PNG', 20, yPos, 35, 18);
-                            yPos += 20;
-                            console.log(`      ✅ Signature added at yPos ${yPos - 20}`);
-                        } catch (e) {
-                            console.warn('      ⚠️ Failed to add signature image:', e);
-                            yPos += 2;
-                        }
-                    }
-                    
-                    // Principal info - COMPACT & ALWAYS RENDER
-                    pdf.setFontSize(8);
-                    pdf.setFont('helvetica', 'normal');
-                    if (slipSettings.namaGuruBesar) {
-                        pdf.text(slipSettings.namaGuruBesar, 20, yPos);
-                        console.log(`      ✅ Name rendered: ${slipSettings.namaGuruBesar}`);
-                        yPos += 4;
-                    }
-                    if (slipSettings.jawatan) {
-                        pdf.text(slipSettings.jawatan, 20, yPos);
-                        console.log(`      ✅ Position rendered: ${slipSettings.jawatan}`);
-                        yPos += 4;
-                    }
-                    if (slipSettings.sekolah || slipSettings.namaSekolah) {
-                        const schoolName = slipSettings.sekolah || slipSettings.namaSekolah;
-                        pdf.text(schoolName, 20, yPos);
-                        console.log(`      ✅ School rendered: ${schoolName}`);
-                    }
-                    
-                    console.log(`      📍 Final yPos: ${yPos}mm (page height: ${pageHeight}mm)`);
-                    
-                    // Convert to blob
-                    const pdfBlob = pdf.output('blob');
-                    console.log(`      📦 PDF blob created - Size: ${pdfBlob.size} bytes`);
-                    
-                    // CRITICAL: Verify PDF has content (not just headers)
-                    if (pdfBlob.size < 1000) {
-                        console.error(`      ⚠️ WARNING: PDF size too small (${pdfBlob.size} bytes) - likely blank!`);
-                    }
-                    
-                    // Add to ZIP
-                    const filename = `${student.nama}_${noKp}_${jenisPeperiksaan}.pdf`;
-                    pdfFolder.file(filename, pdfBlob);
-                    
-                    console.log(`      ✅ PDF added to ZIP: ${filename}`);
-                    
-                } catch (error) {
-                    console.error('❌ Error generating PDF for', student.nama, error);
+
+                const hasil = binaSlipBlobMurid(student, ctx);
+                if (hasil) {
+                    pdfFolder.file(hasil.filename, hasil.blob);
                 }
-                
-                // Update progress
+
                 completed++;
-                const percentage = Math.round((completed / total) * 100);
-                progressBar.style.width = percentage + '%';
-                
-                // Small delay
-                await new Promise(resolve => setTimeout(resolve, 200));
+                if (completed % 5 === 0 || completed === total) {
+                    progressText.textContent = `Menjana slip ${completed}/${total}...`;
+                    progressBar.style.width = Math.round((completed / total) * 100) + "%";
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
             }
             
             // Generate and download ZIP file
             progressText.textContent = `Menyediakan fail ZIP...`;
             
             try {
-                const zipBlob = await zip.generateAsync({ 
-                    type: 'blob',
-                    compression: "DEFLATE",
-                    compressionOptions: { level: 6 }
-                });
+                const zipBlob = await zip.generateAsync({ type: 'blob', compression: "STORE" });
                 const zipFilename = `Slip_${jenisPeperiksaan}_${tahun}_${kelas}_${new Date().getFullYear()}.zip`;
                 
                 // Create download link
@@ -4623,9 +5110,7 @@
             showLoader(true);
             try {
                 // Attach event listeners here (global scope)
-                document.getElementById('pilih-tahun').addEventListener('change', onTahunChange);
-                document.getElementById('pilih-kelas').addEventListener('change', onKelasChange); 
-                document.getElementById('edit-tahun').addEventListener('change', onEditTahunChange); 
+                document.getElementById('edit-tahun').addEventListener('change', onEditTahunChange);
                 document.getElementById('edit-kelas').addEventListener('change', onEditKelasChange); 
                 document.getElementById('edit-subjek').addEventListener('change', onEditSubjekChange);
                 document.getElementById('edit-peperiksaan').addEventListener('change', onEditPeperiksaanChange); 
@@ -4639,7 +5124,8 @@
                 if(subjekFilterSelect) subjekFilterSelect.addEventListener('change', loadSubjekFilter);
                 
                 firebase.initializeApp(firebaseConfig);
-                db = firebase.firestore(); 
+                db = firebase.firestore();
+                storage = firebase.storage();
                 bacaInitialData();
 
             } catch (e) {
@@ -4869,8 +5355,11 @@
                         // Discover semua tahun dalam DB (background) — sama seperti Firebase path
                         discoverAvailableYears();
 
-                        // examTypes tidak di-cache — guna tahun yang ada data (bukan sentiasa tahun semasa)
-                        await loadExamTypes(parseInt(analisaYear) || new Date().getFullYear());
+                        // examTypes tidak di-cache — guna tahun yang ada data DAN tahun semasa
+                        const _cacheDataYear = parseInt(analisaYear) || new Date().getFullYear();
+                        const _cacheCalYear = new Date().getFullYear();
+                        await loadExamTypes(_cacheDataYear);
+                        if (_cacheDataYear !== _cacheCalYear) await loadExamTypes(_cacheCalYear);
 
                         prosesInitialDataSuccess();
                         updateLastRefreshIndicator();
@@ -4982,8 +5471,10 @@
                     availableYears: availableYears
                 });
 
-                // 4. Muatkan jenis peperiksaan untuk tahun yang ada data (bukan sentiasa tahun semasa)
+                // 4. Muatkan jenis peperiksaan untuk tahun yang ada data DAN tahun semasa
                 await loadExamTypes(dataYear);
+                // Pre-load tahun semasa (calYear) jika berbeza — supaya dropdown 2026 terus betul
+                if (dataYear !== calYear) await loadExamTypes(calYear);
 
                 prosesInitialDataSuccess();
                 updateLastRefreshIndicator();
@@ -5087,6 +5578,7 @@
             });
             
             if (analisaExamDropdown) analisaExamDropdown.innerHTML = '<option value="">-- Pilih Jenis --</option>';
+            // analisa-subjek-peperiksaan dikosongkan — diisi oleh cascade onAnalisaSubjekSubjekChange
             if (analisaSubjekExamDropdown) analisaSubjekExamDropdown.innerHTML = '<option value="">-- Pilih Jenis --</option>';
             if (terbaikExamDropdown) terbaikExamDropdown.innerHTML = '<option value="">-- Pilih Jenis --</option>';
             // Analisa: guna data dari rekodMarkah (termasuk jenis lama) untuk ketepatan sejarah
@@ -5095,7 +5587,7 @@
                 option.value = nama;
                 option.textContent = nama;
                 if (analisaExamDropdown) analisaExamDropdown.appendChild(option.cloneNode(true));
-                if (analisaSubjekExamDropdown) analisaSubjekExamDropdown.appendChild(option.cloneNode(true));
+                // analisaSubjekExamDropdown dikecualikan — cascade dari Subjek
                 if (terbaikExamDropdown) terbaikExamDropdown.appendChild(option);
             });
 
@@ -5180,65 +5672,95 @@
             }
         }
 
+        function goHome() {
+            const allPanels = [
+                'markah-panel','admin-panel',
+                'analisa-panel','analisa-subjek-panel',
+                'murid-terbaik-panel','guru-kelas-panel',
+                'analisa-kelas-panel'
+            ];
+            allPanels.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+            const menu = document.getElementById('main-menu');
+            menu.classList.remove('hidden');
+            menu.classList.add('panel-enter');
+            setTimeout(() => menu.classList.remove('panel-enter'), 300);
+        }
+
         function showPanel(panelId) {
-            // CHECK KAWALAN AKSES - BLOCK Rekod Markah & Edit Cetak bila disabled (kecuali admin)
             const isMarkahEnabled = GLOBAL_DATA.settings.markahEnabled;
-            
-            if ((panelId === 'markah' || panelId === 'edit-cetak') && !isMarkahEnabled && !isAuthenticated) {
+
+            // Rekod & Laporan — kawalan akses
+            if ((panelId === 'rekod-laporan' || panelId === 'markah' || panelId === 'edit-cetak') && !isMarkahEnabled && !isAuthenticated) {
                 showNotification(
-                    "AKSES DITOLAK", 
-                    "Kawalan Akses Markah sedang DISABLED oleh admin. Anda tidak boleh merekod atau mengedit markah buat masa ini. Sila hubungi admin.", 
+                    "AKSES DITOLAK",
+                    "Kawalan Akses Markah sedang DISABLED oleh admin. Anda tidak boleh merekod atau mengedit markah buat masa ini. Sila hubungi admin.",
                     true
                 );
-                return; // BLOCK akses sepenuhnya
+                return;
             }
-            
-            // Sembunyikan semua panel
+
+            // Sembunyikan menu utama dan semua panel
+            document.getElementById('main-menu').classList.add('hidden');
             document.getElementById('markah-panel').classList.add('hidden');
             document.getElementById('admin-panel').classList.add('hidden');
-            document.getElementById('edit-cetak-panel').classList.add('hidden'); 
-            document.getElementById('analisa-panel').classList.add('hidden'); 
-            document.getElementById('analisa-subjek-panel').classList.add('hidden'); 
-            document.getElementById('murid-terbaik-panel').classList.add('hidden'); 
-            document.getElementById('guru-kelas-panel').classList.add('hidden'); 
+            document.getElementById('analisa-panel').classList.add('hidden');
+            document.getElementById('analisa-subjek-panel').classList.add('hidden');
+            document.getElementById('murid-terbaik-panel').classList.add('hidden');
+            document.getElementById('guru-kelas-panel').classList.add('hidden');
+            document.getElementById('analisa-kelas-panel').classList.add('hidden');
 
-            // Tunjukkan panel yang dipilih
-            if (panelId === 'markah') {
-                document.getElementById('markah-panel').classList.remove('hidden');
+            const _showWithAnim = (id) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.classList.remove('hidden');
+                el.classList.add('panel-enter');
+                setTimeout(() => el.classList.remove('panel-enter'), 300);
+            };
+
+            // Panel Rekod & Laporan (gabungan) — juga handle 'markah' & 'edit-cetak' untuk backward compat
+            if (panelId === 'rekod-laporan' || panelId === 'markah' || panelId === 'edit-cetak') {
+                _showWithAnim('markah-panel');
                 const calYearEl = document.getElementById('rekod-cal-year');
                 if (calYearEl) calYearEl.textContent = new Date().getFullYear();
+                document.getElementById('laporan-container').classList.add('hidden');
+                document.getElementById('simpan-container').classList.add('hidden');
+                document.getElementById('edit-readonly-banner').classList.add('hidden');
+                populatePanelYearDropdown('edit-year', editYear);
+                onEditYearChange();
             } else if (panelId === 'admin') {
                 if (isAuthenticated) {
-                    document.getElementById('admin-panel').classList.remove('hidden');
-                    // GUNA KOD BARU
-                    toggleAdminTab('import'); 
+                    _showWithAnim('admin-panel');
+                    toggleAdminTab('import');
                 } else {
+                    document.getElementById('main-menu').classList.remove('hidden');
                     showAdminLogin();
                 }
-            } else if (panelId === 'edit-cetak') {
-                 document.getElementById('edit-cetak-panel').classList.remove('hidden');
-                 document.getElementById('laporan-container').classList.add('hidden');
-                 populatePanelYearDropdown('edit-year', editYear);
             } else if (panelId === 'analisa') {
-                 document.getElementById('analisa-panel').classList.remove('hidden');
-                 document.getElementById('analisa-laporan-container').classList.add('hidden');
-                 populatePanelYearDropdown('analisa-year', analisaYear);
+                _showWithAnim('analisa-panel');
+                document.getElementById('analisa-laporan-container').classList.add('hidden');
+                populatePanelYearDropdown('analisa-year', analisaYear);
             } else if (panelId === 'analisa-subjek') {
-                 document.getElementById('analisa-subjek-panel').classList.remove('hidden');
-                 document.getElementById('analisa-subjek-laporan-container').classList.add('hidden');
-                 populatePanelYearDropdown('analisa-subjek-year', analisaSubjekYear);
-                 loadDashboardSubjek(); // Auto-load dashboard
-                 populateExamTypeDropdown(); // Populate exam type dropdown for new analysis
+                _showWithAnim('analisa-subjek-panel');
+                document.getElementById('analisa-subjek-laporan-container').classList.add('hidden');
+                populatePanelYearDropdown('analisa-subjek-year', analisaSubjekYear);
+                loadDashboardSubjek();
+                populateExamTypeDropdown();
+                refreshAnalisaSubDropdowns(analisaSubjekYear);
             } else if (panelId === 'murid-terbaik') {
-                 document.getElementById('murid-terbaik-panel').classList.remove('hidden');
-                 document.getElementById('murid-terbaik-laporan-container').classList.add('hidden');
-                 populatePanelYearDropdown('murid-terbaik-year', muridTerbaikYear);
+                _showWithAnim('murid-terbaik-panel');
+                document.getElementById('murid-terbaik-laporan-container').classList.add('hidden');
+                populatePanelYearDropdown('murid-terbaik-year', muridTerbaikYear);
             } else if (panelId === 'guru-kelas') {
-                 document.getElementById('guru-kelas-panel').classList.remove('hidden');
-                 toggleGuruKelasTab('add'); // Tetapkan tab Tambah Murid
+                _showWithAnim('guru-kelas-panel');
+                toggleGuruKelasTab('add');
+            } else if (panelId === 'analisa-kelas') {
+                _showWithAnim('analisa-kelas-panel');
+                initAnalisaKelas();
             } else {
-                // Jika klik Tutup, tunjuk menu utama
-                document.getElementById('main-menu').classList.remove('hidden');
+                goHome();
             }
         }
         
@@ -5741,18 +6263,84 @@
                 m["JENIS PEPERIKSAAN"] === peperiksaan
             ).sort((a, b) => (a.nama || '').localeCompare(b.nama || ''));
 
+            // Semak aktif dari examTypes
+            const editYearInt = parseInt(editYear);
+            const examTypesForEditYear = (_examTypesCache[editYearInt] && _examTypesCache[editYearInt].data)
+                ? _examTypesCache[editYearInt].data
+                : GLOBAL_DATA.examTypes;
+            const examTypeObj = examTypesForEditYear.find(et => et.nama === peperiksaan);
+            const isReadOnly = examTypeObj ? examTypeObj.aktif === false : false;
+            setEditReadOnly(isReadOnly);
+
             if (marksToEdit.length === 0) {
-                 showNotification("RALAT REKOD", "Tiada rekod markah dijumpai untuk kriteria ini.", true);
-                 laporanContainer.classList.add('hidden');
-                 editStatus.textContent = '';
-                 return;
+                // MOD TENGOK SAHAJA: exam tidak aktif & tiada rekod — jangan benarkan isi markah baru.
+                if (isReadOnly) {
+                    document.getElementById('markah-table-edit-body').innerHTML = '';
+                    document.getElementById('analisa-table').innerHTML = '';
+                    document.getElementById('laporan-tajuk').textContent = peperiksaan;
+                    document.getElementById('laporan-metadata').innerHTML = `
+                        <p class="text-sm font-medium text-gray-700">Tahun: <span class="font-bold">${tahun}</span></p>
+                        <p class="text-sm font-medium text-gray-700">Kelas: <span class="font-bold">${kelas}</span></p>
+                        <p class="text-sm font-medium text-gray-700">Subjek: <span class="font-bold">${subjek}</span></p>
+                        <p class="text-sm font-medium text-amber-600 mt-1">Tiada rekod markah untuk peperiksaan ini (mod tengok sahaja).</p>
+                    `;
+                    laporanContainer.classList.remove('hidden');
+                    editStatus.textContent = '';
+                    return;
+                }
+
+                // Tiada rekod — bina template kosong dari senarai murid
+                const selectedSubjectData = GLOBAL_DATA.allSubjects.find(s => s.nama_penuh === subjek);
+                const agamaFilter = selectedSubjectData?.agama_filter || 'Semua';
+
+                const templateStudents = GLOBAL_DATA.students.filter(s => {
+                    if (s.tahun !== tahun || s.kelas !== kelas) return false;
+                    const isIslam = String(s.agama).toUpperCase() === 'ISLAM';
+                    if (agamaFilter === 'Islam') return isIslam;
+                    if (agamaFilter === 'Tidak') return !isIslam;
+                    return true;
+                }).sort((a, b) => (a.nama || '').localeCompare(b.nama || ''));
+
+                if (templateStudents.length === 0) {
+                    showNotification("TIADA MURID", `Tiada murid dijumpai untuk Darjah ${tahun} Kelas ${kelas}. Sila import data murid di Panel Admin.`, true);
+                    editStatus.textContent = '';
+                    return;
+                }
+
+                // Tukar ke template rekod kosong
+                const templateMarks = templateStudents.map(s => ({
+                    no_kp: s.no_kp,
+                    nama: s.nama,
+                    tahun, kelas, subjek,
+                    jantina: s.jantina,
+                    agama: s.agama,
+                    "JENIS PEPERIKSAAN": peperiksaan,
+                    markah: '',
+                    gred: '',
+                    cal_year: parseInt(editYear),
+                    _isTemplate: true
+                }));
+
+                reportMarkahData = templateMarks;
+                renderEditTable(templateMarks, isReadOnly, true);
+                document.getElementById('analisa-table').innerHTML = '';
+                document.getElementById('laporan-tajuk').textContent = peperiksaan;
+                document.getElementById('laporan-metadata').innerHTML = `
+                    <p class="text-sm font-medium text-gray-700">Tahun: <span class="font-bold">${tahun}</span></p>
+                    <p class="text-sm font-medium text-gray-700">Kelas: <span class="font-bold">${kelas}</span></p>
+                    <p class="text-sm font-medium text-gray-700">Subjek: <span class="font-bold">${subjek}</span></p>
+                    <p class="text-sm font-medium text-amber-600 mt-1">⚠️ Tiada rekod — isi markah dan simpan.</p>
+                `;
+                laporanContainer.classList.remove('hidden');
+                editStatus.textContent = `Template untuk ${templateStudents.length} murid. Isi markah dan simpan.`;
+                return;
             }
-            
+
             reportMarkahData = marksToEdit; // Simpan data untuk export
-            
+
             // 2. Render Jadual Markah
-            renderEditTable(marksToEdit);
-            
+            renderEditTable(marksToEdit, isReadOnly);
+
             // 3. Render Analisis Gred (DI BAWAH table markah)
             renderAnalisaTable(marksToEdit, 'analisa-table');
 
@@ -5765,78 +6353,106 @@
             `;
 
             laporanContainer.classList.remove('hidden');
-            editStatus.textContent = 'Rekod sedia untuk disunting.';
+            editStatus.textContent = isReadOnly ? '' : 'Rekod sedia untuk disunting.';
         }
 
-        function renderEditTable(marks) {
+        function renderEditTable(marks, readOnly = false, isTemplate = false) {
             const tableBody = document.getElementById('markah-table-edit-body');
             const tableHeader = document.querySelector('#markah-table-edit thead');
             tableBody.innerHTML = '';
+
+            // Simpan flag isTemplate pada table untuk simpanEditMarkah semak
+            document.getElementById('markah-table-edit').setAttribute('data-template', isTemplate ? '1' : '0');
 
             tableHeader.innerHTML = `
                 <tr class="bg-gray-50">
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bil</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Murid</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider no-print">Markah (Edit)</th>
+                    ${(!readOnly || isTemplate) ? '<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider no-print">Markah</th>' : ''}
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Markah</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gred</th>
-                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider no-print">Tindakan</th>
+                    ${!readOnly && !isTemplate ? '<th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider no-print">Tindakan</th>' : ''}
                 </tr>
             `;
 
             marks.forEach((mark, index) => {
                 const row = tableBody.insertRow();
                 row.className = 'hover:bg-gray-50';
-                
+
                 // Bil
                 row.insertCell().textContent = index + 1;
-                
+
                 // Nama Murid
                 row.insertCell().textContent = mark.nama || 'TIADA NAMA';
 
-                // Kolum Markah Input (Boleh Edit) - Hidden saat print
-                const markahInputCell = row.insertCell();
-                markahInputCell.className = 'no-print'; 
-                const markahInput = document.createElement('input');
-                markahInput.type = 'number';
-                markahInput.value = mark.markah;
-                markahInput.min = 1;
-                markahInput.max = 100;
-                markahInput.className = 'border border-gray-300 p-2 rounded-md w-full text-sm';
-                markahInput.setAttribute('data-docid', mark.id); 
-                markahInput.setAttribute('data-nokp', mark.no_kp); 
-                
-                // Kolum Markah Paparan (Untuk Cetak/PDF sahaja)
-                const markahDisplayCell = row.insertCell();
-                markahDisplayCell.textContent = mark.markah;
-                markahDisplayCell.className = 'text-center';
+                if (!readOnly || isTemplate) {
+                    // Kolum Markah Input
+                    const markahInputCell = row.insertCell();
+                    markahInputCell.className = 'no-print';
+                    const markahInput = document.createElement('input');
+                    markahInput.type = 'number';
+                    markahInput.value = mark.markah || '';
+                    markahInput.min = 1;
+                    markahInput.max = 100;
+                    markahInput.placeholder = '1-100';
+                    markahInput.className = 'border border-gray-300 p-2 rounded-md w-full text-sm';
+                    markahInput.setAttribute('data-docid', mark.id || '');
+                    markahInput.setAttribute('data-nokp', mark.no_kp);
+                    markahInput.setAttribute('data-nama', mark.nama);
+                    markahInput.setAttribute('data-jantina', mark.jantina || '');
+                    markahInput.setAttribute('data-agama', mark.agama || '');
 
-                // Gred Display
-                const gredCell = row.insertCell();
-                gredCell.className = 'text-center';
-                const gredSpan = document.createElement('span');
-                gredCell.appendChild(gredSpan); 
+                    // Kolum Markah Paparan (cetak)
+                    const markahDisplayCell = row.insertCell();
+                    markahDisplayCell.textContent = mark.markah || '';
+                    markahDisplayCell.className = 'text-center';
 
-                // Attach event listener
-                markahInput.oninput = function() {
-                    markahDisplayCell.textContent = this.value; 
-                    updateGredDisplay(this, gredCell);
-                };
+                    // Gred Display
+                    const gredCell = row.insertCell();
+                    gredCell.className = 'text-center';
+                    gredCell.appendChild(document.createElement('span'));
 
-                updateGredDisplay(markahInput, gredCell, true); 
-                markahInputCell.appendChild(markahInput);
-                
-                // Column Tindakan - Button PADAM
-                const tindakanCell = row.insertCell();
-                tindakanCell.className = 'text-center no-print';
-                const padamBtn = document.createElement('button');
-                padamBtn.className = 'bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 transition text-xs font-semibold';
-                padamBtn.textContent = 'PADAM';
-                padamBtn.onclick = function() {
-                    padamMarkahRow(mark.id, mark.no_kp, mark.nama, mark.subjek, mark.tahun, mark["JENIS PEPERIKSAAN"]);
-                };
-                tindakanCell.appendChild(padamBtn);
+                    markahInput.oninput = function() {
+                        markahDisplayCell.textContent = this.value;
+                        updateGredDisplay(this, gredCell);
+                    };
+                    updateGredDisplay(markahInput, gredCell, true);
+                    markahInputCell.appendChild(markahInput);
+
+                    // Butang PADAM — hanya untuk rekod sedia ada (bukan template)
+                    if (!isTemplate) {
+                        const tindakanCell = row.insertCell();
+                        tindakanCell.className = 'text-center no-print';
+                        const padamBtn = document.createElement('button');
+                        padamBtn.className = 'bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 transition text-xs font-semibold';
+                        padamBtn.textContent = 'PADAM';
+                        padamBtn.onclick = function() {
+                            padamMarkahRow(mark.id, mark.no_kp, mark.nama, mark.subjek, mark.tahun, mark["JENIS PEPERIKSAAN"]);
+                        };
+                        tindakanCell.appendChild(padamBtn);
+                    }
+                } else {
+                    // Mod baca sahaja — paparan markah sahaja
+                    const markahDisplayCell = row.insertCell();
+                    markahDisplayCell.textContent = mark.markah;
+                    markahDisplayCell.className = 'text-center';
+
+                    // Gred Display
+                    const gredCell = row.insertCell();
+                    gredCell.className = 'text-center';
+                    const gredSpan = document.createElement('span');
+                    gredCell.appendChild(gredSpan);
+                    const dummyInput = document.createElement('input');
+                    dummyInput.value = mark.markah;
+                    updateGredDisplay(dummyInput, gredCell, true);
+                }
             });
+        }
+
+        function setEditReadOnly(isReadOnly) {
+            document.getElementById('edit-readonly-banner').classList.toggle('hidden', !isReadOnly);
+            document.getElementById('btn-simpan-edit').classList.toggle('hidden', isReadOnly);
+            document.getElementById('btn-padam-markah').classList.toggle('hidden', isReadOnly);
         }
 
         function renderAnalisaTable(marks, tableDivId) {
@@ -5906,55 +6522,82 @@
             tableDiv.appendChild(table);
         }
 
+        // Semak sama ada exam untuk edit-year semasa berada dalam mod tengok sahaja (aktif === false)
+        function isEditExamReadOnly() {
+            const peperiksaan = document.getElementById('edit-peperiksaan').value;
+            const yInt = parseInt(editYear);
+            const list = (_examTypesCache[yInt] && _examTypesCache[yInt].data) ? _examTypesCache[yInt].data : GLOBAL_DATA.examTypes;
+            const et = list.find(e => e.nama === peperiksaan);
+            return et ? et.aktif === false : false;
+        }
+
         async function simpanEditMarkah() {
+            // Penjaga: mod tengok sahaja tidak boleh simpan
+            if (isEditExamReadOnly()) {
+                showNotification("MOD TENGOK SAHAJA", "Peperiksaan ini dikunci oleh admin. Anda hanya boleh melihat dan mencetak.", true);
+                return;
+            }
             const markahInputs = document.querySelectorAll('#markah-table-edit input[type="number"]');
             const editStatus = document.getElementById('edit-status');
+            const isTemplate = document.getElementById('markah-table-edit').getAttribute('data-template') === '1';
+            const tahun = document.getElementById('edit-tahun').value;
+            const kelas = document.getElementById('edit-kelas').value;
+            const subjek = document.getElementById('edit-subjek').replace ? document.getElementById('edit-subjek').value : document.getElementById('edit-subjek').value;
+            const peperiksaan = document.getElementById('edit-peperiksaan').value;
+            const calYear = parseInt(editYear) || new Date().getFullYear();
+
             const batch = db.batch();
             let updatesCount = 0;
 
-            console.log('💾 SIMPAN MARKAH STARTED');
-            console.log(`   Total inputs found: ${markahInputs.length}`);
-            console.log(`   reportMarkahData records: ${reportMarkahData.length}`);
-
-            editStatus.textContent = 'Menyimpan perubahan...';
+            editStatus.textContent = 'Menyimpan...';
             editStatus.className = 'mt-2 text-sm font-medium text-blue-600';
 
-            markahInputs.forEach((input, index) => {
-                const docId = input.getAttribute('data-docid');
-                const newMarkah = parseInt(input.value);
-                
-                // Cari Gred Span dalam sel bersebelahan
-                const gredSpan = input.parentNode.parentNode.querySelector('td:last-child span'); 
-                
-                console.log(`   [${index}] docId: ${docId}, newMarkah: ${newMarkah}`);
-                
-                if (!docId || isNaN(newMarkah) || newMarkah < 0 || newMarkah > 100) {
-                    console.warn(`   [${index}] ⚠️ SKIPPED - Invalid: docId=${docId}, markah=${newMarkah}`);
-                    return;
-                }
+            // Semak ada input kosong
+            const emptyInputs = Array.from(markahInputs).filter(input => input.value.trim() === '');
+            if (emptyInputs.length > 0) {
+                showNotification("RALAT", `${emptyInputs.length} murid belum diisi markah. Sila isi semua markah.`, true);
+                emptyInputs.forEach(i => i.style.borderColor = 'red');
+                editStatus.textContent = '';
+                return;
+            }
 
+            markahInputs.forEach((input, index) => {
+                const newMarkah = parseInt(input.value);
+                const gredSpan = input.parentNode.parentNode.querySelector('td span');
+                if (isNaN(newMarkah) || newMarkah < 1 || newMarkah > 100) return;
                 const newGred = gredSpan ? gredSpan.textContent : getGredFromMarkah(newMarkah);
 
-                // Dapatkan rekod lama untuk elak update yang tidak perlu (efisiensi)
-                const oldMark = reportMarkahData.find(m => m.id === docId);
-                
-                if (oldMark) {
-                    const oldMarkahNum = parseInt(oldMark.markah);
-                    const changed = (oldMarkahNum !== newMarkah) || (oldMark.gred !== newGred);
-                    
-                    console.log(`   [${index}] Old: ${oldMarkahNum}/${oldMark.gred}, New: ${newMarkah}/${newGred}, Changed: ${changed}`);
-                    
-                    if (changed) {
-                        const docRef = db.collection("rekodMarkah").doc(docId);
-                        batch.update(docRef, { 
-                            markah: newMarkah, 
-                            gred: newGred 
-                        });
-                        updatesCount++;
-                        console.log(`   [${index}] ✅ QUEUED for update`);
-                    }
+                if (isTemplate) {
+                    // Rekod baru — bina docId dan set
+                    const nokp = input.getAttribute('data-nokp');
+                    const nama = input.getAttribute('data-nama');
+                    const jantina = input.getAttribute('data-jantina');
+                    const agama = input.getAttribute('data-agama');
+                    const docId = `${nokp}_${subjek}_${tahun}_${peperiksaan}_${calYear}`;
+                    const docRef = db.collection('rekodMarkah').doc(docId);
+                    batch.set(docRef, {
+                        no_kp: nokp, nama, tahun, kelas, subjek, jantina, agama,
+                        "JENIS PEPERIKSAAN": peperiksaan,
+                        markah: newMarkah, gred: newGred,
+                        cal_year: calYear,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    updatesCount++;
                 } else {
-                    console.warn(`   [${index}] ⚠️ Old mark NOT FOUND for docId: ${docId}`);
+                    // Rekod sedia ada — update sahaja
+                    const docId = input.getAttribute('data-docid');
+                    if (!docId) return;
+                    const oldMark = reportMarkahData.find(m => m.id === docId);
+                    if (oldMark) {
+                        const changed = parseInt(oldMark.markah) !== newMarkah || oldMark.gred !== newGred;
+                        if (changed) {
+                            batch.update(db.collection('rekodMarkah').doc(docId), {
+                                markah: newMarkah, gred: newGred,
+                                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                            updatesCount++;
+                        }
+                    }
                 }
             });
 
@@ -6662,9 +7305,11 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             // Pastikan data tahun ini dari Firestore (fix stale cache cal_year)
             await ensureMarksLoaded(analisaSubjekYear);
 
-            // Ambil exam types dari examTypes DB (year-filtered, terkawal)
-            const etForYear = await getExamTypesForYear(parseInt(analisaSubjekYear));
-            populateDashboardJenisPeperiksaanDropdown(etForYear.map(et => et.nama));
+            // Tunjuk semua exam — tiada tapis aktif untuk Dashboard Analisa Subjek
+            const examNamesForDash = [...new Set(
+                getMarksByYear(analisaSubjekYear).map(m => m["JENIS PEPERIKSAAN"]).filter(Boolean)
+            )].sort();
+            populateDashboardJenisPeperiksaanDropdown(examNamesForDash);
 
             // Update display label for analisa subjek individu form
             const displayEl = document.getElementById('analisa-subjek-year-display');
@@ -7097,14 +7742,14 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
         function populateExamTypeDropdown() {
             const dropdown = document.getElementById('analisa-exam-type');
             if (!dropdown) return;
-            
-            const examTypes = new Set();
-            GLOBAL_DATA.allMarks.forEach(mark => {
-                if (mark['JENIS PEPERIKSAAN']) {
-                    examTypes.add(mark['JENIS PEPERIKSAAN']);
-                }
-            });
-            
+
+            // Tunjuk semua exam — tiada tapis aktif untuk Analisa Berdasarkan Jenis Peperiksaan
+            const examTypes = new Set(
+                getMarksByYear(analisaSubjekYear)
+                    .map(m => m['JENIS PEPERIKSAAN'])
+                    .filter(Boolean)
+            );
+
             dropdown.innerHTML = '<option value="">-- Pilih Jenis Peperiksaan --</option>';
             Array.from(examTypes).sort().forEach(examType => {
                 const option = document.createElement('option');
@@ -7560,71 +8205,92 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             showNotification("BERJAYA!", `Fail PDF ${fileName} berjaya dimuat turun (${totalTables} tables stacked vertically).`, false);
         }
 
-        function cariAnalisaSubjek() {
+        // Mod 1: Agregat markah mengikut Darjah (tahun persekolahan) untuk 1 tahun kalendar
+        function buildAnalisaByDarjah(subjek, perik, year) {
+            const darjahOrder = ['SATU','DUA','TIGA','EMPAT','LIMA','ENAM'];
+            const marks = getMarksByYear(year).filter(m =>
+                m.subjek === subjek && m['JENIS PEPERIKSAAN'] === perik
+            );
+            const agg = {};
+            marks.forEach(m => {
+                const d = m.tahun;
+                if (!d) return;
+                if (!agg[d]) agg[d] = { label: d, grades: { A:0, B:0, C:0, D:0, E:0, F:0 }, total: 0 };
+                const g = String(m.gred || 'F').toUpperCase();
+                if (agg[d].grades[g] !== undefined) agg[d].grades[g]++;
+                agg[d].total++;
+            });
+            return Object.values(agg).sort((a, b) => darjahOrder.indexOf(a.label) - darjahOrder.indexOf(b.label));
+        }
+
+        // Mod 2: Agregat markah mengikut Tahun Kalendar untuk 1 darjah (trend)
+        function buildAnalisaByCalYear(subjek, perik, darjah) {
+            const allMarks = Object.values(marksCache).flat();
+            const filtered = allMarks.filter(m =>
+                m.subjek === subjek && m['JENIS PEPERIKSAAN'] === perik && m.tahun === darjah
+            );
+            const agg = {};
+            filtered.forEach(m => {
+                const yr = String(getTimestampYear(m));
+                if (!yr || yr === 'null' || yr === 'NaN') return;
+                if (!agg[yr]) agg[yr] = { label: yr, grades: { A:0, B:0, C:0, D:0, E:0, F:0 }, total: 0 };
+                const g = String(m.gred || 'F').toUpperCase();
+                if (agg[yr].grades[g] !== undefined) agg[yr].grades[g]++;
+                agg[yr].total++;
+            });
+            return Object.values(agg).sort((a, b) => parseInt(a.label) - parseInt(b.label));
+        }
+
+        async function cariAnalisaSubjek() {
             const subjek = document.getElementById('analisa-subjek-subjek').value;
-            const peperiksaan = document.getElementById('analisa-subjek-peperiksaan').value;
+            const perik = document.getElementById('analisa-subjek-peperiksaan').value;
             const laporanContainer = document.getElementById('analisa-subjek-laporan-container');
 
-            if (!subjek || !peperiksaan) {
+            if (!subjek || !perik) {
                 showNotification("RALAT INPUT", "Sila pilih Subjek dan Jenis Peperiksaan.", true);
                 return;
             }
-            
-            // 1. Dapatkan semua markah untuk Subjek dan Peperiksaan (tapis ikut analisaSubjekYear)
-            const filteredMarks = getMarksByYear(analisaSubjekYear).filter(m =>
-                m.subjek === subjek && m["JENIS PEPERIKSAAN"] === peperiksaan
-            );
 
-            if (filteredMarks.length === 0) {
-                 showNotification("RALAT REKOD", "Tiada rekod markah dijumpai untuk kriteria ini.", true);
-                 laporanContainer.classList.add('hidden');
-                 return;
+            let aggregatedData, tajuk, metadata;
+
+            if (analisaSubjekMod === 'darjah') {
+                // Mod 1 — Merentas Darjah
+                aggregatedData = buildAnalisaByDarjah(subjek, perik, analisaSubjekYear);
+                tajuk = `Analisa Merentas Darjah — ${subjek}`;
+                const total = aggregatedData.reduce((s, d) => s + d.total, 0);
+                metadata = `Peperiksaan: ${perik} | Tahun Kalendar: ${analisaSubjekYear} | Jumlah Rekod: ${total}`;
+            } else {
+                // Mod 2 — Merentas Tahun Kalendar
+                const darjah = document.getElementById('analisa-subjek-darjah').value;
+                if (!darjah) {
+                    showNotification("RALAT INPUT", "Sila pilih Darjah untuk analisa merentas tahun.", true);
+                    return;
+                }
+                await Promise.all(availableYears.map(y => ensureMarksLoaded(y)));
+                aggregatedData = buildAnalisaByCalYear(subjek, perik, darjah);
+                tajuk = `Analisa Merentas Tahun Kalendar — ${subjek} (Darjah ${darjah})`;
+                const total = aggregatedData.reduce((s, d) => s + d.total, 0);
+                metadata = `Peperiksaan: ${perik} | Darjah: ${darjah} | Jumlah Rekod: ${total}`;
             }
-            
-            // 2. Agregat data mengikut TAHUN
-            const analisaData = {}; 
-            let studentsPerYear = {}; 
 
-            // Kumpul semua pelajar mengikut Tahun untuk mendapatkan kiraan total sebenar
-            GLOBAL_DATA.students.forEach(s => {
-                if (s.tahun) {
-                    studentsPerYear[s.tahun] = (studentsPerYear[s.tahun] || new Set());
-                    studentsPerYear[s.tahun].add(s.no_kp);
-                }
-            });
-            
-            filteredMarks.forEach(mark => {
-                const tahun = mark.tahun;
-                const gred = String(mark.gred || 'F').toUpperCase();
+            if (aggregatedData.length === 0) {
+                showNotification("RALAT REKOD", "Tiada rekod markah dijumpai untuk kriteria ini.", true);
+                laporanContainer.classList.add('hidden');
+                return;
+            }
 
-                if (!analisaData[tahun]) {
-                    analisaData[tahun] = {
-                        tahun: tahun,
-                        grades: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 },
-                        total: 0, 
-                        totalMuridInYear: studentsPerYear[tahun] ? studentsPerYear[tahun].size : 0 
-                    };
-                }
-                
-                if (analisaData[tahun].grades[gred] !== undefined) {
-                    analisaData[tahun].grades[gred]++;
-                }
-                analisaData[tahun].total++; 
-            });
+            analisaSubjekReportData = aggregatedData;
 
-            // Tukar objek ke array untuk dipaparkan
-            const aggregatedData = Object.values(analisaData).sort((a,b) => a.tahun.localeCompare(b.tahun));
-            analisaSubjekReportData = aggregatedData; // Simpan untuk CSV
+            // Kemaskini tajuk carta & jadual secara dinamik
+            const modLabel = analisaSubjekMod === 'darjah' ? 'Merentas Darjah' : 'Merentas Tahun Kalendar';
+            document.getElementById('analisa-subjek-chart-title').textContent = `Carta Analisa Gred ${modLabel} (Peratus Pelajar)`;
+            document.getElementById('analisa-subjek-table-title').textContent = `Jadual Analisa Gred ${modLabel}`;
 
-            // 3. Render Carta
             renderAnalisaSubjekChart(aggregatedData);
-            
-            // 4. Render Jadual Gred
             renderAnalisaSubjekDataTable(aggregatedData);
-            
-            // 5. Papar Metadata & Kontena
-            document.getElementById('analisa-subjek-laporan-tajuk').textContent = `Analisa Merentas Tahun untuk ${subjek}`;
-            document.getElementById('analisa-subjek-laporan-metadata').textContent = `Peperiksaan: ${peperiksaan} | Jumlah Rekod: ${filteredMarks.length}`;
+
+            document.getElementById('analisa-subjek-laporan-tajuk').textContent = tajuk;
+            document.getElementById('analisa-subjek-laporan-metadata').textContent = metadata;
             laporanContainer.classList.remove('hidden');
         }
 
@@ -7635,7 +8301,7 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 analisaSubjekChartInstance.destroy(); // Hancurkan carta lama
             }
             
-            const labels = data.map(d => d.tahun); // Cth: ['Tahun 1', 'Tahun 2', 'Tahun 3']
+            const labels = data.map(d => d.label);
             const gradeCategories = ['A', 'B', 'C', 'D', 'E', 'F'];
             const gradeColors = {
                 'A': 'rgba(22, 163, 74, 0.7)', // green
@@ -7645,12 +8311,12 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 'E': 'rgba(239, 68, 68, 0.7)',  // red
                 'F': 'rgba(156, 163, 175, 0.7)' // gray
             };
-            
+
             const datasets = gradeCategories.map(gred => {
                 return {
                     label: `Gred ${gred}`,
                     data: data.map(d => {
-                        const totalMurid = d.totalMuridInYear || 1;
+                        const totalMurid = d.total || 1;
                         const count = d.grades[gred] || 0;
                         return (count / totalMurid) * 100; // Kembalikan Peratus
                     }),
@@ -7709,10 +8375,11 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             table.className = 'min-w-full divide-y divide-gray-200 border border-gray-300';
             
             // Buat Header WITH AGGREGATE COLUMNS
+            const colHeader = analisaSubjekMod === 'darjah' ? 'Darjah' : 'Tahun Kalendar';
             let headerHTML = `
                 <thead class="bg-gray-100">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase border border-gray-300">Tahun</th>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase border border-gray-300">${colHeader}</th>
                         <th class="px-2 py-2 text-center text-xs font-bold text-gray-700 uppercase border border-gray-300">Bil A</th>
                         <th class="px-2 py-2 text-center text-xs font-bold text-gray-700 uppercase border border-gray-300">% A</th>
                         <th class="px-2 py-2 text-center text-xs font-bold text-gray-700 uppercase border border-gray-300">Bil B</th>
@@ -7738,11 +8405,11 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             // Isi Data WITH AGGREGATE COLUMNS
             data.forEach((yearData, index) => {
                 const total = yearData.total;
-                const totalMurid = yearData.totalMuridInYear || 1;
+                const totalMurid = yearData.total || 1;
                 const rowClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
-                
+
                 let rowHTML = `<tr class="${rowClass}">`;
-                rowHTML += `<td class="px-4 py-3 text-sm font-medium text-gray-900 border border-gray-300">${yearData.tahun}</td>`;
+                rowHTML += `<td class="px-4 py-3 text-sm font-medium text-gray-900 border border-gray-300">${yearData.label}</td>`;
                 
                 // A, B, C, D
                 ['A', 'B', 'C', 'D'].forEach(gred => {
@@ -7830,24 +8497,25 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                  return;
             }
 
+            const colKey = analisaSubjekMod === 'darjah' ? 'DARJAH' : 'TAHUN_KALENDAR';
             const header = [
-                "TAHUN", 
-                "BIL_A", "PERATUS_A", 
-                "BIL_B", "PERATUS_B", 
-                "BIL_C", "PERATUS_C", 
+                colKey,
+                "BIL_A", "PERATUS_A",
+                "BIL_B", "PERATUS_B",
+                "BIL_C", "PERATUS_C",
                 "BIL_D", "PERATUS_D",
                 "BIL_ABCD", "PERATUS_ABCD",
-                "BIL_E", "PERATUS_E", 
+                "BIL_E", "PERATUS_E",
                 "BIL_F", "PERATUS_F",
                 "BIL_EF", "PERATUS_EF",
                 "JUMLAH_REKOD"
             ];
-            
+
             const csvData = analisaSubjekReportData.map(d => {
                 const total = d.total || 0;
-                const totalMurid = d.totalMuridInYear || 1;
+                const totalMurid = d.total || 1;
                 let row = {
-                    "TAHUN": d.tahun,
+                    [colKey]: d.label,
                 };
                 
                 // A, B, C, D
@@ -8639,6 +9307,54 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
         // Tapis dropdown jenis peperiksaan mengikut darjah
         // tahun = nilai dari pilih-tahun (e.g., "SATU", "DUA"), dropdownId = id dropdown yang perlu ditapis
         const _tahunToDarjah = { 'SATU': 1, 'DUA': 2, 'TIGA': 3, 'EMPAT': 4, 'LIMA': 5, 'ENAM': 6 };
+        const _darjahToTahun = { 1: 'SATU', 2: 'DUA', 3: 'TIGA', 4: 'EMPAT', 5: 'LIMA', 6: 'ENAM' };
+
+        // Dipanggil bila Jenis Peperiksaan ditukar — tapis Pilih Darjah mengikut darjah yang dikonfigur admin
+        function onPeperiksaanChange() {
+            const peperiksaan = document.getElementById('pilih-peperiksaan').value;
+            const tahunSelect = document.getElementById('pilih-tahun');
+            const currentTahun = tahunSelect.value;
+
+            // Cari exam type yang dipilih dari GLOBAL_DATA
+            const examType = peperiksaan
+                ? GLOBAL_DATA.examTypes.find(et => et.nama === peperiksaan)
+                : null;
+
+            // Tentukan darjah yang perlu ditunjuk
+            const darjahDibenar = (examType && Array.isArray(examType.darjah) && examType.darjah.length > 0)
+                ? examType.darjah.map(Number)
+                : null; // null = tunjuk semua
+
+            // Isi semula pilih-tahun berdasarkan darjah yang dibenar
+            tahunSelect.innerHTML = '<option value="">-- Pilih Darjah --</option>';
+            GLOBAL_DATA.allYears.forEach(tahun => {
+                const darjahNum = _tahunToDarjah[tahun];
+                if (darjahDibenar === null || darjahDibenar.includes(darjahNum)) {
+                    const opt = document.createElement('option');
+                    opt.value = tahun;
+                    opt.textContent = tahun;
+                    tahunSelect.appendChild(opt);
+                }
+            });
+
+            // Pulihkan nilai sebelum jika masih dalam senarai
+            if (currentTahun && [...tahunSelect.options].some(o => o.value === currentTahun)) {
+                tahunSelect.value = currentTahun;
+            } else {
+                tahunSelect.value = '';
+            }
+
+            // Reset kelas & table
+            const kelasSelect = document.getElementById('pilih-kelas');
+            kelasSelect.innerHTML = '<option value="">-- Pilih Kelas --</option>';
+            kelasSelect.disabled = true;
+            document.getElementById('markah-table').classList.add('hidden');
+            document.getElementById('simpan-container').classList.add('hidden');
+
+            // Trigger onTahunChange supaya kelas diisi jika darjah masih dipilih
+            onTahunChange();
+        }
+
         function filterExamDropdownByDarjah(tahun, dropdownId) {
             const el = document.getElementById(dropdownId);
             if (!el) return;
@@ -9055,6 +9771,297 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 statusEl.className = 'text-sm font-medium text-red-600';
                 console.error('❌ migrateExamTypeTahunKalendar error:', error);
             }
+        }
+
+        function cetakAnalisaKelas() {
+            const info = document.getElementById('ak-info').textContent;
+            const pep  = document.getElementById('ak-peperiksaan').value;
+            const thn  = document.getElementById('ak-tahun').options[document.getElementById('ak-tahun').selectedIndex]?.text || '';
+            const subj = document.getElementById('ak-subjek').value;
+            const year = document.getElementById('ak-year').value;
+
+            // Ambil HTML jadual
+            const tableHTML = document.querySelector('#analisa-kelas-panel .overflow-x-auto').innerHTML;
+
+            const win = window.open('', '_blank');
+            win.document.write(`<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<title>Analisa Kelas — ${subj}</title>
+<style>
+  @page { size: A4 landscape; margin: 15mm; }
+  body { font-family: Arial, sans-serif; font-size: 12px; color: #1e293b; }
+  h2 { text-align: center; font-size: 16px; margin-bottom: 4px; color: #1e40af; }
+  p.info { text-align: center; font-size: 11px; color: #64748b; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 8px 10px; border: 1px solid #e2e8f0; text-align: center; }
+  thead tr { background: #1e3a8a !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  th { font-size: 11px; font-weight: 700; }
+  th:first-child { text-align: left; }
+  td:first-child { text-align: left; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #f8faff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  tbody tr:hover { background: none; }
+  /* Warna gred */
+  td.g-a { color: #15803d; font-weight: 700; }
+  td.g-b { color: #1d4ed8; font-weight: 700; }
+  td.g-c { color: #854d0e; font-weight: 700; }
+  td.g-d { color: #c2410c; font-weight: 700; }
+  td.g-e { color: #b91c1c; font-weight: 700; }
+  tfoot tr { background: #1e3a8a !important; color: white !important; font-weight: 700; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .footer { margin-top: 20px; font-size: 9px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+</style>
+</head>
+<body>
+<h2>🏫 Analisa Mengikut Kelas</h2>
+<p class="info">${pep} &nbsp;·&nbsp; ${thn} &nbsp;·&nbsp; ${subj} &nbsp;·&nbsp; Tahun Kalendar: ${year}</p>
+${tableHTML}
+<div class="footer">Sistem ESIS — Dicetak: ${new Date().toLocaleDateString('ms-MY', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+</body></html>`);
+            win.document.close();
+            win.focus();
+            setTimeout(() => { win.print(); win.close(); }, 600);
+        }
+
+        // ============================================================
+        // ANALISA KELAS
+        // ============================================================
+        let _akInitDone = false;
+
+        function initAnalisaKelas() {
+            populatePanelYearDropdown('ak-year', new Date().getFullYear().toString());
+            onAKYearChange();
+        }
+
+        async function onAKYearChange() {
+            const year = document.getElementById('ak-year').value;
+            const pepSel = document.getElementById('ak-peperiksaan');
+            pepSel.innerHTML = '<option value="">Memuatkan...</option>';
+            pepSel.disabled = true;
+            document.getElementById('ak-tahun').disabled = true;
+            document.getElementById('ak-subjek').disabled = true;
+            document.getElementById('ak-container').classList.add('hidden');
+            document.getElementById('ak-empty').classList.remove('hidden');
+            if (!year) return;
+
+            try {
+                const examTypes = await getExamTypesForYear(parseInt(year));
+                pepSel.innerHTML = '<option value="">-- Pilih Peperiksaan --</option>';
+                if (!examTypes.length) {
+                    pepSel.innerHTML = '<option value="">Tiada peperiksaan untuk ' + year + '</option>';
+                    return;
+                }
+                examTypes.forEach(e => {
+                    const opt = document.createElement('option');
+                    opt.value = e.nama;
+                    opt.textContent = e.nama;
+                    pepSel.appendChild(opt);
+                });
+                pepSel.disabled = false;
+            } catch(err) {
+                pepSel.innerHTML = '<option value="">Ralat memuatkan</option>';
+                console.error('AK examTypes error:', err);
+            }
+        }
+
+        async function onAKPeperiksaanChange() {
+            const year   = document.getElementById('ak-year').value;
+            const pep    = document.getElementById('ak-peperiksaan').value;
+            const tahunSel = document.getElementById('ak-tahun');
+            tahunSel.innerHTML = '<option value="">Memuatkan...</option>';
+            tahunSel.disabled = true;
+            document.getElementById('ak-subjek').innerHTML = '<option value="">-- Pilih Subjek --</option>';
+            document.getElementById('ak-subjek').disabled = true;
+            document.getElementById('ak-container').classList.add('hidden');
+            document.getElementById('ak-empty').classList.remove('hidden');
+            if (!pep) return;
+
+            try {
+                // Load data tahun ini jika belum dalam cache
+                await ensureMarksLoaded(parseInt(year));
+
+                const yearMarks = getMarksByYear(parseInt(year));
+                const tahunSet = new Set(
+                    yearMarks.filter(m => (m['JENIS PEPERIKSAAN'] || '') === pep)
+                             .map(m => m.tahun).filter(Boolean)
+                );
+
+                tahunSel.innerHTML = '<option value="">-- Pilih Tahun --</option>';
+                const urutan = ['SATU','DUA','TIGA','EMPAT','LIMA','ENAM'];
+                const label  = {'SATU':'Tahun 1','DUA':'Tahun 2','TIGA':'Tahun 3','EMPAT':'Tahun 4','LIMA':'Tahun 5','ENAM':'Tahun 6'};
+                urutan.filter(t => tahunSet.has(t)).forEach(t => {
+                    tahunSel.add(new Option(label[t] || t, t));
+                });
+
+                if (tahunSel.options.length > 1) tahunSel.disabled = false;
+                else tahunSel.innerHTML = '<option value="">Tiada data</option>';
+            } catch(e) {
+                tahunSel.innerHTML = '<option value="">Ralat memuatkan</option>';
+                console.error('AK tahun load error:', e);
+            }
+        }
+
+        async function onAKTahunChange() {
+            const year     = document.getElementById('ak-year').value;
+            const pep      = document.getElementById('ak-peperiksaan').value;
+            const tahun    = document.getElementById('ak-tahun').value;
+            const subjekSel = document.getElementById('ak-subjek');
+            subjekSel.innerHTML = '<option value="">Memuatkan...</option>';
+            subjekSel.disabled = true;
+            document.getElementById('ak-container').classList.add('hidden');
+            document.getElementById('ak-empty').classList.remove('hidden');
+            if (!tahun) return;
+
+            try {
+                await ensureMarksLoaded(parseInt(year));
+                const yearMarks = getMarksByYear(parseInt(year));
+                const marks = yearMarks.filter(m =>
+                    (m['JENIS PEPERIKSAAN'] || '') === pep &&
+                    (m.tahun || '') === tahun
+                );
+                const subjekSet = new Set(marks.map(m => m.subjek).filter(Boolean));
+                subjekSel.innerHTML = '<option value="">-- Pilih Subjek --</option>';
+                if (!subjekSet.size) {
+                    (GLOBAL_DATA.allSubjects || []).filter(s => s.nama_penuh)
+                        .sort((a,b) => a.nama_penuh.localeCompare(b.nama_penuh))
+                        .forEach(s => subjekSel.add(new Option(s.nama_penuh, s.nama_penuh)));
+                } else {
+                    Array.from(subjekSet).sort().forEach(s => subjekSel.add(new Option(s, s)));
+                }
+                subjekSel.disabled = false;
+            } catch(e) {
+                subjekSel.innerHTML = '<option value="">Ralat memuatkan</option>';
+                console.error('AK subjek load error:', e);
+            }
+        }
+
+        function renderAnalisaKelas() {
+            const year   = document.getElementById('ak-year').value;
+            const pep    = document.getElementById('ak-peperiksaan').value;
+            const tahun  = document.getElementById('ak-tahun').value;
+            const subjek = document.getElementById('ak-subjek').value;
+
+            if (!year || !pep || !tahun || !subjek) return;
+
+            // Guna getMarksByYear — sama seperti panel lain
+            const yearMarks = getMarksByYear(parseInt(year));
+            const marks = yearMarks.filter(m =>
+                (m['JENIS PEPERIKSAAN'] || '') === pep &&
+                (m.tahun || '') === tahun &&
+                (m.subjek || '') === subjek
+            );
+
+            if (!marks.length) {
+                document.getElementById('ak-container').classList.add('hidden');
+                document.getElementById('ak-empty').classList.remove('hidden');
+                document.getElementById('ak-empty').innerHTML =
+                    '<div class="text-6xl mb-4">📭</div>' +
+                    '<p class="text-lg font-semibold text-gray-500">Tiada markah dijumpai</p>' +
+                    '<p class="text-sm mt-1 text-gray-400">' + pep + ' · Tahun ' + tahun + ' · ' + subjek + '</p>';
+                return;
+            }
+
+            // Gred terus dari rekod (field m.gred sudah ada)
+            // Kumpul kolum gred unik yang wujud dalam data
+            const gredSet = new Set(marks.map(m => m.gred).filter(Boolean));
+            // Susun ikut gredList order jika ada, else A→E
+            const gredList = (GLOBAL_DATA.allGrades || []).slice().sort((a, b) => (b.min || 0) - (a.min || 0));
+            let kolum = gredList.map(g => g.gred || g.nama).filter(g => g && gredSet.has(g));
+            if (!kolum.length) kolum = Array.from(gredSet).sort();
+            if (!kolum.length) kolum = ['A','B','C','D','E'];
+
+            // Kumpul data mengikut kelas
+            const kelasMap = {};
+            marks.forEach(m => {
+                const kelas = m.kelas || 'TIADA KELAS';
+                if (!kelasMap[kelas]) kelasMap[kelas] = [];
+                kelasMap[kelas].push(m.gred || '-');
+            });
+
+            // Render jadual
+            const tbody = document.getElementById('ak-tbody');
+            const tfoot = document.getElementById('ak-tfoot');
+            tbody.innerHTML = '';
+            tfoot.innerHTML = '';
+
+            const kelasList = Object.keys(kelasMap).sort();
+            const totalAll = { jumlah: 0 };
+            kolum.forEach(g => totalAll[g] = 0);
+
+            const gredColors = {
+                'A': 'text-green-700 font-bold',
+                'B': 'text-blue-700 font-bold',
+                'C': 'text-yellow-700 font-bold',
+                'D': 'text-orange-700 font-bold',
+                'E': 'text-red-700 font-bold',
+            };
+
+            kelasList.forEach((kelas, idx) => {
+                const greds = kelasMap[kelas];
+                const jumlah = greds.length;
+                const count = {};
+                kolum.forEach(g => count[g] = 0);
+                greds.forEach(g => { if (count[g] !== undefined) count[g]++; });
+
+                kolum.forEach(g => totalAll[g] += count[g]);
+                totalAll.jumlah += jumlah;
+
+                let cells = '';
+                kolum.forEach(g => {
+                    const cnt = count[g];
+                    const pct = jumlah > 0 ? ((cnt / jumlah) * 100).toFixed(0) : 0;
+                    const colorClass = gredColors[g] || 'font-semibold';
+                    cells += `<td class="px-3 py-2 text-center ${colorClass}">${cnt}</td>`;
+                    cells += `<td class="px-3 py-2 text-center text-gray-500 text-xs">${pct}%</td>`;
+                });
+
+                const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                tbody.insertAdjacentHTML('beforeend',
+                    `<tr class="${rowBg} border-b hover:bg-purple-50">
+                        <td class="px-4 py-2 font-semibold text-gray-800">${kelas}</td>
+                        ${cells}
+                        <td class="px-3 py-2 text-center font-bold text-gray-700">${jumlah}</td>
+                    </tr>`
+                );
+            });
+
+            // Jumlah keseluruhan
+            let totalCells = '';
+            kolum.forEach(g => {
+                const cnt = totalAll[g];
+                const pct = totalAll.jumlah > 0 ? ((cnt / totalAll.jumlah) * 100).toFixed(0) : 0;
+                totalCells += `<td class="px-3 py-2 text-center font-bold">${cnt}</td>`;
+                totalCells += `<td class="px-3 py-2 text-center text-xs font-semibold">${pct}%</td>`;
+            });
+            tfoot.innerHTML =
+                `<tr class="bg-gray-700 text-white">
+                    <td class="px-4 py-2 font-bold rounded-bl-lg">JUMLAH</td>
+                    ${totalCells}
+                    <td class="px-3 py-2 text-center font-bold rounded-br-lg">${totalAll.jumlah}</td>
+                </tr>`;
+
+            // Kemaskini header jadual ikut gred sebenar
+            const thead = document.querySelector('#analisa-kelas-panel thead tr');
+            let thHtml = '<th class="px-4 py-3 text-left rounded-tl-lg">KELAS</th>';
+            const thColors = {
+                'A': 'bg-green-700','B':'bg-blue-700','C':'bg-yellow-600','D':'bg-orange-600','E':'bg-red-700'
+            };
+            const thPctColors = {
+                'A': 'bg-green-600','B':'bg-blue-600','C':'bg-yellow-500','D':'bg-orange-500','E':'bg-red-600'
+            };
+            kolum.forEach(g => {
+                const bg = thColors[g] || 'bg-gray-600';
+                const bgPct = thPctColors[g] || 'bg-gray-500';
+                thHtml += `<th class="px-3 py-3 text-center ${bg}">${g}</th>`;
+                thHtml += `<th class="px-3 py-3 text-center ${bgPct}">%</th>`;
+            });
+            thHtml += '<th class="px-3 py-3 text-center rounded-tr-lg">JML</th>';
+            thead.innerHTML = thHtml;
+
+            document.getElementById('ak-info').textContent =
+                pep + ' · Tahun ' + tahun + ' · ' + subjek + ' · ' + kelasList.length + ' kelas · ' + totalAll.jumlah + ' murid';
+            document.getElementById('ak-empty').classList.add('hidden');
+            document.getElementById('ak-container').classList.remove('hidden');
         }
 
     </script>

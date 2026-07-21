@@ -1,0 +1,7 @@
+[
+  {
+    "origin": ["https://sistem-esis.web.app", "https://sistem-esis.firebaseapp.com", "http://localhost:5000"],
+    "method": ["GET"],
+    "maxAgeSeconds": 3600
+  }
+]
