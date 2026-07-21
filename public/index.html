@@ -412,6 +412,16 @@
 
                     <!-- Jadual Markah -->
                     <h4 class="text-lg font-semibold text-gray-800 mt-2 mb-3">Senarai Markah Pelajar</h4>
+
+                    <!-- Kotak Cari Nama Murid -->
+                    <div class="mb-3 no-print relative max-w-sm">
+                        <input type="text" id="cari-nama-murid" oninput="filterMuridEdit()" placeholder="🔍 Cari nama murid..." autocomplete="off"
+                            class="block w-full pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500">
+                        <button type="button" onclick="document.getElementById('cari-nama-murid').value=''; filterMuridEdit();"
+                            class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600" title="Kosongkan">✕</button>
+                        <p id="cari-nama-info" class="mt-1 text-xs text-gray-500"></p>
+                    </div>
+
                     <div id="markah-edit-table-container" class="overflow-x-auto mb-8">
                         <table id="markah-table-edit" class="min-w-full divide-y divide-gray-200 border">
                             <thead class="bg-gray-50"></thead>
@@ -1226,6 +1236,10 @@
                             <input type="text" id="slip-setting-sekolah" placeholder="SEKOLAH KEBANGSAAN SULTAN ISMAIL" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm">
                         </div>
                         <div>
+                            <label for="slip-setting-alamat" class="block text-sm font-medium text-gray-700 mb-2">Alamat Sekolah</label>
+                            <input type="text" id="slip-setting-alamat" placeholder="24000, KEMAMAN, TERENGGANU" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm">
+                        </div>
+                        <div>
                             <label for="slip-setting-tajuk" class="block text-sm font-medium text-gray-700 mb-2">Tajuk Slip</label>
                             <input type="text" id="slip-setting-tajuk" placeholder="SLIP KEPUTUSAN PEPERIKSAAN" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm">
                         </div>
@@ -1825,6 +1839,7 @@
                 slipTemplate: {
                     logoUrl: '',
                     namaSekolah: 'SEKOLAH KEBANGSAAN SULTAN ISMAIL',
+                    alamatSekolah: '',
                     namaSlip: 'SLIP KEPUTUSAN PEPERIKSAAN',
                     tandatanganGB: '',
                     namaGuruBesar: '',
@@ -2495,7 +2510,10 @@
                 .sort((a, b) => (a.nama_pendek || a.id).localeCompare(b.nama_pendek || b.id))
                 .map(s => s.nama_penuh);
 
-            // Bina lookup: markahSet[tahun][kelas] = Set of subjek yang ada markah
+            // Normalisasi nama subjek untuk padanan yang tahan ejaan: trim + huruf besar + rapatkan ruang berganda
+            const normSubjek = (s) => String(s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+
+            // Bina lookup: markahSet[tahun][kelas] = Set of subjek (ternormal) yang ada markah
             // Guna cal_year field terus (lebih reliable dari parse docId atau timestamp)
             const markahSet = {};
             GLOBAL_DATA.allMarks
@@ -2510,7 +2528,7 @@
                 .forEach(m => {
                     if (!markahSet[m.tahun]) markahSet[m.tahun] = {};
                     if (!markahSet[m.tahun][m.kelas]) markahSet[m.tahun][m.kelas] = new Set();
-                    markahSet[m.tahun][m.kelas].add(m.subjek);
+                    markahSet[m.tahun][m.kelas].add(normSubjek(m.subjek));
                 });
 
             // Header
@@ -2541,7 +2559,7 @@
                     tableHTML += `<tr class="${rowClass}">`;
                     tableHTML += `<td class="px-4 py-2 font-medium text-gray-700 border-r border-gray-300 whitespace-nowrap">${kelas}</td>`;
                     sortedSubjects.forEach(subjek => {
-                        const ada = kelasMarkah.has(subjek);
+                        const ada = kelasMarkah.has(normSubjek(subjek));
                         tableHTML += `<td class="px-2 py-2 text-center font-bold text-base border-r border-gray-300 ${ada ? 'text-green-600' : 'text-red-500'}">${ada ? '✓' : '✗'}</td>`;
                     });
                     tableHTML += '</tr>';
@@ -4331,6 +4349,7 @@
             document.getElementById('slip-setting-logo').value = settings.logoUrl || '';
             document.getElementById('slip-setting-jata').value = settings.jataUrl || '';
             document.getElementById('slip-setting-sekolah').value = settings.namaSekolah || '';
+            document.getElementById('slip-setting-alamat').value = settings.alamatSekolah || '';
             document.getElementById('slip-setting-tajuk').value = settings.namaSlip || '';
             document.getElementById('slip-setting-tandatangan').value = settings.tandatanganGB || '';
             document.getElementById('slip-setting-nama-gb').value = settings.namaGuruBesar || '';
@@ -4394,6 +4413,7 @@
             GLOBAL_DATA.settings.slipTemplate.logoUrl = document.getElementById('slip-setting-logo').value.trim();
             GLOBAL_DATA.settings.slipTemplate.jataUrl = document.getElementById('slip-setting-jata').value.trim();
             GLOBAL_DATA.settings.slipTemplate.namaSekolah = document.getElementById('slip-setting-sekolah').value.trim();
+            GLOBAL_DATA.settings.slipTemplate.alamatSekolah = document.getElementById('slip-setting-alamat').value.trim();
             GLOBAL_DATA.settings.slipTemplate.namaSlip = document.getElementById('slip-setting-tajuk').value.trim();
             GLOBAL_DATA.settings.slipTemplate.tandatanganGB = document.getElementById('slip-setting-tandatangan').value.trim();
             GLOBAL_DATA.settings.slipTemplate.namaGuruBesar = document.getElementById('slip-setting-nama-gb').value.trim();
@@ -4646,17 +4666,21 @@
                     try { pdf.addImage(logoData, 'JPEG', 190 - imgSize, headerTop, imgSize, imgSize); } catch (e) { console.warn('Logo gagal:', e); }
                 }
 
-                // Nama sekolah + tajuk di tengah (selari dengan imej)
+                // Nama sekolah + alamat di tengah (selari dengan imej)
                 let yPos = headerTop + 9;
                 pdf.setTextColor(0, 0, 0);
                 pdf.setFontSize(15);
                 pdf.setFont('helvetica', 'bold');
                 pdf.text(slipSettings.namaSekolah || 'SEKOLAH KEBANGSAAN', 105, yPos, { align: 'center' });
-                yPos += 8;
+                yPos += 7;
 
-                pdf.setFontSize(11.5);
-                pdf.setFont('helvetica', 'bold');
-                pdf.text(slipSettings.namaSlip || 'SLIP KEPUTUSAN PEPERIKSAAN', 105, yPos, { align: 'center' });
+                // Alamat sekolah (jika ada)
+                if (slipSettings.alamatSekolah) {
+                    pdf.setFontSize(10.5);
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.text(slipSettings.alamatSekolah, 105, yPos, { align: 'center' });
+                    yPos += 6;
+                }
 
                 // Pastikan turun di bawah imej header
                 yPos = Math.max(yPos, headerTop + imgSize) + 3;
@@ -4667,7 +4691,17 @@
                 pdf.line(20, yPos, 190, yPos);
                 pdf.setLineWidth(0.2);
                 pdf.line(20, yPos + 1.2, 190, yPos + 1.2);
+                yPos += 8;
+
+                // Nama peperiksaan di tengah, bawah garisan
+                pdf.setFontSize(11.5);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text(slipSettings.namaSlip || 'SLIP KEPUTUSAN PEPERIKSAAN', 105, yPos, { align: 'center' });
                 yPos += 9;
+
+                // Gabung darjah: nombor tahun + nama kelas (cth "4 INTEL")
+                const _tahunKeNombor = { 'SATU': '1', 'DUA': '2', 'TIGA': '3', 'EMPAT': '4', 'LIMA': '5', 'ENAM': '6' };
+                const darjahLabel = `${_tahunKeNombor[String(tahun).toUpperCase()] || tahun} ${kelas}`;
 
                 // Maklumat murid
                 pdf.setTextColor(0, 0, 0);
@@ -4682,16 +4716,12 @@
                 pdf.text('No. KP', 20, yPos);
                 pdf.setFont('helvetica', 'normal');
                 pdf.text(`:  ${student.no_kp}`, 42, yPos);
-                pdf.setFont('helvetica', 'bold');
-                pdf.text('Tahun', 120, yPos);
-                pdf.setFont('helvetica', 'normal');
-                pdf.text(`:  ${tahun}`, 140, yPos);
                 yPos += 6.5;
 
                 pdf.setFont('helvetica', 'bold');
-                pdf.text('Kelas', 20, yPos);
+                pdf.text('Darjah', 20, yPos);
                 pdf.setFont('helvetica', 'normal');
-                pdf.text(`:  ${kelas}`, 42, yPos);
+                pdf.text(`:  ${darjahLabel}`, 42, yPos);
                 yPos += 8;
 
                 // Baris footer: JUMLAH MARKAH + (optional) PURATA (%)
@@ -6476,10 +6506,38 @@
             editStatus.textContent = isReadOnly ? '' : 'Rekod sedia untuk disunting.';
         }
 
+        // Tapis baris jadual markah ikut nama murid (live search) — tak sentuh data, cuma sorok/tunjuk baris
+        function filterMuridEdit() {
+            const input = document.getElementById('cari-nama-murid');
+            const info = document.getElementById('cari-nama-info');
+            if (!input) return;
+            const q = input.value.trim().toLowerCase();
+            const rows = document.querySelectorAll('#markah-table-edit-body tr');
+            let jumpa = 0;
+            rows.forEach(row => {
+                // Kolum ke-2 = Nama Murid (index 1)
+                const namaCell = row.cells && row.cells[1];
+                const nama = namaCell ? namaCell.textContent.toLowerCase() : '';
+                const padan = q === '' || nama.includes(q);
+                row.style.display = padan ? '' : 'none';
+                if (padan) jumpa++;
+            });
+            if (info) {
+                info.textContent = q === '' ? '' :
+                    (jumpa === 0 ? 'Tiada murid sepadan.' : `${jumpa} murid dijumpai.`);
+            }
+        }
+
         function renderEditTable(marks, readOnly = false, isTemplate = false) {
             const tableBody = document.getElementById('markah-table-edit-body');
             const tableHeader = document.querySelector('#markah-table-edit thead');
             tableBody.innerHTML = '';
+
+            // Reset kotak carian nama setiap kali jadual dirender semula
+            const cariInput = document.getElementById('cari-nama-murid');
+            if (cariInput) cariInput.value = '';
+            const cariInfo = document.getElementById('cari-nama-info');
+            if (cariInfo) cariInfo.textContent = '';
 
             // Simpan flag isTemplate pada table untuk simpanEditMarkah semak
             document.getElementById('markah-table-edit').setAttribute('data-template', isTemplate ? '1' : '0');
