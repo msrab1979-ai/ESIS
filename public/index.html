@@ -319,6 +319,15 @@
                 <p class="mt-2 text-sm">Bandingkan pencapaian gred semua kelas.</p>
             </div>
 
+            <!-- MENU HEADCOUNT (BARU) -->
+            <div id="headcount-card" onclick="showPanel('headcount')" class="card-menu bg-gradient-to-r from-teal-500 to-cyan-600 text-white p-6 rounded-xl shadow-lg cursor-pointer">
+                <div class="flex items-center justify-between">
+                    <span class="text-4xl">🎯</span>
+                    <h2 class="text-xl font-bold">Headcount</h2>
+                </div>
+                <p class="mt-2 text-sm">Penjejakan sasaran murid — TOV, OTI, ETR, AR.</p>
+            </div>
+
             <!-- PANEL ADMIN -->
             <div id="admin-menu-card" onclick="showPanel('admin')" class="card-menu bg-gradient-to-r from-red-500 to-red-600 text-white p-6 rounded-xl shadow-lg cursor-pointer hidden">
                 <div class="flex items-center justify-between">
@@ -716,7 +725,203 @@
                 <p id="analisa-subjek-status" class="mt-2 text-sm font-medium text-center"></p>
             </div>
         </div>
-        
+
+        <!-- PANEL HEADCOUNT (BARU) -->
+        <div id="headcount-panel" class="hidden bg-white p-6 rounded-xl shadow-xl print-panel">
+            <!-- Header -->
+            <div class="flex items-center gap-4 border-b pb-3 mb-4 no-print">
+                <button onclick="goHome()" class="btn-back">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/></svg>
+                    Kembali
+                </button>
+                <h2 class="text-2xl font-bold text-gray-800">🎯 Headcount</h2>
+                <p class="text-sm text-gray-500 hidden sm:block">Penjejakan sasaran murid — TOV, OTI, ETR, AR</p>
+                <button onclick="hcSegarSemula()" title="Tarik markah terkini dari pangkalan data"
+                    class="ml-auto rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">🔄 Segar Semula</button>
+            </div>
+
+            <!-- Tab dalaman -->
+            <div class="flex gap-1 border-b border-gray-300 mb-5 no-print">
+                <button onclick="hcTukarTab('set')" id="hc-tab-set"
+                    class="px-4 py-2 text-sm font-medium border-b-2 border-teal-600 text-gray-900">Set Sasaran</button>
+                <button onclick="hcTukarTab('jejak')" id="hc-tab-jejak"
+                    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800">Papan Jejak</button>
+                <button onclick="hcTukarTab('analisa')" id="hc-tab-analisa"
+                    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800">📊 Analisa</button>
+            </div>
+
+            <!-- ===== SKRIN A: SET SASARAN ===== -->
+            <section id="hc-skrin-set">
+                <!-- 1. Pilih kelas / subjek / tahun -->
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4 no-print">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">1. Pilih tahun, kelas dan subjek</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Tahun (Darjah)</span>
+                            <select id="hc-tahun" onchange="hcOnPilihanChange()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Kelas</span>
+                            <select id="hc-kelas" onchange="hcOnPilihanChange()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Subjek</span>
+                            <select id="hc-subjek" onchange="hcOnPilihanChange()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Banner tetapan admin (dikunci) — dipapar untuk guru sahaja -->
+                <div id="hc-banner-admin" class="hidden bg-teal-50 border border-teal-200 rounded-lg px-4 py-3 mb-4 no-print text-sm">
+                    <div class="flex items-center gap-2 text-teal-800 font-medium mb-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2h1a1 1 0 011 1v7a1 1 0 01-1 1H4a1 1 0 01-1-1v-7a1 1 0 011-1h1zm2 0h6V7a3 3 0 00-6 0v2z" clip-rule="evenodd"/></svg>
+                        Tetapan ditetapkan oleh admin
+                    </div>
+                    <div id="hc-banner-isi" class="text-teal-700 text-xs flex flex-wrap gap-x-4 gap-y-1"></div>
+                    <p class="text-xs text-teal-600 mt-1">Anda boleh ubah sasaran (ETR) murid di jadual bawah, kemudian tekan Simpan.</p>
+                </div>
+
+                <!-- 2. Sumber TOV (admin sahaja) -->
+                <div id="hc-blok-tov" class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4 no-print">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-1">2. Sumber TOV (markah mula)</h3>
+                    <p class="text-xs text-gray-500 mb-3">Pilih peperiksaan mana hendak dijadikan titik mula.</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Tahun kalendar</span>
+                            <select id="hc-tov-tahun" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Peperiksaan</span>
+                            <select id="hc-tov-pep" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <button onclick="hcTarikTOV()" class="rounded bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">Tarik TOV</button>
+                    </div>
+                    <p id="hc-tov-status" class="hidden"></p>
+                    <div class="mt-3 flex flex-wrap items-center gap-2 text-sm text-gray-600 border-t border-gray-200 pt-3">
+                        <label class="flex items-center gap-1.5">
+                            <input type="checkbox" id="hc-auto-etr" checked class="rounded border-gray-300">
+                            Cadang ETR automatik = TOV +
+                        </label>
+                        <input type="number" id="hc-etr-tambah" value="10" min="1" max="50"
+                            class="w-16 rounded border border-gray-300 px-2 py-1 text-center text-sm">
+                        <span>markah</span>
+                        <span class="text-xs text-gray-400">(hanya isi ETR kosong — boleh ubah manual di jadual)</span>
+                    </div>
+                </div>
+
+                <!-- 3. Peta anak tangga (admin sahaja) -->
+                <div id="hc-blok-tangga" class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4 no-print">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-1">3. Anak tangga tahun ini</h3>
+                    <p class="text-xs text-gray-500 mb-3">Padankan setiap tangga dengan peperiksaan sebenar.</p>
+                    <div id="hc-peta-oti" class="space-y-2"></div>
+                    <div class="mt-3 flex gap-3">
+                        <button onclick="hcTambahTangga()" class="text-sm text-teal-700 hover:text-teal-900 underline">+ Tambah tangga</button>
+                        <button onclick="hcBuangTangga()" class="text-sm text-teal-700 hover:text-teal-900 underline">− Buang tangga</button>
+                    </div>
+                </div>
+
+                <!-- 4. Jadual sasaran -->
+                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                    <div class="p-4 border-b border-gray-200">
+                        <h3 id="hc-tajuk-sasaran" class="text-sm font-semibold text-gray-700">4. Taip sasaran (ETR) setiap murid</h3>
+                        <p class="text-xs text-gray-500">Anak tangga (OTI) dikira automatik. TOV kosong boleh ditaip manual.</p>
+                    </div>
+                    <div id="hc-table-sasaran" class="overflow-x-auto"></div>
+                    <div class="p-4 border-t border-gray-200 flex justify-end no-print">
+                        <button onclick="hcSimpanSasaran()" class="rounded bg-teal-600 px-5 py-2 text-sm font-medium text-white hover:bg-teal-700">Simpan sasaran</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== SKRIN B: PAPAN JEJAK ===== -->
+            <section id="hc-skrin-jejak" class="hidden">
+                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                    <div class="p-4 border-b border-gray-200 flex flex-wrap gap-3 justify-between items-center">
+                        <div>
+                            <h3 id="hc-jejak-tajuk" class="text-sm font-semibold text-gray-700">—</h3>
+                            <p class="text-xs text-gray-500 no-print">Klik nama murid untuk lihat kad penuh.</p>
+                        </div>
+                        <button onclick="hcCetakPDF()" class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 no-print">📄 Cetak PDF</button>
+                    </div>
+                    <div id="hc-table-jejak" class="overflow-x-auto"></div>
+                    <div class="p-4 border-t border-gray-200 flex flex-wrap gap-4 text-xs text-gray-600">
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-green-100 border border-green-400"></span> Capai sasaran</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-red-100 border border-red-400"></span> Bawah sasaran</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-gray-100 border border-gray-300"></span> Belum dinilai</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== SKRIN C: ANALISA ===== -->
+            <section id="hc-skrin-analisa" class="hidden">
+                <!-- Kawalan -->
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4 no-print">
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Darjah</span>
+                            <select id="hca-darjah" onchange="hcLukisAnalisa()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Subjek</span>
+                            <select id="hca-subjek" onchange="hcLukisAnalisa()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Ujian (tangga)</span>
+                            <select id="hca-tangga" onchange="hcLukisAnalisa()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Tumpuan</span>
+                            <select id="hca-mod" onchange="hcLukisAnalisa()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm">
+                                <option value="darjah">Semua kelas (darjah)</option>
+                                <option value="kelas">Satu kelas sahaja</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div id="hca-kelas-wrap" class="mt-3 hidden">
+                        <label class="block max-w-xs">
+                            <span class="text-xs text-gray-500">Kelas</span>
+                            <select id="hca-kelas" onchange="hcLukisAnalisa()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Kad ringkasan -->
+                <div id="hca-kpi" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4"></div>
+
+                <!-- Carta -->
+                <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3">Taburan gred mengikut kelas (%)</h4>
+                    <div style="position:relative; height:340px"><canvas id="hca-chart"></canvas></div>
+                </div>
+
+                <!-- Jadual -->
+                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                    <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                        <h4 class="text-sm font-semibold text-gray-700">Butiran pencapaian</h4>
+                        <button onclick="hcCetakAnalisaPDF()" class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 no-print">📄 Cetak PDF</button>
+                    </div>
+                    <div id="hca-table" class="overflow-x-auto"></div>
+                </div>
+            </section>
+        </div>
+
+        <!-- MODAL KAD MURID HEADCOUNT -->
+        <div id="hc-modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onclick="hcTutupKad(event)">
+            <div class="bg-white rounded-lg max-w-md w-full" onclick="event.stopPropagation()">
+                <div class="p-4 border-b border-gray-200 flex justify-between items-start">
+                    <div>
+                        <h3 id="hc-kad-nama" class="font-bold text-gray-900"></h3>
+                        <p id="hc-kad-sub" class="text-xs text-gray-500"></p>
+                    </div>
+                    <button onclick="hcTutupKad()" class="text-gray-400 hover:text-gray-700 text-xl leading-none">&times;</button>
+                </div>
+                <div id="hc-kad-isi" class="p-4"></div>
+                <div class="p-4 border-t border-gray-200 flex justify-end">
+                    <button onclick="hcCetakKadModal()" class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">📄 Cetak kad murid ini</button>
+                </div>
+            </div>
+        </div>
+
         <!-- PANEL MURID TERBAIK (BARU & BERASINGAN) -->
         <div id="murid-terbaik-panel" class="hidden bg-white p-6 rounded-xl shadow-xl print-panel">
             <div class="flex justify-between items-center border-b pb-3 mb-6">
@@ -1043,6 +1248,7 @@
                 <button id="tab-slip-peperiksaan" onclick="toggleAdminTab('slip-peperiksaan')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-orange-500 text-gray-700">Slip Peperiksaan</button>
                 <button id="tab-setting" onclick="toggleAdminTab('setting')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-purple-500 text-gray-700">Setting</button>
                 <button id="tab-urus-peperiksaan" onclick="toggleAdminTab('urus-peperiksaan')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-indigo-500 text-gray-700">Urus Peperiksaan</button>
+                <button id="tab-bina-headcount" onclick="toggleAdminTab('bina-headcount')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-teal-500 text-gray-700">🎯 Bina Headcount</button>
                 <button id="tab-reset-kemaskini" onclick="toggleAdminTab('reset-kemaskini')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-rose-600 text-rose-700 font-semibold">Reset & Kemaskini</button>
             </div>
             
@@ -1638,6 +1844,92 @@
                 </div>
             </div>
 
+            <!-- TAB: BINA HEADCOUNT (pukal satu darjah) -->
+            <div id="admin-bina-headcount" class="hidden space-y-5">
+                <div>
+                    <h3 class="text-xl font-bold text-gray-800">🎯 Bina Headcount Pukal</h3>
+                    <p class="text-sm text-gray-500">Set titik mula (TOV) & anak tangga untuk satu darjah sekali gus. Guru cuma ubah ETR kemudian.</p>
+                </div>
+
+                <!-- Langkah 1 -->
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="w-7 h-7 rounded-md bg-teal-600 text-white grid place-items-center font-bold text-sm">1</span>
+                        <h4 class="font-semibold text-gray-700">Pilih darjah, kelas dan subjek</h4>
+                    </div>
+                    <label class="block max-w-xs mb-3">
+                        <span class="text-xs text-gray-500">Darjah</span>
+                        <select id="bhc-darjah" onchange="bhcOnDarjahChange()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                    </label>
+                    <div class="mb-3">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs text-gray-500">Kelas — <span id="bhc-kelas-kira">0</span> ditanda</span>
+                            <span class="text-xs"><button onclick="bhcSemuaKelas(true)" class="text-teal-700 underline">Pilih semua</button> · <button onclick="bhcSemuaKelas(false)" class="text-teal-700 underline">Kosongkan</button></span>
+                        </div>
+                        <div id="bhc-kelas-chips" class="flex flex-wrap gap-2"></div>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs text-gray-500">Subjek — <span id="bhc-subjek-kira">0</span> ditanda</span>
+                            <span class="text-xs"><button onclick="bhcSemuaSubjek(true)" class="text-teal-700 underline">Pilih semua</button> · <button onclick="bhcSemuaSubjek(false)" class="text-teal-700 underline">Kosongkan</button></span>
+                        </div>
+                        <div id="bhc-subjek-chips" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
+                    </div>
+                </div>
+
+                <!-- Langkah 2 -->
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="w-7 h-7 rounded-md bg-teal-600 text-white grid place-items-center font-bold text-sm">2</span>
+                        <h4 class="font-semibold text-gray-700">Sumber TOV (markah mula)</h4>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg">
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Tahun kalendar</span>
+                            <select id="bhc-tov-tahun" onchange="bhcIsiPepTOV()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Peperiksaan</span>
+                            <select id="bhc-tov-pep" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                    </div>
+                    <div class="mt-3 flex flex-wrap items-center gap-2 text-sm text-gray-600 border-t border-gray-200 pt-3">
+                        <label class="flex items-center gap-1.5">
+                            <input type="checkbox" id="bhc-auto-etr" checked class="rounded border-gray-300">
+                            Cadang ETR automatik = TOV +
+                        </label>
+                        <input type="number" id="bhc-etr-tambah" value="10" min="1" max="50" class="w-16 rounded border border-gray-300 px-2 py-1 text-center text-sm">
+                        <span>markah</span>
+                        <span class="text-xs text-gray-400">(guru boleh ubah tiap murid kemudian)</span>
+                    </div>
+                </div>
+
+                <!-- Langkah 3 -->
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                    <div class="flex items-center gap-3 mb-1">
+                        <span class="w-7 h-7 rounded-md bg-teal-600 text-white grid place-items-center font-bold text-sm">3</span>
+                        <h4 class="font-semibold text-gray-700">Anak tangga tahun ini</h4>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-3 ml-10">Padankan setiap tangga dengan peperiksaan sebenar sepanjang tahun.</p>
+                    <div id="bhc-peta-oti" class="space-y-2"></div>
+                    <div class="mt-3 flex gap-3">
+                        <button onclick="bhcTambahTangga()" class="text-sm text-teal-700 hover:text-teal-900 underline">+ Tambah tangga</button>
+                        <button onclick="bhcBuangTangga()" class="text-sm text-teal-700 hover:text-teal-900 underline">− Buang tangga</button>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2">Belum ada ujian tahun ini? Biar 1 tangga dahulu — tambah bila ujian baru dimasukkan.</p>
+                </div>
+
+                <!-- Kesan + Bina -->
+                <div class="bg-white rounded-lg border border-teal-300 shadow-sm p-4 flex flex-wrap items-center justify-between gap-4 sticky bottom-2">
+                    <div class="text-sm text-gray-600">
+                        Akan bina <span id="bhc-impact" class="inline-flex items-center gap-1 bg-teal-50 border border-teal-200 text-teal-800 font-bold px-2.5 py-1 rounded-full">0 headcount</span>
+                        <span id="bhc-impact-detail" class="ml-1"></span>
+                    </div>
+                    <button onclick="bhcBinaSemua()" class="rounded bg-teal-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-teal-700 shadow">Bina semua sasaran</button>
+                </div>
+                <p id="bhc-status" class="text-sm font-medium"></p>
+            </div>
+
             <!-- TAB: RESET & KEMASKINI -->
             <div id="admin-reset-kemaskini" class="hidden space-y-8">
 
@@ -1967,6 +2259,35 @@
                 if (mark.cal_year != null) return mark.cal_year === yearInt;
                 return false;
             });
+        }
+
+        // ==========================================================
+        // HELPER STANDARD: cari markah murid dari satu tahun kalendar.
+        // Mod padanan:
+        //  - 'no_kp' : padan ikut no_kp murid SAHAJA (SILANG TAHUN — cth TOV Headcount).
+        //              Abaikan tahun/kelas sebab murid naik darjah & tukar kelas.
+        //  - 'kelas' : padan ikut tahun(darjah)+kelas (SAME-YEAR).
+        // Pulang: { map: {no_kp: markah}, jumpa: [no_kp...], tiada: [no_kp...] }
+        // forceFresh=true → buang cache tahun itu & tarik semula dari Firestore.
+        // ==========================================================
+        async function cariMarkahMurid({ calYear, subjek, peperiksaan, muridList, mod = 'no_kp', tahun, kelas, forceFresh = false }) {
+            const yr = parseInt(calYear);
+            if (forceFresh) delete marksCache[yr];
+            await ensureMarksLoaded(yr);
+            const kpSet = new Set((muridList || []).map(m => m.no_kp));
+            const map = {};
+            if (subjek && peperiksaan) {
+                getMarksByYear(yr).forEach(m => {
+                    if (m.subjek !== subjek || m["JENIS PEPERIKSAAN"] !== peperiksaan) return;
+                    if (mod === 'kelas' && (m.tahun !== tahun || m.kelas !== kelas)) return;
+                    if (!kpSet.has(m.no_kp)) return;
+                    const v = parseInt(m.markah);
+                    if (!isNaN(v)) map[m.no_kp] = v;
+                });
+            }
+            const jumpa = (muridList || []).filter(m => map[m.no_kp] != null).map(m => m.no_kp);
+            const tiada = (muridList || []).filter(m => map[m.no_kp] == null).map(m => m.no_kp);
+            return { map, jumpa, tiada };
         }
 
         // Populate year dropdown untuk sesebuah panel
@@ -3787,6 +4108,7 @@
              const slipTab = document.getElementById('admin-slip-peperiksaan');
              const settingTab = document.getElementById('admin-setting');
              const urusPerikTab = document.getElementById('admin-urus-peperiksaan');
+             const binaHcTab = document.getElementById('admin-bina-headcount');
              const resetKemaskiniTab = document.getElementById('admin-reset-kemaskini');
              const btnImport = document.getElementById('tab-import');
              const btnUrusSubjek = document.getElementById('tab-urus-subjek');
@@ -3795,6 +4117,7 @@
              const btnSlip = document.getElementById('tab-slip-peperiksaan');
              const btnSetting = document.getElementById('tab-setting');
              const btnUrusPerik = document.getElementById('tab-urus-peperiksaan');
+             const btnBinaHc = document.getElementById('tab-bina-headcount');
              const btnResetKemaskini = document.getElementById('tab-reset-kemaskini');
 
              importTab.classList.add('hidden');
@@ -3804,6 +4127,7 @@
              slipTab.classList.add('hidden');
              settingTab.classList.add('hidden');
              if (urusPerikTab) urusPerikTab.classList.add('hidden');
+             if (binaHcTab) binaHcTab.classList.add('hidden');
              if (resetKemaskiniTab) resetKemaskiniTab.classList.add('hidden');
 
              if (btnImport) btnImport.classList.remove('border-blue-500');
@@ -3813,6 +4137,7 @@
              if (btnSlip) btnSlip.classList.remove('border-orange-500');
              if (btnSetting) btnSetting.classList.remove('border-purple-500');
              if (btnUrusPerik) btnUrusPerik.classList.remove('border-indigo-500');
+             if (btnBinaHc) btnBinaHc.classList.remove('border-teal-500');
              if (btnResetKemaskini) btnResetKemaskini.classList.remove('border-rose-600');
 
              if (tab === 'import') {
@@ -3859,6 +4184,10 @@
                      });
                  });
                  renderExamTypeList(calYear);
+             } else if (tab === 'bina-headcount') {
+                 if (binaHcTab) binaHcTab.classList.remove('hidden');
+                 if (btnBinaHc) btnBinaHc.classList.add('border-teal-500');
+                 initBinaHeadcount();
              } else if (tab === 'reset-kemaskini') {
                  if (resetKemaskiniTab) resetKemaskiniTab.classList.remove('hidden');
                  if (btnResetKemaskini) btnResetKemaskini.classList.add('border-rose-600');
@@ -5827,7 +6156,7 @@
                 'markah-panel','admin-panel',
                 'analisa-panel','analisa-subjek-panel',
                 'murid-terbaik-panel','guru-kelas-panel',
-                'analisa-kelas-panel'
+                'analisa-kelas-panel','headcount-panel'
             ];
             allPanels.forEach(id => {
                 const el = document.getElementById(id);
@@ -5842,8 +6171,8 @@
         function showPanel(panelId) {
             const isMarkahEnabled = GLOBAL_DATA.settings.markahEnabled;
 
-            // Rekod & Laporan — kawalan akses
-            if ((panelId === 'rekod-laporan' || panelId === 'markah' || panelId === 'edit-cetak') && !isMarkahEnabled && !isAuthenticated) {
+            // Rekod & Laporan + Headcount — kawalan akses (sama flag markahEnabled)
+            if ((panelId === 'rekod-laporan' || panelId === 'markah' || panelId === 'edit-cetak' || panelId === 'headcount') && !isMarkahEnabled && !isAuthenticated) {
                 showNotification(
                     "AKSES DITOLAK",
                     "Kawalan Akses Markah sedang DISABLED oleh admin. Anda tidak boleh merekod atau mengedit markah buat masa ini. Sila hubungi admin.",
@@ -5861,6 +6190,7 @@
             document.getElementById('murid-terbaik-panel').classList.add('hidden');
             document.getElementById('guru-kelas-panel').classList.add('hidden');
             document.getElementById('analisa-kelas-panel').classList.add('hidden');
+            document.getElementById('headcount-panel').classList.add('hidden');
 
             const _showWithAnim = (id) => {
                 const el = document.getElementById(id);
@@ -5909,11 +6239,1122 @@
             } else if (panelId === 'analisa-kelas') {
                 _showWithAnim('analisa-kelas-panel');
                 initAnalisaKelas();
+            } else if (panelId === 'headcount') {
+                _showWithAnim('headcount-panel');
+                initHeadcount();
             } else {
                 goHome();
             }
         }
-        
+
+        // ==========================================================
+        // HEADCOUNT — penjejakan sasaran murid (TOV / OTI / ETR / AR)
+        // ==========================================================
+        // State semasa (dikira segar; hanya ETR + peta + override disimpan ke Firestore)
+        let hcState = {
+            bilTangga: 1,      // default 1 tangga; guru tambah ikut bil peperiksaan tahun ini
+            petaOTI: [''],
+            tovMap: {},        // no_kp -> markah TOV (ditarik/override)
+            etrMap: {},        // no_kp -> ETR (ditaip guru)
+            overrideMap: {},   // no_kp -> { tov: n }
+            murid: [],         // senarai murid kelas semasa
+            tovSource: null    // { tahun, peperiksaan }
+        };
+
+        function hcDocId() {
+            const tahun = document.getElementById('hc-tahun').value;
+            const kelas = document.getElementById('hc-kelas').value;
+            const subjek = document.getElementById('hc-subjek').value;
+            const cy = new Date().getFullYear();
+            return `${tahun}_${kelas}_${subjek}_${cy}`;
+        }
+
+        function initHeadcount() {
+            // Dropdown Tahun (darjah) — dari kunci allClasses (perkataan SATU..ENAM)
+            const urutan = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
+            const tahunEl = document.getElementById('hc-tahun');
+            const adaTahun = urutan.filter(t => GLOBAL_DATA.allClasses[t] && GLOBAL_DATA.allClasses[t].length);
+            tahunEl.innerHTML = (adaTahun.length ? adaTahun : urutan)
+                .map(t => `<option value="${t}">${t}</option>`).join('');
+
+            // Dropdown Subjek — dari allSubjects (nama_penuh)
+            const subjekEl = document.getElementById('hc-subjek');
+            subjekEl.innerHTML = GLOBAL_DATA.allSubjects
+                .filter(s => s.nama_penuh)
+                .sort((a, b) => a.nama_penuh.localeCompare(b.nama_penuh))
+                .map(s => `<option value="${s.nama_penuh}">${s.nama_penuh}</option>`).join('');
+
+            // Dropdown tahun kalendar sumber TOV (default tahun lepas)
+            populatePanelYearDropdown('hc-tov-tahun', (new Date().getFullYear() - 1).toString());
+
+            // Dropdown peperiksaan sumber TOV — isi ikut tahun kalendar dipilih.
+            // Bila tahun TOV ditukar, senarai peperiksaan dikemas kini (2025 ada P1/P2/UASA/UPSA).
+            const tovTahunEl = document.getElementById('hc-tov-tahun');
+            tovTahunEl.onchange = () => hcIsiPepTOV();
+            hcIsiPepTOV();
+
+            hcAturPaparan();   // sorok/tunjuk bahagian admin ikut isAuthenticated
+            hcTukarTab('set');
+            hcOnPilihanChange();
+        }
+
+        // Atur paparan ikut peranan: guru nampak "Ubah Sasaran (ETR)" sahaja,
+        // admin nampak Set Sasaran penuh (TOV + anak tangga).
+        function hcAturPaparan() {
+            const admin = !!window.isAuthenticated;
+            const blokTov = document.getElementById('hc-blok-tov');
+            const blokTangga = document.getElementById('hc-blok-tangga');
+            const banner = document.getElementById('hc-banner-admin');
+            const tabSetBtn = document.getElementById('hc-tab-set');
+            if (blokTov) blokTov.classList.toggle('hidden', !admin);
+            if (blokTangga) blokTangga.classList.toggle('hidden', !admin);
+            if (banner) banner.classList.toggle('hidden', admin);   // banner utk guru sahaja
+            // Label tab
+            if (tabSetBtn) tabSetBtn.textContent = admin ? 'Set Sasaran' : 'Ubah Sasaran (ETR)';
+            // Tajuk jadual sasaran
+            const tajuk = document.getElementById('hc-tajuk-sasaran');
+            if (tajuk) tajuk.textContent = admin ? '4. Taip sasaran (ETR) setiap murid' : 'Ubah sasaran (ETR) setiap murid';
+        }
+
+        // Isi banner tetapan admin (dipapar untuk guru)
+        function hcIsiBannerAdmin() {
+            const el = document.getElementById('hc-banner-isi');
+            if (!el) return;
+            const src = hcState.tovSource;
+            const tov = src ? `${src.peperiksaan} ${src.tahun}` : '—';
+            const tangga = (hcState.petaOTI && hcState.petaOTI.length) ? hcState.petaOTI.slice(0, hcState.bilTangga).join(' → ') : '—';
+            el.innerHTML =
+                `<span><span class="uppercase text-teal-500 font-semibold">Sumber TOV:</span> ${tov}</span>` +
+                `<span><span class="uppercase text-teal-500 font-semibold">Anak tangga:</span> ${tangga}</span>`;
+        }
+
+        // Isi dropdown peperiksaan sumber TOV mengikut tahun kalendar dipilih.
+        // Guna semua examTypes tahun itu (termasuk aktif:false — TOV selalunya
+        // dari peperiksaan tahun lepas yang sudah ditutup).
+        async function hcIsiPepTOV() {
+            const calYear = parseInt(document.getElementById('hc-tov-tahun').value);
+            const pepEl = document.getElementById('hc-tov-pep');
+            const prev = pepEl.value;
+            let list = [];
+            try {
+                list = await getExamTypesForYear(calYear);
+            } catch (e) {
+                console.error('Headcount isi pep TOV gagal:', e);
+                list = GLOBAL_DATA.examTypes;
+            }
+            pepEl.innerHTML = list.map(et => `<option value="${et.nama}">${et.nama}</option>`).join('');
+            if (prev && [...pepEl.options].some(o => o.value === prev)) pepEl.value = prev;
+        }
+
+        function hcTukarTab(tab) {
+            const aktif = 'px-4 py-2 text-sm font-medium border-b-2 border-teal-600 text-gray-900';
+            const mati = 'px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800';
+            document.getElementById('hc-skrin-set').classList.toggle('hidden', tab !== 'set');
+            document.getElementById('hc-skrin-jejak').classList.toggle('hidden', tab !== 'jejak');
+            document.getElementById('hc-skrin-analisa').classList.toggle('hidden', tab !== 'analisa');
+            document.getElementById('hc-tab-set').className = tab === 'set' ? aktif : mati;
+            document.getElementById('hc-tab-jejak').className = tab === 'jejak' ? aktif : mati;
+            document.getElementById('hc-tab-analisa').className = tab === 'analisa' ? aktif : mati;
+            if (tab === 'jejak') hcLukisJejak();
+            if (tab === 'analisa') hcInitAnalisa();
+        }
+
+        // Bila tahun/kelas/subjek ditukar: kemas kini kelas, muat doc tersimpan, render
+        async function hcOnPilihanChange() {
+            const tahun = document.getElementById('hc-tahun').value;
+            const kelasEl = document.getElementById('hc-kelas');
+            const kelasList = (GLOBAL_DATA.allClasses[tahun] || []).slice().sort();
+            const prevKelas = kelasEl.value;
+            kelasEl.innerHTML = kelasList.map(k => `<option value="${k}">${k}</option>`).join('');
+            if (kelasList.includes(prevKelas)) kelasEl.value = prevKelas;
+
+            hcMuatMurid();
+            await hcMuatPepSemasa();   // senarai peperiksaan tahun semasa utk peta tangga
+            await hcMuatSasaran();
+            hcSelaraskanPetaOTI();     // pastikan petaOTI padan dgn peperiksaan sebenar
+            hcLukisPetaOTI();
+            hcLukisSasaran();
+            hcIsiBannerAdmin();        // kemas kini banner tetapan (utk guru)
+        }
+
+        // Pastikan setiap tangga dalam petaOTI ialah peperiksaan yang wujud tahun ini.
+        // Jika nama default/lama tak padan, ganti dengan peperiksaan sebenar pertama.
+        function hcSelaraskanPetaOTI() {
+            const sah = hcNamaPep();
+            if (!sah.length) return;
+            hcState.petaOTI = hcState.petaOTI.map(p => sah.includes(p) ? p : sah[0]);
+            // Pastikan panjang petaOTI = bilTangga
+            while (hcState.petaOTI.length < hcState.bilTangga) hcState.petaOTI.push(sah[sah.length - 1] || sah[0]);
+            hcState.petaOTI = hcState.petaOTI.slice(0, hcState.bilTangga);
+        }
+
+        function hcMuatMurid() {
+            const tahun = document.getElementById('hc-tahun').value;
+            const kelas = document.getElementById('hc-kelas').value;
+            hcState.murid = GLOBAL_DATA.students
+                .filter(s => s.tahun === tahun && s.kelas === kelas)
+                .sort((a, b) => (a.nama || '').localeCompare(b.nama || ''));
+        }
+
+        // Baca doc rekodHeadcount sedia ada → isi etrMap / petaOTI / overrideMap
+        async function hcMuatSasaran() {
+            hcState.etrMap = {};
+            hcState.overrideMap = {};
+            hcState.tovMap = {};
+            hcState.tovSource = null;
+            try {
+                const snap = await db.collection('rekodHeadcount').doc(hcDocId()).get();
+                if (snap.exists) {
+                    const d = snap.data();
+                    hcState.bilTangga = d.bilTangga || 3;
+                    hcState.petaOTI = Array.isArray(d.petaOTI) && d.petaOTI.length ? d.petaOTI : hcState.petaOTI;
+                    hcState.etrMap = d.etr || {};
+                    hcState.overrideMap = d.override || {};
+                    hcState.tovSource = d.tovSource || null;
+                    // Pulihkan pilihan sumber TOV pada UI
+                    if (d.tovSource) {
+                        const ty = document.getElementById('hc-tov-tahun');
+                        const tp = document.getElementById('hc-tov-pep');
+                        if (ty && d.tovSource.tahun) ty.value = String(d.tovSource.tahun);
+                        if (tp && d.tovSource.peperiksaan) tp.value = d.tovSource.peperiksaan;
+                    }
+                }
+            } catch (e) {
+                console.error('Headcount muat sasaran gagal:', e);
+            }
+            // Sapukan override tov ke tovMap sebagai titik mula
+            Object.keys(hcState.overrideMap).forEach(kp => {
+                if (hcState.overrideMap[kp] && hcState.overrideMap[kp].tov != null) {
+                    hcState.tovMap[kp] = hcState.overrideMap[kp].tov;
+                }
+            });
+            // Auto-tarik TOV jika sumber tersimpan
+            if (hcState.tovSource) await hcTarikTOV(true);
+        }
+
+        // Ambil markah satu peperiksaan (tahun kalendar) untuk murid kelas semasa.
+        // Guna helper standard cariMarkahMurid (mod 'no_kp' — padan silang tahun).
+        // Pulang { map, jumpa, tiada } penuh supaya boleh papar amaran.
+        async function hcMarkahPeperiksaan(calYear, peperiksaan, forceFresh = false) {
+            const subjek = document.getElementById('hc-subjek').value;
+            return cariMarkahMurid({
+                calYear, subjek, peperiksaan,
+                muridList: hcState.murid, mod: 'no_kp', forceFresh
+            });
+        }
+
+        // Tukar senarai no_kp → nama murid (untuk amaran)
+        function hcNamaDari(kpList) {
+            return kpList.map(kp => {
+                const m = hcState.murid.find(x => x.no_kp === kp);
+                return m ? (m.nama || kp) : kp;
+            });
+        }
+
+        // Papar status TOV dalam kotak #hc-tov-status (kekal, tak hilang macam modal)
+        function hcPaparStatusTOV(tiadaKp, pep, calYear) {
+            const el = document.getElementById('hc-tov-status');
+            if (!el) return;
+            const jumlah = hcState.murid.length;
+            const bilTiada = tiadaKp.length;
+            if (bilTiada === 0) {
+                el.className = 'mt-3 text-sm rounded px-3 py-2 bg-green-50 border border-green-300 text-green-800';
+                el.textContent = `✓ ${jumlah}/${jumlah} murid dapat TOV dari ${pep} ${calYear}.`;
+            } else {
+                const nama = hcNamaDari(tiadaKp);
+                const senarai = nama.slice(0, 8).join(', ') + (nama.length > 8 ? `, +${nama.length - 8} lagi` : '');
+                el.className = 'mt-3 text-sm rounded px-3 py-2 bg-amber-50 border border-amber-300 text-amber-900';
+                el.innerHTML = `⚠️ <strong>${bilTiada} daripada ${jumlah} murid tiada markah ${pep} ${calYear}</strong> — ${senarai}. <span class="text-amber-700">(boleh taip TOV manual di jadual bawah)</span>`;
+            }
+            el.classList.remove('hidden');
+        }
+
+        // Tarik TOV dari sumber dipilih. senyap=true bila auto (tak papar notifikasi modal)
+        // PENTING: untuk guru, dropdown TOV tersorok — jadi bila senyap (auto dari doc),
+        // utamakan hcState.tovSource yang dimuat dari rekodHeadcount, bukan nilai DOM.
+        async function hcTarikTOV(senyap = false, forceFresh = false) {
+            let calYear, pep;
+            if (senyap && hcState.tovSource) {
+                // Auto (muat doc / segar semula) — guna sumber tersimpan
+                calYear = parseInt(hcState.tovSource.tahun);
+                pep = hcState.tovSource.peperiksaan;
+            } else {
+                // Admin tekan butang Tarik TOV — baca dari dropdown
+                calYear = parseInt(document.getElementById('hc-tov-tahun').value);
+                pep = document.getElementById('hc-tov-pep').value;
+            }
+            if (!pep) { if (!senyap) showNotification('Sumber TOV', 'Sila pilih peperiksaan sumber TOV.', true); return; }
+            hcState.tovSource = { tahun: calYear, peperiksaan: pep };
+            const { map } = await hcMarkahPeperiksaan(calYear, pep, forceFresh);
+            const tiadaKp = [];
+            hcState.murid.forEach(m => {
+                const ov = hcState.overrideMap[m.no_kp];
+                if (ov && ov.tov != null) {
+                    hcState.tovMap[m.no_kp] = ov.tov;          // override menang
+                } else if (map[m.no_kp] != null) {
+                    hcState.tovMap[m.no_kp] = map[m.no_kp];    // markah sebenar
+                } else {
+                    hcState.tovMap[m.no_kp] = null;            // kosong → taip manual
+                    tiadaKp.push(m.no_kp);
+                }
+            });
+            // Auto-cadang ETR = TOV + tambah, HANYA untuk ETR yang masih kosong
+            // (tak ganti ETR yang guru dah taip / simpan sendiri).
+            const autoEl = document.getElementById('hc-auto-etr');
+            if (autoEl && autoEl.checked) {
+                const tambah = parseInt(document.getElementById('hc-etr-tambah').value) || 10;
+                let bilCadang = 0;
+                hcState.murid.forEach(m => {
+                    const tov = hcState.tovMap[m.no_kp];
+                    const etrSedia = hcState.etrMap[m.no_kp];
+                    if (tov != null && (etrSedia === '' || etrSedia == null)) {
+                        hcState.etrMap[m.no_kp] = Math.min(tov + tambah, 100);
+                        bilCadang++;
+                    }
+                });
+            }
+            hcLukisSasaran();
+            // Amaran jelas dalam kotak status (sentiasa dipapar, walau senyap)
+            hcPaparStatusTOV(tiadaKp, pep, calYear);
+        }
+
+        // Segar Semula: buang cache markah tahun terlibat & tarik semula dari Firestore.
+        // Menutup "gap" di mana ensureMarksLoaded tak tarik semula tahun yang sudah dicache.
+        async function hcSegarSemula() {
+            const cy = new Date().getFullYear();
+            const tovYear = parseInt(document.getElementById('hc-tov-tahun').value);
+            [cy, tovYear].forEach(y => { if (!isNaN(y)) delete marksCache[y]; });
+            await hcMuatPepSemasa();
+            if (hcState.tovSource) await hcTarikTOV(true, true);   // tarik TOV segar (forceFresh)
+            hcLukisSasaran();
+            if (!document.getElementById('hc-skrin-jejak').classList.contains('hidden')) {
+                await hcLukisJejak(true);
+            }
+            showNotification('Segar Semula', 'Markah terkini ditarik semula dari pangkalan data.', false);
+        }
+
+        // ==========================================================
+        // ANALISA HEADCOUNT — dashboard % capai sasaran, purata naik, taburan gred
+        // ==========================================================
+        let hcAnalisaChart = null;
+        let hcAnalisaData = [];   // simpan utk PDF
+
+        function hcInitAnalisa() {
+            // Darjah — dari allClasses
+            const urutan = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
+            const ada = urutan.filter(t => GLOBAL_DATA.allClasses[t] && GLOBAL_DATA.allClasses[t].length);
+            const dEl = document.getElementById('hca-darjah');
+            if (!dEl.options.length) {
+                dEl.innerHTML = (ada.length ? ada : urutan).map(t => `<option value="${t}">${t}</option>`).join('');
+                // default ikut tahun yang dipilih di tab Set
+                const tahunSet = document.getElementById('hc-tahun').value;
+                if (tahunSet) dEl.value = tahunSet;
+            }
+            // Subjek
+            const sEl = document.getElementById('hca-subjek');
+            if (!sEl.options.length) {
+                sEl.innerHTML = GLOBAL_DATA.allSubjects.filter(s => s.nama_penuh)
+                    .sort((a, b) => a.nama_penuh.localeCompare(b.nama_penuh))
+                    .map(s => `<option value="${s.nama_penuh}">${s.nama_penuh}</option>`).join('');
+                const subjekSet = document.getElementById('hc-subjek').value;
+                if (subjekSet) sEl.value = subjekSet;
+            }
+            hcLukisAnalisa();
+        }
+
+        // Baca doc headcount tersimpan untuk satu kelas
+        async function hcBacaDocHeadcount(darjah, kelas, subjek) {
+            const cy = new Date().getFullYear();
+            const id = `${darjah}_${kelas}_${subjek}_${cy}`;
+            try {
+                const snap = await db.collection('rekodHeadcount').doc(id).get();
+                return snap.exists ? snap.data() : null;
+            } catch (e) { return null; }
+        }
+
+        // Kira statistik satu kelas: {kelas, bilMurid, bilAdaMarkah, capai, peratusCapai, purataNaik, grades:{A..F}, total}
+        async function hcStatKelas(darjah, kelas, subjek, tanggaIdx) {
+            const doc = await hcBacaDocHeadcount(darjah, kelas, subjek);
+            const murid = GLOBAL_DATA.students.filter(s => s.tahun === darjah && s.kelas === kelas);
+            const stat = { kelas, bilMurid: murid.length, bilAdaMarkah: 0, capai: 0, jumlahNaik: 0, bilNaik: 0,
+                grades: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 },        // gred SEBENAR (AR)
+                gredSasar: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 },     // gred DISASAR (dari ETR)
+                totalSasar: 0, total: 0, adaDoc: !!doc };
+            if (!doc || !murid.length) return stat;
+            const bil = doc.bilTangga || (doc.petaOTI ? doc.petaOTI.length : 1);
+            const idx = Math.min(tanggaIdx, bil - 1);
+            const pep = (doc.petaOTI || [])[idx];
+            const cy = new Date().getFullYear();
+            // TOV (untuk purata naik)
+            let tovMap = {};
+            if (doc.tovSource) {
+                tovMap = (await cariMarkahMurid({ calYear: doc.tovSource.tahun, subjek, peperiksaan: doc.tovSource.peperiksaan, muridList: murid, mod: 'no_kp' })).map;
+            }
+            // AR tangga terpilih
+            const arMap = pep ? (await cariMarkahMurid({ calYear: cy, subjek, peperiksaan: pep, muridList: murid, mod: 'no_kp' })).map : {};
+            murid.forEach(m => {
+                const kp = m.no_kp;
+                const etr = doc.etr ? doc.etr[kp] : null;
+                const tov = (doc.override && doc.override[kp] && doc.override[kp].tov != null) ? doc.override[kp].tov : tovMap[kp];
+                const ar = arMap[kp];
+                // Gred DISASAR — dari ETR (tak bergantung pada markah sebenar)
+                if (etr != null && etr !== '') {
+                    const gs = getGredFromMarkah(etr);
+                    if (stat.gredSasar[gs] !== undefined) stat.gredSasar[gs]++;
+                    else if (gs === 'Gagal') stat.gredSasar.F++;
+                    stat.totalSasar++;
+                }
+                if (ar == null) return;
+                stat.bilAdaMarkah++;
+                // gred dari markah sebenar
+                const g = getGredFromMarkah(ar);
+                if (stat.grades[g] !== undefined) stat.grades[g]++;
+                else if (g === 'Gagal') stat.grades.F++;
+                stat.total++;
+                // capai sasaran: AR >= OTI tangga ni
+                if (tov != null && etr != null) {
+                    const oti = hcKiraOTI(tov, etr, bil)[idx];
+                    if (oti != null && ar >= oti) stat.capai++;
+                }
+                // purata naik
+                if (tov != null) { stat.jumlahNaik += (ar - tov); stat.bilNaik++; }
+            });
+            stat.peratusCapai = stat.bilAdaMarkah ? Math.round(stat.capai / stat.bilAdaMarkah * 100) : 0;
+            stat.purataNaik = stat.bilNaik ? (stat.jumlahNaik / stat.bilNaik) : null;
+            return stat;
+        }
+
+        async function hcLukisAnalisa() {
+            const darjah = document.getElementById('hca-darjah').value;
+            const subjek = document.getElementById('hca-subjek').value;
+            const mod = document.getElementById('hca-mod').value;
+            document.getElementById('hca-kelas-wrap').classList.toggle('hidden', mod !== 'kelas');
+            if (!darjah || !subjek) return;
+
+            // Isi dropdown tangga (dari satu doc contoh) & kelas
+            const semuaKelas = (GLOBAL_DATA.allClasses[darjah] || []).slice().sort();
+            // dapatkan petaOTI dari kelas pertama yg ada doc
+            let petaContoh = null;
+            for (const k of semuaKelas) {
+                const d = await hcBacaDocHeadcount(darjah, k, subjek);
+                if (d && d.petaOTI && d.petaOTI.length) { petaContoh = d.petaOTI; break; }
+            }
+            const tEl = document.getElementById('hca-tangga');
+            const prevT = tEl.value;
+            if (petaContoh) {
+                tEl.innerHTML = petaContoh.map((p, i) => `<option value="${i}">Ujian ${i + 1} — ${p}</option>`).join('');
+                if (prevT && tEl.querySelector(`option[value="${prevT}"]`)) tEl.value = prevT;
+            } else {
+                tEl.innerHTML = '<option value="0">— tiada sasaran —</option>';
+            }
+            const tanggaIdx = parseInt(tEl.value) || 0;
+
+            // Isi dropdown kelas (mod kelas)
+            const kEl = document.getElementById('hca-kelas');
+            if (kEl.dataset.darjah !== darjah) {
+                kEl.innerHTML = semuaKelas.map(k => `<option value="${k}">${k}</option>`).join('');
+                kEl.dataset.darjah = darjah;
+            }
+
+            const kelasSenarai = mod === 'kelas' ? [kEl.value || semuaKelas[0]] : semuaKelas;
+
+            // Kira stat tiap kelas
+            const container = document.getElementById('hca-table');
+            container.innerHTML = '<p class="p-4 text-sm text-gray-500">Mengira…</p>';
+            const stats = [];
+            for (const k of kelasSenarai) stats.push(await hcStatKelas(darjah, k, subjek, tanggaIdx));
+            hcAnalisaData = stats;
+
+            hcRenderKPI(stats);
+            hcRenderJadualAnalisa(stats);
+            hcRenderCartaAnalisa(stats);
+        }
+
+        function hcRenderKPI(stats) {
+            const totMurid = stats.reduce((a, s) => a + s.bilMurid, 0);
+            const totMarkah = stats.reduce((a, s) => a + s.bilAdaMarkah, 0);
+            const totCapai = stats.reduce((a, s) => a + s.capai, 0);
+            const pCapai = totMarkah ? Math.round(totCapai / totMarkah * 100) : 0;
+            const naikVals = stats.filter(s => s.purataNaik != null);
+            const purataNaik = naikVals.length ? (naikVals.reduce((a, s) => a + s.purataNaik * s.bilNaik, 0) / naikVals.reduce((a, s) => a + s.bilNaik, 0)) : null;
+            const cemerlang = stats.reduce((a, s) => a + s.grades.A + s.grades.B + s.grades.C + s.grades.D, 0);
+            const pLulus = totMarkah ? Math.round(cemerlang / totMarkah * 100) : 0;
+            const kad = (tajuk, nilai, warna) => `
+                <div class="bg-white rounded-lg border border-gray-200 p-3">
+                    <div class="text-xs text-gray-500">${tajuk}</div>
+                    <div class="text-2xl font-bold ${warna}">${nilai}</div>
+                </div>`;
+            document.getElementById('hca-kpi').innerHTML =
+                kad('Jumlah murid dinilai', `${totMarkah}<span class="text-sm text-gray-400">/${totMurid}</span>`, 'text-gray-800') +
+                kad('Capai sasaran', `${pCapai}%`, pCapai >= 50 ? 'text-green-700' : 'text-red-600') +
+                kad('Purata naik (TOV→AR)', purataNaik == null ? '—' : `${purataNaik >= 0 ? '+' : ''}${purataNaik.toFixed(1)}`, purataNaik >= 0 ? 'text-green-700' : 'text-red-600') +
+                kad('Lulus (A–D)', `${pLulus}%`, 'text-teal-700');
+        }
+
+        // Mod gred dalam jadual analisa: 'sebenar' (dari AR) atau 'sasar' (dari ETR)
+        let hcAnalisaGredMod = 'sebenar';
+        function hcTukarGredMod(mod) { hcAnalisaGredMod = mod; hcRenderJadualAnalisa(hcAnalisaData); }
+
+        function hcRenderJadualAnalisa(stats) {
+            const gred = ['A', 'B', 'C', 'D', 'E', 'F'];
+            const gWarna = { A: 'text-green-700', B: 'text-blue-700', C: 'text-yellow-700', D: 'text-orange-700', E: 'text-red-700', F: 'text-gray-500' };
+            const sasar = hcAnalisaGredMod === 'sasar';
+            const ambilGred = s => sasar ? s.gredSasar : s.grades;
+            const btnAktif = 'px-3 py-1 text-xs font-medium rounded bg-teal-600 text-white';
+            const btnMati = 'px-3 py-1 text-xs font-medium rounded bg-gray-100 text-gray-600 hover:bg-gray-200';
+            const togol = `<div class="flex items-center gap-2 px-4 py-2 border-b border-gray-100 no-print">
+                <span class="text-xs text-gray-500">Papar gred:</span>
+                <button onclick="hcTukarGredMod('sebenar')" class="${sasar ? btnMati : btnAktif}">Gred Sebenar (AR)</button>
+                <button onclick="hcTukarGredMod('sasar')" class="${sasar ? btnAktif : btnMati}">🎯 Gred Sasaran (ETR)</button>
+            </div>`;
+            const labelDinilai = sasar ? 'Ada ETR' : 'Dinilai';
+            const head = `<tr class="bg-gray-50 text-xs text-gray-500">
+                <th class="px-3 py-2 text-left font-medium">Kelas</th>
+                <th class="px-3 py-2 text-center font-medium">${labelDinilai}</th>
+                <th class="px-3 py-2 text-center font-medium">% Capai</th>
+                <th class="px-3 py-2 text-center font-medium">Purata naik</th>
+                ${gred.map(g => `<th class="px-3 py-2 text-center font-medium ${gWarna[g]}">${g}</th>`).join('')}
+            </tr>`;
+            const rows = stats.map(s => {
+                if (!s.adaDoc) return `<tr class="text-gray-400"><td class="px-3 py-2">${s.kelas}</td><td colspan="9" class="px-3 py-2 text-center text-xs">— belum diset (admin) —</td></tr>`;
+                const pWarna = s.peratusCapai >= 50 ? 'text-green-700' : 'text-red-600';
+                const nWarna = (s.purataNaik ?? 0) >= 0 ? 'text-green-700' : 'text-red-600';
+                const g = ambilGred(s);
+                const bilKol = sasar ? `${s.totalSasar}/${s.bilMurid}` : `${s.bilAdaMarkah}/${s.bilMurid}`;
+                return `<tr class="hover:bg-gray-50 border-t border-gray-100">
+                    <td class="px-3 py-2 text-sm font-medium">${s.kelas}</td>
+                    <td class="px-3 py-2 text-center text-sm text-gray-600">${bilKol}</td>
+                    <td class="px-3 py-2 text-center text-sm font-semibold ${pWarna}">${s.peratusCapai}%</td>
+                    <td class="px-3 py-2 text-center text-sm ${nWarna}">${s.purataNaik == null ? '—' : (s.purataNaik >= 0 ? '+' : '') + s.purataNaik.toFixed(1)}</td>
+                    ${gred.map(gg => `<td class="px-3 py-2 text-center text-sm">${g[gg] || 0}</td>`).join('')}
+                </tr>`;
+            }).join('');
+            // footer jumlah
+            const tot = { grades: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 }, capai: 0, dinilai: 0 };
+            stats.forEach(s => { const g = ambilGred(s); gred.forEach(k => tot.grades[k] += g[k] || 0); tot.capai += s.capai; tot.dinilai += (sasar ? s.totalSasar : s.bilAdaMarkah); });
+            const pTot = tot.dinilai ? Math.round(tot.capai / tot.dinilai * 100) : 0;
+            const foot = `<tr class="bg-gray-700 text-white font-semibold text-sm">
+                <td class="px-3 py-2">JUMLAH</td>
+                <td class="px-3 py-2 text-center">${tot.dinilai}</td>
+                <td class="px-3 py-2 text-center">${pTot}%</td>
+                <td class="px-3 py-2 text-center">—</td>
+                ${gred.map(g => `<td class="px-3 py-2 text-center">${tot.grades[g]}</td>`).join('')}
+            </tr>`;
+            document.getElementById('hca-table').innerHTML =
+                togol + `<table class="w-full text-sm"><thead>${head}</thead><tbody>${rows}</tbody><tfoot>${foot}</tfoot></table>`;
+        }
+
+        function hcRenderCartaAnalisa(stats) {
+            const ctx = document.getElementById('hca-chart').getContext('2d');
+            if (hcAnalisaChart) hcAnalisaChart.destroy();
+            const labels = stats.map(s => s.kelas);
+            const gred = ['A', 'B', 'C', 'D', 'E', 'F'];
+            const warna = { A: 'rgba(22,163,74,0.85)', B: 'rgba(59,130,246,0.85)', C: 'rgba(234,179,8,0.85)', D: 'rgba(249,115,22,0.85)', E: 'rgba(239,68,68,0.85)', F: 'rgba(156,163,175,0.85)' };
+            const datasets = gred.map(g => ({
+                label: `Gred ${g}`,
+                data: stats.map(s => { const t = s.total || 1; return ((s.grades[g] || 0) / t * 100).toFixed(1); }),
+                backgroundColor: warna[g]
+            }));
+            hcAnalisaChart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top' } },
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true, beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } }
+                    }
+                }
+            });
+        }
+
+        async function hcCetakAnalisaPDF() {
+            if (!hcAnalisaData.length) { showNotification('Cetak Analisa', 'Tiada data.', true); return; }
+            const darjah = document.getElementById('hca-darjah').value;
+            const subjek = document.getElementById('hca-subjek').value;
+            const tanggaTxt = document.getElementById('hca-tangga').selectedOptions[0]?.textContent || '';
+            await ensurePdfLibs();
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('landscape', 'mm', 'a4');
+            doc.setFontSize(14);
+            doc.text(`ANALISA HEADCOUNT — Darjah ${darjah} — ${subjek}`, 14, 15);
+            doc.setFontSize(9);
+            doc.text(`${tanggaTxt}   |   Tarikh: ${new Date().toLocaleDateString('ms-MY')}`, 14, 21);
+            const gred = ['A', 'B', 'C', 'D', 'E', 'F'];
+            const head = ['Kelas', 'Dinilai', '% Capai', 'Purata naik', ...gred];
+            const body = hcAnalisaData.map(s => [
+                s.kelas, `${s.bilAdaMarkah}/${s.bilMurid}`, `${s.peratusCapai}%`,
+                s.purataNaik == null ? '—' : (s.purataNaik >= 0 ? '+' : '') + s.purataNaik.toFixed(1),
+                ...gred.map(g => s.grades[g] || 0)
+            ]);
+            doc.autoTable({
+                startY: 26, head: [head], body,
+                styles: { fontSize: 9, cellPadding: 2, lineWidth: 0.1 },
+                headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0] },
+                margin: { left: 10, right: 10 }
+            });
+            doc.save(`Analisa_Headcount_${darjah}_${subjek}.pdf`.replace(/\s+/g, '_'));
+        }
+
+        // ==========================================================
+        // BINA HEADCOUNT PUKAL (Panel Admin) — set satu darjah sekali gus
+        // ==========================================================
+        let bhcState = {
+            kelasOn: new Set(),
+            subjekOn: new Set(),
+            bilTangga: 1,
+            petaOTI: [''],
+            pepSemasa: []   // nama peperiksaan tahun semasa (utk tangga)
+        };
+
+        async function initBinaHeadcount() {
+            // Darjah dropdown — dari allClasses (SATU..ENAM)
+            const urutan = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
+            const ada = urutan.filter(t => GLOBAL_DATA.allClasses[t] && GLOBAL_DATA.allClasses[t].length);
+            const dEl = document.getElementById('bhc-darjah');
+            dEl.innerHTML = (ada.length ? ada : urutan).map(t => `<option value="${t}">${t}</option>`).join('');
+
+            // Tahun kalendar TOV (default tahun lepas)
+            populatePanelYearDropdown('bhc-tov-tahun', (new Date().getFullYear() - 1).toString());
+            await bhcIsiPepTOV();
+            await bhcMuatPepSemasa();
+
+            // Reset pilihan subjek (kosong dulu)
+            bhcState.subjekOn = new Set();
+            bhcState.bilTangga = 1;
+            bhcState.petaOTI = [bhcState.pepSemasa[0] || ''];
+
+            bhcLukisSubjek();
+            bhcOnDarjahChange();   // isi kelas (default semua)
+            bhcLukisPetaOTI();
+        }
+
+        function bhcOnDarjahChange() {
+            const d = document.getElementById('bhc-darjah').value;
+            const list = (GLOBAL_DATA.allClasses[d] || []).slice().sort();
+            bhcState.kelasOn = new Set(list);   // default semua kelas ditanda
+            bhcLukisKelas();
+            bhcHitung();
+        }
+
+        function bhcLukisKelas() {
+            const d = document.getElementById('bhc-darjah').value;
+            const list = (GLOBAL_DATA.allClasses[d] || []).slice().sort();
+            document.getElementById('bhc-kelas-chips').innerHTML = list.map(k => {
+                const on = bhcState.kelasOn.has(k);
+                return `<button onclick="bhcToggleKelas('${k.replace(/'/g, "\\'")}')"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm ${on ? 'bg-teal-50 border-teal-300 text-teal-800 font-semibold' : 'bg-white border-gray-300 text-gray-600'}">
+                    ${on ? '✓' : ''} ${k}</button>`;
+            }).join('');
+            document.getElementById('bhc-kelas-kira').textContent = bhcState.kelasOn.size;
+        }
+        function bhcToggleKelas(k) { bhcState.kelasOn.has(k) ? bhcState.kelasOn.delete(k) : bhcState.kelasOn.add(k); bhcLukisKelas(); bhcHitung(); }
+        function bhcSemuaKelas(on) {
+            const d = document.getElementById('bhc-darjah').value;
+            const list = (GLOBAL_DATA.allClasses[d] || []).slice().sort();
+            bhcState.kelasOn = on ? new Set(list) : new Set();
+            bhcLukisKelas(); bhcHitung();
+        }
+
+        function bhcLukisSubjek() {
+            const subjek = GLOBAL_DATA.allSubjects.filter(s => s.nama_penuh)
+                .sort((a, b) => a.nama_penuh.localeCompare(b.nama_penuh)).map(s => s.nama_penuh);
+            document.getElementById('bhc-subjek-chips').innerHTML = subjek.map(s => {
+                const on = bhcState.subjekOn.has(s);
+                return `<button onclick="bhcToggleSubjek('${s.replace(/'/g, "\\'")}')"
+                    class="flex items-center gap-2 px-3 py-2 rounded border text-sm text-left ${on ? 'bg-teal-50 border-teal-300 text-teal-800 font-semibold' : 'bg-white border-gray-300 text-gray-600'}">
+                    <span class="w-4 h-4 rounded border grid place-items-center flex-none ${on ? 'bg-teal-600 border-teal-600 text-white' : 'border-gray-400'}">${on ? '✓' : ''}</span>
+                    ${s}</button>`;
+            }).join('');
+            document.getElementById('bhc-subjek-kira').textContent = bhcState.subjekOn.size;
+        }
+        function bhcToggleSubjek(s) { bhcState.subjekOn.has(s) ? bhcState.subjekOn.delete(s) : bhcState.subjekOn.add(s); bhcLukisSubjek(); bhcHitung(); }
+        function bhcSemuaSubjek(on) {
+            const subjek = GLOBAL_DATA.allSubjects.filter(s => s.nama_penuh).map(s => s.nama_penuh);
+            bhcState.subjekOn = on ? new Set(subjek) : new Set();
+            bhcLukisSubjek(); bhcHitung();
+        }
+
+        // Peperiksaan sumber TOV — ikut tahun kalendar dipilih (semua, termasuk aktif:false)
+        async function bhcIsiPepTOV() {
+            const calYear = parseInt(document.getElementById('bhc-tov-tahun').value);
+            const el = document.getElementById('bhc-tov-pep');
+            const prev = el.value;
+            let list = [];
+            try { list = await getExamTypesForYear(calYear); } catch (e) { list = GLOBAL_DATA.examTypes; }
+            el.innerHTML = list.map(et => `<option value="${et.nama}">${et.nama}</option>`).join('');
+            if (prev && [...el.options].some(o => o.value === prev)) el.value = prev;
+        }
+
+        // Peperiksaan tahun semasa — untuk anak tangga
+        async function bhcMuatPepSemasa() {
+            const cy = new Date().getFullYear();
+            try { bhcState.pepSemasa = (await getExamTypesForYear(cy)).map(et => et.nama); }
+            catch (e) { bhcState.pepSemasa = GLOBAL_DATA.examTypes.map(et => et.nama); }
+            if (!bhcState.pepSemasa.length) bhcState.pepSemasa = GLOBAL_DATA.examTypes.map(et => et.nama);
+        }
+
+        function bhcLukisPetaOTI() {
+            const opts = bhcState.pepSemasa.length ? bhcState.pepSemasa : GLOBAL_DATA.examTypes.map(e => e.nama);
+            // selaraskan petaOTI dgn peperiksaan sebenar
+            bhcState.petaOTI = bhcState.petaOTI.map(p => opts.includes(p) ? p : (opts[0] || ''));
+            while (bhcState.petaOTI.length < bhcState.bilTangga) bhcState.petaOTI.push(opts[opts.length - 1] || opts[0] || '');
+            bhcState.petaOTI = bhcState.petaOTI.slice(0, bhcState.bilTangga);
+            document.getElementById('bhc-peta-oti').innerHTML = bhcState.petaOTI.map((p, i) => `
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-gray-600 w-24">Tangga ${i + 1}</span>
+                    <span class="text-gray-400">→</span>
+                    <select onchange="bhcState.petaOTI[${i}]=this.value" class="rounded border border-gray-300 px-3 py-1.5 text-sm">
+                        ${opts.map(n => `<option ${n === p ? 'selected' : ''}>${n}</option>`).join('')}
+                    </select>
+                </div>`).join('');
+        }
+        function bhcTambahTangga() { if (bhcState.bilTangga >= 5) return; bhcState.bilTangga++; bhcLukisPetaOTI(); }
+        function bhcBuangTangga() { if (bhcState.bilTangga <= 1) return; bhcState.bilTangga--; bhcState.petaOTI.pop(); bhcLukisPetaOTI(); }
+
+        function bhcHitung() {
+            const nk = bhcState.kelasOn.size, ns = bhcState.subjekOn.size, total = nk * ns;
+            const d = document.getElementById('bhc-darjah').value;
+            document.getElementById('bhc-impact').textContent = `${total} headcount`;
+            document.getElementById('bhc-impact-detail').innerHTML = total
+                ? `<strong>${nk} kelas</strong> × <strong>${ns} subjek</strong> — ${d}`
+                : `<span class="text-gray-400">Pilih sekurang-kurangnya 1 kelas & 1 subjek</span>`;
+        }
+
+        // Bina pukal: satu doc rekodHeadcount per kelas × subjek (batch write)
+        async function bhcBinaSemua() {
+            const darjah = document.getElementById('bhc-darjah').value;   // perkataan tahun (EMPAT..)
+            const kelasList = [...bhcState.kelasOn];
+            const subjekList = [...bhcState.subjekOn];
+            const statusEl = document.getElementById('bhc-status');
+            if (!kelasList.length || !subjekList.length) {
+                statusEl.className = 'text-sm font-medium text-red-600';
+                statusEl.textContent = '⚠️ Sila pilih sekurang-kurangnya 1 kelas dan 1 subjek.';
+                return;
+            }
+            const tovTahun = parseInt(document.getElementById('bhc-tov-tahun').value);
+            const tovPep = document.getElementById('bhc-tov-pep').value;
+            const autoEtr = document.getElementById('bhc-auto-etr').checked;
+            const tambah = parseInt(document.getElementById('bhc-etr-tambah').value) || 10;
+            const cy = new Date().getFullYear();
+            const petaOTI = bhcState.petaOTI.slice(0, bhcState.bilTangga);
+
+            statusEl.className = 'text-sm font-medium text-blue-600';
+            statusEl.textContent = 'Sedang membina… menarik markah TOV.';
+
+            // Pastikan markah tahun TOV diload sekali
+            await ensureMarksLoaded(tovTahun);
+
+            let batch = db.batch();
+            let bilDoc = 0, bilOps = 0, jumlahMuridBerETR = 0;
+            for (const kelas of kelasList) {
+                const murid = GLOBAL_DATA.students.filter(s => s.tahun === darjah && s.kelas === kelas);
+                if (!murid.length) continue;
+                for (const subjek of subjekList) {
+                    // Tarik TOV ikut no_kp (silang tahun)
+                    const { map: tovMap } = await cariMarkahMurid({
+                        calYear: tovTahun, subjek, peperiksaan: tovPep, muridList: murid, mod: 'no_kp'
+                    });
+                    // Bina etr (auto-cadang = TOV + tambah)
+                    const etr = {};
+                    if (autoEtr) {
+                        murid.forEach(m => {
+                            const tov = tovMap[m.no_kp];
+                            if (tov != null) { etr[m.no_kp] = Math.min(tov + tambah, 100); jumlahMuridBerETR++; }
+                        });
+                    }
+                    const docId = `${darjah}_${kelas}_${subjek}_${cy}`;
+                    const docData = {
+                        tahun: darjah, kelas, subjek, cal_year: cy,
+                        tovSource: { tahun: tovTahun, peperiksaan: tovPep },
+                        bilTangga: bhcState.bilTangga,
+                        petaOTI, etr, override: {},
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+                    batch.set(db.collection('rekodHeadcount').doc(docId), docData);
+                    bilDoc++; bilOps++;
+                    if (bilOps % 450 === 0) { await batch.commit(); batch = db.batch(); }
+                }
+            }
+            try {
+                await batch.commit();
+                statusEl.className = 'text-sm font-medium text-green-700';
+                statusEl.textContent = `✓ Berjaya bina ${bilDoc} headcount (${kelasList.length} kelas × ${subjekList.length} subjek). ${autoEtr ? jumlahMuridBerETR + ' ETR dicadang automatik.' : ''} Guru boleh ubah ETR di panel Headcount.`;
+                showNotification('Bina Headcount', `${bilDoc} headcount berjaya dibina untuk darjah ${darjah}.`, false);
+            } catch (e) {
+                statusEl.className = 'text-sm font-medium text-red-600';
+                statusEl.textContent = `⚠️ Ralat: ${e.message}`;
+                showNotification('RALAT', `Gagal bina headcount: ${e.message}`, true);
+            }
+        }
+
+        // Kira anak tangga OTI: naik rata TOV → ETR
+        function hcKiraOTI(tov, etr, bil) {
+            if (tov == null || !etr || etr <= tov) return Array(bil).fill(null);
+            const langkah = (etr - tov) / bil;
+            return Array.from({ length: bil }, (_, i) => i === bil - 1 ? etr : Math.round(tov + langkah * (i + 1)));
+        }
+
+        // Senarai peperiksaan untuk peta anak tangga — ikut tahun kalendar SEMASA
+        // (AR ditarik dari markah tahun ini). Disimpan dalam cache oleh hcMuatPepSemasa.
+        let hcPepSemasa = [];
+        async function hcMuatPepSemasa() {
+            const cy = new Date().getFullYear();
+            try {
+                const list = await getExamTypesForYear(cy);
+                hcPepSemasa = list.map(et => et.nama);
+            } catch (e) {
+                hcPepSemasa = GLOBAL_DATA.examTypes.map(et => et.nama);
+            }
+            if (!hcPepSemasa.length) hcPepSemasa = GLOBAL_DATA.examTypes.map(et => et.nama);
+        }
+        function hcNamaPep() {
+            return hcPepSemasa.length ? hcPepSemasa : GLOBAL_DATA.examTypes.map(et => et.nama);
+        }
+
+        function hcLukisPetaOTI() {
+            const opts = hcNamaPep();
+            document.getElementById('hc-peta-oti').innerHTML = hcState.petaOTI.map((p, i) => `
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-gray-600 w-24">Tangga ${i + 1}</span>
+                    <span class="text-gray-400">&rarr;</span>
+                    <select onchange="hcState.petaOTI[${i}]=this.value" class="rounded border border-gray-300 px-3 py-1.5 text-sm">
+                        ${opts.map(n => `<option ${n === p ? 'selected' : ''}>${n}</option>`).join('')}
+                    </select>
+                </div>`).join('');
+        }
+
+        function hcTambahTangga() {
+            if (hcState.bilTangga >= 5) return;
+            hcState.bilTangga++;
+            const opts = hcNamaPep();
+            hcState.petaOTI.push(opts[opts.length - 1] || '');
+            hcLukisPetaOTI();
+            hcLukisSasaran();
+        }
+        function hcBuangTangga() {
+            if (hcState.bilTangga <= 1) return;
+            hcState.bilTangga--;
+            hcState.petaOTI.pop();
+            hcLukisPetaOTI();
+            hcLukisSasaran();
+        }
+
+        function hcLukisSasaran() {
+            const bil = hcState.bilTangga;
+            if (!hcState.murid.length) {
+                document.getElementById('hc-table-sasaran').innerHTML =
+                    '<p class="p-4 text-sm text-gray-500">Tiada murid untuk kelas ini.</p>';
+                return;
+            }
+            const admin = !!window.isAuthenticated;
+            const rows = hcState.murid.map(m => {
+                const kp = m.no_kp;
+                const tov = hcState.tovMap[kp] ?? null;
+                const etr = hcState.etrMap[kp] ?? '';
+                const oti = hcKiraOTI(tov, etr, bil);
+                // TOV: admin boleh edit; guru read-only (TOV ditetapkan admin)
+                let tovSel;
+                if (admin) {
+                    tovSel = tov === null
+                        ? `<input type="number" placeholder="—" onchange="hcSetTOV('${kp}', this.value)"
+                             class="w-16 rounded border border-amber-400 bg-amber-50 px-2 py-1 text-center text-sm">`
+                        : `<input type="number" value="${tov}" onchange="hcSetTOV('${kp}', this.value)"
+                             class="w-16 rounded border border-gray-300 px-2 py-1 text-center text-sm">`;
+                } else {
+                    tovSel = `<span class="text-sm ${tov === null ? 'text-gray-300' : 'text-gray-600'}">${tov ?? '—'}</span>`;
+                }
+                return `<tr class="hover:bg-gray-50">
+                    <td class="px-3 py-2 text-sm">${m.nama || kp}
+                        ${(admin && tov === null) ? '<span class="ml-1 text-xs text-amber-600">taip manual</span>' : ''}</td>
+                    <td class="px-3 py-2 text-center">${tovSel}</td>
+                    <td class="px-3 py-2 text-center">
+                        <input type="number" value="${etr}" onchange="hcSetETR('${kp}', this.value)"
+                            class="w-16 rounded border border-gray-300 px-2 py-1 text-center text-sm"></td>
+                    <td class="px-3 py-2 text-center text-sm text-gray-500">
+                        ${oti[0] === null ? '<span class="text-gray-300">—</span>' : oti.join(' &rarr; ')}</td>
+                </tr>`;
+            }).join('');
+            document.getElementById('hc-table-sasaran').innerHTML = `
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-xs text-gray-500">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-medium">Nama</th>
+                            <th class="px-3 py-2 text-center font-medium">TOV</th>
+                            <th class="px-3 py-2 text-center font-medium">ETR</th>
+                            <th class="px-3 py-2 text-center font-medium">Anak tangga (OTI)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">${rows}</tbody>
+                </table>`;
+        }
+
+        function hcSetTOV(kp, val) {
+            const v = val === '' ? null : parseInt(val);
+            hcState.tovMap[kp] = isNaN(v) ? null : v;
+            // Rekod sebagai override (guru tulis-ganti)
+            if (v == null || isNaN(v)) {
+                if (hcState.overrideMap[kp]) delete hcState.overrideMap[kp].tov;
+            } else {
+                hcState.overrideMap[kp] = { ...(hcState.overrideMap[kp] || {}), tov: v };
+            }
+            hcLukisSasaran();
+        }
+        function hcSetETR(kp, val) {
+            const v = parseInt(val);
+            hcState.etrMap[kp] = isNaN(v) ? '' : v;
+            hcLukisSasaran();
+        }
+
+        async function hcSimpanSasaran() {
+            const tahun = document.getElementById('hc-tahun').value;
+            const kelas = document.getElementById('hc-kelas').value;
+            const subjek = document.getElementById('hc-subjek').value;
+            if (!tahun || !kelas || !subjek) {
+                showNotification('Simpan Headcount', 'Sila lengkapkan tahun, kelas dan subjek.', true);
+                return;
+            }
+            // Bersihkan etr kosong
+            const etr = {};
+            Object.keys(hcState.etrMap).forEach(kp => {
+                if (hcState.etrMap[kp] !== '' && hcState.etrMap[kp] != null) etr[kp] = hcState.etrMap[kp];
+            });
+            const override = {};
+            Object.keys(hcState.overrideMap).forEach(kp => {
+                if (hcState.overrideMap[kp] && hcState.overrideMap[kp].tov != null) override[kp] = hcState.overrideMap[kp];
+            });
+            const doc = {
+                tahun, kelas, subjek,
+                cal_year: new Date().getFullYear(),
+                tovSource: hcState.tovSource || null,
+                bilTangga: hcState.bilTangga,
+                petaOTI: hcState.petaOTI.slice(0, hcState.bilTangga),
+                etr, override,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            try {
+                await db.collection('rekodHeadcount').doc(hcDocId()).set(doc);
+                showNotification('Headcount Disimpan', `Sasaran ${kelas} — ${subjek} berjaya disimpan.`, false);
+            } catch (e) {
+                showNotification('RALAT SIMPAN', `Gagal simpan headcount. Ralat: ${e.message}`, true);
+            }
+        }
+
+        // ===== Papan Jejak =====
+        // Bina sel AR vs OTI (return {html, ar, oti, ok})
+        function hcSelData(ar, oti) {
+            if (oti === null) return { ar: null, oti: null };
+            if (ar == null) return { ar: null, oti };
+            return { ar, oti, beza: ar - oti, ok: (ar - oti) >= 0 };
+        }
+        function hcSelHtml(ar, oti) {
+            const d = hcSelData(ar, oti);
+            if (d.oti === null) return `<td class="px-3 py-2 text-center border-l border-gray-200 text-gray-300">—</td>`;
+            if (d.ar == null) return `<td class="px-3 py-2 text-center border-l border-gray-200 bg-gray-50">
+                <div class="text-gray-400">—</div><div class="text-xs text-gray-400">sasaran ${d.oti}</div></td>`;
+            return `<td class="px-3 py-2 text-center border-l border-gray-200 ${d.ok ? 'bg-green-50' : 'bg-red-50'}">
+                <div class="font-semibold ${d.ok ? 'text-green-800' : 'text-red-800'}">${d.ar}</div>
+                <div class="text-xs ${d.ok ? 'text-green-700' : 'text-red-700'}">${d.ok ? '+' : ''}${d.beza} &middot; sasaran ${d.oti}</div></td>`;
+        }
+
+        // Cache AR terkini untuk papan jejak (diisi hcLukisJejak, diguna hcBukaKad/PDF)
+        let hcArCache = [];
+
+        async function hcLukisJejak(forceFresh = false) {
+            const tahun = document.getElementById('hc-tahun').value;
+            const kelas = document.getElementById('hc-kelas').value;
+            const subjek = document.getElementById('hc-subjek').value;
+            document.getElementById('hc-jejak-tajuk').textContent = `${kelas} — ${subjek}`;
+            const target = document.getElementById('hc-table-jejak');
+            if (!hcState.murid.length) {
+                target.innerHTML = '<p class="p-4 text-sm text-gray-500">Tiada murid / sasaran. Sila set di tab Set Sasaran.</p>';
+                return;
+            }
+            target.innerHTML = '<p class="p-4 text-sm text-gray-500">Memuatkan markah…</p>';
+            const cy = new Date().getFullYear();
+            const bil = hcState.bilTangga;
+            // Tarik AR setiap tangga (forceFresh diteruskan dari hcLukisJejak arg)
+            const arMaps = [];
+            const tiadaTangga = [];   // bil murid tiada markah tiap tangga
+            for (let i = 0; i < bil; i++) {
+                const res = await hcMarkahPeperiksaan(cy, hcState.petaOTI[i], forceFresh);
+                arMaps.push(res.map);
+                tiadaTangga.push(res.tiada.length);
+            }
+            hcArCache = [];
+            // Header guna nama peperiksaan SEBENAR dari petaOTI (bukan "Ujian 1" generik)
+            const head = hcState.petaOTI.slice(0, bil).map((pep, i) =>
+                `<th class="px-3 py-2 text-center font-medium border-l border-gray-200">
+                    <div class="text-[10px] text-gray-400 font-normal normal-case">Ujian ${i + 1}</div>
+                    <div>${pep || '—'}</div>
+                </th>`).join('');
+            const rows = hcState.murid.map((m, idx) => {
+                const kp = m.no_kp;
+                const tov = hcState.tovMap[kp] ?? null;
+                const etr = hcState.etrMap[kp] ?? '';
+                const oti = hcKiraOTI(tov, etr, bil);
+                const ar = arMaps.map(mp => (mp[kp] != null ? mp[kp] : null));
+                hcArCache[idx] = { kp, tov, etr, oti, ar };
+                const sels = oti.map((o, i) => hcSelHtml(ar[i], o)).join('');
+                return `<tr>
+                    <td class="px-3 py-2 text-sm">
+                        <button onclick="hcBukaKad(${idx})" class="text-left text-gray-800 hover:underline">${m.nama || kp}</button></td>
+                    <td class="px-3 py-2 text-center text-sm text-gray-600">${tov ?? '—'}</td>
+                    ${sels}
+                    <td class="px-3 py-2 text-center border-l border-gray-200 font-semibold text-gray-700">${etr || '—'}</td>
+                    <td class="px-3 py-2 text-center border-l border-gray-200 no-print">
+                        <button onclick="hcCetakIndividu(${idx})" title="Cetak kad murid ini"
+                            class="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-teal-50 hover:border-teal-300">📄</button></td>
+                </tr>`;
+            }).join('');
+            target.innerHTML = `
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-xs text-gray-500">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-medium">Nama</th>
+                            <th class="px-3 py-2 text-center font-medium">TOV</th>
+                            ${head}
+                            <th class="px-3 py-2 text-center font-medium border-l border-gray-200">ETR</th>
+                            <th class="px-3 py-2 text-center font-medium border-l border-gray-200 no-print">Cetak</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">${rows}</tbody>
+                </table>`;
+            // Amaran jejak tak lengkap: ada tangga yang sebahagian murid tiada markah
+            const perluAmaran = tiadaTangga.map((n, i) => n > 0 ? `Ujian ${i + 1} (${hcState.petaOTI[i]}): ${n} murid tiada markah` : null).filter(Boolean);
+            if (perluAmaran.length) {
+                const nota = document.createElement('div');
+                nota.className = 'p-3 text-xs bg-amber-50 border-t border-amber-200 text-amber-800';
+                nota.innerHTML = '⚠️ ' + perluAmaran.join(' · ') + '. Markah mungkin belum dimasukkan.';
+                target.appendChild(nota);
+            }
+        }
+
+        function hcBukaKad(idx) {
+            const rec = hcArCache[idx];
+            if (!rec) return;
+            const m = hcState.murid[idx];
+            const kelas = document.getElementById('hc-kelas').value;
+            const subjek = document.getElementById('hc-subjek').value;
+            document.getElementById('hc-kad-nama').textContent = m.nama || rec.kp;
+            document.getElementById('hc-kad-sub').textContent = `${kelas} · ${subjek}`;
+            const baris = rec.oti.map((o, n) => {
+                if (o === null) return '';
+                const ar = rec.ar[n];
+                const pep = hcState.petaOTI[n] || '';
+                if (ar == null) return `<div class="flex justify-between py-2 border-b border-gray-100 text-gray-400">
+                    <span>Ujian ${n + 1} <span class="text-xs">(${pep})</span></span>
+                    <span>belum dinilai &middot; sasaran ${o}</span></div>`;
+                const beza = ar - o, ok = beza >= 0;
+                return `<div class="flex justify-between py-2 border-b border-gray-100">
+                    <span class="text-gray-600">Ujian ${n + 1} <span class="text-xs text-gray-400">(${pep})</span></span>
+                    <span class="${ok ? 'text-green-700' : 'text-red-700'} font-medium">${ar}
+                        <span class="text-xs font-normal">(${ok ? '+' : ''}${beza} &middot; sasaran ${o})</span></span></div>`;
+            }).join('');
+            document.getElementById('hc-kad-isi').innerHTML = `
+                <div class="flex justify-between text-sm mb-3 pb-3 border-b border-gray-200">
+                    <span class="text-gray-500">Mula (TOV) <strong class="text-gray-800">${rec.tov ?? '—'}</strong></span>
+                    <span class="text-gray-500">Sasaran (ETR) <strong class="text-gray-800">${rec.etr || '—'}</strong></span>
+                </div>
+                <div class="text-sm">${baris || '<p class="text-gray-400">Tiada sasaran ditetapkan.</p>'}</div>`;
+            hcKadIdx = idx;   // ingat murid semasa untuk butang cetak dalam kad
+            document.getElementById('hc-modal').classList.remove('hidden');
+        }
+        function hcTutupKad(e) {
+            if (e && e.target !== e.currentTarget) return;
+            document.getElementById('hc-modal').classList.add('hidden');
+        }
+
+        // Cetak PDF kad SATU murid (individu)
+        let hcKadIdx = null;
+        async function hcCetakKadModal() { if (hcKadIdx != null) await hcCetakIndividu(hcKadIdx); }
+        async function hcCetakIndividu(idx) {
+            const rec = hcArCache[idx];
+            if (!rec) { showNotification('Cetak Kad', 'Sila buka Papan Jejak dahulu.', true); return; }
+            const m = hcState.murid[idx];
+            const kelas = document.getElementById('hc-kelas').value;
+            const subjek = document.getElementById('hc-subjek').value;
+            const bil = hcState.bilTangga;
+            await ensurePdfLibs();
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            doc.setFontSize(15);
+            doc.text('KAD HEADCOUNT MURID', 14, 18);
+            doc.setFontSize(11);
+            doc.text(`${m.nama || rec.kp}`, 14, 26);
+            doc.setFontSize(9);
+            doc.text(`${kelas} · ${subjek}   |   Tarikh: ${new Date().toLocaleDateString('ms-MY')}`, 14, 32);
+            doc.text(`Mula (TOV): ${rec.tov ?? '—'}      Sasaran (ETR): ${rec.etr || '—'}`, 14, 39);
+            const body = rec.oti.map((o, i) => {
+                const nama = `Ujian ${i + 1} (${hcState.petaOTI[i] || ''})`;
+                if (o === null) return [nama, '—', '—'];
+                const ar = rec.ar[i];
+                if (ar == null) return [nama, 'belum dinilai', String(o)];
+                const beza = ar - o;
+                return [nama, `${ar} (${beza >= 0 ? '+' : ''}${beza})`, String(o)];
+            });
+            doc.autoTable({
+                startY: 45,
+                head: [['Peperiksaan', 'Markah sebenar', 'Sasaran']],
+                body,
+                styles: { fontSize: 10, cellPadding: 3, lineWidth: 0.1 },
+                headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0] },
+                margin: { left: 14, right: 14 },
+                didParseCell: (data) => {
+                    if (data.section === 'body' && data.column.index === 1) {
+                        const mt = String(data.cell.raw).match(/\(([+-]?\d+)\)/);
+                        if (mt) data.cell.styles.textColor = parseInt(mt[1]) >= 0 ? [4, 120, 87] : [185, 28, 28];
+                    }
+                }
+            });
+            doc.save(`Kad_${(m.nama || rec.kp).replace(/\s+/g, '_')}_${subjek}.pdf`.replace(/\s+/g, '_'));
+        }
+
+        async function hcCetakPDF() {
+            if (!hcArCache.length) {
+                showNotification('Cetak Headcount', 'Tiada data untuk dicetak. Sila buka Papan Jejak dahulu.', true);
+                return;
+            }
+            const kelas = document.getElementById('hc-kelas').value;
+            const subjek = document.getElementById('hc-subjek').value;
+            const bil = hcState.bilTangga;
+            await ensurePdfLibs();
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('landscape', 'mm', 'a4');
+            doc.setFontSize(14);
+            doc.text(`HEADCOUNT — ${kelas} — ${subjek}`, 14, 15);
+            doc.setFontSize(9);
+            doc.text(`Tarikh cetak: ${new Date().toLocaleDateString('ms-MY')}`, 14, 21);
+            const head = ['Nama', 'TOV', ...Array.from({ length: bil }, (_, i) => `Ujian ${i + 1} (${hcState.petaOTI[i] || ''})`), 'ETR'];
+            const body = hcArCache.map((rec, idx) => {
+                const nama = hcState.murid[idx].nama || rec.kp;
+                const cells = rec.oti.map((o, i) => {
+                    if (o === null) return '—';
+                    const ar = rec.ar[i];
+                    if (ar == null) return `— (sasaran ${o})`;
+                    const beza = ar - o;
+                    return `${ar} (${beza >= 0 ? '+' : ''}${beza} / ${o})`;
+                });
+                return [nama, rec.tov ?? '—', ...cells, rec.etr || '—'];
+            });
+            doc.autoTable({
+                startY: 26,
+                head: [head], body,
+                styles: { fontSize: 8, cellPadding: 1.5, lineWidth: 0.1 },
+                headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0] },
+                margin: { left: 10, right: 10 },
+                didParseCell: (data) => {
+                    if (data.section === 'body' && data.column.index >= 2 && data.column.index < 2 + bil) {
+                        const txt = String(data.cell.raw);
+                        const mt = txt.match(/^\d+ \(([+-]?\d+)/);
+                        if (mt) data.cell.styles.fillColor = parseInt(mt[1]) >= 0 ? [220, 245, 225] : [250, 224, 224];
+                    }
+                }
+            });
+            doc.save(`Headcount_${kelas}_${subjek}.pdf`.replace(/\s+/g, '_'));
+        }
+
         // ==========================================================
         // CSV IMPORT LOGIC (Sama seperti sebelumnya)
         // ==========================================================
