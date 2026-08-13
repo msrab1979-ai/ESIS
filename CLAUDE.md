@@ -38,17 +38,17 @@ The entire application lives in a **single file**: `public/index.html` (~10,070 
 | `rekodMarkah` | Exam mark records |
 | `subjek` | Subject definitions |
 | `gred` | Grade ranges/definitions |
-| `examTypes` | Exam type classifications |
+| `examTypes` | Exam type classifications (fields: `nama`, `tahunKalendar`, `darjah[]`, `subjek[]`, `aktif`, `order`) |
 | `settings` | System settings (markahEnabled flag, school name, logo URL) |
 
 ### UI Panels (main navigation sections)
 
-1. **Rekod Markah** — Enter exam marks
-2. **Edit & Cetak** — Edit marks and print reports
-3. **Analisa Keseluruhan** — Grade analysis across all subjects
-4. **Analisa Subjek** — Grade trends for a single subject
-5. **Murid Terbaik** — Student rankings
-6. **Guru Kelas** — Manage student roster
+1. **Rekod & Laporan** — Enter exam marks **and** edit/print reports (one combined panel; see below)
+2. **Analisa Keseluruhan** — Grade analysis across all subjects
+3. **Analisa Subjek** — Grade trends for a single subject
+4. **Murid Terbaik** — Student rankings
+5. **Guru Kelas** — Manage student roster
+6. **Headcount** — Target tracking (TOV/OTI/ETR/AR)
 7. **Admin Panel** (password-protected) — System configuration
 
 ### Key Code Locations
@@ -76,6 +76,18 @@ The entire application lives in a **single file**: `public/index.html` (~10,070 
 ### Exam "Aktif" Toggle (Urus Jenis Peperiksaan)
 
 Each exam type in `examTypes` has an `aktif` boolean, toggled in Admin. `aktif: false` puts the exam into **view-only mode** in Rekod & Laporan: teachers can view marks, print PDF, and export CSV, but cannot add/edit/delete marks (Simpan/Padam buttons hidden, no input fields, "Mod Baca Sahaja" banner shown). `isEditExamReadOnly()` also guards `simpanEditMarkah()`/`deleteMarkahByFilter()` server-side against bypass. This is separate from the global `settings.markahEnabled` flag, which blocks entry to the whole Rekod & Laporan panel.
+
+### Rekod & Laporan panel — ONE combined form (IMPORTANT)
+
+"Rekod Markah" (enter) and "Edit & Cetak" (edit/print) are **one panel** (`#markah-panel`, `showPanel('rekod-laporan')`) driven by the `edit-*` dropdowns: `edit-year` → `edit-peperiksaan` → `edit-tahun` (darjah) → `edit-kelas` → `edit-subjek`, handled by `onEdit*Change()`. The old `pilih-peperiksaan`/`pilih-tahun` selects are **hidden/legacy** (kept only so old JS ID refs don't break). **When debugging "exam type not showing in Rekod", inspect `onEdit*Change`, not `populateAllExamDropdowns`.**
+
+Each dropdown level is populated from **two sources merged**: (a) values that already have marks (`getMarksByYear`) — for editing existing records incl. inactive exams in read-only mode; and (b) for **active** exam types, the school structure so teachers can **start entering marks for a brand-new exam that has zero marks yet** — jenis from `examTypes` aktif (`onEditYearChange`), darjah from `examType.darjah` (`onEditPeperiksaanChange`), kelas from `GLOBAL_DATA.allClasses[tahun]` (`onEditTahunChange`). `cariMarkahEdit()` then builds an empty per-student template to fill (~line 7956). Without (b), a new active exam is invisible (chicken-and-egg: no marks → not shown → can't add marks).
+
+### Subjek Terlibat (subjects involved per exam type)
+
+`examTypes.subjek` = array of subject `nama_penuh` involved in that exam. **Empty `[]` / missing = ALL subjects** (default; legacy docs are safe). Admin sets it via a dynamically-generated checklist (from `GLOBAL_DATA.allSubjects`, not static HTML) in the Add form (`new-exam-subjek`) and Edit modal (`edit-exam-subjek`) — all checked by default; admin unticks those not involved. Helpers: `renderSubjekChecklist(prefix, selectedNames)`, `setSubjekChecks(prefix, val)`, `bacaSubjekTerlibat(prefix)` (returns `[]` when all/none ticked, else the ticked names). Saved by `tambahJenisPeperiksaan`/`saveEditJenisPeperiksaan`.
+
+Filtering applies **only at mark entry**: `onEditKelasChange` restricts the `edit-subjek` dropdown to `examType.subjek` (var `subjekTerlibat`). Slip & Analisa are **not** filtered (they follow actual marks). Subjects that already have records are **always shown** even if not in the list (so existing data is never hidden). Admin list badge shows "N subjek" / "Semua subjek".
 
 ### Caching
 

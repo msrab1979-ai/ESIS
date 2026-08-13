@@ -835,6 +835,23 @@
 
             <!-- ===== SKRIN B: PAPAN JEJAK ===== -->
             <section id="hc-skrin-jejak" class="hidden">
+                <!-- Pemilih Papan Jejak -->
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4 no-print">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Tahun (Darjah)</span>
+                            <select id="hcj-tahun" onchange="hcJejakPilihanChange()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Kelas</span>
+                            <select id="hcj-kelas" onchange="hcJejakPilihanChange()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Subjek</span>
+                            <select id="hcj-subjek" onchange="hcJejakPilihanChange()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                    </div>
+                </div>
                 <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
                     <div class="p-4 border-b border-gray-200 flex flex-wrap gap-3 justify-between items-center">
                         <div>
@@ -1791,6 +1808,20 @@
                                 <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="new-exam-darjah w-4 h-4 text-indigo-600" value="6"><span class="text-sm font-medium">Darjah 6</span></label>
                             </div>
                         </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-sm font-medium text-gray-700">Subjek Yang Terlibat</label>
+                                <div class="flex gap-2 text-xs">
+                                    <button type="button" onclick="setSubjekChecks('new-exam-subjek', true)" class="text-indigo-600 hover:underline">Tanda semua</button>
+                                    <span class="text-gray-300">|</span>
+                                    <button type="button" onclick="setSubjekChecks('new-exam-subjek', false)" class="text-indigo-600 hover:underline">Kosongkan</button>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 mb-2">Buang tanda subjek yang tidak terlibat. Jika semua ditanda = semua subjek terlibat.</p>
+                            <div id="new-exam-subjek-list" class="flex flex-wrap gap-x-4 gap-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-3 bg-white">
+                                <p class="text-xs text-gray-400 italic">Memuatkan subjek...</p>
+                            </div>
+                        </div>
                         <div class="flex items-center gap-3">
                             <button onclick="tambahJenisPeperiksaan()" class="bg-indigo-600 text-white py-2 px-6 rounded-md hover:bg-indigo-700 transition font-semibold">+ Tambah</button>
                             <p id="exam-type-add-status" class="text-sm font-medium"></p>
@@ -1832,6 +1863,19 @@
                                     <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="edit-exam-darjah w-4 h-4 text-indigo-600" value="4"><span class="text-sm">Darjah 4</span></label>
                                     <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="edit-exam-darjah w-4 h-4 text-indigo-600" value="5"><span class="text-sm">Darjah 5</span></label>
                                     <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="edit-exam-darjah w-4 h-4 text-indigo-600" value="6"><span class="text-sm">Darjah 6</span></label>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <label class="block text-sm font-medium text-gray-700">Subjek Yang Terlibat</label>
+                                    <div class="flex gap-2 text-xs">
+                                        <button type="button" onclick="setSubjekChecks('edit-exam-subjek', true)" class="text-indigo-600 hover:underline">Tanda semua</button>
+                                        <span class="text-gray-300">|</span>
+                                        <button type="button" onclick="setSubjekChecks('edit-exam-subjek', false)" class="text-indigo-600 hover:underline">Kosongkan</button>
+                                    </div>
+                                </div>
+                                <div id="edit-exam-subjek-list" class="flex flex-wrap gap-x-4 gap-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50">
+                                    <p class="text-xs text-gray-400 italic">Memuatkan subjek...</p>
                                 </div>
                             </div>
                         </div>
@@ -2491,12 +2535,20 @@
             // Pre-load examTypes untuk tahun dipilih (untuk semak aktif)
             await loadExamTypes(parseInt(editYear));
 
-            // Isi edit-peperiksaan dengan jenis yang ada rekod untuk tahun ini.
-            // NOTA: SEMUA exam ditunjukkan (aktif & tidak aktif). Exam yang tidak aktif
-            // masih boleh dipilih untuk MOD TENGOK SAHAJA (view + cetak, tanpa edit/simpan/padam).
+            // Isi edit-peperiksaan dengan gabungan DUA sumber:
+            //  (a) jenis yang sudah ADA REKOD markah untuk tahun ini (untuk edit/cetak) —
+            //      termasuk yang tidak aktif (MOD TENGOK SAHAJA: view + cetak sahaja).
+            //  (b) jenis peperiksaan AKTIF dari examTypes tahun ini walaupun BELUM ada markah —
+            //      supaya guru boleh MULA MASUK MARKAH bila admin cipta ujian baru.
             const examsForYear = new Set(
                 getMarksByYear(editYear).map(m => m["JENIS PEPERIKSAAN"]).filter(Boolean)
             );
+            // Tambah peperiksaan aktif (examTypes untuk editYear sudah dimuat di atas)
+            const aktifTypes = (GLOBAL_DATA.examTypes || [])
+                .filter(et => et.aktif !== false && et.nama)
+                .map(et => et.nama);
+            aktifTypes.forEach(nama => examsForYear.add(nama));
+
             if (examsForYear.size > 0) {
                 Array.from(examsForYear).sort().forEach(examName => {
                     const opt = document.createElement('option');
@@ -2527,12 +2579,22 @@
 
             // Darjah yang ada rekod untuk year + peperiksaan ini
             const darjahOrder = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
+            const _darjahNumToTahun = { 1:'SATU', 2:'DUA', 3:'TIGA', 4:'EMPAT', 5:'LIMA', 6:'ENAM' };
             const darjahWithMarks = new Set(
                 getMarksByYear(editYear)
                     .filter(m => m["JENIS PEPERIKSAAN"] === peperiksaan)
                     .map(m => m.tahun)
                     .filter(Boolean)
             );
+            // Ujian AKTIF yang belum ada markah: isi darjah dari konfigurasi examTypes.darjah
+            // supaya guru boleh mula masuk markah untuk darjah yang dibenarkan admin.
+            const _etObj = (GLOBAL_DATA.examTypes || []).find(et => et.nama === peperiksaan);
+            if (_etObj && _etObj.aktif !== false && Array.isArray(_etObj.darjah)) {
+                _etObj.darjah.forEach(d => {
+                    const t = _darjahNumToTahun[Number(d)];
+                    if (t) darjahWithMarks.add(t);
+                });
+            }
             if (darjahWithMarks.size > 0) {
                 Array.from(darjahWithMarks)
                     .sort((a, b) => {
@@ -2571,6 +2633,12 @@
                     .map(m => m.kelas)
                     .filter(k => k)
             );
+            // Ujian AKTIF belum ada markah: isi kelas dari senarai kelas sebenar darjah itu
+            // (GLOBAL_DATA.allClasses) supaya guru boleh mula masuk markah.
+            const _etObjK = (GLOBAL_DATA.examTypes || []).find(et => et.nama === peperiksaan);
+            if (_etObjK && _etObjK.aktif !== false && GLOBAL_DATA.allClasses && GLOBAL_DATA.allClasses[tahun]) {
+                GLOBAL_DATA.allClasses[tahun].forEach(k => { if (k) classesWithMarks.add(k); });
+            }
             if (classesWithMarks.size > 0) {
                 Array.from(classesWithMarks).sort().forEach(kelas => {
                     const opt = document.createElement('option');
@@ -2605,8 +2673,20 @@
 
             // Tunjuk SEMUA subjek — tandakan yang sudah ada rekod
             const darjahNum = { 'SATU':1,'DUA':2,'TIGA':3,'EMPAT':4,'LIMA':5,'ENAM':6 }[tahun];
+
+            // Tapis ikut "subjek terlibat" yang admin set untuk jenis peperiksaan ini.
+            // examType.subjek kosong/tiada = SEMUA subjek terlibat (default).
+            // Subjek yang sudah ada rekod SENTIASA ditunjuk (elak sorok data sedia ada).
+            const _etSubj = (GLOBAL_DATA.examTypes || []).find(et => et.nama === peperiksaan);
+            const subjekTerlibat = (_etSubj && Array.isArray(_etSubj.subjek) && _etSubj.subjek.length > 0)
+                ? new Set(_etSubj.subjek)
+                : null; // null = semua
+
             const allSubjek = GLOBAL_DATA.allSubjects
                 .filter(s => s.nama_penuh)
+                .filter(s => subjekTerlibat === null
+                    || subjekTerlibat.has(s.nama_penuh)
+                    || subjectsWithRecords.has(s.nama_penuh))
                 .sort((a, b) => (a.nama_penuh).localeCompare(b.nama_penuh));
 
             if (allSubjek.length > 0) {
@@ -6355,8 +6435,64 @@
             document.getElementById('hc-tab-set').className = tab === 'set' ? aktif : mati;
             document.getElementById('hc-tab-jejak').className = tab === 'jejak' ? aktif : mati;
             document.getElementById('hc-tab-analisa').className = tab === 'analisa' ? aktif : mati;
-            if (tab === 'jejak') hcLukisJejak();
+            if (tab === 'jejak') hcInitJejak();
             if (tab === 'analisa') hcInitAnalisa();
+        }
+
+        // Isi pemilih Papan Jejak (selaraskan dgn pilihan Set Sasaran), kemudian lukis
+        function hcInitJejak() {
+            const tEl = document.getElementById('hcj-tahun');
+            const sEl = document.getElementById('hcj-subjek');
+            // Tahun (darjah)
+            if (!tEl.options.length) {
+                const urutan = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
+                const ada = urutan.filter(t => GLOBAL_DATA.allClasses[t] && GLOBAL_DATA.allClasses[t].length);
+                tEl.innerHTML = (ada.length ? ada : urutan).map(t => `<option value="${t}">${t}</option>`).join('');
+            }
+            // Subjek
+            if (!sEl.options.length) {
+                sEl.innerHTML = GLOBAL_DATA.allSubjects.filter(s => s.nama_penuh)
+                    .sort((a, b) => a.nama_penuh.localeCompare(b.nama_penuh))
+                    .map(s => `<option value="${s.nama_penuh}">${s.nama_penuh}</option>`).join('');
+            }
+            // Selaraskan dgn pilihan tab Set Sasaran
+            const tahunSet = document.getElementById('hc-tahun').value;
+            const subjekSet = document.getElementById('hc-subjek').value;
+            if (tahunSet) tEl.value = tahunSet;
+            if (subjekSet) sEl.value = subjekSet;
+            // Isi kelas ikut tahun
+            hcJejakIsiKelas(document.getElementById('hc-kelas').value);
+            hcJejakPilihanChange();
+        }
+
+        function hcJejakIsiKelas(praPilih) {
+            const tahun = document.getElementById('hcj-tahun').value;
+            const kEl = document.getElementById('hcj-kelas');
+            const list = (GLOBAL_DATA.allClasses[tahun] || []).slice().sort();
+            kEl.innerHTML = list.map(k => `<option value="${k}">${k}</option>`).join('');
+            if (praPilih && list.includes(praPilih)) kEl.value = praPilih;
+        }
+
+        // Bila pemilih Papan Jejak ditukar: segerak ke hc-* (state utama), muat, lukis
+        async function hcJejakPilihanChange() {
+            const tahun = document.getElementById('hcj-tahun').value;
+            // kalau tahun ditukar, isi semula kelas
+            const kEl = document.getElementById('hcj-kelas');
+            if (kEl.dataset.tahun !== tahun) { hcJejakIsiKelas(); kEl.dataset.tahun = tahun; }
+            const kelas = document.getElementById('hcj-kelas').value;
+            const subjek = document.getElementById('hcj-subjek').value;
+            // Segerak ke dropdown utama (hc-*) supaya semua fungsi hc* guna pilihan sama
+            document.getElementById('hc-tahun').value = tahun;
+            document.getElementById('hc-kelas').innerHTML = (GLOBAL_DATA.allClasses[tahun] || []).slice().sort().map(k => `<option value="${k}">${k}</option>`).join('');
+            document.getElementById('hc-kelas').value = kelas;
+            document.getElementById('hc-subjek').value = subjek;
+            // Muat murid + doc + tarik TOV, kemudian lukis jejak
+            hcMuatMurid();
+            await hcMuatPepSemasa();
+            await hcMuatSasaran();
+            hcSelaraskanPetaOTI();
+            hcIsiBannerAdmin();
+            await hcLukisJejak();
         }
 
         // Bila tahun/kelas/subjek ditukar: kemas kini kelas, muat doc tersimpan, render
@@ -11059,6 +11195,9 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             const titleEl = document.getElementById('exam-type-list-title');
             if (titleEl) titleEl.textContent = `Senarai Jenis Peperiksaan — ${year}`;
 
+            // Isi checklist subjek untuk borang Tambah (default: semua ditanda)
+            renderSubjekChecklist('new-exam-subjek', null);
+
             if (GLOBAL_DATA.examTypes.length === 0) {
                 listEl.innerHTML = '<p class="text-gray-500 text-sm italic">Tiada jenis peperiksaan dijumpai.</p>';
                 return;
@@ -11071,6 +11210,9 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 const darjahStr = Array.isArray(et.darjah) && et.darjah.length > 0
                     ? et.darjah.sort((a, b) => a - b).map(d => `D${d}`).join(', ')
                     : '<span class="text-red-500">Tiada darjah</span>';
+                // Subjek terlibat: kosong/tiada = semua
+                const subjBil = Array.isArray(et.subjek) ? et.subjek.length : 0;
+                const subjekStr = subjBil > 0 ? `${subjBil} subjek` : 'Semua subjek';
 
                 const row = document.createElement('div');
                 row.id = `exam-row-${et.id}`;
@@ -11094,6 +11236,7 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                     <div class="flex-1">
                         <span class="font-bold text-gray-800">${et.nama}</span>
                         <span class="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">${darjahStr}</span>
+                        <span class="ml-2 text-xs text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full" title="${subjBil > 0 ? et.subjek.join(', ') : 'Semua subjek terlibat'}">${subjekStr}</span>
                         <span class="ml-2 text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">${et.tahunKalendar || '—'}</span>
                         ${hasRecords ? '<span class="ml-2 text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">Ada rekod markah</span>' : ''}
                         ${!isAktif ? '<span class="ml-2 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Tersembunyi</span>' : ''}
@@ -11130,6 +11273,57 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 `;
                 listEl.appendChild(row);
             });
+        }
+
+        // ==========================================================
+        // SUBJEK TERLIBAT (checklist untuk borang jenis peperiksaan)
+        // ==========================================================
+        // Senarai nama_penuh semua subjek ( diisih ikut abjad)
+        function _semuaSubjekNama() {
+            return (GLOBAL_DATA.allSubjects || [])
+                .filter(s => s.nama_penuh)
+                .map(s => s.nama_penuh)
+                .sort((a, b) => a.localeCompare(b));
+        }
+
+        // Jana checkbox subjek dalam container `${prefix}-list`.
+        // selectedNames: array nama_penuh yang ditanda. null/[] = semua ditanda (default).
+        function renderSubjekChecklist(prefix, selectedNames) {
+            const listEl = document.getElementById(`${prefix}-list`);
+            if (!listEl) return;
+            const subjek = _semuaSubjekNama();
+            if (subjek.length === 0) {
+                listEl.innerHTML = '<p class="text-xs text-gray-400 italic">Tiada subjek. Sila import subjek di Admin.</p>';
+                return;
+            }
+            // Kosong/null = semua terlibat → tanda semua
+            const semua = !Array.isArray(selectedNames) || selectedNames.length === 0;
+            const set = new Set(selectedNames || []);
+            listEl.innerHTML = '';
+            subjek.forEach(nama => {
+                const escaped = nama.replace(/"/g, '&quot;');
+                const checked = semua || set.has(nama) ? 'checked' : '';
+                const label = document.createElement('label');
+                label.className = 'flex items-center gap-1 cursor-pointer';
+                label.innerHTML = `<input type="checkbox" class="${prefix}-cb w-4 h-4 text-indigo-600" value="${escaped}" ${checked}><span class="text-sm">${nama}</span>`;
+                listEl.appendChild(label);
+            });
+        }
+
+        // Tanda / kosongkan semua checkbox subjek untuk prefix diberi
+        function setSubjekChecks(prefix, val) {
+            document.querySelectorAll(`.${prefix}-cb`).forEach(cb => { cb.checked = val; });
+        }
+
+        // Baca subjek terlibat dari checklist.
+        // Pulang: [] jika SEMUA ditanda (atau tiada ditanda) = semua subjek terlibat;
+        //         selainnya array nama_penuh yang ditanda.
+        function bacaSubjekTerlibat(prefix) {
+            const semua = _semuaSubjekNama();
+            const checked = Array.from(document.querySelectorAll(`.${prefix}-cb:checked`)).map(cb => cb.value);
+            // Semua ditanda atau tiada ditanda → simpan [] (bermakna semua terlibat)
+            if (checked.length === 0 || checked.length === semua.length) return [];
+            return checked;
         }
 
         // Toggle kunci: enable/disable butang Edit & Padam untuk row yang ada rekod
@@ -11187,11 +11381,15 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             statusEl.textContent = '⏳ Menyimpan...';
             statusEl.className = 'text-sm font-medium text-gray-500';
 
+            // Subjek terlibat — [] bermakna semua subjek terlibat (default)
+            const subjekTerlibat = bacaSubjekTerlibat('new-exam-subjek');
+
             try {
                 const newOrder = GLOBAL_DATA.examTypes.length; // tambah di hujung
                 await db.collection('examTypes').add({
                     nama: nama,
                     darjah: darjahChecked,
+                    subjek: subjekTerlibat,
                     order: newOrder,
                     tahunKalendar: tahunKalendar,
                     aktif: true,
@@ -11204,6 +11402,7 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 // Reset form
                 namaInput.value = '';
                 document.querySelectorAll('.new-exam-darjah:checked').forEach(cb => cb.checked = false);
+                setSubjekChecks('new-exam-subjek', true); // reset ke default (semua ditanda)
 
                 // Refresh senarai + semua dropdown
                 await renderExamTypeList(tahunKalendar);
@@ -11231,6 +11430,9 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             document.querySelectorAll('.edit-exam-darjah').forEach(cb => {
                 cb.checked = Array.isArray(et.darjah) && et.darjah.includes(parseInt(cb.value));
             });
+
+            // Jana checklist subjek — et.subjek kosong/tiada = semua ditanda
+            renderSubjekChecklist('edit-exam-subjek', et.subjek);
 
             document.getElementById('edit-exam-type-modal').classList.remove('hidden');
         }
@@ -11268,8 +11470,11 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             statusEl.textContent = '⏳ Menyimpan...';
             statusEl.className = 'text-sm font-medium text-gray-500';
 
+            // Subjek terlibat — [] bermakna semua subjek terlibat (default)
+            const subjekTerlibat = bacaSubjekTerlibat('edit-exam-subjek');
+
             try {
-                await db.collection('examTypes').doc(id).update({ nama: nama, darjah: darjahChecked });
+                await db.collection('examTypes').doc(id).update({ nama: nama, darjah: darjahChecked, subjek: subjekTerlibat });
 
                 statusEl.textContent = '✅ Berjaya dikemas kini!';
                 statusEl.className = 'text-sm font-medium text-green-600';
