@@ -3286,13 +3286,26 @@
                 )].sort((a,b) => a-b);
             }
 
-            // Semua subjek dari sistem (nama_penuh), disusun mengikut nama_pendek
-            const sortedSubjects = GLOBAL_DATA.allSubjects
-                .sort((a, b) => (a.nama_pendek || a.id).localeCompare(b.nama_pendek || b.id))
-                .map(s => s.nama_penuh);
-
             // Normalisasi nama subjek untuk padanan yang tahan ejaan: trim + huruf besar + rapatkan ruang berganda
             const normSubjek = (s) => String(s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+
+            // Subjek Terlibat (Admin › Urus Peperiksaan): jika examType.subjek ada isi, hadkan
+            // kepada senarai itu; kosong/tiada = SEMUA subjek (default legacy).
+            const subjekTerlibat = (examTypeDef && Array.isArray(examTypeDef.subjek) && examTypeDef.subjek.length > 0)
+                ? new Set(examTypeDef.subjek.map(normSubjek))
+                : null;
+
+            // Senarai subjek untuk kolum — semua sistem, ditapis ikut Subjek Terlibat jika ada.
+            // Subjek yang sudah ada markah sentiasa ditunjuk supaya data sedia ada tak tersembunyi.
+            const subjekAdaMarkah = new Set(
+                GLOBAL_DATA.allMarks
+                    .filter(m => m["JENIS PEPERIKSAAN"] === jenisPeperiksaan)
+                    .map(m => normSubjek(m.subjek))
+            );
+            const sortedSubjects = GLOBAL_DATA.allSubjects
+                .sort((a, b) => (a.nama_pendek || a.id).localeCompare(b.nama_pendek || b.id))
+                .map(s => s.nama_penuh)
+                .filter(sp => !subjekTerlibat || subjekTerlibat.has(normSubjek(sp)) || subjekAdaMarkah.has(normSubjek(sp)));
 
             // Bina lookup: markahSet[tahun][kelas] = Set of subjek (ternormal) yang ada markah
             // Guna cal_year field terus (lebih reliable dari parse docId atau timestamp)
