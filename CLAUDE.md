@@ -37,7 +37,7 @@ The entire application lives in a **single file**: `public/index.html` (~10,070 
 | `students` | Master student records (no_kp, tahun, kelas, nama, jantina, agama) |
 | `rekodMarkah` | Exam mark records |
 | `subjek` | Subject definitions |
-| `gred` | Grade ranges/definitions |
+| `gred` | Grade ranges/definitions (doc id = grade letter `A`..`F`; fields: `markah_min`, `markah_max`, and `mata` = GPS point value, see GPS section) |
 | `examTypes` | Exam type classifications (fields: `nama`, `tahunKalendar`, `darjah[]`, `subjek[]`, `aktif`, `order`) |
 | `settings` | System settings (markahEnabled flag, school name, logo URL) |
 
@@ -72,6 +72,23 @@ The entire application lives in a **single file**: `public/index.html` (~10,070 
 | Slip PDF — bulk download by darjah, ZIP per kelas folder (`downloadSlipDarjah`) | ~line 4779 |
 | Slip image upload to Storage (`uploadSlipImage`) | ~line 4271 |
 | Image → JPEG dataURL resize helper (`_imgToDataURL`) | search in file |
+| GPS helpers (`getMataMap`, `kiraGPS`) | ~line 2437 |
+| GPS admin UI (`renderMataGred`, `simpanMataGred`) | ~line 2463 |
+| Exam types for a year, deduped (`getExamTypesForYear`) | ~line 11199 |
+
+### GPS (Gred Purata Subjek) — subject grade-point average
+
+Per-exam subject grade-point average. **Higher is better** (A=6…F=1, opposite of KPM's low-is-good convention). Point values are admin-editable and stored on the existing `gred` collection as a new field `mata` (reuses the collection — no new collection). Missing/blank `mata` falls back to `MATA_GRED_DEFAULT` = `{A:6,B:5,C:4,D:3,E:2,F:1}`.
+
+- **Formula:** `GPS(subjek) = jumlah_skor ÷ jumlah_murid`, where `jumlah_skor = Σ(bil_murid_gred × mata_gred)`. **TOTAL GPS** (whole exam) = `Σ skor semua subjek ÷ jumlah rekod` (records = murid × subjek).
+- Grade "Gagal"/"TIDAK SAH" = **0 points but still counted in the divisor** (matches existing tables that only bucket A–F in `grades{}` yet still `total++`). GPS shown to **2 decimals**.
+- **Helpers** (near `getGredFromMarkah`): `getMataMap()` returns `{A..F: number}` merging `GLOBAL_DATA.grades[].mata` over defaults; `kiraGPS(grades, jumlah)` returns a 2-dp number or `null` when `jumlah<=0`. Both use the fixed A–F keys (grades are hardcoded A–F across the app).
+- **Admin UI:** card "📊 Mata Gred (GPS)" inside Admin › Setting (`#mata-gred-container`), rendered by `renderMataGred()` on tab open, saved by `simpanMataGred()` (`db.batch().set(..., {merge:true})` per grade doc + live-updates `GLOBAL_DATA.grades`).
+- **Surfaces:** (a) **Analisa Keseluruhan** — big green **GPS Keseluruhan** summary card above the chart (`#analisa-gps-kad`, filled in `cariAnalisa`), plus a **GPS** column + **TOTAL GPS** footer row in the table (`renderAnalisaDataTable`), and GPS in CSV (`exportAnalisaCSV`) and PDF (`cetakAnalisaPDF`). (b) **Analisa Subjek** — GPS column in table (`renderAnalisaSubjekDataTable`, far right — scroll) + CSV. (c) **Analisa Kelas** — GPS column per kelas + GPS in JUMLAH footer (`renderAnalisaKelas`); the print view (`cetakAnalisaKelas`) reuses the table HTML so GPS carries over automatically. **Analisa Subjek PDF is NOT modified** (its multi-subject-per-year layout is separate from `analisaSubjekReportData`).
+
+### Exam-type dedup gotcha (dropdown consistency)
+
+`loadExamTypes` (used by Urus Peperiksaan / Rekod) deletes duplicate same-name docs in the same `tahunKalendar` (via in-fn dedup + `deduplicateExamTypes`). `getExamTypesForYear` (used by **Analisa Mengikut Kelas** dropdown, Status Pengisian) previously did **not** dedup, so the same-name dupes could show there but not in Urus Peperiksaan. Fixed: `getExamTypesForYear` now dedups by uppercased `nama` in-memory with `.filter()` (**read-only — never deletes Firestore docs**). Note: different-name entries (e.g. `UPSA` vs `UJIAN PERTENGAHAN TAHUN (UPSA)` in the same year) are NOT dupes — they legitimately both appear; managing those is the teacher's job in Urus Peperiksaan.
 
 ### Exam "Aktif" Toggle (Urus Jenis Peperiksaan)
 

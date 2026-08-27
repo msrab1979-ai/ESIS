@@ -9,3 +9,7 @@ node_modules/
 
 # OS files
 .DS_Store
+
+# Skrip sementara / backup manual — jangan commit
+semak_koam_temp.cjs
+public/index.backup.html

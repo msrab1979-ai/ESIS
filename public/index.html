@@ -328,6 +328,14 @@
                 <p class="mt-2 text-sm">Penjejakan sasaran murid — TOV, OTI, ETR, AR.</p>
             </div>
 
+            <div id="siaran-card" onclick="showPanel('siaran')" class="card-menu bg-gradient-to-r from-amber-500 to-orange-600 text-white p-6 rounded-xl shadow-lg cursor-pointer">
+                <div class="flex items-center justify-between">
+                    <span class="text-4xl">📢</span>
+                    <h2 class="text-xl font-bold">Siaran &amp; Pekeliling</h2>
+                </div>
+                <p class="mt-2 text-sm">Surat siaran, pekeliling &amp; makluman terkini.</p>
+            </div>
+
             <!-- PANEL ADMIN -->
             <div id="admin-menu-card" onclick="showPanel('admin')" class="card-menu bg-gradient-to-r from-red-500 to-red-600 text-white p-6 rounded-xl shadow-lg cursor-pointer hidden">
                 <div class="flex items-center justify-between">
@@ -518,7 +526,19 @@
                  <div id="analisa-print-content" class="p-4">
                     <h3 id="analisa-laporan-tajuk" class="text-xl font-bold text-gray-800 mb-2"></h3>
                     <p id="analisa-laporan-metadata" class="text-sm text-gray-600 mb-4"></p>
-                    
+
+                    <!-- Kad GPS Keseluruhan -->
+                    <div id="analisa-gps-kad" class="hidden bg-gradient-to-r from-green-600 to-emerald-700 text-white rounded-xl shadow-lg p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <p class="text-xs uppercase tracking-wider text-green-100 font-semibold">GPS Keseluruhan Peperiksaan</p>
+                            <p id="analisa-gps-sub" class="text-sm text-green-50 mt-0.5"></p>
+                        </div>
+                        <div class="text-right">
+                            <span id="analisa-gps-nilai" class="text-4xl sm:text-5xl font-extrabold leading-none tabular-nums">-</span>
+                            <p id="analisa-gps-rekod" class="text-xs text-green-100 mt-1"></p>
+                        </div>
+                    </div>
+
                     <!-- Carta Bar -->
                     <h4 class="text-lg font-semibold text-gray-800 mt-6 mb-3">Carta Analisa Gred (Peratus Pelajar)</h4>
                     <div class="w-full h-96 bg-gray-50 p-2 rounded-lg shadow-inner">
@@ -856,7 +876,7 @@
                     <div class="p-4 border-b border-gray-200 flex flex-wrap gap-3 justify-between items-center">
                         <div>
                             <h3 id="hc-jejak-tajuk" class="text-sm font-semibold text-gray-700">—</h3>
-                            <p class="text-xs text-gray-500 no-print">Klik nama murid untuk lihat kad penuh.</p>
+                            <p class="text-xs text-gray-500 no-print">Klik nama murid untuk lihat kad penuh. Markah sebenar (AR) diambil dari peperiksaan tahun semasa.</p>
                         </div>
                         <button onclick="hcCetakPDF()" class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 no-print">📄 Cetak PDF</button>
                     </div>
@@ -1246,6 +1266,52 @@
             </div>
         </div>
 
+        <!-- PANEL SIARAN & PEKELILING (user) -->
+        <div id="siaran-panel" class="hidden bg-white p-6 rounded-xl shadow-xl">
+            <div class="flex items-center gap-4 border-b pb-3 mb-4">
+                <button onclick="goHome()" class="btn-back">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/></svg>
+                    Kembali
+                </button>
+                <h2 class="text-2xl font-bold text-gray-800">📢 Siaran &amp; Pekeliling</h2>
+                <button onclick="renderSiaranUser()" title="Muat semula senarai"
+                    class="ml-auto rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">🔄 Segar Semula</button>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 mb-4">
+                <div class="relative flex-1 min-w-[200px]">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                    <input id="siaran-user-cari" type="text" oninput="paparSiaranUser()" placeholder="Cari tajuk siaran…"
+                        class="w-full rounded border border-gray-300 pl-9 pr-3 py-2 text-sm">
+                </div>
+                <label class="flex items-center gap-2 text-sm">
+                    <span class="text-gray-500">Tahun</span>
+                    <select id="siaran-user-tahun" onchange="paparSiaranUser()"
+                        class="rounded border border-gray-300 px-3 py-1.5 text-sm">
+                        <option value="">Semua</option>
+                    </select>
+                </label>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm border-collapse">
+                    <thead>
+                        <tr class="bg-amber-50 text-gray-700 text-left">
+                            <th class="px-3 py-2 border-b border-amber-200 w-12">Bil</th>
+                            <th class="px-3 py-2 border-b border-amber-200">Tajuk</th>
+                            <th class="px-3 py-2 border-b border-amber-200 w-24">Jenis</th>
+                            <th class="px-3 py-2 border-b border-amber-200 w-32">Tarikh</th>
+                            <th class="px-3 py-2 border-b border-amber-200 w-40 text-center">Tindakan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="siaran-user-tbody"></tbody>
+                </table>
+            </div>
+            <div id="siaran-user-kosong" class="hidden text-center text-gray-500 py-16">
+                <div class="text-6xl mb-4">📭</div>
+                <p class="text-lg font-semibold">Tiada siaran dijumpai</p>
+                <p class="text-sm mt-1">Cuba ubah carian atau tapisan tahun.</p>
+            </div>
+        </div>
+
         <!-- PANEL ADMIN -->
         <div id="admin-panel" class="hidden bg-white p-6 rounded-xl shadow-xl">
             <div class="flex items-center gap-3 border-b pb-3 mb-6">
@@ -1266,6 +1332,7 @@
                 <button id="tab-setting" onclick="toggleAdminTab('setting')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-purple-500 text-gray-700">Setting</button>
                 <button id="tab-urus-peperiksaan" onclick="toggleAdminTab('urus-peperiksaan')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-indigo-500 text-gray-700">Urus Peperiksaan</button>
                 <button id="tab-bina-headcount" onclick="toggleAdminTab('bina-headcount')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-teal-500 text-gray-700">🎯 Bina Headcount</button>
+                <button id="tab-siaran" onclick="toggleAdminTab('siaran')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-amber-500 text-gray-700">📢 Urus Siaran</button>
                 <button id="tab-reset-kemaskini" onclick="toggleAdminTab('reset-kemaskini')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-rose-600 text-rose-700 font-semibold">Reset & Kemaskini</button>
             </div>
             
@@ -1736,6 +1803,21 @@
                     </div>
                 </div>
                 
+                <!-- Mata Gred (GPS) -->
+                <div class="border border-gray-300 p-6 rounded-lg bg-gray-50">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-1 flex items-center">
+                        <span class="mr-2">📊</span> Mata Gred (GPS)
+                    </h4>
+                    <p class="text-sm text-gray-600 mb-4">Nilai mata bagi setiap gred untuk kiraan <b>GPS (Gred Purata Subjek)</b>. Makin tinggi mata, makin baik. Contoh lazim: A=6, B=5, C=4, D=3, E=2, F=1. Gred "Gagal"/tidak sah dikira 0 mata.</p>
+                    <div id="mata-gred-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                        <!-- Diisi oleh renderMataGred() -->
+                    </div>
+                    <div class="flex items-center gap-4 mt-4">
+                        <button onclick="simpanMataGred()" class="bg-green-600 text-white px-5 py-2 rounded-md hover:bg-green-700 transition font-semibold text-sm">Simpan Mata Gred</button>
+                        <p id="mata-gred-status" class="text-sm font-medium"></p>
+                    </div>
+                </div>
+
                 <!-- Butang Simpan -->
                 <div class="flex gap-3">
                     <button onclick="simpanSettings()" class="flex-1 bg-blue-600 text-white py-3 px-6 rounded-md hover:bg-blue-700 transition font-semibold flex items-center justify-center">
@@ -1972,6 +2054,53 @@
                     <button onclick="bhcBinaSemua()" class="rounded bg-teal-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-teal-700 shadow">Bina semua sasaran</button>
                 </div>
                 <p id="bhc-status" class="text-sm font-medium"></p>
+            </div>
+
+            <!-- TAB: URUS SIARAN -->
+            <div id="admin-siaran" class="hidden space-y-6">
+                <div>
+                    <h3 class="text-xl font-bold text-gray-800">📢 Urus Siaran &amp; Pekeliling</h3>
+                    <p class="text-sm text-gray-500">Tampal pautan Google Drive. Siaran aktif akan dipapar kepada semua pengguna.</p>
+                </div>
+
+                <div class="bg-amber-50 rounded-lg border border-amber-200 p-4 space-y-3">
+                    <h4 class="font-semibold text-gray-700">Tambah siaran baharu</h4>
+                    <label class="block">
+                        <span class="text-xs text-gray-500">Tajuk siaran <span class="text-red-500">*</span></span>
+                        <input id="siaran-tajuk" type="text" placeholder="cth: Pekeliling Cuti Penggal 1"
+                            class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm">
+                    </label>
+                    <label class="block">
+                        <span class="text-xs text-gray-500">Keterangan (pilihan)</span>
+                        <textarea id="siaran-keterangan" rows="2" placeholder="Ringkasan pendek siaran…"
+                            class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></textarea>
+                    </label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <label class="block sm:col-span-2">
+                            <span class="text-xs text-gray-500">Pautan Google Drive <span class="text-red-500">*</span></span>
+                            <input id="siaran-url" type="url" placeholder="https://drive.google.com/…"
+                                class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm">
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Jenis fail</span>
+                            <select id="siaran-jenis" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm">
+                                <option value="pdf">PDF</option>
+                                <option value="png">PNG</option>
+                                <option value="jpeg">JPEG</option>
+                            </select>
+                        </label>
+                    </div>
+                    <button onclick="tambahSiaran()" class="rounded bg-amber-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-amber-700 shadow">➕ Tambah siaran</button>
+                    <p id="siaran-status" class="text-sm font-medium"></p>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-semibold text-gray-700">Senarai siaran</h4>
+                        <button onclick="renderSenaraiSiaranAdmin()" class="text-xs text-amber-700 underline">🔄 Muat semula</button>
+                    </div>
+                    <div id="siaran-admin-list" class="space-y-2"></div>
+                </div>
             </div>
 
             <!-- TAB: RESET & KEMASKINI -->
@@ -2401,6 +2530,78 @@
             gredSpan.className = `text-sm font-semibold p-1 rounded-sm ${colorClass}`;
         }
 
+        // ==========================================================
+        // GPS (Gred Purata Subjek) — mata gred boleh ubah di Admin
+        // ==========================================================
+        const MATA_GRED_DEFAULT = { A: 6, B: 5, C: 4, D: 3, E: 2, F: 1 };
+
+        // Peta mata gred: guna medan `mata` dari koleksi gred jika ada, jika tidak guna lalai.
+        function getMataMap() {
+            const map = { ...MATA_GRED_DEFAULT };
+            (GLOBAL_DATA.grades || []).forEach(g => {
+                if (g && g.gred && g.mata !== undefined && g.mata !== null && g.mata !== '') {
+                    const v = parseFloat(g.mata);
+                    if (!isNaN(v)) map[String(g.gred).toUpperCase()] = v;
+                }
+            });
+            return map;
+        }
+
+        // Kira GPS dari kiraan gred {A..F} dan jumlah murid.
+        // Gred Gagal/tidak sah = 0 mata tetapi tetap dikira dalam pembahagi (jumlah).
+        // Pulangkan nombor (2 t.p.) atau null jika tiada murid.
+        function kiraGPS(grades, jumlah) {
+            const total = jumlah || 0;
+            if (total <= 0) return null;
+            const mata = getMataMap();
+            let skor = 0;
+            ['A', 'B', 'C', 'D', 'E', 'F'].forEach(g => {
+                skor += (grades[g] || 0) * (mata[g] || 0);
+            });
+            return Math.round((skor / total) * 100) / 100;
+        }
+
+        // Papar kotak input mata gred dalam Admin Setting.
+        function renderMataGred() {
+            const box = document.getElementById('mata-gred-container');
+            if (!box) return;
+            const mata = getMataMap();
+            const warna = { A: 'text-green-600', B: 'text-blue-600', C: 'text-yellow-600', D: 'text-orange-600', E: 'text-red-600', F: 'text-gray-500' };
+            box.innerHTML = ['A', 'B', 'C', 'D', 'E', 'F'].map(g => `
+                <div class="flex flex-col items-center bg-white border border-gray-200 rounded-lg p-3">
+                    <span class="font-extrabold text-xl ${warna[g]}">${g}</span>
+                    <input type="number" step="0.1" id="mata-gred-${g}" value="${mata[g]}"
+                        class="w-full mt-2 text-center font-bold text-green-700 border border-gray-300 rounded-md py-1.5 focus:ring-2 focus:ring-green-500 focus:border-green-500">
+                </div>`).join('');
+        }
+
+        // Simpan mata gred ke koleksi `gred` (medan `mata`).
+        async function simpanMataGred() {
+            const status = document.getElementById('mata-gred-status');
+            const setStatus = (msg, warna) => { if (status) { status.textContent = msg; status.className = `text-sm font-medium ${warna}`; } };
+            try {
+                setStatus('Menyimpan...', 'text-gray-500');
+                const batch = db.batch();
+                let bil = 0;
+                for (const g of ['A', 'B', 'C', 'D', 'E', 'F']) {
+                    const el = document.getElementById(`mata-gred-${g}`);
+                    if (!el) continue;
+                    const v = parseFloat(el.value);
+                    const mata = isNaN(v) ? 0 : v;
+                    batch.set(db.collection('gred').doc(g), { mata: mata }, { merge: true });
+                    // Kemas kini GLOBAL_DATA supaya GPS guna nilai baru serta-merta
+                    const rec = (GLOBAL_DATA.grades || []).find(x => String(x.gred).toUpperCase() === g);
+                    if (rec) rec.mata = mata;
+                    bil++;
+                }
+                await batch.commit();
+                setStatus(`✓ ${bil} mata gred disimpan.`, 'text-green-600');
+            } catch (e) {
+                console.error('simpanMataGred', e);
+                setStatus('✗ Gagal simpan: ' + (e.message || e), 'text-red-600');
+            }
+        }
+
         function getGredFromMarkah(markah) {
             const markahNum = parseInt(markah);
             if (isNaN(markahNum) || markahNum < 0 || markahNum > 100) return 'TIDAK SAH';
@@ -2417,6 +2618,185 @@
         function showLoader(show) {
             document.getElementById('full-loader').classList.toggle('hidden', !show);
         }
+
+        // ===================== SIARAN & PEKELILING =====================
+        // Collection `siaran`: {tajuk, keterangan, url, jenis:'pdf'|'png'|'jpeg', aktif, timestamp}
+        function _siaranEsc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+                ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+        function _siaranIkon(jenis) {
+            if (jenis === 'pdf') return '📄';
+            if (jenis === 'png' || jenis === 'jpeg') return '🖼️';
+            return '📎';
+        }
+        async function _bacaSiaran(hanyaAktif) {
+            const snap = await db.collection('siaran').orderBy('timestamp', 'desc').get();
+            const list = [];
+            snap.forEach(doc => {
+                const d = doc.data();
+                if (!d || !d.tajuk) return; // langkau placeholder
+                if (hanyaAktif && d.aktif === false) return;
+                list.push({ id: doc.id, ...d });
+            });
+            return list;
+        }
+
+        // ---- User: papar senarai siaran aktif ----
+        let _siaranUserData = [];
+        function _siaranTahun(s) {
+            return s.timestamp && s.timestamp.toDate ? s.timestamp.toDate().getFullYear() : null;
+        }
+        async function renderSiaranUser() {
+            const tbody = document.getElementById('siaran-user-tbody');
+            const kosong = document.getElementById('siaran-user-kosong');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="5" class="px-3 py-6 text-center text-gray-500">Memuatkan…</td></tr>';
+            kosong.classList.add('hidden');
+            try {
+                _siaranUserData = await _bacaSiaran(true);
+                // bina dropdown tahun dari timestamp
+                const tahunSet = [...new Set(_siaranUserData.map(_siaranTahun).filter(Boolean))].sort((a, b) => b - a);
+                const drop = document.getElementById('siaran-user-tahun');
+                if (drop) {
+                    const pilih = drop.value;
+                    drop.innerHTML = '<option value="">Semua</option>' +
+                        tahunSet.map(t => `<option value="${t}">${t}</option>`).join('');
+                    if (tahunSet.map(String).includes(pilih)) drop.value = pilih;
+                }
+                paparSiaranUser();
+            } catch (e) {
+                console.error('renderSiaranUser', e);
+                tbody.innerHTML = '<tr><td colspan="5" class="px-3 py-6 text-center text-red-600">Gagal memuatkan siaran.</td></tr>';
+            }
+        }
+        function paparSiaranUser() {
+            const tbody = document.getElementById('siaran-user-tbody');
+            const kosong = document.getElementById('siaran-user-kosong');
+            if (!tbody) return;
+            const drop = document.getElementById('siaran-user-tahun');
+            const tahunPilih = drop ? drop.value : '';
+            const cariEl = document.getElementById('siaran-user-cari');
+            const cari = cariEl ? cariEl.value.trim().toLowerCase() : '';
+            let list = _siaranUserData;
+            if (tahunPilih) list = list.filter(s => String(_siaranTahun(s)) === tahunPilih);
+            if (cari) list = list.filter(s => (s.tajuk || '').toLowerCase().includes(cari));
+            if (list.length === 0) {
+                tbody.innerHTML = '';
+                kosong.classList.remove('hidden');
+                return;
+            }
+            kosong.classList.add('hidden');
+            tbody.innerHTML = list.map((s, i) => {
+                const tarikh = s.timestamp && s.timestamp.toDate
+                    ? s.timestamp.toDate().toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : '-';
+                const ket = s.keterangan ? `<div class="text-xs text-gray-500 mt-0.5">${_siaranEsc(s.keterangan)}</div>` : '';
+                return `<tr class="border-b border-gray-100 hover:bg-amber-50/40 align-top">
+                    <td class="px-3 py-2 text-gray-500">${i + 1}</td>
+                    <td class="px-3 py-2">
+                        <div class="flex items-start gap-2">
+                            <span class="text-lg leading-none">${_siaranIkon(s.jenis)}</span>
+                            <div class="min-w-0">
+                                <div class="font-semibold text-gray-800">${_siaranEsc(s.tajuk)}</div>
+                                ${ket}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-3 py-2 text-gray-600">${_siaranEsc((s.jenis || '').toUpperCase())}</td>
+                    <td class="px-3 py-2 text-gray-600 whitespace-nowrap">${tarikh}</td>
+                    <td class="px-3 py-2">
+                        <div class="flex gap-1.5 justify-center">
+                            <a href="${_siaranEsc(s.url)}" target="_blank" rel="noopener"
+                               class="rounded bg-amber-600 text-white text-xs font-semibold px-3 py-1.5 hover:bg-amber-700">👁️ Lihat</a>
+                            <a href="${_siaranEsc(s.url)}" target="_blank" rel="noopener" download
+                               class="rounded border border-gray-300 text-xs px-2.5 py-1.5 hover:bg-gray-50" title="Muat turun">⬇️</a>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        // ---- Admin: tambah siaran ----
+        async function tambahSiaran() {
+            const status = document.getElementById('siaran-status');
+            const setStatus = (msg, warna) => { if (status) { status.textContent = msg; status.className = `text-sm font-medium ${warna}`; } };
+            const tajuk = document.getElementById('siaran-tajuk').value.trim();
+            const keterangan = document.getElementById('siaran-keterangan').value.trim();
+            const url = document.getElementById('siaran-url').value.trim();
+            const jenis = document.getElementById('siaran-jenis').value;
+            if (!tajuk) { setStatus('Sila isi tajuk siaran.', 'text-red-600'); return; }
+            if (!/^https?:\/\//i.test(url)) { setStatus('Sila masukkan pautan yang sah (bermula http/https).', 'text-red-600'); return; }
+            try {
+                setStatus('Menyimpan…', 'text-gray-500');
+                await db.collection('siaran').add({
+                    tajuk, keterangan, url, jenis, aktif: true,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                document.getElementById('siaran-tajuk').value = '';
+                document.getElementById('siaran-keterangan').value = '';
+                document.getElementById('siaran-url').value = '';
+                setStatus('✅ Siaran berjaya ditambah.', 'text-green-600');
+                renderSenaraiSiaranAdmin();
+            } catch (e) {
+                console.error('tambahSiaran', e);
+                setStatus('Gagal menyimpan siaran.', 'text-red-600');
+            }
+        }
+
+        // ---- Admin: senarai + toggle aktif + padam ----
+        async function renderSenaraiSiaranAdmin() {
+            const box = document.getElementById('siaran-admin-list');
+            if (!box) return;
+            box.innerHTML = '<p class="text-gray-500 text-sm">Memuatkan…</p>';
+            try {
+                const list = await _bacaSiaran(false);
+                if (list.length === 0) {
+                    box.innerHTML = '<p class="text-gray-500 text-sm">Belum ada siaran.</p>';
+                    return;
+                }
+                box.innerHTML = list.map(s => {
+                    const aktif = s.aktif !== false;
+                    return `<div class="flex items-center gap-3 rounded-lg border border-gray-200 p-3">
+                        <span class="text-2xl">${_siaranIkon(s.jenis)}</span>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-semibold text-gray-800 truncate">${_siaranEsc(s.tajuk)}</p>
+                            <a href="${_siaranEsc(s.url)}" target="_blank" rel="noopener" class="text-xs text-blue-600 underline break-all">${_siaranEsc(s.url)}</a>
+                        </div>
+                        <span class="text-xs px-2 py-0.5 rounded ${aktif ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}">${aktif ? 'Aktif' : 'Tersembunyi'}</span>
+                        <button onclick="toggleSiaranAktif('${s.id}', ${aktif})" class="text-xs rounded border border-gray-300 px-2 py-1 hover:bg-gray-50">${aktif ? 'Sembunyi' : 'Papar'}</button>
+                        <button onclick="padamSiaran('${s.id}', '${_siaranEsc(s.tajuk).replace(/'/g, "\\'")}')" class="text-xs rounded border border-red-300 text-red-600 px-2 py-1 hover:bg-red-50">🗑️</button>
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                console.error('renderSenaraiSiaranAdmin', e);
+                box.innerHTML = '<p class="text-red-600 text-sm">Gagal memuatkan senarai.</p>';
+            }
+        }
+
+        async function toggleSiaranAktif(id, aktifSekarang) {
+            try {
+                await db.collection('siaran').doc(id).update({ aktif: !aktifSekarang });
+                renderSenaraiSiaranAdmin();
+            } catch (e) {
+                console.error('toggleSiaranAktif', e);
+                showNotification('Ralat', 'Gagal mengemas kini status siaran.', true);
+            }
+        }
+
+        async function padamSiaran(id, tajuk) {
+            const jawab = prompt(`Padam siaran "${tajuk}"?\nTaip PADAM untuk mengesahkan.`);
+            if (jawab !== 'PADAM') return;
+            try {
+                await db.collection('siaran').doc(id).delete();
+                showNotification('Berjaya', 'Siaran telah dipadam.', false);
+                renderSenaraiSiaranAdmin();
+            } catch (e) {
+                console.error('padamSiaran', e);
+                showNotification('Ralat', 'Gagal memadam siaran.', true);
+            }
+        }
+        // =================== TAMAT SIARAN & PEKELILING ===================
 
         function showNotification(title, message, isError = false) {
             const modal = document.getElementById('notification-modal');
@@ -4189,6 +4569,7 @@
              const settingTab = document.getElementById('admin-setting');
              const urusPerikTab = document.getElementById('admin-urus-peperiksaan');
              const binaHcTab = document.getElementById('admin-bina-headcount');
+             const siaranTab = document.getElementById('admin-siaran');
              const resetKemaskiniTab = document.getElementById('admin-reset-kemaskini');
              const btnImport = document.getElementById('tab-import');
              const btnUrusSubjek = document.getElementById('tab-urus-subjek');
@@ -4198,6 +4579,7 @@
              const btnSetting = document.getElementById('tab-setting');
              const btnUrusPerik = document.getElementById('tab-urus-peperiksaan');
              const btnBinaHc = document.getElementById('tab-bina-headcount');
+             const btnSiaran = document.getElementById('tab-siaran');
              const btnResetKemaskini = document.getElementById('tab-reset-kemaskini');
 
              importTab.classList.add('hidden');
@@ -4208,6 +4590,7 @@
              settingTab.classList.add('hidden');
              if (urusPerikTab) urusPerikTab.classList.add('hidden');
              if (binaHcTab) binaHcTab.classList.add('hidden');
+             if (siaranTab) siaranTab.classList.add('hidden');
              if (resetKemaskiniTab) resetKemaskiniTab.classList.add('hidden');
 
              if (btnImport) btnImport.classList.remove('border-blue-500');
@@ -4218,6 +4601,7 @@
              if (btnSetting) btnSetting.classList.remove('border-purple-500');
              if (btnUrusPerik) btnUrusPerik.classList.remove('border-indigo-500');
              if (btnBinaHc) btnBinaHc.classList.remove('border-teal-500');
+             if (btnSiaran) btnSiaran.classList.remove('border-amber-500');
              if (btnResetKemaskini) btnResetKemaskini.classList.remove('border-rose-600');
 
              if (tab === 'import') {
@@ -4246,6 +4630,7 @@
                  settingTab.classList.remove('hidden');
                  if (btnSetting) btnSetting.classList.add('border-purple-500');
                  loadSettingsToForm();
+                 renderMataGred();
              } else if (tab === 'urus-peperiksaan') {
                  if (urusPerikTab) urusPerikTab.classList.remove('hidden');
                  if (btnUrusPerik) btnUrusPerik.classList.add('border-indigo-500');
@@ -4268,6 +4653,10 @@
                  if (binaHcTab) binaHcTab.classList.remove('hidden');
                  if (btnBinaHc) btnBinaHc.classList.add('border-teal-500');
                  initBinaHeadcount();
+             } else if (tab === 'siaran') {
+                 if (siaranTab) siaranTab.classList.remove('hidden');
+                 if (btnSiaran) btnSiaran.classList.add('border-amber-500');
+                 renderSenaraiSiaranAdmin();
              } else if (tab === 'reset-kemaskini') {
                  if (resetKemaskiniTab) resetKemaskiniTab.classList.remove('hidden');
                  if (btnResetKemaskini) btnResetKemaskini.classList.add('border-rose-600');
@@ -6236,7 +6625,7 @@
                 'markah-panel','admin-panel',
                 'analisa-panel','analisa-subjek-panel',
                 'murid-terbaik-panel','guru-kelas-panel',
-                'analisa-kelas-panel','headcount-panel'
+                'analisa-kelas-panel','headcount-panel','siaran-panel'
             ];
             allPanels.forEach(id => {
                 const el = document.getElementById(id);
@@ -6271,6 +6660,7 @@
             document.getElementById('guru-kelas-panel').classList.add('hidden');
             document.getElementById('analisa-kelas-panel').classList.add('hidden');
             document.getElementById('headcount-panel').classList.add('hidden');
+            document.getElementById('siaran-panel').classList.add('hidden');
 
             const _showWithAnim = (id) => {
                 const el = document.getElementById(id);
@@ -6322,6 +6712,9 @@
             } else if (panelId === 'headcount') {
                 _showWithAnim('headcount-panel');
                 initHeadcount();
+            } else if (panelId === 'siaran') {
+                _showWithAnim('siaran-panel');
+                renderSiaranUser();
             } else {
                 goHome();
             }
@@ -6513,15 +6906,23 @@
             hcIsiBannerAdmin();        // kemas kini banner tetapan (utk guru)
         }
 
-        // Pastikan setiap tangga dalam petaOTI ialah peperiksaan yang wujud tahun ini.
-        // Jika nama default/lama tak padan, ganti dengan peperiksaan sebenar pertama.
+        // Peta tangga Papan Jejak = SEMUA jenis peperiksaan yang di-setup dalam
+        // Urus Peperiksaan (Admin) untuk tahun semasa — auto, ikut susunan `order`.
+        // Tambah peperiksaan baru di Urus Peperiksaan = auto muncul sebagai anak
+        // tangga baru; tak perlu admin bina semula headcount. petaOTI/bilTangga lama
+        // (dari doc rekodHeadcount) hanya jadi fallback bila senarai peperiksaan kosong.
         function hcSelaraskanPetaOTI() {
             const sah = hcNamaPep();
-            if (!sah.length) return;
-            hcState.petaOTI = hcState.petaOTI.map(p => sah.includes(p) ? p : sah[0]);
-            // Pastikan panjang petaOTI = bilTangga
-            while (hcState.petaOTI.length < hcState.bilTangga) hcState.petaOTI.push(sah[sah.length - 1] || sah[0]);
-            hcState.petaOTI = hcState.petaOTI.slice(0, hcState.bilTangga);
+            if (!sah.length) {
+                // Tiada senarai peperiksaan tahun ini — kekalkan yang tersimpan (fallback).
+                hcState.petaOTI = (hcState.petaOTI || []).filter(Boolean);
+                if (!hcState.petaOTI.length) hcState.petaOTI = [''];
+                hcState.bilTangga = hcState.petaOTI.length;
+                return;
+            }
+            // Guna senarai penuh peperiksaan sebenar tahun ini sebagai anak tangga.
+            hcState.petaOTI = sah.slice();
+            hcState.bilTangga = hcState.petaOTI.length;
         }
 
         function hcMuatMurid() {
@@ -6717,9 +7118,12 @@
                 gredSasar: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 },     // gred DISASAR (dari ETR)
                 totalSasar: 0, total: 0, adaDoc: !!doc };
             if (!doc || !murid.length) return stat;
-            const bil = doc.bilTangga || (doc.petaOTI ? doc.petaOTI.length : 1);
+            // Peta tangga = peperiksaan SEBENAR tahun ini (selaras Papan Jejak & dropdown
+            // Analisa), bukan doc.petaOTI lama yg mungkin lapuk (bilTangga:1).
+            const petaPep = hcNamaPep();
+            const bil = petaPep.length || 1;
             const idx = Math.min(tanggaIdx, bil - 1);
-            const pep = (doc.petaOTI || [])[idx];
+            const pep = petaPep[idx];
             const cy = new Date().getFullYear();
             // TOV (untuk purata naik)
             let tovMap = {};
@@ -6767,21 +7171,19 @@
             document.getElementById('hca-kelas-wrap').classList.toggle('hidden', mod !== 'kelas');
             if (!darjah || !subjek) return;
 
-            // Isi dropdown tangga (dari satu doc contoh) & kelas
+            // Isi dropdown tangga dari peperiksaan SEBENAR tahun ini (getExamTypesForYear),
+            // bukan petaOTI doc lama — supaya konsisten dgn Papan Jejak & tak tercicir
+            // bila jenis peperiksaan baru ditambah di Urus Peperiksaan.
             const semuaKelas = (GLOBAL_DATA.allClasses[darjah] || []).slice().sort();
-            // dapatkan petaOTI dari kelas pertama yg ada doc
-            let petaContoh = null;
-            for (const k of semuaKelas) {
-                const d = await hcBacaDocHeadcount(darjah, k, subjek);
-                if (d && d.petaOTI && d.petaOTI.length) { petaContoh = d.petaOTI; break; }
-            }
+            await hcMuatPepSemasa();
+            const petaPep = hcNamaPep();
             const tEl = document.getElementById('hca-tangga');
             const prevT = tEl.value;
-            if (petaContoh) {
-                tEl.innerHTML = petaContoh.map((p, i) => `<option value="${i}">Ujian ${i + 1} — ${p}</option>`).join('');
+            if (petaPep.length) {
+                tEl.innerHTML = petaPep.map((p, i) => `<option value="${i}">${p}</option>`).join('');
                 if (prevT && tEl.querySelector(`option[value="${prevT}"]`)) tEl.value = prevT;
             } else {
-                tEl.innerHTML = '<option value="0">— tiada sasaran —</option>';
+                tEl.innerHTML = '<option value="0">— tiada peperiksaan —</option>';
             }
             const tanggaIdx = parseInt(tEl.value) || 0;
 
@@ -6829,55 +7231,60 @@
 
         // Mod gred dalam jadual analisa: 'sebenar' (dari AR) atau 'sasar' (dari ETR)
         let hcAnalisaGredMod = 'sebenar';
+        // Dikekalkan utk keserasian (dipanggil tempat lain) — jadual kini papar
+        // Sebenar & Sasaran serentak, jadi togol tak lagi diperlukan.
         function hcTukarGredMod(mod) { hcAnalisaGredMod = mod; hcRenderJadualAnalisa(hcAnalisaData); }
 
         function hcRenderJadualAnalisa(stats) {
             const gred = ['A', 'B', 'C', 'D', 'E', 'F'];
             const gWarna = { A: 'text-green-700', B: 'text-blue-700', C: 'text-yellow-700', D: 'text-orange-700', E: 'text-red-700', F: 'text-gray-500' };
-            const sasar = hcAnalisaGredMod === 'sasar';
-            const ambilGred = s => sasar ? s.gredSasar : s.grades;
-            const btnAktif = 'px-3 py-1 text-xs font-medium rounded bg-teal-600 text-white';
-            const btnMati = 'px-3 py-1 text-xs font-medium rounded bg-gray-100 text-gray-600 hover:bg-gray-200';
-            const togol = `<div class="flex items-center gap-2 px-4 py-2 border-b border-gray-100 no-print">
-                <span class="text-xs text-gray-500">Papar gred:</span>
-                <button onclick="hcTukarGredMod('sebenar')" class="${sasar ? btnMati : btnAktif}">Gred Sebenar (AR)</button>
-                <button onclick="hcTukarGredMod('sasar')" class="${sasar ? btnAktif : btnMati}">🎯 Gred Sasaran (ETR)</button>
+            // Sub-lajur setiap gred: Sebenar (AR) | Sasaran (ETR) bersebelahan.
+            const legenda = `<div class="flex items-center gap-4 px-4 py-2 border-b border-gray-100 text-xs text-gray-500">
+                <span>Setiap gred tunjuk <b class="text-gray-700">Sebenar</b> vs <b class="text-teal-700">🎯 Sasaran</b>:</span>
+                <span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-gray-200"></span> Gred sebenar (AR)</span>
+                <span class="inline-flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-teal-100"></span> Gred sasaran (ETR)</span>
             </div>`;
-            const labelDinilai = sasar ? 'Ada ETR' : 'Dinilai';
+            // Header dua tingkat
             const head = `<tr class="bg-gray-50 text-xs text-gray-500">
-                <th class="px-3 py-2 text-left font-medium">Kelas</th>
-                <th class="px-3 py-2 text-center font-medium">${labelDinilai}</th>
-                <th class="px-3 py-2 text-center font-medium">% Capai</th>
-                <th class="px-3 py-2 text-center font-medium">Purata naik</th>
-                ${gred.map(g => `<th class="px-3 py-2 text-center font-medium ${gWarna[g]}">${g}</th>`).join('')}
+                <th rowspan="2" class="px-3 py-2 text-left font-medium align-bottom">Kelas</th>
+                <th rowspan="2" class="px-3 py-2 text-center font-medium align-bottom">Dinilai</th>
+                <th rowspan="2" class="px-3 py-2 text-center font-medium align-bottom">% Capai</th>
+                <th rowspan="2" class="px-3 py-2 text-center font-medium align-bottom">Purata naik</th>
+                ${gred.map(g => `<th colspan="2" class="px-2 py-1 text-center font-semibold ${gWarna[g]} border-l border-gray-200">${g}</th>`).join('')}
+            </tr>
+            <tr class="bg-gray-50 text-[10px] text-gray-400">
+                ${gred.map(() => `<th class="px-2 py-1 text-center font-normal border-l border-gray-200">Sebenar</th><th class="px-2 py-1 text-center font-normal text-teal-600 bg-teal-50/60">🎯 Sasar</th>`).join('')}
             </tr>`;
+            const selGred = 4 + gred.length * 2;   // colspan utk baris "belum diset"
             const rows = stats.map(s => {
-                if (!s.adaDoc) return `<tr class="text-gray-400"><td class="px-3 py-2">${s.kelas}</td><td colspan="9" class="px-3 py-2 text-center text-xs">— belum diset (admin) —</td></tr>`;
+                if (!s.adaDoc) return `<tr class="text-gray-400"><td class="px-3 py-2">${s.kelas}</td><td colspan="${selGred - 1}" class="px-3 py-2 text-center text-xs">— belum diset (admin) —</td></tr>`;
                 const pWarna = s.peratusCapai >= 50 ? 'text-green-700' : 'text-red-600';
                 const nWarna = (s.purataNaik ?? 0) >= 0 ? 'text-green-700' : 'text-red-600';
-                const g = ambilGred(s);
-                const bilKol = sasar ? `${s.totalSasar}/${s.bilMurid}` : `${s.bilAdaMarkah}/${s.bilMurid}`;
+                const bilKol = `${s.bilAdaMarkah}/${s.bilMurid}`;
+                const selGredKlas = gred.map(gg =>
+                    `<td class="px-2 py-2 text-center text-sm border-l border-gray-200">${s.grades[gg] || 0}</td>
+                     <td class="px-2 py-2 text-center text-sm font-medium text-teal-700 bg-teal-50/60">${s.gredSasar[gg] || 0}</td>`).join('');
                 return `<tr class="hover:bg-gray-50 border-t border-gray-100">
                     <td class="px-3 py-2 text-sm font-medium">${s.kelas}</td>
                     <td class="px-3 py-2 text-center text-sm text-gray-600">${bilKol}</td>
                     <td class="px-3 py-2 text-center text-sm font-semibold ${pWarna}">${s.peratusCapai}%</td>
                     <td class="px-3 py-2 text-center text-sm ${nWarna}">${s.purataNaik == null ? '—' : (s.purataNaik >= 0 ? '+' : '') + s.purataNaik.toFixed(1)}</td>
-                    ${gred.map(gg => `<td class="px-3 py-2 text-center text-sm">${g[gg] || 0}</td>`).join('')}
+                    ${selGredKlas}
                 </tr>`;
             }).join('');
-            // footer jumlah
-            const tot = { grades: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 }, capai: 0, dinilai: 0 };
-            stats.forEach(s => { const g = ambilGred(s); gred.forEach(k => tot.grades[k] += g[k] || 0); tot.capai += s.capai; tot.dinilai += (sasar ? s.totalSasar : s.bilAdaMarkah); });
+            // footer jumlah — Sebenar & Sasaran berasingan
+            const tot = { grades: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 }, gredSasar: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 }, capai: 0, dinilai: 0 };
+            stats.forEach(s => { gred.forEach(k => { tot.grades[k] += s.grades[k] || 0; tot.gredSasar[k] += s.gredSasar[k] || 0; }); tot.capai += s.capai; tot.dinilai += s.bilAdaMarkah; });
             const pTot = tot.dinilai ? Math.round(tot.capai / tot.dinilai * 100) : 0;
             const foot = `<tr class="bg-gray-700 text-white font-semibold text-sm">
                 <td class="px-3 py-2">JUMLAH</td>
                 <td class="px-3 py-2 text-center">${tot.dinilai}</td>
                 <td class="px-3 py-2 text-center">${pTot}%</td>
                 <td class="px-3 py-2 text-center">—</td>
-                ${gred.map(g => `<td class="px-3 py-2 text-center">${tot.grades[g]}</td>`).join('')}
+                ${gred.map(g => `<td class="px-2 py-2 text-center border-l border-gray-500">${tot.grades[g]}</td><td class="px-2 py-2 text-center text-teal-200">${tot.gredSasar[g]}</td>`).join('')}
             </tr>`;
             document.getElementById('hca-table').innerHTML =
-                togol + `<table class="w-full text-sm"><thead>${head}</thead><tbody>${rows}</tbody><tfoot>${foot}</tfoot></table>`;
+                legenda + `<table class="w-full text-sm"><thead>${head}</thead><tbody>${rows}</tbody><tfoot>${foot}</tfoot></table>`;
         }
 
         function hcRenderCartaAnalisa(stats) {
@@ -7127,7 +7534,11 @@
 
         // Kira anak tangga OTI: naik rata TOV → ETR
         function hcKiraOTI(tov, etr, bil) {
-            if (tov == null || !etr || etr <= tov) return Array(bil).fill(null);
+            // TOV/ETR tiada langsung → tak boleh kira anak tangga
+            if (tov == null || !etr) return Array(bil).fill(null);
+            // ETR <= TOV: murid dah capai/lebih sasaran. Anak tangga = kekalkan TOV
+            // (bukan null — supaya papar elok & "capai" bila markah semasa >= TOV).
+            if (etr <= tov) return Array(bil).fill(tov);
             const langkah = (etr - tov) / bil;
             return Array.from({ length: bil }, (_, i) => i === bil - 1 ? etr : Math.round(tov + langkah * (i + 1)));
         }
@@ -7240,6 +7651,14 @@
         function hcSetETR(kp, val) {
             const v = parseInt(val);
             hcState.etrMap[kp] = isNaN(v) ? '' : v;
+            // Amaran halus: ETR lebih rendah drpd TOV (mungkin tersilap taip).
+            // Bukan halang — murid mungkin memang dah lebih sasaran; anak tangga
+            // akan jadi = TOV (kekalkan markah).
+            const tov = hcState.tovMap[kp] ?? null;
+            if (!isNaN(v) && tov != null && v < tov) {
+                showNotification('Sasaran (ETR)',
+                    `ETR (${v}) lebih rendah drpd TOV (${tov}) murid ini. Anak tangga ditetapkan = TOV (kekalkan markah).`, true);
+            }
             hcLukisSasaran();
         }
 
@@ -7301,7 +7720,9 @@
             const tahun = document.getElementById('hc-tahun').value;
             const kelas = document.getElementById('hc-kelas').value;
             const subjek = document.getElementById('hc-subjek').value;
-            document.getElementById('hc-jejak-tajuk').textContent = `${kelas} — ${subjek}`;
+            const cyTajuk = new Date().getFullYear();
+            document.getElementById('hc-jejak-tajuk').innerHTML =
+                `${kelas} — ${subjek} <span class="ml-2 inline-block rounded-full bg-teal-100 px-2.5 py-0.5 text-xs font-semibold text-teal-700 align-middle">Tahun Semasa: ${cyTajuk}</span>`;
             const target = document.getElementById('hc-table-jejak');
             if (!hcState.murid.length) {
                 target.innerHTML = '<p class="p-4 text-sm text-gray-500">Tiada murid / sasaran. Sila set di tab Set Sasaran.</p>';
@@ -7319,10 +7740,9 @@
                 tiadaTangga.push(res.tiada.length);
             }
             hcArCache = [];
-            // Header guna nama peperiksaan SEBENAR dari petaOTI (bukan "Ujian 1" generik)
+            // Header guna nama peperiksaan SEBENAR dari petaOTI (tanpa label "Ujian N" generik)
             const head = hcState.petaOTI.slice(0, bil).map((pep, i) =>
                 `<th class="px-3 py-2 text-center font-medium border-l border-gray-200">
-                    <div class="text-[10px] text-gray-400 font-normal normal-case">Ujian ${i + 1}</div>
                     <div>${pep || '—'}</div>
                 </th>`).join('');
             const rows = hcState.murid.map((m, idx) => {
@@ -8658,24 +9078,37 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
 
             // Jadual Analisa Gred Mengikut Subjek (WITH PERCENTAGE!)
             const gradeCategories = ['A', 'B', 'C', 'D', 'E', 'F'];
-            const headers = [['SUBJEK', 'A', '%', 'B', '%', 'C', '%', 'D', '%', 'E', '%', 'F', '%', 'JUMLAH']];
-            
+            const headers = [['SUBJEK', 'A', '%', 'B', '%', 'C', '%', 'D', '%', 'E', '%', 'F', '%', 'JUMLAH', 'GPS']];
+
+            const mataMapPdf = getMataMap();
+            let skorSemuaPdf = 0, rekodSemuaPdf = 0;
+
             const body = analisaReportData.map(item => {
                 const grades = item.grades || {};
                 const total = item.total || 0;
                 const row = [item.subjekPendek || item.subjek];
-                
+
                 // Add count and percentage for each grade
                 gradeCategories.forEach(gred => {
                     const count = grades[gred] || 0;
                     const percentage = total > 0 ? ((count / total) * 100).toFixed(2) : '0.00';
                     row.push(count, percentage);
+                    skorSemuaPdf += count * (mataMapPdf[gred] || 0);
                 });
-                
-                row.push(total);
+
+                const gps = kiraGPS(grades, total);
+                row.push(total, gps !== null ? gps.toFixed(2) : '-');
+                rekodSemuaPdf += total;
                 return row;
             });
-            
+
+            // Baris TOTAL GPS
+            const totalGpsPdf = rekodSemuaPdf > 0 ? (skorSemuaPdf / rekodSemuaPdf).toFixed(2) : '-';
+            const totalRow = ['TOTAL GPS'];
+            gradeCategories.forEach(() => totalRow.push('', ''));
+            totalRow.push(rekodSemuaPdf, totalGpsPdf);
+            body.push(totalRow);
+
             doc.autoTable({
                 startY: 135, // Start below chart (45 + 80 + 10 margin)
                 head: headers,
@@ -8684,7 +9117,15 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
                 margin: { left: 10, right: 10 },
                 columnStyles: {
-                    0: { halign: 'left', cellWidth: 35 } // Subjek align left with fixed width
+                    0: { halign: 'left', cellWidth: 35 }, // Subjek align left with fixed width
+                    15: { fontStyle: 'bold' } // GPS bold
+                },
+                didParseCell: function(d) {
+                    // Serlah baris TOTAL GPS
+                    if (d.row.index === body.length - 1) {
+                        d.cell.styles.fontStyle = 'bold';
+                        d.cell.styles.fillColor = [225, 240, 225];
+                    }
                 }
             });
 
@@ -8753,6 +9194,21 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             // 5. Papar Metadata & Kontena
             document.getElementById('analisa-laporan-tajuk').textContent = `Analisa Keseluruhan ${peperiksaan}`;
             document.getElementById('analisa-laporan-metadata').textContent = `Tahun: ${tahun}`;
+
+            // Kad GPS Keseluruhan — jumlah skor semua subjek ÷ jumlah rekod
+            const mataMapK = getMataMap();
+            let skorK = 0, rekodK = 0;
+            aggregatedData.forEach(d => {
+                ['A','B','C','D','E','F'].forEach(g => { skorK += (d.grades[g] || 0) * (mataMapK[g] || 0); });
+                rekodK += (d.total || 0);
+            });
+            const gpsK = rekodK > 0 ? (skorK / rekodK) : null;
+            const kad = document.getElementById('analisa-gps-kad');
+            document.getElementById('analisa-gps-nilai').textContent = gpsK !== null ? gpsK.toFixed(2) : '-';
+            document.getElementById('analisa-gps-sub').textContent = `${peperiksaan} · Tahun ${tahun}`;
+            document.getElementById('analisa-gps-rekod').textContent = `${rekodK} rekod · ${aggregatedData.length} subjek`;
+            kad.classList.remove('hidden');
+
             laporanContainer.classList.remove('hidden');
         }
 
@@ -8847,28 +9303,50 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 headerHTML += `<th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bil ${g}</th>`;
                 headerHTML += `<th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">% ${g}</th>`;
             });
-            headerHTML += '<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th></tr>';
+            headerHTML += '<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>';
+            headerHTML += '<th class="px-4 py-2 text-left text-xs font-semibold text-green-700 uppercase tracking-wider">GPS</th></tr>';
             table.innerHTML = `<thead class="bg-gray-50">${headerHTML}</thead><tbody class="bg-white divide-y divide-gray-200"></tbody>`;
-            
+
             const tbody = table.querySelector('tbody');
-            
+
+            // Untuk TOTAL GPS: jumlah skor & jumlah rekod semua subjek
+            const mataMap = getMataMap();
+            let jumlahSkorSemua = 0, jumlahRekodSemua = 0;
+
             // Isi Data
             data.forEach(subjekData => {
                 const total = subjekData.total;
                 const row = tbody.insertRow();
                 let rowHTML = `<td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">${subjekData.subjekPendek}</td>`;
-                
+
                 gradeCategories.forEach(gred => {
                     const count = subjekData.grades[gred] || 0;
                     const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
                     rowHTML += `<td class="px-2 py-2 text-sm text-gray-700">${count}</td>`;
                     rowHTML += `<td class="px-2 py-2 text-sm text-gray-500">${percentage}%</td>`;
                 });
-                
+
+                // GPS subjek + kumpul untuk TOTAL
+                gradeCategories.forEach(g => { jumlahSkorSemua += (subjekData.grades[g] || 0) * (mataMap[g] || 0); });
+                jumlahRekodSemua += total;
+                const gps = kiraGPS(subjekData.grades, total);
+
                 rowHTML += `<td class="px-4 py-2 whitespace-nowrap text-sm font-bold text-gray-900">${total}</td>`;
+                rowHTML += `<td class="px-4 py-2 whitespace-nowrap text-sm font-extrabold text-green-700">${gps !== null ? gps.toFixed(2) : '-'}</td>`;
                 row.innerHTML = rowHTML;
             });
-            
+
+            // Footer TOTAL GPS = jumlah skor semua subjek ÷ jumlah rekod
+            const totalGps = jumlahRekodSemua > 0 ? (jumlahSkorSemua / jumlahRekodSemua) : null;
+            const tfoot = document.createElement('tfoot');
+            tfoot.innerHTML = `<tr class="bg-green-50 border-t-2 border-green-600">
+                <td class="px-4 py-2 text-sm font-extrabold text-gray-900">TOTAL GPS</td>
+                <td colspan="${gradeCategories.length * 2}" class="px-2 py-2 text-right text-xs font-medium text-gray-500">jumlah rekod →</td>
+                <td class="px-4 py-2 text-sm font-extrabold text-gray-900">${jumlahRekodSemua}</td>
+                <td class="px-4 py-2 text-sm font-extrabold text-green-700">${totalGps !== null ? totalGps.toFixed(2) : '-'}</td>
+            </tr>`;
+            table.appendChild(tfoot);
+
             tableDiv.innerHTML = '';
             tableDiv.appendChild(table);
         }
@@ -8887,25 +9365,39 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 "BIL_C", "PERATUS_C", 
                 "BIL_D", "PERATUS_D", 
                 "BIL_E", "PERATUS_E", 
-                "BIL_F", "PERATUS_F", 
-                "JUMLAH_PELAJAR"
+                "BIL_F", "PERATUS_F",
+                "JUMLAH_PELAJAR", "GPS"
             ];
-            
+
+            const mataMap = getMataMap();
+            let jumlahSkorSemua = 0, jumlahRekodSemua = 0;
+
             const csvData = analisaReportData.map(d => {
                 const total = d.total || 0;
                 let row = {
                     "SUBJEK_PENDEK": d.subjekPendek,
                     "SUBJEK_PENUH": d.subjek,
                 };
-                
+
                 ['A', 'B', 'C', 'D', 'E', 'F'].forEach(g => {
                     const count = d.grades[g] || 0;
                     row[`BIL_${g}`] = count;
                     row[`PERATUS_${g}`] = total > 0 ? ((count / total) * 100).toFixed(2) : 0;
+                    jumlahSkorSemua += count * (mataMap[g] || 0);
                 });
-                
+
                 row["JUMLAH_PELAJAR"] = total;
+                const gps = kiraGPS(d.grades, total);
+                row["GPS"] = gps !== null ? gps.toFixed(2) : '';
+                jumlahRekodSemua += total;
                 return row;
+            });
+
+            // Baris TOTAL GPS
+            csvData.push({
+                "SUBJEK_PENDEK": "TOTAL GPS", "SUBJEK_PENUH": "",
+                "JUMLAH_PELAJAR": jumlahRekodSemua,
+                "GPS": jumlahRekodSemua > 0 ? (jumlahSkorSemua / jumlahRekodSemua).toFixed(2) : ''
             });
 
             const csv = Papa.unparse({ fields: header, data: csvData });
@@ -10152,6 +10644,7 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                         <th class="px-3 py-2 text-center text-xs font-bold text-red-700 uppercase border border-gray-300 bg-red-50">BIL E+F</th>
                         <th class="px-2 py-2 text-center text-xs font-bold text-red-700 uppercase border border-gray-300 bg-red-50">%</th>
                         <th class="px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase border border-gray-300">Jumlah (Rekod)</th>
+                        <th class="px-4 py-3 text-center text-xs font-bold text-green-700 uppercase border border-gray-300 bg-green-50">GPS</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -10195,10 +10688,14 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 rowHTML += `<td class="px-2 py-3 text-sm text-center font-semibold text-red-700 border border-gray-300 bg-red-50">${percEF}</td>`;
                 
                 rowHTML += `<td class="px-4 py-3 text-sm text-center font-bold text-gray-900 border border-gray-300">${total}</td>`;
+
+                // GPS (merentas darjah/tahun)
+                const gps = kiraGPS(yearData.grades, total);
+                rowHTML += `<td class="px-4 py-3 text-sm text-center font-extrabold text-green-700 border border-gray-300 bg-green-50">${gps !== null ? gps.toFixed(2) : '-'}</td>`;
                 rowHTML += '</tr>';
                 headerHTML += rowHTML;
             });
-            
+
             headerHTML += '</tbody>';
             table.innerHTML = headerHTML;
             tableDiv.innerHTML = '';
@@ -10263,7 +10760,7 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 "BIL_E", "PERATUS_E",
                 "BIL_F", "PERATUS_F",
                 "BIL_EF", "PERATUS_EF",
-                "JUMLAH_REKOD"
+                "JUMLAH_REKOD", "GPS"
             ];
 
             const csvData = analisaSubjekReportData.map(d => {
@@ -10298,6 +10795,8 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 row["PERATUS_EF"] = totalMurid > 0 ? ((countEF / totalMurid) * 100).toFixed(2) : 0;
                 
                 row["JUMLAH_REKOD"] = total;
+                const gps = kiraGPS(d.grades, total);
+                row["GPS"] = gps !== null ? gps.toFixed(2) : '';
                 return row;
             });
 
@@ -11025,7 +11524,17 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             }
             const snapshot = await db.collection('examTypes')
                 .where('tahunKalendar', '==', year).get();
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            // Nyahduplikat nama sama dalam tahun sama — selaras dgn loadExamTypes,
+            // supaya dropdown (cth Analisa Mengikut Kelas) tak papar nama berganda.
+            const seen = {};
+            const data = snapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() }))
+                .filter(et => {
+                    const key = (et.nama || '').toUpperCase().trim();
+                    if (seen[key]) return false;
+                    seen[key] = true;
+                    return true;
+                })
                 .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
             _examTypesCache[year] = { data, time: Date.now() };
             return data;
@@ -11820,6 +12329,9 @@ ${tableHTML}
                 'E': 'text-red-700 font-bold',
             };
 
+            // Untuk TOTAL GPS: kumpul skor & rekod semua kelas
+            const mataMapAK = getMataMap();
+
             kelasList.forEach((kelas, idx) => {
                 const greds = kelasMap[kelas];
                 const jumlah = greds.length;
@@ -11839,12 +12351,18 @@ ${tableHTML}
                     cells += `<td class="px-3 py-2 text-center text-gray-500 text-xs">${pct}%</td>`;
                 });
 
+                // GPS kelas (guna kiraan gred penuh, termasuk gred yg tak jadi kolum)
+                const gredCountPenuh = {};
+                greds.forEach(g => { gredCountPenuh[g] = (gredCountPenuh[g] || 0) + 1; });
+                const gps = kiraGPS(gredCountPenuh, jumlah);
+
                 const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-gray-50';
                 tbody.insertAdjacentHTML('beforeend',
                     `<tr class="${rowBg} border-b hover:bg-purple-50">
                         <td class="px-4 py-2 font-semibold text-gray-800">${kelas}</td>
                         ${cells}
                         <td class="px-3 py-2 text-center font-bold text-gray-700">${jumlah}</td>
+                        <td class="px-3 py-2 text-center font-extrabold text-green-700">${gps !== null ? gps.toFixed(2) : '-'}</td>
                     </tr>`
                 );
             });
@@ -11857,11 +12375,18 @@ ${tableHTML}
                 totalCells += `<td class="px-3 py-2 text-center font-bold">${cnt}</td>`;
                 totalCells += `<td class="px-3 py-2 text-center text-xs font-semibold">${pct}%</td>`;
             });
+
+            // TOTAL GPS keseluruhan — dari semua gred semua kelas
+            const gredCountSemua = {};
+            marks.forEach(m => { const g = m.gred; if (g) gredCountSemua[g] = (gredCountSemua[g] || 0) + 1; });
+            const totalGpsAK = kiraGPS(gredCountSemua, totalAll.jumlah);
+
             tfoot.innerHTML =
                 `<tr class="bg-gray-700 text-white">
                     <td class="px-4 py-2 font-bold rounded-bl-lg">JUMLAH</td>
                     ${totalCells}
-                    <td class="px-3 py-2 text-center font-bold rounded-br-lg">${totalAll.jumlah}</td>
+                    <td class="px-3 py-2 text-center font-bold">${totalAll.jumlah}</td>
+                    <td class="px-3 py-2 text-center font-extrabold text-green-300 rounded-br-lg">${totalGpsAK !== null ? totalGpsAK.toFixed(2) : '-'}</td>
                 </tr>`;
 
             // Kemaskini header jadual ikut gred sebenar
@@ -11879,7 +12404,8 @@ ${tableHTML}
                 thHtml += `<th class="px-3 py-3 text-center ${bg}">${g}</th>`;
                 thHtml += `<th class="px-3 py-3 text-center ${bgPct}">%</th>`;
             });
-            thHtml += '<th class="px-3 py-3 text-center rounded-tr-lg">JML</th>';
+            thHtml += '<th class="px-3 py-3 text-center">JML</th>';
+            thHtml += '<th class="px-3 py-3 text-center bg-green-700 rounded-tr-lg">GPS</th>';
             thead.innerHTML = thHtml;
 
             document.getElementById('ak-info').textContent =
