@@ -1176,7 +1176,12 @@
                         <p id="status-print-year">Tahun: -</p>
                     </div>
                     
-                    <h4 class="text-lg font-semibold text-gray-800 mb-3">Status Pengisian Markah</h4>
+                    <h4 class="text-lg font-semibold text-gray-800 mb-1">Status Pengisian Markah</h4>
+                    <div class="flex flex-wrap gap-x-4 gap-y-1 mb-3 text-xs text-gray-600">
+                        <span><span class="font-bold text-green-600">✓</span> Lengkap (semua murid)</span>
+                        <span><span class="font-bold text-amber-600">◐ 12/30</span> Separa — belum semua murid</span>
+                        <span><span class="font-bold text-red-500">✗</span> Kosong — tiada markah</span>
+                    </div>
                     <div id="status-pengisian-table" class="overflow-x-auto mb-4">
                         <!-- Table akan dimuatkan di sini -->
                     </div>
@@ -3307,9 +3312,10 @@
                 .map(s => s.nama_penuh)
                 .filter(sp => !subjekTerlibat || subjekTerlibat.has(normSubjek(sp)) || subjekAdaMarkah.has(normSubjek(sp)));
 
-            // Bina lookup: markahSet[tahun][kelas] = Set of subjek (ternormal) yang ada markah
+            // Bina lookup: markahCount[tahun][kelas][subjekNorm] = bilangan MURID unik ada markah.
+            // Kira murid unik (by no_kp) supaya rekod ganti tidak dikira dua kali.
             // Guna cal_year field terus (lebih reliable dari parse docId atau timestamp)
-            const markahSet = {};
+            const markahCount = {};
             GLOBAL_DATA.allMarks
                 .filter(m => {
                     if (m["JENIS PEPERIKSAAN"] !== jenisPeperiksaan) return false;
@@ -3320,10 +3326,26 @@
                     return false;
                 })
                 .forEach(m => {
-                    if (!markahSet[m.tahun]) markahSet[m.tahun] = {};
-                    if (!markahSet[m.tahun][m.kelas]) markahSet[m.tahun][m.kelas] = new Set();
-                    markahSet[m.tahun][m.kelas].add(normSubjek(m.subjek));
+                    const sn = normSubjek(m.subjek);
+                    if (!markahCount[m.tahun]) markahCount[m.tahun] = {};
+                    if (!markahCount[m.tahun][m.kelas]) markahCount[m.tahun][m.kelas] = {};
+                    if (!markahCount[m.tahun][m.kelas][sn]) markahCount[m.tahun][m.kelas][sn] = new Set();
+                    if (m.no_kp) markahCount[m.tahun][m.kelas][sn].add(m.no_kp);
                 });
+
+            // Bilangan murid yang SEPATUTNYA ada markah bagi tahun×kelas×subjek
+            // (ikut agama_filter subjek — sama logik dgn cariMarkahEdit).
+            function bilMuridSepatut(tahun, kelas, subjekPenuh) {
+                const subjData = GLOBAL_DATA.allSubjects.find(s => s.nama_penuh === subjekPenuh);
+                const agamaFilter = subjData?.agama_filter || 'Semua';
+                return GLOBAL_DATA.students.filter(s => {
+                    if (s.tahun !== tahun || s.kelas !== kelas) return false;
+                    const isIslam = String(s.agama).toUpperCase() === 'ISLAM';
+                    if (agamaFilter === 'Islam') return isIslam;
+                    if (agamaFilter === 'Tidak') return !isIslam;
+                    return true;
+                }).length;
+            }
 
             // Header
             let tableHTML = '<table class="min-w-full divide-y divide-gray-200 border border-gray-300 text-xs">';
@@ -3349,12 +3371,25 @@
 
                 kelasList.forEach((kelas, idx) => {
                     const rowClass = idx % 2 === 0 ? 'bg-white' : 'bg-gray-50';
-                    const kelasMarkah = (markahSet[tahun] && markahSet[tahun][kelas]) ? markahSet[tahun][kelas] : new Set();
+                    const kelasMarkah = (markahCount[tahun] && markahCount[tahun][kelas]) ? markahCount[tahun][kelas] : {};
                     tableHTML += `<tr class="${rowClass}">`;
                     tableHTML += `<td class="px-4 py-2 font-medium text-gray-700 border-r border-gray-300 whitespace-nowrap">${kelas}</td>`;
                     sortedSubjects.forEach(subjek => {
-                        const ada = kelasMarkah.has(normSubjek(subjek));
-                        tableHTML += `<td class="px-2 py-2 text-center font-bold text-base border-r border-gray-300 ${ada ? 'text-green-600' : 'text-red-500'}">${ada ? '✓' : '✗'}</td>`;
+                        const sn = normSubjek(subjek);
+                        const bilAda = kelasMarkah[sn] ? kelasMarkah[sn].size : 0;
+                        const bilPatut = bilMuridSepatut(tahun, kelas, subjek);
+                        let sel;
+                        if (bilAda === 0) {
+                            // Kosong — tiada markah langsung
+                            sel = '<td class="px-2 py-2 text-center font-bold text-base border-r border-gray-300 text-red-500">✗</td>';
+                        } else if (bilPatut > 0 && bilAda < bilPatut) {
+                            // Separa — ada markah tapi belum semua murid
+                            sel = `<td class="px-2 py-2 text-center font-bold text-xs border-r border-gray-300 text-amber-600 bg-amber-50" title="${bilAda} daripada ${bilPatut} murid">◐ ${bilAda}/${bilPatut}</td>`;
+                        } else {
+                            // Lengkap
+                            sel = '<td class="px-2 py-2 text-center font-bold text-base border-r border-gray-300 text-green-600">✓</td>';
+                        }
+                        tableHTML += sel;
                     });
                     tableHTML += '</tr>';
                 });
@@ -8262,17 +8297,19 @@
                 const markahInput = row.querySelector('input[type="number"]');
                 const studentMetadata = JSON.parse(row.getAttribute('data-student'));
                 const markahValue = markahInput.value.trim();
-                
+
                 if (markahValue === '') {
+                    // Kosong = akan DILANGKAU (bukan ralat) — benarkan simpan separa
                     emptyInputs.push({
                         bil: index + 1,
                         nama: studentMetadata.nama
                     });
-                    markahInput.style.borderColor = 'red';
+                    markahInput.style.borderColor = '#f59e0b';
                     markahInput.style.borderWidth = '2px';
                 } else {
                     const markah = parseInt(markahValue);
                     if (isNaN(markah) || markah < 1 || markah > 100) {
+                        // Ada nilai tapi TIDAK SAH — ini tetap ralat yang menghalang
                         invalidInputs.push({
                             bil: index + 1,
                             nama: studentMetadata.nama,
@@ -8287,46 +8324,57 @@
                     }
                 }
             });
-            
-            // Jika ada input kosong atau tidak sah, papar error
-            if (emptyInputs.length > 0 || invalidInputs.length > 0) {
-                let errorMessage = '';
-                
-                if (emptyInputs.length > 0) {
-                    errorMessage += `${emptyInputs.length} pelajar belum diisi markah:\n`;
-                    emptyInputs.slice(0, 3).forEach(item => {
-                        errorMessage += `- Bil ${item.bil}: ${item.nama}\n`;
-                    });
-                    if (emptyInputs.length > 3) {
-                        errorMessage += `... dan ${emptyInputs.length - 3} lagi.\n`;
-                    }
+
+            // Nilai TIDAK SAH (bukan kosong) tetap menghalang simpan
+            if (invalidInputs.length > 0) {
+                let errorMessage = `${invalidInputs.length} pelajar ada markah tidak sah (mesti 1-100):\n`;
+                invalidInputs.slice(0, 3).forEach(item => {
+                    errorMessage += `- Bil ${item.bil}: ${item.nama} (markah: ${item.markah})\n`;
+                });
+                if (invalidInputs.length > 3) {
+                    errorMessage += `... dan ${invalidInputs.length - 3} lagi.\n`;
                 }
-                
-                if (invalidInputs.length > 0) {
-                    errorMessage += `\n${invalidInputs.length} pelajar ada markah tidak sah (mesti 1-100):\n`;
-                    invalidInputs.slice(0, 3).forEach(item => {
-                        errorMessage += `- Bil ${item.bil}: ${item.nama} (markah: ${item.markah})\n`;
-                    });
-                    if (invalidInputs.length > 3) {
-                        errorMessage += `... dan ${invalidInputs.length - 3} lagi.\n`;
-                    }
-                }
-                
-                errorMessage += '\n⚠️ SEMUA markah WAJIB diisi dan minimum 1!';
-                
+                errorMessage += '\n⚠️ Sila betulkan markah tidak sah dahulu.';
                 showNotification("RALAT MARKAH", errorMessage, true);
                 simpanStatus.className = 'mt-2 text-sm font-medium text-red-600';
-                simpanStatus.textContent = '❌ Sila isi SEMUA markah dengan nilai 1-100';
+                simpanStatus.textContent = '❌ Ada markah tidak sah (1-100).';
                 return;
             }
 
-            // Proses simpan - semua validation sudah pass
+            // Semua sel kosong → tiada apa untuk disimpan
+            const bilBerisi = rows.length - emptyInputs.length;
+            if (bilBerisi === 0) {
+                showNotification("RALAT", "Tiada markah diisi. Sila isi sekurang-kurangnya satu markah.", true);
+                simpanStatus.className = 'mt-2 text-sm font-medium text-red-600';
+                simpanStatus.textContent = '❌ Tiada markah diisi.';
+                return;
+            }
+
+            // Ada kosong + ada berisi → sahkan simpan separa
+            if (emptyInputs.length > 0) {
+                const teruskan = confirm(
+                    `📝 SIMPAN SEPARA\n\n` +
+                    `${emptyInputs.length} murid belum diisi markah (daripada ${rows.length} murid).\n\n` +
+                    `Simpan markah yang telah diisi sahaja? Murid yang kosong akan dilangkau dan boleh diisi kemudian.\n\n` +
+                    `Klik OK untuk simpan separa, atau Cancel untuk sambung isi dahulu.`
+                );
+                if (!teruskan) {
+                    simpanStatus.className = 'mt-2 text-sm font-medium text-amber-600';
+                    simpanStatus.textContent = '⚠️ Dibatalkan — sila lengkapkan markah yang tinggal.';
+                    return;
+                }
+            }
+
+            // Proses simpan — langkau sel kosong
             const markahRecords = [];
-            
+
             rows.forEach(row => {
                 const markahInput = row.querySelector('input[type="number"]');
                 const gredSpan = row.querySelector('span');
                 const studentMetadata = JSON.parse(row.getAttribute('data-student'));
+
+                // Langkau sel kosong — jangan tulis rekod
+                if (markahInput.value.trim() === '') return;
 
                 const markah = parseInt(markahInput.value);
                 const gred = gredSpan.textContent;
@@ -8368,8 +8416,12 @@
             try {
                 await batch.commit();
 
-                // Tunjuk toast kejayaan
-                showNotification("Markah Disimpan", `${markahRecords.length} rekod markah berjaya disimpan.`, false);
+                // Tunjuk toast kejayaan (sebut baki belum lengkap jika simpan separa)
+                if (emptyInputs.length > 0) {
+                    showNotification("Markah Disimpan (Separa)", `${markahRecords.length} rekod disimpan. ${emptyInputs.length} murid masih belum diisi — sila lengkapkan kemudian.`, false);
+                } else {
+                    showNotification("Markah Disimpan", `${markahRecords.length} rekod markah berjaya disimpan.`, false);
+                }
 
                 // Reset form ke keadaan awal
                 tableBody.innerHTML = `<tr><td colspan="5" class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500">Sila klik 'Cari' untuk memuatkan senarai pelajar.</td></tr>`;
@@ -8493,12 +8545,39 @@
                 return;
             }
 
-            reportMarkahData = marksToEdit; // Simpan data untuk export
+            // Bila BOLEH EDIT: gabungkan murid yang BELUM ada rekod sebagai baris
+            // kosong (template), supaya markah separa boleh disambung isi kemudian.
+            let barisUntukEdit = marksToEdit;
+            if (!isReadOnly) {
+                const selectedSubjectData = GLOBAL_DATA.allSubjects.find(s => s.nama_penuh === subjek);
+                const agamaFilter = selectedSubjectData?.agama_filter || 'Semua';
+                const adaRekod = new Set(marksToEdit.map(m => m.no_kp));
 
-            // 2. Render Jadual Markah
-            renderEditTable(marksToEdit, isReadOnly);
+                const muridTiadaRekod = GLOBAL_DATA.students.filter(s => {
+                    if (s.tahun !== tahun || s.kelas !== kelas) return false;
+                    if (adaRekod.has(s.no_kp)) return false;
+                    const isIslam = String(s.agama).toUpperCase() === 'ISLAM';
+                    if (agamaFilter === 'Islam') return isIslam;
+                    if (agamaFilter === 'Tidak') return !isIslam;
+                    return true;
+                }).map(s => ({
+                    no_kp: s.no_kp, nama: s.nama, tahun, kelas, subjek,
+                    jantina: s.jantina, agama: s.agama,
+                    "JENIS PEPERIKSAAN": peperiksaan,
+                    markah: '', gred: '', cal_year: parseInt(editYear), _isTemplate: true
+                }));
 
-            // 3. Render Analisis Gred (DI BAWAH table markah)
+                barisUntukEdit = marksToEdit.concat(muridTiadaRekod)
+                    .sort((a, b) => (a.nama || '').localeCompare(b.nama || ''));
+            }
+
+            reportMarkahData = barisUntukEdit; // Simpan data untuk export
+
+            // 2. Render Jadual Markah — guna mod template supaya baris kosong boleh diisi
+            const adaBarisKosong = barisUntukEdit.some(m => m._isTemplate);
+            renderEditTable(barisUntukEdit, isReadOnly, adaBarisKosong);
+
+            // 3. Render Analisis Gred (DI BAWAH table markah) — hanya rekod sebenar
             renderAnalisaTable(marksToEdit, 'analisa-table');
 
             // 4. Update Header Laporan dengan format yang betul
@@ -8556,7 +8635,7 @@
                     ${(!readOnly || isTemplate) ? '<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider no-print">Markah</th>' : ''}
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Markah</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gred</th>
-                    ${!readOnly && !isTemplate ? '<th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider no-print">Tindakan</th>' : ''}
+                    ${!readOnly ? '<th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider no-print">Tindakan</th>' : ''}
                 </tr>
             `;
 
@@ -8597,24 +8676,42 @@
                     gredCell.className = 'text-center';
                     gredCell.appendChild(document.createElement('span'));
 
+                    // Tandakan baris "belum diisi" (kuning muda) untuk markah kosong
+                    if (String(markahInput.value).trim() === '') {
+                        row.classList.add('baris-belum-isi');
+                        row.style.backgroundColor = '#fffbeb';
+                    }
+
                     markahInput.oninput = function() {
                         markahDisplayCell.textContent = this.value;
                         updateGredDisplay(this, gredCell);
+                        // Kemas kini penanda baris + banner secara langsung
+                        const kosong = String(this.value).trim() === '';
+                        row.classList.toggle('baris-belum-isi', kosong);
+                        row.style.backgroundColor = kosong ? '#fffbeb' : '';
+                        this.style.borderColor = '';
+                        kemaskiniBannerBelumLengkap();
                     };
                     updateGredDisplay(markahInput, gredCell, true);
                     markahInputCell.appendChild(markahInput);
 
-                    // Butang PADAM — hanya untuk rekod sedia ada (bukan template)
-                    if (!isTemplate) {
+                    // Lajur Tindakan wujud bila bukan read-only.
+                    // Butang PADAM hanya untuk rekod SEDIA ADA (ada mark.id);
+                    // baris template kosong (belum ada rekod) tunjuk teks sahaja.
+                    if (!readOnly) {
                         const tindakanCell = row.insertCell();
                         tindakanCell.className = 'text-center no-print';
-                        const padamBtn = document.createElement('button');
-                        padamBtn.className = 'bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 transition text-xs font-semibold';
-                        padamBtn.textContent = 'PADAM';
-                        padamBtn.onclick = function() {
-                            padamMarkahRow(mark.id, mark.no_kp, mark.nama, mark.subjek, mark.tahun, mark["JENIS PEPERIKSAAN"]);
-                        };
-                        tindakanCell.appendChild(padamBtn);
+                        if (mark.id) {
+                            const padamBtn = document.createElement('button');
+                            padamBtn.className = 'bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 transition text-xs font-semibold';
+                            padamBtn.textContent = 'PADAM';
+                            padamBtn.onclick = function() {
+                                padamMarkahRow(mark.id, mark.no_kp, mark.nama, mark.subjek, mark.tahun, mark["JENIS PEPERIKSAAN"]);
+                            };
+                            tindakanCell.appendChild(padamBtn);
+                        } else {
+                            tindakanCell.innerHTML = '<span class="text-xs text-amber-600">belum diisi</span>';
+                        }
                     }
                 } else {
                     // Mod baca sahaja — paparan markah sahaja
@@ -8632,6 +8729,35 @@
                     updateGredDisplay(dummyInput, gredCell, true);
                 }
             });
+
+            // Papar banner "belum lengkap" (hanya mod boleh edit / template)
+            kemaskiniBannerBelumLengkap();
+        }
+
+        // Papar/kemas kini banner amaran markah belum lengkap di atas jadual edit
+        function kemaskiniBannerBelumLengkap() {
+            let banner = document.getElementById('banner-belum-lengkap');
+            const tableEl = document.getElementById('markah-table-edit');
+            if (!tableEl) return;
+
+            const inputs = document.querySelectorAll('#markah-table-edit input[type="number"]');
+            const kosong = Array.from(inputs).filter(i => String(i.value).trim() === '').length;
+
+            // Cipta banner jika belum wujud (letak sebelum jadual)
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'banner-belum-lengkap';
+                banner.className = 'no-print mb-3 hidden rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800';
+                const parent = tableEl.parentNode;
+                parent.insertBefore(banner, tableEl);
+            }
+
+            if (inputs.length > 0 && kosong > 0) {
+                banner.innerHTML = `📝 <b>Markah belum lengkap</b> — ${kosong} daripada ${inputs.length} murid belum diisi. Anda tetap boleh <b>Simpan</b>; murid yang kosong akan dilangkau dan boleh diisi kemudian.`;
+                banner.classList.remove('hidden');
+            } else {
+                banner.classList.add('hidden');
+            }
         }
 
         function setEditReadOnly(isReadOnly) {
@@ -8733,27 +8859,53 @@
 
             const batch = db.batch();
             let updatesCount = 0;
+            let barnBaruDitambah = false; // ada rekod BARU (perlu reload penuh)
 
             editStatus.textContent = 'Menyimpan...';
             editStatus.className = 'mt-2 text-sm font-medium text-blue-600';
 
-            // Semak ada input kosong
+            // Semak ada input kosong — BENARKAN SIMPAN SEPARA
+            // Sel kosong DILANGKAU (tidak ditulis rekod), sel berisi disimpan.
             const emptyInputs = Array.from(markahInputs).filter(input => input.value.trim() === '');
-            if (emptyInputs.length > 0) {
-                showNotification("RALAT", `${emptyInputs.length} murid belum diisi markah. Sila isi semua markah.`, true);
-                emptyInputs.forEach(i => i.style.borderColor = 'red');
+            const filledInputs = Array.from(markahInputs).filter(input => input.value.trim() !== '');
+
+            if (filledInputs.length === 0) {
+                // Betul-betul tiada markah untuk disimpan
+                showNotification("RALAT", "Tiada markah diisi. Sila isi sekurang-kurangnya satu markah.", true);
                 editStatus.textContent = '';
                 return;
             }
 
+            if (emptyInputs.length > 0) {
+                // Ada yang berisi + ada yang kosong → sahkan simpan separa
+                const teruskan = confirm(
+                    `📝 SIMPAN SEPARA\n\n` +
+                    `${emptyInputs.length} murid belum diisi markah (daripada ${markahInputs.length} murid).\n\n` +
+                    `Simpan markah yang telah diisi sahaja? Anda boleh sambung isi murid yang belum lengkap kemudian.\n\n` +
+                    `Klik OK untuk simpan separa, atau Cancel untuk sambung isi dahulu.`
+                );
+                if (!teruskan) {
+                    // Guru pilih sambung isi — tandakan sel kosong supaya mudah dilihat
+                    emptyInputs.forEach(i => i.style.borderColor = '#f59e0b');
+                    editStatus.textContent = 'Dibatalkan — sila lengkapkan markah yang tinggal.';
+                    editStatus.className = 'mt-2 text-sm font-medium text-amber-600';
+                    return;
+                }
+            }
+
             markahInputs.forEach((input, index) => {
+                // Langkau sel kosong — jangan tulis rekod (biar boleh diisi lain kali)
+                if (input.value.trim() === '') return;
                 const newMarkah = parseInt(input.value);
                 const gredSpan = input.parentNode.parentNode.querySelector('td span');
                 if (isNaN(newMarkah) || newMarkah < 1 || newMarkah > 100) return;
                 const newGred = gredSpan ? gredSpan.textContent : getGredFromMarkah(newMarkah);
 
-                if (isTemplate) {
-                    // Rekod baru — bina docId dan set
+                // Keputusan per-baris (bukan flag global) supaya jadual campuran
+                // (rekod sedia ada + baris kosong baru) dikendali dengan betul.
+                const existingDocId = input.getAttribute('data-docid');
+                if (!existingDocId) {
+                    // Rekod BARU — bina docId dan set
                     const nokp = input.getAttribute('data-nokp');
                     const nama = input.getAttribute('data-nama');
                     const jantina = input.getAttribute('data-jantina');
@@ -8768,15 +8920,14 @@
                         timestamp: firebase.firestore.FieldValue.serverTimestamp()
                     });
                     updatesCount++;
+                    barnBaruDitambah = true;
                 } else {
-                    // Rekod sedia ada — update sahaja
-                    const docId = input.getAttribute('data-docid');
-                    if (!docId) return;
-                    const oldMark = reportMarkahData.find(m => m.id === docId);
+                    // Rekod SEDIA ADA — update jika berubah
+                    const oldMark = reportMarkahData.find(m => m.id === existingDocId);
                     if (oldMark) {
                         const changed = parseInt(oldMark.markah) !== newMarkah || oldMark.gred !== newGred;
                         if (changed) {
-                            batch.update(db.collection('rekodMarkah').doc(docId), {
+                            batch.update(db.collection('rekodMarkah').doc(existingDocId), {
                                 markah: newMarkah, gred: newGred,
                                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
                             });
@@ -8801,43 +8952,78 @@
                 await batch.commit();
                 console.log('   ✅ Firestore batch commit SUCCESS!');
                 
-                showNotification("BERJAYA!", `Berjaya mengemas kini ${updatesCount} rekod markah.`, false);
-                editStatus.textContent = `Penyimpanan ${updatesCount} rekod BERJAYA!`;
-                editStatus.className = 'mt-2 text-sm font-medium text-green-600';
+                const bakiKosong = emptyInputs.length;
+                if (bakiKosong > 0) {
+                    showNotification("BERJAYA (SEPARA)", `Berjaya menyimpan ${updatesCount} rekod. ${bakiKosong} murid masih belum diisi — sila lengkapkan kemudian.`, false);
+                    editStatus.textContent = `✅ ${updatesCount} rekod disimpan · ⚠️ ${bakiKosong} murid belum lengkap.`;
+                    editStatus.className = 'mt-2 text-sm font-medium text-amber-600';
+                } else {
+                    showNotification("BERJAYA!", `Berjaya mengemas kini ${updatesCount} rekod markah.`, false);
+                    editStatus.textContent = `Penyimpanan ${updatesCount} rekod BERJAYA!`;
+                    editStatus.className = 'mt-2 text-sm font-medium text-green-600';
+                }
                 
                 console.log('   🔄 Updating local data...');
-                
-                // Update reportMarkahData locally (NO need to reload everything!)
-                markahInputs.forEach(input => {
-                    const docId = input.getAttribute('data-docid');
-                    const newMarkah = parseInt(input.value);
-                    
-                    if (!docId || isNaN(newMarkah)) return;
-                    
-                    const gredSpan = input.parentNode.parentNode.querySelector('td:last-child span');
-                    const newGred = gredSpan ? gredSpan.textContent : getGredFromMarkah(newMarkah);
-                    
-                    // Update local cache
-                    const localMark = reportMarkahData.find(m => m.id === docId);
-                    if (localMark) {
-                        localMark.markah = newMarkah;
-                        localMark.gred = newGred;
+
+                if (barnBaruDitambah) {
+                    // Ada rekod BARU — mesti masuk GLOBAL_DATA.allMarks supaya
+                    // buka semula tidak papar template kosong lagi. Reload penuh (force fresh).
+                    console.log('   🔄 Rekod baru — reload data penuh...');
+                    await clearAllCache().catch(err => console.warn('Cache clear error:', err));
+                    await bacaInitialData(true).catch(err => console.error('Gagal refresh data:', err));
+
+                    // bacaInitialData reset dropdown edit-* → pulihkan pilihan asal
+                    // dengan main semula cascade, barulah refresh jadual (elak ralat
+                    // "Sila pilih semua pilihan di atas").
+                    try {
+                        const selYear = document.getElementById('edit-year');
+                        if (selYear) { selYear.value = String(editYear); await onEditYearChange(); }
+                        document.getElementById('edit-peperiksaan').value = peperiksaan; await onEditPeperiksaanChange();
+                        document.getElementById('edit-tahun').value = tahun; await onEditTahunChange();
+                        document.getElementById('edit-kelas').value = kelas; await onEditKelasChange();
+                        document.getElementById('edit-subjek').value = subjek;
+
+                        // Sahkan semua pilihan berjaya dipulih sebelum refresh jadual
+                        if (document.getElementById('edit-peperiksaan').value === peperiksaan &&
+                            document.getElementById('edit-tahun').value === tahun &&
+                            document.getElementById('edit-kelas').value === kelas &&
+                            document.getElementById('edit-subjek').value === subjek) {
+                            await cariMarkahEdit();
+                        } else {
+                            console.warn('Pilihan tidak lengkap selepas reload — langkau refresh jadual.');
+                        }
+                    } catch (e) {
+                        console.warn('Refresh jadual gagal (data tetap tersimpan):', e);
                     }
-                    
-                    // Update GLOBAL_DATA cache
-                    const globalMark = GLOBAL_DATA.allMarks.find(m => m.id === docId);
-                    if (globalMark) {
-                        globalMark.markah = newMarkah;
-                        globalMark.gred = newGred;
-                    }
-                });
-                
-                console.log('   ✅ Local data updated');
-                console.log('   🔄 Clearing IndexedDB cache for next reload...');
-                
-                // Clear cache in background (don't wait for it)
-                clearAllCache().catch(err => console.warn('Cache clear error:', err));
-                
+                } else {
+                    // Rekod sedia ada — cukup kemas kini setempat (tak perlu reload semua)
+                    markahInputs.forEach(input => {
+                        const docId = input.getAttribute('data-docid');
+                        if (input.value.trim() === '') return;
+                        const newMarkah = parseInt(input.value);
+                        if (!docId || isNaN(newMarkah)) return;
+
+                        const gredSpan = input.parentNode.parentNode.querySelector('td:last-child span');
+                        const newGred = gredSpan ? gredSpan.textContent : getGredFromMarkah(newMarkah);
+
+                        // Update local cache
+                        const localMark = reportMarkahData.find(m => m.id === docId);
+                        if (localMark) {
+                            localMark.markah = newMarkah;
+                            localMark.gred = newGred;
+                        }
+
+                        // Update GLOBAL_DATA cache
+                        const globalMark = GLOBAL_DATA.allMarks.find(m => m.id === docId);
+                        if (globalMark) {
+                            globalMark.markah = newMarkah;
+                            globalMark.gred = newGred;
+                        }
+                    });
+                    // Clear cache in background (don't wait for it)
+                    clearAllCache().catch(err => console.warn('Cache clear error:', err));
+                }
+
                 console.log('   ✅ Save complete!');
             } catch (error) {
                 console.error('   ❌ Save FAILED:', error);
