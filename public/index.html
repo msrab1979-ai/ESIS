@@ -9796,8 +9796,9 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             tableHTML += '<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-700 uppercase border border-gray-300">Gred E</th>';
             tableHTML += '<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-700 uppercase border border-gray-300">Gred F</th>';
             tableHTML += '<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-red-700 uppercase border border-gray-300 bg-red-50">BIL E+F</th>';
+            tableHTML += '<th rowspan="2" class="px-4 py-3 text-center text-xs font-bold text-green-700 uppercase border border-gray-300 bg-green-50">GPS</th>';
             tableHTML += '</tr>';
-            
+
             // Header Row 2: Bil & % columns
             tableHTML += '<tr class="bg-gray-50">';
             // A, B, C, D columns
@@ -9855,10 +9856,14 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 const percEF = ((countEF / total) * 100).toFixed(1);
                 tableHTML += `<td class="px-2 py-3 text-sm text-center font-semibold text-red-700 border border-gray-300 bg-red-50">${countEF}</td>`;
                 tableHTML += `<td class="px-2 py-3 text-sm text-center font-semibold text-red-700 border border-gray-300 bg-red-50">${percEF}</td>`;
-                
+
+                // GPS subjek
+                const gps = kiraGPS(row.grades, row.total);
+                tableHTML += `<td class="px-4 py-3 text-sm text-center font-extrabold text-green-700 border border-gray-300 bg-green-50">${gps !== null ? gps.toFixed(2) : '-'}</td>`;
+
                 tableHTML += '</tr>';
             });
-            
+
             tableHTML += '</tbody></table>';
             tableDiv.innerHTML = tableHTML;
         }
@@ -9918,7 +9923,8 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 'A', '%', 'B', '%', 'C', '%', 'D', '%', 
                 'ABCD', '%',
                 'E', '%', 'F', '%',
-                'EF', '%'
+                'EF', '%',
+                'GPS'
             ]];
             
             const body = dashboardSubjekData.map(item => {
@@ -9948,7 +9954,11 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 const countEF = (item.grades['E'] || 0) + (item.grades['F'] || 0);
                 const percEF = ((countEF / total) * 100).toFixed(1);
                 row.push(countEF, percEF);
-                
+
+                // GPS subjek
+                const gps = kiraGPS(item.grades, item.total);
+                row.push(gps !== null ? gps.toFixed(2) : '-');
+
                 return row;
             });
             
@@ -9975,7 +9985,8 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                     9: { fillColor: [219, 234, 254], fontStyle: 'bold' }, // ABCD
                     10: { fillColor: [219, 234, 254], fontStyle: 'bold' }, // ABCD %
                     15: { fillColor: [254, 226, 226], fontStyle: 'bold' }, // EF
-                    16: { fillColor: [254, 226, 226], fontStyle: 'bold' }  // EF %
+                    16: { fillColor: [254, 226, 226], fontStyle: 'bold' }, // EF %
+                    17: { fillColor: [220, 252, 231], fontStyle: 'bold' }  // GPS
                 }
             });
 
