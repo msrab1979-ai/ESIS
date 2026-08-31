@@ -770,6 +770,8 @@
                     class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800">📊 Analisa</button>
                 <button onclick="hcTukarTab('banding')" id="hc-tab-banding"
                     class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800">📈 Analisa Perbandingan</button>
+                <button onclick="hcTukarTab('gred')" id="hc-tab-gred"
+                    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800">📋 Perbandingan Gred</button>
             </div>
 
             <!-- ===== SKRIN A: SET SASARAN ===== -->
@@ -989,6 +991,54 @@
                         <button onclick="hcCetakBandingPDF()" class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 no-print">📄 Cetak PDF</button>
                     </div>
                     <div id="hcb-table" class="overflow-x-auto"></div>
+                </div>
+            </section>
+
+            <!-- ===== SKRIN E: PERBANDINGAN GRED (gred sebenar vs gred sasaran) ===== -->
+            <section id="hc-skrin-gred" class="hidden">
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4 no-print">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Darjah</span>
+                            <select id="hcg-darjah" onchange="hcLukisGred()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Subjek</span>
+                            <select id="hcg-subjek" onchange="hcLukisGred()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Tumpuan</span>
+                            <select id="hcg-mod" onchange="hcLukisGred()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm">
+                                <option value="darjah">Semua kelas (darjah)</option>
+                                <option value="kelas">Satu kelas sahaja</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div id="hcg-kelas-wrap" class="mt-3 hidden">
+                        <label class="block max-w-xs">
+                            <span class="text-xs text-gray-500">Kelas</span>
+                            <select id="hcg-kelas" onchange="hcLukisGred()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Kad ringkasan -->
+                <div id="hcg-kpi" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4"></div>
+
+                <!-- Carta bar bertimbun -->
+                <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-1">Taburan gred setiap ujian vs sasaran</h4>
+                    <p class="text-xs text-gray-500 mb-3 no-print">Bar terakhir (🎯 SASARAN) = gred yang disasar berdasarkan ETR.</p>
+                    <div style="position:relative; height:340px"><canvas id="hcg-chart"></canvas></div>
+                </div>
+
+                <!-- Jadual -->
+                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                    <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                        <h4 class="text-sm font-semibold text-gray-700">Bilangan murid mengikut gred</h4>
+                        <button onclick="hcCetakGredPDF()" class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 no-print">📄 Cetak PDF</button>
+                    </div>
+                    <div id="hcg-table" class="overflow-x-auto"></div>
                 </div>
             </section>
         </div>
@@ -6977,13 +7027,16 @@
             document.getElementById('hc-skrin-jejak').classList.toggle('hidden', tab !== 'jejak');
             document.getElementById('hc-skrin-analisa').classList.toggle('hidden', tab !== 'analisa');
             document.getElementById('hc-skrin-banding').classList.toggle('hidden', tab !== 'banding');
+            document.getElementById('hc-skrin-gred').classList.toggle('hidden', tab !== 'gred');
             document.getElementById('hc-tab-set').className = tab === 'set' ? aktif : mati;
             document.getElementById('hc-tab-jejak').className = tab === 'jejak' ? aktif : mati;
             document.getElementById('hc-tab-analisa').className = tab === 'analisa' ? aktif : mati;
             document.getElementById('hc-tab-banding').className = tab === 'banding' ? aktif : mati;
+            document.getElementById('hc-tab-gred').className = tab === 'gred' ? aktif : mati;
             if (tab === 'jejak') hcInitJejak();
             if (tab === 'analisa') hcInitAnalisa();
             if (tab === 'banding') hcInitBanding();
+            if (tab === 'gred') hcInitGred();
         }
 
         // Isi pemilih Papan Jejak (selaraskan dgn pilihan Set Sasaran), kemudian lukis
@@ -7701,6 +7754,271 @@
                     tfoot{font-weight:bold;background:#f9fafb}
                 </style></head><body>
                 <h2>Analisa Perbandingan Headcount</h2>
+                <p class="sub">${darjah} — ${subjek} · Tahun ${cy} · Dicetak ${new Date().toLocaleDateString('ms-MY')}</p>
+                ${jadual}
+                </body></html>`);
+            win.document.close(); win.focus();
+            setTimeout(() => { win.print(); win.close(); }, 600);
+        }
+
+        // ============================================================
+        // PERBANDINGAN GRED — taburan gred sebenar (AR) setiap ujian
+        // berbanding gred yang DISASAR (dikira dari ETR).
+        // ============================================================
+        let hcGredData = null;
+        let hcGredChart = null;
+        const HC_GRED_KEYS = ['A', 'B', 'C', 'D', 'E', 'F'];
+        const HC_GRED_WARNA = { A: '#16a34a', B: '#65a30d', C: '#ca8a04', D: '#ea580c', E: '#dc2626', F: '#7f1d1d' };
+
+        function hcInitGred() {
+            const urutan = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
+            const ada = urutan.filter(t => hcKelasUntukTahun(t).length);
+            const dEl = document.getElementById('hcg-darjah');
+            if (!dEl.options.length) {
+                dEl.innerHTML = (ada.length ? ada : urutan).map(t => `<option value="${t}">${t}</option>`).join('');
+                const tahunSet = document.getElementById('hc-tahun').value;
+                if (tahunSet) dEl.value = tahunSet;
+            }
+            const sEl = document.getElementById('hcg-subjek');
+            if (!sEl.options.length) {
+                sEl.innerHTML = GLOBAL_DATA.allSubjects.filter(s => s.nama_penuh)
+                    .sort((a, b) => a.nama_penuh.localeCompare(b.nama_penuh))
+                    .map(s => `<option value="${s.nama_penuh}">${s.nama_penuh}</option>`).join('');
+                const subjekSet = document.getElementById('hc-subjek').value;
+                if (subjekSet) sEl.value = subjekSet;
+            }
+            hcLukisGred();
+        }
+
+        function hcGredKosong() { return { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 }; }
+
+        // Masukkan satu markah ke dalam bakul gred (layan 'Gagal'/'TIDAK SAH' sbg F,
+        // selaras dgn hcStatKelas dan jadual analisa sedia ada).
+        function hcTambahGred(bakul, markah) {
+            if (markah == null || markah === '') return false;
+            const g = getGredFromMarkah(markah);
+            if (bakul[g] !== undefined) bakul[g]++;
+            else bakul.F++;
+            return true;
+        }
+
+        // Kira taburan gred setiap ujian + taburan gred sasaran utk satu kelas
+        async function hcStatGredKelas(darjah, kelas, subjek, petaPep) {
+            const doc = await hcBacaDocHeadcount(darjah, kelas, subjek);
+            const murid = GLOBAL_DATA.students.filter(s => s.tahun === darjah && s.kelas === kelas);
+            const hasil = { kelas, bilMurid: murid.length, adaDoc: !!doc,
+                            sasar: hcGredKosong(), bilSasar: 0, ujian: [] };
+            if (!doc || !murid.length) {
+                hasil.ujian = petaPep.map(pep => ({ pep, gred: hcGredKosong(), bil: 0 }));
+                return hasil;
+            }
+            const cy = new Date().getFullYear();
+            // Gred SASARAN — dari ETR setiap murid
+            murid.forEach(m => {
+                const etr = doc.etr ? doc.etr[m.no_kp] : null;
+                if (etr != null && etr !== '' && hcTambahGred(hasil.sasar, etr)) hasil.bilSasar++;
+            });
+            // Gred SEBENAR — setiap ujian
+            for (const pep of petaPep) {
+                const arMap = (await cariMarkahMurid({ calYear: cy, subjek, peperiksaan: pep,
+                    muridList: murid, mod: 'no_kp' })).map;
+                const bakul = hcGredKosong();
+                let bil = 0;
+                murid.forEach(m => { if (hcTambahGred(bakul, arMap[m.no_kp])) bil++; });
+                hasil.ujian.push({ pep, gred: bakul, bil });
+            }
+            return hasil;
+        }
+
+        async function hcLukisGred() {
+            const darjah = document.getElementById('hcg-darjah').value;
+            const subjek = document.getElementById('hcg-subjek').value;
+            const mod = document.getElementById('hcg-mod').value;
+            document.getElementById('hcg-kelas-wrap').classList.toggle('hidden', mod !== 'kelas');
+            if (!darjah || !subjek) return;
+
+            const semuaKelas = hcKelasUntukTahun(darjah);
+            const kEl = document.getElementById('hcg-kelas');
+            if (kEl.dataset.darjah !== darjah) {
+                kEl.innerHTML = semuaKelas.map(k => `<option value="${k}">${k}</option>`).join('');
+                kEl.dataset.darjah = darjah;
+            }
+            const kelasSenarai = mod === 'kelas' ? [kEl.value || semuaKelas[0]] : semuaKelas;
+
+            const tbl = document.getElementById('hcg-table');
+            tbl.innerHTML = '<p class="p-4 text-sm text-gray-500">Mengira…</p>';
+
+            await hcMuatPepSemasa();
+            const petaPep = hcNamaPep();
+            if (!petaPep.length) {
+                tbl.innerHTML = '<p class="p-4 text-sm text-gray-500">Tiada jenis peperiksaan untuk tahun semasa. Sila set di Admin › Urus Peperiksaan.</p>';
+                document.getElementById('hcg-kpi').innerHTML = '';
+                if (hcGredChart) { hcGredChart.destroy(); hcGredChart = null; }
+                return;
+            }
+
+            const stats = [];
+            for (const k of kelasSenarai) stats.push(await hcStatGredKelas(darjah, k, subjek, petaPep));
+            hcGredData = { darjah, subjek, petaPep, stats };
+
+            // Gabung semua kelas terpilih
+            const gabung = { sasar: hcGredKosong(), bilSasar: 0, ujian: petaPep.map(pep => ({ pep, gred: hcGredKosong(), bil: 0 })) };
+            stats.forEach(s => {
+                HC_GRED_KEYS.forEach(g => gabung.sasar[g] += s.sasar[g]);
+                gabung.bilSasar += s.bilSasar;
+                s.ujian.forEach((u, i) => {
+                    HC_GRED_KEYS.forEach(g => gabung.ujian[i].gred[g] += u.gred[g]);
+                    gabung.ujian[i].bil += u.bil;
+                });
+            });
+
+            hcRenderGredKPI(gabung, petaPep);
+            hcRenderGredJadual(stats, gabung, petaPep);
+            hcRenderGredCarta(gabung, petaPep);
+        }
+
+        function hcRenderGredKPI(gabung, petaPep) {
+            // Ujian terkini yang ada markah
+            let akhir = null, akhirIdx = -1;
+            for (let i = gabung.ujian.length - 1; i >= 0; i--) {
+                if (gabung.ujian[i].bil > 0) { akhir = gabung.ujian[i]; akhirIdx = i; break; }
+            }
+            const abSebenar = akhir ? (akhir.gred.A + akhir.gred.B) : 0;
+            const abSasar = gabung.sasar.A + gabung.sasar.B;
+            const pctSebenar = akhir && akhir.bil ? Math.round(abSebenar / akhir.bil * 100) : null;
+            const pctSasar = gabung.bilSasar ? Math.round(abSasar / gabung.bilSasar * 100) : null;
+            // Gagal (E+F) terkini
+            const efSebenar = akhir ? (akhir.gred.E + akhir.gred.F) : 0;
+            const pctEf = akhir && akhir.bil ? Math.round(efSebenar / akhir.bil * 100) : null;
+            const jurangAB = (pctSebenar != null && pctSasar != null) ? (pctSebenar - pctSasar) : null;
+
+            const kad = (tajuk, nilai, sub, warna) => `
+                <div class="rounded-lg border border-gray-200 bg-white p-3">
+                    <div class="text-xs text-gray-500">${tajuk}</div>
+                    <div class="text-2xl font-bold ${warna || 'text-gray-800'}">${nilai}</div>
+                    <div class="text-xs text-gray-400">${sub}</div>
+                </div>`;
+            document.getElementById('hcg-kpi').innerHTML =
+                kad('🎯 Sasaran A+B', pctSasar == null ? '—' : pctSasar + '%',
+                    `${abSasar} dari ${gabung.bilSasar} murid`, 'text-teal-700') +
+                kad('A+B sebenar', pctSebenar == null ? '—' : pctSebenar + '%',
+                    akhirIdx >= 0 ? `${abSebenar} murid · ${petaPep[akhirIdx]}` : 'tiada markah') +
+                kad('Jurang A+B', jurangAB == null ? '—' : (jurangAB >= 0 ? '+' : '') + jurangAB + '%',
+                    jurangAB == null ? '' : (jurangAB >= 0 ? 'melebihi sasaran' : 'belum capai sasaran'),
+                    jurangAB == null ? '' : (jurangAB >= 0 ? 'text-green-600' : 'text-amber-600')) +
+                kad('E + F (perlu bantuan)', pctEf == null ? '—' : pctEf + '%',
+                    akhir ? `${efSebenar} murid` : '', pctEf ? 'text-red-600' : '');
+        }
+
+        function hcRenderGredJadual(stats, gabung, petaPep) {
+            const mod = document.getElementById('hcg-mod').value;
+            const selGred = (bakul, bil) => HC_GRED_KEYS.map(g =>
+                `<td class="px-2 py-2 text-center text-sm">${bakul[g] || '<span class="text-gray-300">0</span>'}</td>`).join('') +
+                `<td class="px-2 py-2 text-center text-sm font-semibold border-l border-gray-100">${bil}</td>`;
+
+            // Satu blok per ujian + blok sasaran
+            const blok = [];
+            petaPep.forEach((pep, i) => {
+                const rows = stats.map(s => `<tr>
+                    <td class="px-3 py-2 text-sm text-gray-800">${s.kelas}</td>
+                    ${selGred(s.ujian[i].gred, s.ujian[i].bil)}
+                </tr>`).join('');
+                const jum = stats.length > 1 ? `<tr class="bg-gray-50 font-semibold border-t-2 border-gray-300">
+                    <td class="px-3 py-2 text-sm">JUMLAH</td>
+                    ${selGred(gabung.ujian[i].gred, gabung.ujian[i].bil)}
+                </tr>` : '';
+                blok.push({ tajuk: pep, sasaran: false, rows: rows + jum });
+            });
+            // Blok sasaran (ETR)
+            {
+                const rows = stats.map(s => `<tr>
+                    <td class="px-3 py-2 text-sm text-gray-800">${s.kelas}</td>
+                    ${selGred(s.sasar, s.bilSasar)}
+                </tr>`).join('');
+                const jum = stats.length > 1 ? `<tr class="bg-teal-50 font-semibold border-t-2 border-teal-300">
+                    <td class="px-3 py-2 text-sm">JUMLAH</td>
+                    ${selGred(gabung.sasar, gabung.bilSasar)}
+                </tr>` : '';
+                blok.push({ tajuk: '🎯 SASARAN (dari ETR)', sasaran: true, rows: rows + jum });
+            }
+
+            const head = `<thead class="bg-gray-50 text-xs text-gray-500"><tr>
+                    <th class="px-3 py-2 text-left font-medium">Kelas</th>
+                    ${HC_GRED_KEYS.map(g => `<th class="px-2 py-2 text-center font-medium" style="color:${HC_GRED_WARNA[g]}">${g}</th>`).join('')}
+                    <th class="px-2 py-2 text-center font-medium border-l border-gray-200">Jumlah</th>
+                </tr></thead>`;
+
+            document.getElementById('hcg-table').innerHTML = blok.map(b => `
+                <div class="border-b border-gray-200 last:border-0">
+                    <div class="px-3 py-2 text-xs font-semibold ${b.sasaran ? 'bg-teal-50 text-teal-800' : 'bg-gray-100 text-gray-700'}">${b.tajuk}</div>
+                    <table class="w-full text-sm">${head}<tbody class="divide-y divide-gray-100">${b.rows}</tbody></table>
+                </div>`).join('');
+        }
+
+        function hcRenderGredCarta(gabung, petaPep) {
+            const el = document.getElementById('hcg-chart');
+            if (!el || typeof Chart === 'undefined') return;
+            if (hcGredChart) { hcGredChart.destroy(); hcGredChart = null; }
+
+            const labels = [...petaPep, '🎯 SASARAN'];
+            // Peratus supaya bar boleh dibanding walaupun bil murid berbeza
+            const kiraPct = (bakul, bil) => HC_GRED_KEYS.map(g => bil ? (bakul[g] / bil * 100) : 0);
+            const dataUjian = gabung.ujian.map(u => kiraPct(u.gred, u.bil));
+            const dataSasar = kiraPct(gabung.sasar, gabung.bilSasar);
+            const semua = [...dataUjian, dataSasar];
+
+            const datasets = HC_GRED_KEYS.map((g, gi) => ({
+                label: g,
+                data: semua.map(row => row[gi]),
+                backgroundColor: HC_GRED_WARNA[g],
+                borderWidth: 0
+            }));
+
+            // Simpan bil mentah utk tooltip
+            const bilMentah = [...gabung.ujian.map(u => u.gred), gabung.sasar];
+
+            hcGredChart = new Chart(el.getContext('2d'), {
+                type: 'bar',
+                data: { labels, datasets },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true },
+                        y: { stacked: true, max: 100, title: { display: true, text: '% murid' } }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: c => {
+                                    const g = c.dataset.label;
+                                    const n = bilMentah[c.dataIndex] ? (bilMentah[c.dataIndex][g] || 0) : 0;
+                                    return `${g}: ${n} murid (${c.parsed.y.toFixed(1)}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function hcCetakGredPDF() {
+            if (!hcGredData) return;
+            const { darjah, subjek } = hcGredData;
+            const cy = new Date().getFullYear();
+            const jadual = document.getElementById('hcg-table').innerHTML;
+            const win = window.open('', '_blank');
+            win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+                <title>Perbandingan Gred — ${darjah} ${subjek}</title>
+                <style>
+                    body{font-family:Arial,sans-serif;padding:24px;color:#111}
+                    h2{margin:0 0 4px;font-size:18px} p.sub{margin:0 0 16px;color:#555;font-size:12px}
+                    table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px}
+                    th,td{border:1px solid #999;padding:5px;text-align:center}
+                    th{background:#f3f4f6} td:first-child,th:first-child{text-align:left}
+                    div[class*="bg-gray-100"],div[class*="bg-teal-50"]{font-weight:bold;padding:6px;background:#eee!important;margin-top:10px}
+                </style></head><body>
+                <h2>Analisa Perbandingan Gred — Headcount</h2>
                 <p class="sub">${darjah} — ${subjek} · Tahun ${cy} · Dicetak ${new Date().toLocaleDateString('ms-MY')}</p>
                 ${jadual}
                 </body></html>`);
