@@ -7911,48 +7911,51 @@
         }
 
         function hcRenderGredJadual(stats, gabung, petaPep) {
-            const mod = document.getElementById('hcg-mod').value;
-            const selGred = (bakul, bil) => HC_GRED_KEYS.map(g =>
-                `<td class="px-2 py-2 text-center text-sm">${bakul[g] || '<span class="text-gray-300">0</span>'}</td>`).join('') +
-                `<td class="px-2 py-2 text-center text-sm font-semibold border-l border-gray-100">${bil}</td>`;
+            // SATU jadual: satu baris per kelas, setiap ujian jadi kumpulan lajur
+            // A-F bersebelahan (+ kumpulan SASARAN di hujung). Ini bagi guru banding
+            // pergerakan gred satu kelas merentas ujian tanpa skrol antara jadual.
+            const blok = [...petaPep.map((pep, i) => ({ tajuk: pep, sasaran: false, idx: i })),
+                          { tajuk: '🎯 SASARAN', sasaran: true, idx: -1 }];
 
-            // Satu blok per ujian + blok sasaran
-            const blok = [];
-            petaPep.forEach((pep, i) => {
-                const rows = stats.map(s => `<tr>
-                    <td class="px-3 py-2 text-sm text-gray-800">${s.kelas}</td>
-                    ${selGred(s.ujian[i].gred, s.ujian[i].bil)}
+            const ambil = (s, b) => b.sasaran ? { gred: s.sasar, bil: s.bilSasar } : s.ujian[b.idx];
+
+            // Sel A-F + jumlah utk satu blok
+            const sel = (d, sasaran) => HC_GRED_KEYS.map((g, gi) =>
+                `<td class="px-2 py-2 text-center text-sm ${gi === 0 ? 'border-l-2 border-gray-300' : ''} ${sasaran ? 'bg-teal-50/60' : ''}">${
+                    d.gred[g] ? `<span style="color:${HC_GRED_WARNA[g]};font-weight:600">${d.gred[g]}</span>` : '<span class="text-gray-300">·</span>'
+                }</td>`).join('') +
+                `<td class="px-2 py-2 text-center text-xs font-semibold text-gray-500 ${sasaran ? 'bg-teal-50/60' : ''}">${d.bil || '—'}</td>`;
+
+            const rows = stats.map(s => `<tr class="hover:bg-gray-50">
+                    <td class="px-3 py-2 text-sm font-medium text-gray-800 whitespace-nowrap sticky left-0 bg-white">${s.kelas}${s.adaDoc ? '' : ' <span class="text-xs text-amber-600">(belum set)</span>'}</td>
+                    ${blok.map(b => sel(ambil(s, b), b.sasaran)).join('')}
                 </tr>`).join('');
-                const jum = stats.length > 1 ? `<tr class="bg-gray-50 font-semibold border-t-2 border-gray-300">
-                    <td class="px-3 py-2 text-sm">JUMLAH</td>
-                    ${selGred(gabung.ujian[i].gred, gabung.ujian[i].bil)}
-                </tr>` : '';
-                blok.push({ tajuk: pep, sasaran: false, rows: rows + jum });
-            });
-            // Blok sasaran (ETR)
-            {
-                const rows = stats.map(s => `<tr>
-                    <td class="px-3 py-2 text-sm text-gray-800">${s.kelas}</td>
-                    ${selGred(s.sasar, s.bilSasar)}
-                </tr>`).join('');
-                const jum = stats.length > 1 ? `<tr class="bg-teal-50 font-semibold border-t-2 border-teal-300">
-                    <td class="px-3 py-2 text-sm">JUMLAH</td>
-                    ${selGred(gabung.sasar, gabung.bilSasar)}
-                </tr>` : '';
-                blok.push({ tajuk: '🎯 SASARAN (dari ETR)', sasaran: true, rows: rows + jum });
-            }
 
-            const head = `<thead class="bg-gray-50 text-xs text-gray-500"><tr>
-                    <th class="px-3 py-2 text-left font-medium">Kelas</th>
-                    ${HC_GRED_KEYS.map(g => `<th class="px-2 py-2 text-center font-medium" style="color:${HC_GRED_WARNA[g]}">${g}</th>`).join('')}
-                    <th class="px-2 py-2 text-center font-medium border-l border-gray-200">Jumlah</th>
-                </tr></thead>`;
+            const footer = stats.length > 1 ? `<tfoot class="bg-gray-100 border-t-2 border-gray-400"><tr>
+                    <td class="px-3 py-2 text-sm font-bold sticky left-0 bg-gray-100">JUMLAH</td>
+                    ${blok.map(b => sel(b.sasaran ? { gred: gabung.sasar, bil: gabung.bilSasar } : gabung.ujian[b.idx], b.sasaran)).join('')}
+                </tr></tfoot>` : '';
 
-            document.getElementById('hcg-table').innerHTML = blok.map(b => `
-                <div class="border-b border-gray-200 last:border-0">
-                    <div class="px-3 py-2 text-xs font-semibold ${b.sasaran ? 'bg-teal-50 text-teal-800' : 'bg-gray-100 text-gray-700'}">${b.tajuk}</div>
-                    <table class="w-full text-sm">${head}<tbody class="divide-y divide-gray-100">${b.rows}</tbody></table>
-                </div>`).join('');
+            // Dua baris header: nama ujian (merentas 7 lajur) + A B C D E F Jum
+            const head1 = blok.map(b => `<th colspan="7"
+                    class="px-2 py-2 text-center text-xs font-semibold border-l-2 border-gray-300 ${b.sasaran ? 'bg-teal-100 text-teal-800' : 'bg-gray-100 text-gray-700'}">${b.tajuk}</th>`).join('');
+            const head2 = blok.map(b => HC_GRED_KEYS.map((g, gi) =>
+                    `<th class="px-2 py-1 text-center text-xs font-medium ${gi === 0 ? 'border-l-2 border-gray-300' : ''} ${b.sasaran ? 'bg-teal-50' : ''}" style="color:${HC_GRED_WARNA[g]}">${g}</th>`).join('') +
+                    `<th class="px-2 py-1 text-center text-xs font-medium text-gray-400 ${b.sasaran ? 'bg-teal-50' : ''}">Jum</th>`).join('');
+
+            document.getElementById('hcg-table').innerHTML = `
+                <table class="w-full text-sm border-collapse">
+                    <thead>
+                        <tr><th class="px-3 py-2 text-left text-xs font-medium text-gray-500 bg-gray-50 sticky left-0">Kelas</th>${head1}</tr>
+                        <tr class="bg-gray-50"><th class="sticky left-0 bg-gray-50"></th>${head2}</tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">${rows}</tbody>
+                    ${footer}
+                </table>
+                <p class="px-3 py-2 text-xs text-gray-400 border-t border-gray-100">
+                    Setiap kumpulan lajur = satu ujian. Kumpulan terakhir (biru) = gred disasar dari ETR.
+                    Titik (·) bermaksud tiada murid pada gred itu. Skrol ke kanan jika ujian banyak.
+                </p>`;
         }
 
         function hcRenderGredCarta(gabung, petaPep) {
@@ -8013,10 +8016,12 @@
                 <style>
                     body{font-family:Arial,sans-serif;padding:24px;color:#111}
                     h2{margin:0 0 4px;font-size:18px} p.sub{margin:0 0 16px;color:#555;font-size:12px}
-                    table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px}
-                    th,td{border:1px solid #999;padding:5px;text-align:center}
-                    th{background:#f3f4f6} td:first-child,th:first-child{text-align:left}
-                    div[class*="bg-gray-100"],div[class*="bg-teal-50"]{font-weight:bold;padding:6px;background:#eee!important;margin-top:10px}
+                    table{width:100%;border-collapse:collapse;font-size:11px}
+                    th,td{border:1px solid #999;padding:4px;text-align:center}
+                    th{background:#f3f4f6} td:first-child,th:first-child{text-align:left;white-space:nowrap}
+                    tfoot{font-weight:bold;background:#f3f4f6}
+                    p{font-size:10px;color:#666}
+                    @page{size:landscape}
                 </style></head><body>
                 <h2>Analisa Perbandingan Gred — Headcount</h2>
                 <p class="sub">${darjah} — ${subjek} · Tahun ${cy} · Dicetak ${new Date().toLocaleDateString('ms-MY')}</p>
