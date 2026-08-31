@@ -768,6 +768,8 @@
                     class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800">Papan Jejak</button>
                 <button onclick="hcTukarTab('analisa')" id="hc-tab-analisa"
                     class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800">📊 Analisa</button>
+                <button onclick="hcTukarTab('banding')" id="hc-tab-banding"
+                    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800">📈 Analisa Perbandingan</button>
             </div>
 
             <!-- ===== SKRIN A: SET SASARAN ===== -->
@@ -938,6 +940,55 @@
                         <button onclick="hcCetakAnalisaPDF()" class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 no-print">📄 Cetak PDF</button>
                     </div>
                     <div id="hca-table" class="overflow-x-auto"></div>
+                </div>
+            </section>
+
+            <!-- ===== SKRIN D: ANALISA PERBANDINGAN (semua ujian vs ETR) ===== -->
+            <section id="hc-skrin-banding" class="hidden">
+                <!-- Kawalan -->
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4 no-print">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Darjah</span>
+                            <select id="hcb-darjah" onchange="hcLukisBanding()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Subjek</span>
+                            <select id="hcb-subjek" onchange="hcLukisBanding()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Tumpuan</span>
+                            <select id="hcb-mod" onchange="hcLukisBanding()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm">
+                                <option value="darjah">Semua kelas (darjah)</option>
+                                <option value="kelas">Satu kelas sahaja</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div id="hcb-kelas-wrap" class="mt-3 hidden">
+                        <label class="block max-w-xs">
+                            <span class="text-xs text-gray-500">Kelas</span>
+                            <select id="hcb-kelas" onchange="hcLukisBanding()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Kad ringkasan -->
+                <div id="hcb-kpi" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4"></div>
+
+                <!-- Carta trend: purata AR tiap ujian vs garis ETR -->
+                <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+                    <h4 id="hcb-tajuk-carta" class="text-sm font-semibold text-gray-700 mb-1">Trend markah vs sasaran (ETR)</h4>
+                    <p class="text-xs text-gray-500 mb-3 no-print">Garis putus-putus = sasaran ETR. Garis penuh = markah sebenar setiap ujian.</p>
+                    <div style="position:relative; height:340px"><canvas id="hcb-chart"></canvas></div>
+                </div>
+
+                <!-- Jadual perbandingan -->
+                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                    <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                        <h4 class="text-sm font-semibold text-gray-700">Perbandingan setiap ujian dengan sasaran</h4>
+                        <button onclick="hcCetakBandingPDF()" class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 no-print">📄 Cetak PDF</button>
+                    </div>
+                    <div id="hcb-table" class="overflow-x-auto"></div>
                 </div>
             </section>
         </div>
@@ -6925,11 +6976,14 @@
             document.getElementById('hc-skrin-set').classList.toggle('hidden', tab !== 'set');
             document.getElementById('hc-skrin-jejak').classList.toggle('hidden', tab !== 'jejak');
             document.getElementById('hc-skrin-analisa').classList.toggle('hidden', tab !== 'analisa');
+            document.getElementById('hc-skrin-banding').classList.toggle('hidden', tab !== 'banding');
             document.getElementById('hc-tab-set').className = tab === 'set' ? aktif : mati;
             document.getElementById('hc-tab-jejak').className = tab === 'jejak' ? aktif : mati;
             document.getElementById('hc-tab-analisa').className = tab === 'analisa' ? aktif : mati;
+            document.getElementById('hc-tab-banding').className = tab === 'banding' ? aktif : mati;
             if (tab === 'jejak') hcInitJejak();
             if (tab === 'analisa') hcInitAnalisa();
+            if (tab === 'banding') hcInitBanding();
         }
 
         // Isi pemilih Papan Jejak (selaraskan dgn pilihan Set Sasaran), kemudian lukis
@@ -7331,6 +7385,327 @@
             hcRenderKPI(stats);
             hcRenderJadualAnalisa(stats);
             hcRenderCartaAnalisa(stats);
+        }
+
+        // ============================================================
+        // ANALISA PERBANDINGAN — semua ujian vs sasaran (ETR)
+        // Beza dgn tab Analisa: tab itu papar SATU tangga sahaja; di sini
+        // semua ujian dibanding serentak supaya trend menuju sasaran nampak.
+        // ============================================================
+        let hcBandingData = null;
+
+        function hcInitBanding() {
+            const urutan = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
+            const ada = urutan.filter(t => hcKelasUntukTahun(t).length);
+            const dEl = document.getElementById('hcb-darjah');
+            if (!dEl.options.length) {
+                dEl.innerHTML = (ada.length ? ada : urutan).map(t => `<option value="${t}">${t}</option>`).join('');
+                const tahunSet = document.getElementById('hc-tahun').value;
+                if (tahunSet) dEl.value = tahunSet;
+            }
+            const sEl = document.getElementById('hcb-subjek');
+            if (!sEl.options.length) {
+                sEl.innerHTML = GLOBAL_DATA.allSubjects.filter(s => s.nama_penuh)
+                    .sort((a, b) => a.nama_penuh.localeCompare(b.nama_penuh))
+                    .map(s => `<option value="${s.nama_penuh}">${s.nama_penuh}</option>`).join('');
+                const subjekSet = document.getElementById('hc-subjek').value;
+                if (subjekSet) sEl.value = subjekSet;
+            }
+            hcLukisBanding();
+        }
+
+        // Kira stat SETIAP ujian utk satu kelas: purata AR, purata ETR, bil capai.
+        // Pulangkan { kelas, bilMurid, etrPurata, ujian:[{pep,purataAR,bilAdaMarkah,capai,peratusCapai,jurang}] }
+        async function hcStatBandingKelas(darjah, kelas, subjek, petaPep) {
+            const doc = await hcBacaDocHeadcount(darjah, kelas, subjek);
+            const murid = GLOBAL_DATA.students.filter(s => s.tahun === darjah && s.kelas === kelas);
+            const hasil = { kelas, bilMurid: murid.length, adaDoc: !!doc, etrPurata: null, bilEtr: 0,
+                            tovPurata: null, tovPep: null, ujian: [] };
+            if (!doc || !murid.length) {
+                hasil.ujian = petaPep.map(pep => ({ pep, purataAR: null, bilAdaMarkah: 0, capai: 0, peratusCapai: 0, jurang: null }));
+                return hasil;
+            }
+            const cy = new Date().getFullYear();
+            // ETR purata kelas
+            let jumEtr = 0;
+            murid.forEach(m => {
+                const e = doc.etr ? doc.etr[m.no_kp] : null;
+                if (e != null && e !== '') { jumEtr += Number(e); hasil.bilEtr++; }
+            });
+            hasil.etrPurata = hasil.bilEtr ? (jumEtr / hasil.bilEtr) : null;
+            // TOV (titik mula carta)
+            let tovMap = {};
+            if (doc.tovSource) {
+                hasil.tovPep = doc.tovSource.peperiksaan;
+                tovMap = (await cariMarkahMurid({ calYear: doc.tovSource.tahun, subjek,
+                    peperiksaan: doc.tovSource.peperiksaan, muridList: murid, mod: 'no_kp' })).map;
+            }
+            let jumTov = 0, bilTov = 0;
+            murid.forEach(m => {
+                const kp = m.no_kp;
+                const t = (doc.override && doc.override[kp] && doc.override[kp].tov != null)
+                    ? doc.override[kp].tov : tovMap[kp];
+                if (t != null) { jumTov += Number(t); bilTov++; }
+            });
+            hasil.tovPurata = bilTov ? (jumTov / bilTov) : null;
+            // Setiap ujian
+            const bil = petaPep.length || 1;
+            for (let i = 0; i < petaPep.length; i++) {
+                const pep = petaPep[i];
+                const arMap = (await cariMarkahMurid({ calYear: cy, subjek, peperiksaan: pep,
+                    muridList: murid, mod: 'no_kp' })).map;
+                let jum = 0, n = 0, capai = 0;
+                murid.forEach(m => {
+                    const kp = m.no_kp;
+                    const ar = arMap[kp];
+                    if (ar == null) return;
+                    jum += Number(ar); n++;
+                    const etr = doc.etr ? doc.etr[kp] : null;
+                    const tov = (doc.override && doc.override[kp] && doc.override[kp].tov != null)
+                        ? doc.override[kp].tov : tovMap[kp];
+                    // Capai = AR >= OTI tangga ini (laluan sepatutnya pada ujian ke-i)
+                    if (tov != null && etr != null && etr !== '') {
+                        const oti = hcKiraOTI(tov, etr, bil)[i];
+                        if (oti != null && Number(ar) >= oti) capai++;
+                    }
+                });
+                const purataAR = n ? (jum / n) : null;
+                hasil.ujian.push({
+                    pep, purataAR, bilAdaMarkah: n, capai,
+                    peratusCapai: n ? Math.round(capai / n * 100) : 0,
+                    jurang: (purataAR != null && hasil.etrPurata != null) ? (purataAR - hasil.etrPurata) : null
+                });
+            }
+            return hasil;
+        }
+
+        async function hcLukisBanding() {
+            const darjah = document.getElementById('hcb-darjah').value;
+            const subjek = document.getElementById('hcb-subjek').value;
+            const mod = document.getElementById('hcb-mod').value;
+            document.getElementById('hcb-kelas-wrap').classList.toggle('hidden', mod !== 'kelas');
+            if (!darjah || !subjek) return;
+
+            const semuaKelas = hcKelasUntukTahun(darjah);
+            const kEl = document.getElementById('hcb-kelas');
+            if (kEl.dataset.darjah !== darjah) {
+                kEl.innerHTML = semuaKelas.map(k => `<option value="${k}">${k}</option>`).join('');
+                kEl.dataset.darjah = darjah;
+            }
+            const kelasSenarai = mod === 'kelas' ? [kEl.value || semuaKelas[0]] : semuaKelas;
+
+            const tbl = document.getElementById('hcb-table');
+            tbl.innerHTML = '<p class="p-4 text-sm text-gray-500">Mengira…</p>';
+
+            await hcMuatPepSemasa();
+            const petaPep = hcNamaPep();
+            if (!petaPep.length) {
+                tbl.innerHTML = '<p class="p-4 text-sm text-gray-500">Tiada jenis peperiksaan untuk tahun semasa. Sila set di Admin › Urus Peperiksaan.</p>';
+                document.getElementById('hcb-kpi').innerHTML = '';
+                if (hcBandingChart) { hcBandingChart.destroy(); hcBandingChart = null; }
+                return;
+            }
+
+            const stats = [];
+            for (const k of kelasSenarai) stats.push(await hcStatBandingKelas(darjah, k, subjek, petaPep));
+            hcBandingData = { darjah, subjek, petaPep, stats };
+
+            hcRenderBandingKPI(stats, petaPep);
+            hcRenderBandingJadual(stats, petaPep);
+            hcRenderBandingCarta(stats, petaPep);
+        }
+
+        // KPI: ringkasan trend keseluruhan
+        function hcRenderBandingKPI(stats, petaPep) {
+            const n = petaPep.length;
+            // Gabung semua kelas: purata berwajaran ikut bil murid ada markah
+            const purataUjian = [];
+            for (let i = 0; i < n; i++) {
+                let jum = 0, bil = 0, capai = 0, adaMarkah = 0;
+                stats.forEach(s => {
+                    const u = s.ujian[i];
+                    if (u && u.purataAR != null) { jum += u.purataAR * u.bilAdaMarkah; bil += u.bilAdaMarkah; }
+                    if (u) { capai += u.capai; adaMarkah += u.bilAdaMarkah; }
+                });
+                purataUjian.push({ purata: bil ? jum / bil : null, peratusCapai: adaMarkah ? Math.round(capai / adaMarkah * 100) : 0, adaMarkah });
+            }
+            let jumEtr = 0, bilEtr = 0;
+            stats.forEach(s => { if (s.etrPurata != null) { jumEtr += s.etrPurata * s.bilEtr; bilEtr += s.bilEtr; } });
+            const etrKeseluruhan = bilEtr ? jumEtr / bilEtr : null;
+
+            // Ujian terkini yang ADA markah
+            let akhir = null, akhirIdx = -1;
+            for (let i = n - 1; i >= 0; i--) { if (purataUjian[i].adaMarkah > 0) { akhir = purataUjian[i]; akhirIdx = i; break; } }
+            // Ujian pertama yang ada markah (untuk kira perubahan)
+            let awal = null;
+            for (let i = 0; i < n; i++) { if (purataUjian[i].adaMarkah > 0) { awal = purataUjian[i]; break; } }
+
+            const jurang = (akhir && akhir.purata != null && etrKeseluruhan != null) ? (akhir.purata - etrKeseluruhan) : null;
+            const ubah = (akhir && awal && akhir.purata != null && awal.purata != null && akhirIdx > 0) ? (akhir.purata - awal.purata) : null;
+
+            const kad = (tajuk, nilai, sub, warna) => `
+                <div class="rounded-lg border border-gray-200 bg-white p-3">
+                    <div class="text-xs text-gray-500">${tajuk}</div>
+                    <div class="text-2xl font-bold ${warna || 'text-gray-800'}">${nilai}</div>
+                    <div class="text-xs text-gray-400">${sub}</div>
+                </div>`;
+            const fmt = v => v == null ? '—' : v.toFixed(1);
+            const tanda = v => v == null ? '' : (v >= 0 ? '+' : '');
+            document.getElementById('hcb-kpi').innerHTML =
+                kad('Sasaran purata (ETR)', fmt(etrKeseluruhan), `${bilEtr} murid ada sasaran`, 'text-teal-700') +
+                kad('Markah terkini', fmt(akhir && akhir.purata), akhirIdx >= 0 ? petaPep[akhirIdx] : 'tiada markah') +
+                kad('Jurang ke sasaran', (jurang == null ? '—' : tanda(jurang) + jurang.toFixed(1)),
+                    jurang == null ? '' : (jurang >= 0 ? 'sudah capai sasaran' : 'markah lagi diperlukan'),
+                    jurang == null ? '' : (jurang >= 0 ? 'text-green-600' : 'text-amber-600')) +
+                kad('Perubahan dari ujian pertama', (ubah == null ? '—' : tanda(ubah) + ubah.toFixed(1)),
+                    ubah == null ? 'perlu 2 ujian' : (ubah >= 0 ? 'meningkat' : 'menurun'),
+                    ubah == null ? '' : (ubah >= 0 ? 'text-green-600' : 'text-red-600'));
+        }
+
+        function hcRenderBandingJadual(stats, petaPep) {
+            const mod = document.getElementById('hcb-mod').value;
+            const fmt = v => v == null ? '—' : v.toFixed(1);
+            const rows = stats.map(s => {
+                const sel = s.ujian.map(u => {
+                    const j = u.jurang;
+                    const wj = j == null ? 'text-gray-400' : (j >= 0 ? 'text-green-600' : 'text-amber-600');
+                    return `<td class="px-3 py-2 text-center border-l border-gray-100">
+                        <div class="font-semibold">${fmt(u.purataAR)}</div>
+                        <div class="text-xs ${wj}">${j == null ? '' : (j >= 0 ? '+' : '') + j.toFixed(1)}</div>
+                        <div class="text-xs text-gray-400">${u.bilAdaMarkah ? u.peratusCapai + '% capai' : 'tiada markah'}</div>
+                    </td>`;
+                }).join('');
+                return `<tr>
+                    <td class="px-3 py-2 text-sm font-medium text-gray-800">${s.kelas}${s.adaDoc ? '' : ' <span class="text-xs text-amber-600">(belum set)</span>'}</td>
+                    <td class="px-3 py-2 text-center text-sm text-gray-600">${s.bilMurid}</td>
+                    <td class="px-3 py-2 text-center text-sm font-semibold text-teal-700">${fmt(s.etrPurata)}</td>
+                    <td class="px-3 py-2 text-center text-sm text-gray-500">${fmt(s.tovPurata)}</td>
+                    ${sel}
+                </tr>`;
+            }).join('');
+
+            // Baris JUMLAH (purata berwajaran semua kelas)
+            let footer = '';
+            if (stats.length > 1) {
+                const sel = petaPep.map((_, i) => {
+                    let jum = 0, bil = 0, capai = 0, ada = 0;
+                    stats.forEach(s => { const u = s.ujian[i];
+                        if (u && u.purataAR != null) { jum += u.purataAR * u.bilAdaMarkah; bil += u.bilAdaMarkah; }
+                        if (u) { capai += u.capai; ada += u.bilAdaMarkah; } });
+                    const p = bil ? jum / bil : null;
+                    return `<td class="px-3 py-2 text-center border-l border-gray-200 font-semibold">
+                        ${fmt(p)}<div class="text-xs font-normal text-gray-500">${ada ? Math.round(capai / ada * 100) + '% capai' : '—'}</div></td>`;
+                }).join('');
+                let je = 0, be = 0, jm = 0;
+                stats.forEach(s => { if (s.etrPurata != null) { je += s.etrPurata * s.bilEtr; be += s.bilEtr; } jm += s.bilMurid; });
+                footer = `<tfoot class="bg-gray-50 border-t-2 border-gray-300"><tr>
+                    <td class="px-3 py-2 text-sm font-bold">JUMLAH</td>
+                    <td class="px-3 py-2 text-center text-sm font-bold">${jm}</td>
+                    <td class="px-3 py-2 text-center text-sm font-bold text-teal-700">${fmt(be ? je / be : null)}</td>
+                    <td class="px-3 py-2 text-center text-sm">—</td>
+                    ${sel}</tr></tfoot>`;
+            }
+
+            const head = petaPep.map(p => `<th class="px-3 py-2 text-center font-medium border-l border-gray-200">${p}</th>`).join('');
+            document.getElementById('hcb-table').innerHTML = `
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-xs text-gray-500">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-medium">Kelas</th>
+                            <th class="px-3 py-2 text-center font-medium">Murid</th>
+                            <th class="px-3 py-2 text-center font-medium">ETR</th>
+                            <th class="px-3 py-2 text-center font-medium" title="Markah permulaan (Take-Off Value)">TOV</th>
+                            ${head}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">${rows}</tbody>
+                    ${footer}
+                </table>
+                <p class="px-3 py-2 text-xs text-gray-400 border-t border-gray-100">
+                    Setiap sel: purata markah · jurang dari ETR · % murid capai laluan sasaran (OTI) pada ujian itu.
+                </p>`;
+        }
+
+        let hcBandingChart = null;
+        function hcRenderBandingCarta(stats, petaPep) {
+            const el = document.getElementById('hcb-chart');
+            if (!el || typeof Chart === 'undefined') return;
+            if (hcBandingChart) { hcBandingChart.destroy(); hcBandingChart = null; }
+
+            // Paksi-X: TOV + setiap ujian (TOV = titik mula).
+            // Kalau sumber TOV ialah ujian yang sama dengan tangga pertama (biasa
+            // bila TOV diambil dari peperiksaan tahun semasa), titik TOV hanya
+            // mengulang nilai yang sama — langkau supaya carta tak mengelirukan.
+            const tovSamaDgnUjian1 = stats.length > 0 && stats.every(s =>
+                s.tovPep && petaPep[0] && s.tovPep === petaPep[0]);
+            const labels = tovSamaDgnUjian1 ? [...petaPep] : ['TOV', ...petaPep];
+            const warna = ['#0d9488', '#2563eb', '#c026d3', '#ea580c', '#65a30d', '#dc2626', '#7c3aed'];
+            const datasets = [];
+
+            stats.forEach((s, idx) => {
+                const c = warna[idx % warna.length];
+                datasets.push({
+                    label: s.kelas,
+                    data: tovSamaDgnUjian1
+                        ? s.ujian.map(u => u.purataAR)
+                        : [s.tovPurata, ...s.ujian.map(u => u.purataAR)],
+                    borderColor: c, backgroundColor: c,
+                    tension: 0.25, spanGaps: true, pointRadius: 4, borderWidth: 2
+                });
+            });
+
+            // Garis sasaran ETR (mendatar) — purata berwajaran semua kelas terpilih
+            let je = 0, be = 0;
+            stats.forEach(s => { if (s.etrPurata != null) { je += s.etrPurata * s.bilEtr; be += s.bilEtr; } });
+            if (be) {
+                const etr = je / be;
+                datasets.push({
+                    label: 'Sasaran (ETR)',
+                    data: labels.map(() => etr),
+                    borderColor: '#111827', borderDash: [6, 4], borderWidth: 2,
+                    pointRadius: 0, fill: false
+                });
+            }
+
+            hcBandingChart = new Chart(el.getContext('2d'), {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        y: { beginAtZero: true, max: 100, title: { display: true, text: 'Purata markah' } }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                        tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y == null ? '—' : c.parsed.y.toFixed(1)}` } }
+                    }
+                }
+            });
+        }
+
+        function hcCetakBandingPDF() {
+            if (!hcBandingData) return;
+            const { darjah, subjek } = hcBandingData;
+            const cy = new Date().getFullYear();
+            const jadual = document.getElementById('hcb-table').innerHTML;
+            const win = window.open('', '_blank');
+            win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+                <title>Analisa Perbandingan — ${darjah} ${subjek}</title>
+                <style>
+                    body{font-family:Arial,sans-serif;padding:24px;color:#111}
+                    h2{margin:0 0 4px;font-size:18px} p.sub{margin:0 0 16px;color:#555;font-size:12px}
+                    table{width:100%;border-collapse:collapse;font-size:12px}
+                    th,td{border:1px solid #999;padding:6px;text-align:center}
+                    th{background:#f3f4f6} td:first-child,th:first-child{text-align:left}
+                    tfoot{font-weight:bold;background:#f9fafb}
+                </style></head><body>
+                <h2>Analisa Perbandingan Headcount</h2>
+                <p class="sub">${darjah} — ${subjek} · Tahun ${cy} · Dicetak ${new Date().toLocaleDateString('ms-MY')}</p>
+                ${jadual}
+                </body></html>`);
+            win.document.close(); win.focus();
+            setTimeout(() => { win.print(); win.close(); }, 600);
         }
 
         function hcRenderKPI(stats) {
