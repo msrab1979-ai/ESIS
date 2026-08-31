@@ -6145,11 +6145,24 @@
         async function initIndexedDB() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(CACHE_CONFIG.DB_NAME, CACHE_CONFIG.DB_VERSION);
-                
-                request.onerror = () => reject(request.error);
+                let settled = false;
+                const habis = (fn, arg) => { if (!settled) { settled = true; fn(arg); } };
+
+                // Jaring keselamatan: kalau IndexedDB tak jawab dalam 5s (cth DB
+                // dikunci tab lain / permintaan deleteDatabase tersekat), JANGAN
+                // biarkan tergantung — app akan beku senyap tanpa sebarang mesej.
+                // Reject supaya bacaInitialData jatuh ke laluan Firebase.
+                const pemasa = setTimeout(() => {
+                    habis(reject, new Error('IndexedDB timeout (5s) — cache dilangkau'));
+                }, 5000);
+                const bersih = () => clearTimeout(pemasa);
+
+                request.onerror = () => { bersih(); habis(reject, request.error); };
+                request.onblocked = () => { bersih(); habis(reject, new Error('IndexedDB blocked — tab lain masih buka DB')); };
                 request.onsuccess = () => {
+                    bersih();
                     dbInstance = request.result;
-                    resolve(dbInstance);
+                    habis(resolve, dbInstance);
                 };
                 
                 request.onupgradeneeded = (event) => {
@@ -6162,8 +6175,30 @@
         }
 
         // Save data to IndexedDB cache
+        // Padam satu entri cache (dipakai bila cache dikesan rosak/kosong)
+        async function deleteFromCache(key) {
+            try {
+                if (!dbInstance) await initIndexedDB();
+                const tx = dbInstance.transaction([CACHE_CONFIG.STORE_NAME], 'readwrite');
+                tx.objectStore(CACHE_CONFIG.STORE_NAME).delete(key);
+                return true;
+            } catch (e) {
+                console.error(`❌ Cache delete error (${key}):`, e);
+                return false;
+            }
+        }
+
         async function saveToCache(key, data) {
             try {
+                // JANGAN simpan cache kosong. Kalau students & allMarks kedua-dua 0,
+                // data belum sempat dimuat (atau query gagal) — menyimpannya buat
+                // muatan seterusnya baca 0 murid dan langkau Firestore terus.
+                if (key === 'esis_all_data' &&
+                    (!data || !data.students || data.students.length === 0) &&
+                    (!data || !data.allMarks || data.allMarks.length === 0)) {
+                    console.warn(`⚠️ Cache kosong tidak disimpan: ${key}`);
+                    return false;
+                }
                 if (!dbInstance) await initIndexedDB();
                 
                 const transaction = dbInstance.transaction([CACHE_CONFIG.STORE_NAME], 'readwrite');
@@ -6195,7 +6230,13 @@
                 const request = store.get(key);
                 
                 return new Promise((resolve, reject) => {
+                    // Timeout juga di sini — resolve(null) supaya jatuh ke Firebase.
+                    const pemasa = setTimeout(() => {
+                        console.warn(`⏱️ Cache read timeout: ${key} — ambil dari Firebase`);
+                        resolve(null);
+                    }, 5000);
                     request.onsuccess = () => {
+                        clearTimeout(pemasa);
                         const result = request.result;
                         if (!result) {
                             console.log(`📭 Cache miss: ${key}`);
@@ -6210,11 +6251,25 @@
                             resolve(null);
                             return;
                         }
+
+                        // Tolak cache KOSONG (students/allMarks 0) — pernah tersimpan
+                        // bila simpan berlaku sebelum data sempat dimuat. Cache begini
+                        // buat app papar 0 murid & dropdown kelas kosong selama-lamanya
+                        // sebab Firestore langsung tak di-query.
+                        const d = result.data || {};
+                        if (key === 'esis_all_data' &&
+                            (!d.students || d.students.length === 0) &&
+                            (!d.allMarks || d.allMarks.length === 0)) {
+                            console.warn(`🗑️ Cache kosong dibuang: ${key} — ambil semula dari Firebase`);
+                            try { deleteFromCache(key); } catch (e) {}
+                            resolve(null);
+                            return;
+                        }
                         
                         console.log(`✅ Cache hit: ${key} (${Math.floor(age / 1000 / 60)} minutes old)`);
                         resolve(result);
                     };
-                    request.onerror = () => reject(request.error);
+                    request.onerror = () => { clearTimeout(pemasa); reject(request.error); };
                 });
             } catch (error) {
                 console.error(`❌ Cache read error (${key}):`, error);
@@ -6791,7 +6846,7 @@
             // Dropdown Tahun (darjah) — dari kunci allClasses (perkataan SATU..ENAM)
             const urutan = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
             const tahunEl = document.getElementById('hc-tahun');
-            const adaTahun = urutan.filter(t => GLOBAL_DATA.allClasses[t] && GLOBAL_DATA.allClasses[t].length);
+            const adaTahun = urutan.filter(t => hcKelasUntukTahun(t).length);
             tahunEl.innerHTML = (adaTahun.length ? adaTahun : urutan)
                 .map(t => `<option value="${t}">${t}</option>`).join('');
 
@@ -6882,10 +6937,15 @@
             const tEl = document.getElementById('hcj-tahun');
             const sEl = document.getElementById('hcj-subjek');
             // Tahun (darjah)
-            if (!tEl.options.length) {
+            {
+                // Bina semula setiap kali tab dibuka — senarai darjah boleh berubah
+                // selepas data murid siap dimuat (jangan kekalkan senarai lama/kosong).
                 const urutan = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
-                const ada = urutan.filter(t => GLOBAL_DATA.allClasses[t] && GLOBAL_DATA.allClasses[t].length);
-                tEl.innerHTML = (ada.length ? ada : urutan).map(t => `<option value="${t}">${t}</option>`).join('');
+                const ada = urutan.filter(t => hcKelasUntukTahun(t).length);
+                const senarai = ada.length ? ada : urutan;
+                const prevT = tEl.value;
+                tEl.innerHTML = senarai.map(t => `<option value="${t}">${t}</option>`).join('');
+                if (prevT && senarai.includes(prevT)) tEl.value = prevT;
             }
             // Subjek
             if (!sEl.options.length) {
@@ -6906,9 +6966,29 @@
         function hcJejakIsiKelas(praPilih) {
             const tahun = document.getElementById('hcj-tahun').value;
             const kEl = document.getElementById('hcj-kelas');
-            const list = (GLOBAL_DATA.allClasses[tahun] || []).slice().sort();
-            kEl.innerHTML = list.map(k => `<option value="${k}">${k}</option>`).join('');
+            const list = hcKelasUntukTahun(tahun);
+            kEl.innerHTML = list.length
+                ? list.map(k => `<option value="${k}">${k}</option>`).join('')
+                : '<option value="">-- Tiada kelas --</option>';
             if (praPilih && list.includes(praPilih)) kEl.value = praPilih;
+            kEl.dataset.tahun = tahun;   // tandakan kelas ini utk darjah mana
+        }
+
+        // Senarai kelas utk satu darjah. Guna GLOBAL_DATA.allClasses; kalau kosong
+        // (cth cache lama / murid belum diproses), derive terus dari GLOBAL_DATA.students
+        // supaya dropdown Papan Jejak tak jadi kosong.
+        function hcKelasUntukTahun(tahun) {
+            if (!tahun) return [];
+            let list = (GLOBAL_DATA.allClasses && GLOBAL_DATA.allClasses[tahun]) || [];
+            if (!list.length) {
+                const set = new Set();
+                (GLOBAL_DATA.students || []).forEach(s => {
+                    if (s.tahun === tahun && s.kelas) set.add(s.kelas);
+                });
+                list = Array.from(set);
+                if (list.length && GLOBAL_DATA.allClasses) GLOBAL_DATA.allClasses[tahun] = list.slice().sort();
+            }
+            return list.slice().sort();
         }
 
         // Bila pemilih Papan Jejak ditukar: segerak ke hc-* (state utama), muat, lukis
@@ -6916,12 +6996,12 @@
             const tahun = document.getElementById('hcj-tahun').value;
             // kalau tahun ditukar, isi semula kelas
             const kEl = document.getElementById('hcj-kelas');
-            if (kEl.dataset.tahun !== tahun) { hcJejakIsiKelas(); kEl.dataset.tahun = tahun; }
+            if (kEl.dataset.tahun !== tahun || !kEl.options.length) hcJejakIsiKelas(kEl.value);
             const kelas = document.getElementById('hcj-kelas').value;
             const subjek = document.getElementById('hcj-subjek').value;
             // Segerak ke dropdown utama (hc-*) supaya semua fungsi hc* guna pilihan sama
             document.getElementById('hc-tahun').value = tahun;
-            document.getElementById('hc-kelas').innerHTML = (GLOBAL_DATA.allClasses[tahun] || []).slice().sort().map(k => `<option value="${k}">${k}</option>`).join('');
+            document.getElementById('hc-kelas').innerHTML = hcKelasUntukTahun(tahun).map(k => `<option value="${k}">${k}</option>`).join('');
             document.getElementById('hc-kelas').value = kelas;
             document.getElementById('hc-subjek').value = subjek;
             // Muat murid + doc + tarik TOV, kemudian lukis jejak
@@ -6937,7 +7017,7 @@
         async function hcOnPilihanChange() {
             const tahun = document.getElementById('hc-tahun').value;
             const kelasEl = document.getElementById('hc-kelas');
-            const kelasList = (GLOBAL_DATA.allClasses[tahun] || []).slice().sort();
+            const kelasList = hcKelasUntukTahun(tahun);
             const prevKelas = kelasEl.value;
             kelasEl.innerHTML = kelasList.map(k => `<option value="${k}">${k}</option>`).join('');
             if (kelasList.includes(prevKelas)) kelasEl.value = prevKelas;
@@ -11731,10 +11811,37 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             }
             const snapshot = await db.collection('examTypes')
                 .where('tahunKalendar', '==', year).get();
+
+            let rawDocs = snapshot.docs;
+            if (snapshot.empty) {
+                // Selaras dgn loadExamTypes: kalau tiada doc utk tahun ini, cuba
+                // (a) doc lama tanpa tahunKalendar (belum migrate), kemudian
+                // (b) biar loadExamTypes auto-seed default, dan baca semula.
+                // Tanpa ini, dropdown Analisa Mengikut Kelas papar "Tiada peperiksaan"
+                // walaupun Urus Peperiksaan ada senarainya.
+                const allSnap = await db.collection('examTypes').get();
+                const legacyDocs = allSnap.docs.filter(d => {
+                    const t = d.data().tahunKalendar;
+                    return t === undefined || t === null;
+                });
+                if (legacyDocs.length > 0) {
+                    rawDocs = legacyDocs;
+                } else {
+                    // loadExamTypes menulis GLOBAL_DATA.examTypes — simpan & pulihkan
+                    // supaya panel lain (Rekod) tak tertukar ke tahun yg dianalisa.
+                    const simpan = GLOBAL_DATA.examTypes;
+                    await loadExamTypes(year, true);   // auto-seed default utk tahun ini
+                    GLOBAL_DATA.examTypes = simpan;
+                    const seeded = await db.collection('examTypes')
+                        .where('tahunKalendar', '==', year).get();
+                    rawDocs = seeded.docs;
+                }
+            }
+
             // Nyahduplikat nama sama dalam tahun sama — selaras dgn loadExamTypes,
             // supaya dropdown (cth Analisa Mengikut Kelas) tak papar nama berganda.
             const seen = {};
-            const data = snapshot.docs
+            const data = rawDocs
                 .map(doc => ({ id: doc.id, ...doc.data() }))
                 .filter(et => {
                     const key = (et.nama || '').toUpperCase().trim();
@@ -11742,7 +11849,10 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                     seen[key] = true;
                     return true;
                 })
-                .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+                // Tiebreak ikut nama bila `order` sama (byk doc kongsi order=0/1),
+                // supaya susunan dropdown stabil & tak ikut urutan rawak doc Firestore.
+                .sort((a, b) => (a.order ?? 999) - (b.order ?? 999)
+                    || (a.nama || '').localeCompare(b.nama || ''));
             _examTypesCache[year] = { data, time: Date.now() };
             return data;
         }
@@ -11764,10 +11874,13 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 // Reset dan isi semula
                 const placeholder = el.options[0] ? el.options[0].text : '-- Pilih Jenis --';
                 el.innerHTML = `<option value="">${placeholder}</option>`;
-                GLOBAL_DATA.examTypes.filter(et => et.aktif !== false).forEach(et => {
+                // Panel baca-sahaja (Murid Terbaik, Slip) — JANGAN tapis `aktif`.
+                // `aktif:false` hanya mengunci pengeditan dalam Rekod Markah; laporan
+                // mesti tetap boleh jana utk peperiksaan lama. Label '(dikunci)' sahaja.
+                GLOBAL_DATA.examTypes.forEach(et => {
                     const opt = document.createElement('option');
                     opt.value = et.nama;
-                    opt.textContent = et.nama;
+                    opt.textContent = et.nama + (et.aktif === false ? ' (dikunci)' : '');
                     el.appendChild(opt);
                 });
                 // Pulihkan nilai sebelum jika masih wujud
@@ -12385,6 +12498,11 @@ ${tableHTML}
             if (!year) return;
 
             try {
+                // JANGAN tapis ikut `aktif` di sini. `aktif:false` bermaksud
+                // "kunci pengeditan dalam Rekod Markah" sahaja — panel analisa/laporan
+                // mesti tetap boleh baca peperiksaan lama (cth UASA 2025) supaya
+                // markah sedia ada tak jadi tersembunyi. Cuma dilabel '(dikunci)',
+                // sama gaya dgn dropdown Slip.
                 const examTypes = await getExamTypesForYear(parseInt(year));
                 pepSel.innerHTML = '<option value="">-- Pilih Peperiksaan --</option>';
                 if (!examTypes.length) {
@@ -12394,7 +12512,7 @@ ${tableHTML}
                 examTypes.forEach(e => {
                     const opt = document.createElement('option');
                     opt.value = e.nama;
-                    opt.textContent = e.nama;
+                    opt.textContent = e.nama + (e.aktif === false ? ' (dikunci)' : '');
                     pepSel.appendChild(opt);
                 });
                 pepSel.disabled = false;
