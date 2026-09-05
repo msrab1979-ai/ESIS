@@ -7365,7 +7365,8 @@
             const stat = { kelas, bilMurid: murid.length, bilAdaMarkah: 0, bilSasaran: 0, capai: 0, jumlahNaik: 0, bilNaik: 0,
                 grades: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 },        // gred SEBENAR (AR)
                 gredSasar: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 },     // gred DISASAR (dari ETR)
-                totalSasar: 0, total: 0, rosak: 0, rosakSasar: 0, adaDoc: !!doc,
+                totalSasar: 0, total: 0, rosak: 0, rosakSasar: 0,
+                jumlahDiminta: 0, bilDiminta: 0, adaDoc: !!doc,
                 bilTanggaDoc: doc ? (doc.bilTangga || (doc.petaOTI && doc.petaOTI.length) || null) : null };
             if (!doc || !murid.length) return stat;
             // Peta tangga = peperiksaan SEBENAR tahun ini (selaras Papan Jejak & dropdown
@@ -7412,9 +7413,16 @@
                 }
                 // purata naik
                 if (tov != null) { stat.jumlahNaik += (ar - tov); stat.bilNaik++; }
+                // "naik diminta" = ETR - TOV. Ini yang guru set sendiri; dipapar
+                // bersebelahan naik sebenar supaya kelas bersasaran rendah tidak
+                // disangka lemah semata-mata kerana angka naiknya kecil.
+                if (tov != null && etr != null && etr !== '') {
+                    stat.jumlahDiminta += (Number(etr) - tov); stat.bilDiminta++;
+                }
             });
             stat.peratusCapai = stat.bilSasaran ? Math.round(stat.capai / stat.bilSasaran * 100) : null;
             stat.purataNaik = stat.bilNaik ? (stat.jumlahNaik / stat.bilNaik) : null;
+            stat.purataDiminta = stat.bilDiminta ? (stat.jumlahDiminta / stat.bilDiminta) : null;
             return stat;
         }
 
@@ -7662,7 +7670,7 @@
                     return `<td class="px-3 py-2 text-center border-l border-gray-100">
                         <div class="font-semibold">${fmt(u.purataAR)}</div>
                         <div class="text-xs ${wj}">${j == null ? '' : (j >= 0 ? '+' : '') + j.toFixed(1)}</div>
-                        <div class="text-xs text-gray-400">${u.peratusCapai == null ? (u.bilAdaMarkah ? 'tiada sasaran' : 'tiada markah') : `${u.peratusCapai}% capai (${u.capai}/${u.bilSasaran})`}</div>
+                        <div class="text-xs text-gray-400">${u.peratusCapai == null ? (u.bilAdaMarkah ? 'tiada sasaran' : 'tiada markah') : `${hcStatusSasaran(u.peratusCapai).ikon} ${u.capai} dari ${u.bilSasaran} ikut sasaran`}</div>
                     </td>`;
                 }).join('');
                 return `<tr>
@@ -7685,7 +7693,7 @@
                         if (u) { capai += u.capai; sasar += (u.bilSasaran || 0); } });
                     const p = bil ? jum / bil : null;
                     return `<td class="px-3 py-2 text-center border-l border-gray-200 font-semibold">
-                        ${fmt(p)}<div class="text-xs font-normal text-gray-500">${sasar ? `${Math.round(capai / sasar * 100)}% capai (${capai}/${sasar})` : '—'}</div></td>`;
+                        ${fmt(p)}<div class="text-xs font-normal text-gray-500">${sasar ? `${hcStatusSasaran(Math.round(capai / sasar * 100)).ikon} ${capai} dari ${sasar} ikut sasaran` : '—'}</div></td>`;
                 }).join('');
                 let je = 0, be = 0, jm = 0;
                 statsAda.forEach(s => { if (s.etrPurata != null) { je += s.etrPurata * s.bilEtr; be += s.bilEtr; } jm += s.bilMurid; });
@@ -7713,8 +7721,8 @@
                     ${footer}
                 </table>
                 <p class="px-3 py-2 text-xs text-gray-400 border-t border-gray-100">
-                    Setiap sel: purata markah · jurang dari ETR · % murid capai laluan sasaran (OTI) pada ujian itu.
-                    % capai dikira daripada murid yang ada markah <b>dan</b> sasaran (ETR + TOV) sahaja — dipapar sebagai (capai/ada sasaran).
+                    Setiap sel: purata markah · beza dari sasaran · bilangan murid yang ikut laluan sasaran pada ujian itu.
+                    Hanya murid yang ada markah <b>dan</b> sasaran dikira.
                 </p>`;
         }
 
@@ -8136,6 +8144,29 @@
         // Sebenar & Sasaran serentak, jadi togol tak lagi diperlukan.
         function hcTukarGredMod(mod) { hcAnalisaGredMod = mod; hcRenderJadualAnalisa(hcAnalisaData); }
 
+        // Status "Ikut Sasaran" dalam bahasa biasa. Guru tak perlu tafsir peratus:
+        // 60%+ = Baik, 40-59% = Sederhana, <40% = Perlu perhatian.
+        function hcStatusSasaran(pct) {
+            if (pct == null) return { ikon: '', label: 'Belum ada sasaran', warna: 'text-gray-400' };
+            if (pct >= 60) return { ikon: '🟢', label: 'Baik', warna: 'text-green-700' };
+            if (pct >= 40) return { ikon: '🟡', label: 'Sederhana', warna: 'text-yellow-700' };
+            return { ikon: '🟠', label: 'Perlu perhatian', warna: 'text-orange-700' };
+        }
+
+        // Ringkasan satu baris di atas jadual — apa yang kebanyakan guru akan baca.
+        function hcRingkasanKelas(stats) {
+            const ada = stats.filter(s => s.adaDoc && s.peratusCapai != null);
+            if (ada.length < 2) return '';
+            const isih = ada.slice().sort((a, b) => a.peratusCapai - b.peratusCapai);
+            const lemah = isih.filter(s => s.peratusCapai < 40).map(s => s.kelas);
+            const baik = isih.filter(s => s.peratusCapai >= 60).map(s => s.kelas);
+            const bhg = [];
+            if (lemah.length) bhg.push(`Kelas paling perlu perhatian: <b>${lemah.join(', ')}</b>.`);
+            if (baik.length) bhg.push(`Kelas terbaik: <b>${baik.join(', ')}</b>.`);
+            if (!bhg.length) bhg.push(`Semua kelas berada di tahap sederhana — belum ada yang mencapai 60% ikut sasaran.`);
+            return `<div class="px-4 py-3 bg-blue-50 border-b border-blue-100 text-sm text-blue-900">${bhg.join(' ')}</div>`;
+        }
+
         function hcRenderJadualAnalisa(stats) {
             const gred = ['A', 'B', 'C', 'D', 'E', 'F'];
             const gWarna = { A: 'text-green-700', B: 'text-blue-700', C: 'text-yellow-700', D: 'text-orange-700', E: 'text-red-700', F: 'text-gray-500' };
@@ -8149,8 +8180,8 @@
             const head = `<tr class="bg-gray-50 text-xs text-gray-500">
                 <th rowspan="2" class="px-3 py-2 text-left font-medium align-bottom">Kelas</th>
                 <th rowspan="2" class="px-3 py-2 text-center font-medium align-bottom">Dinilai</th>
-                <th rowspan="2" class="px-3 py-2 text-center font-medium align-bottom">% Capai<div class="text-[10px] font-normal text-gray-400">drpd ada sasaran</div></th>
-                <th rowspan="2" class="px-3 py-2 text-center font-medium align-bottom">Purata naik<div class="text-[10px] font-normal text-gray-400">ada TOV+AR</div></th>
+                <th rowspan="2" class="px-3 py-2 text-center font-medium align-bottom">Ikut Sasaran</th>
+                <th rowspan="2" class="px-3 py-2 text-center font-medium align-bottom">Markah Naik</th>
                 ${gred.map(g => `<th colspan="2" class="px-2 py-1 text-center font-semibold ${gWarna[g]} border-l border-gray-200">${g}</th>`).join('')}
             </tr>
             <tr class="bg-gray-50 text-[10px] text-gray-400">
@@ -8159,19 +8190,25 @@
             const selGred = 4 + gred.length * 2;   // colspan utk baris "belum diset"
             const rows = stats.map(s => {
                 if (!s.adaDoc) return `<tr class="text-gray-400"><td class="px-3 py-2">${s.kelas}</td><td colspan="${selGred - 1}" class="px-3 py-2 text-center text-xs">— belum diset (admin) —</td></tr>`;
-                const pWarna = s.peratusCapai == null ? 'text-gray-400' : (s.peratusCapai >= 50 ? 'text-green-700' : 'text-red-600');
+                const st = hcStatusSasaran(s.peratusCapai);
+                const pWarna = st.warna;
                 const pTxt = s.peratusCapai == null
-                    ? '—<div class="text-[10px] font-normal text-gray-400">tiada sasaran</div>'
-                    : `${s.peratusCapai}%<div class="text-[10px] font-normal text-gray-500">${s.capai}/${s.bilSasaran}</div>`;
-                const nWarna = s.purataNaik == null ? 'text-gray-400' : (s.purataNaik >= 0 ? 'text-green-700' : 'text-red-600');
-                // #5 — purataNaik hanya atas murid yg ada TOV *dan* AR. Papar saiz sampel
-                // supaya purata dari segelintir murid tidak disangka mewakili kelas.
+                    ? '<span class="text-xs">Belum ada sasaran</span>'
+                    : `${st.ikon} ${st.label}` +
+                      `<div class="text-[11px] font-normal text-gray-500 mt-0.5">${s.capai} dari ${s.bilSasaran} murid</div>`;
+                // Papar naik SEBENAR bersama naik DIMINTA (ETR-TOV). Tanpa perbandingan
+                // ini, kelas bersasaran rendah (naik diminta kecil) nampak lemah.
+                const nWarna = s.purataNaik == null ? 'text-gray-400'
+                    : (s.purataDiminta != null && s.purataNaik >= s.purataDiminta) ? 'text-green-700'
+                    : (s.purataNaik >= 0 ? 'text-gray-800' : 'text-red-600');
                 const nLiput = s.bilAdaMarkah ? Math.round(s.bilNaik / s.bilAdaMarkah * 100) : 0;
                 const nTxt = s.purataNaik == null
-                    ? '—<div class="text-[10px] font-normal text-gray-400">tiada TOV</div>'
-                    : `${s.purataNaik >= 0 ? '+' : ''}${s.purataNaik.toFixed(1)}` +
-                      `<div class="text-[10px] font-normal ${nLiput < 70 ? 'text-amber-600' : 'text-gray-500'}">` +
-                      `${s.bilNaik}/${s.bilAdaMarkah}${nLiput < 70 ? ' ⚠' : ''}</div>`;
+                    ? '<span class="text-xs">Belum ada markah tahun lepas</span>'
+                    : `Naik ${s.purataNaik.toFixed(1)} markah` +
+                      (s.purataDiminta != null
+                        ? `<div class="text-[11px] font-normal text-gray-500 mt-0.5">sasaran naik ${s.purataDiminta.toFixed(1)}</div>`
+                        : '') +
+                      (nLiput < 70 ? `<div class="text-[10px] font-normal text-amber-600">hanya ${s.bilNaik} dari ${s.bilAdaMarkah} murid ada rekod</div>` : '');
                 const bilKol = `${s.bilAdaMarkah}/${s.bilMurid}`;
                 const selGredKlas = gred.map(gg =>
                     `<td class="px-2 py-2 text-center text-sm border-l border-gray-200">${s.grades[gg] || 0}</td>
@@ -8188,7 +8225,9 @@
             const tot = { grades: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 }, gredSasar: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 }, capai: 0, dinilai: 0, sasaran: 0 };
             stats.filter(s => s.adaDoc).forEach(s => { gred.forEach(k => { tot.grades[k] += s.grades[k] || 0; tot.gredSasar[k] += s.gredSasar[k] || 0; }); tot.capai += s.capai; tot.dinilai += s.bilAdaMarkah; tot.sasaran += (s.bilSasaran || 0); });
             const pTot = tot.sasaran ? Math.round(tot.capai / tot.sasaran * 100) : null;
-            const pTotTxt = pTot == null ? '—' : `${pTot}%<div class="text-[10px] font-normal text-gray-300">${tot.capai}/${tot.sasaran}</div>`;
+            const stTot = hcStatusSasaran(pTot);
+            const pTotTxt = pTot == null ? '—'
+                : `${stTot.ikon} ${stTot.label}<div class="text-[11px] font-normal text-gray-300">${tot.capai} dari ${tot.sasaran} murid</div>`;
             const foot = `<tr class="bg-gray-700 text-white font-semibold text-sm">
                 <td class="px-3 py-2">JUMLAH</td>
                 <td class="px-3 py-2 text-center">${tot.dinilai}</td>
@@ -8197,7 +8236,7 @@
                 ${gred.map(g => `<td class="px-2 py-2 text-center border-l border-gray-500">${tot.grades[g]}</td><td class="px-2 py-2 text-center text-teal-200">${tot.gredSasar[g]}</td>`).join('')}
             </tr>`;
             document.getElementById('hca-table').innerHTML =
-                legenda + `<table class="w-full text-sm"><thead>${head}</thead><tbody>${rows}</tbody><tfoot>${foot}</tfoot></table>`;
+                hcRingkasanKelas(stats) + legenda + `<table class="w-full text-sm"><thead>${head}</thead><tbody>${rows}</tbody><tfoot>${foot}</tfoot></table>`;
         }
 
         function hcRenderCartaAnalisa(stats) {
@@ -8239,11 +8278,14 @@
             doc.setFontSize(9);
             doc.text(`${tanggaTxt}   |   Tarikh: ${new Date().toLocaleDateString('ms-MY')}`, 14, 21);
             const gred = ['A', 'B', 'C', 'D', 'E', 'F'];
-            const head = ['Kelas', 'Dinilai', '% Capai', 'Purata naik', ...gred];
+            const head = ['Kelas', 'Dinilai', 'Ikut Sasaran', 'Markah Naik', ...gred];
             const body = hcAnalisaData.map(s => [
                 s.kelas, `${s.bilAdaMarkah}/${s.bilMurid}`,
-                s.peratusCapai == null ? '—' : `${s.peratusCapai}% (${s.capai}/${s.bilSasaran})`,
-                s.purataNaik == null ? '—' : `${s.purataNaik >= 0 ? '+' : ''}${s.purataNaik.toFixed(1)} (${s.bilNaik}/${s.bilAdaMarkah})`,
+                s.peratusCapai == null ? 'Belum ada sasaran'
+                    : `${hcStatusSasaran(s.peratusCapai).label} — ${s.capai} dari ${s.bilSasaran} murid`,
+                s.purataNaik == null ? 'Tiada rekod lalu'
+                    : `Naik ${s.purataNaik.toFixed(1)}` +
+                      (s.purataDiminta != null ? ` (sasaran ${s.purataDiminta.toFixed(1)})` : ''),
                 ...gred.map(g => s.grades[g] || 0)
             ]);
             doc.autoTable({
