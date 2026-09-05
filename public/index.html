@@ -7568,12 +7568,14 @@
                 // gred setiap subjek pada ujian terkini (utk kumpulan + subjek lemah)
                 const gredSubjek = [];
                 const lemah = [];
+                const tiadaMarkah = [];   // nama subjek yg belum ada markah — lebih
+                                          // jelas drpd sekadar "3 dari 4 subjek"
                 subjekUtama.forEach(sub => {
                     const v = arPeta[sub][petaPep[akhirIdx]][kp];
-                    if (v == null || v === '') return;
-                    const x = parseInt(v); if (isNaN(x)) return;
+                    if (v == null || v === '') { tiadaMarkah.push(sub); return; }
+                    const x = parseInt(v); if (isNaN(x)) { tiadaMarkah.push(sub); return; }
                     const g = getGredFromMarkah(x);
-                    if (!['A','B','C','D','E','F'].includes(g)) return;
+                    if (!['A','B','C','D','E','F'].includes(g)) { tiadaMarkah.push(sub); return; }
                     gredSubjek.push(g);
                     if (g === 'D' || g === 'E' || g === 'F') lemah.push({ sub, markah: x, gred: g });
                 });
@@ -7617,7 +7619,8 @@
                     ujian, akhirIdx, purata: purataAkhir,
                     gred: getGredFromMarkah(Math.round(purataAkhir)),
                     kump, kumpUjian, kumpSasar,
-                    lemah, lengkap: gredSubjek.length, jumSubjek: subjekUtama.length,
+                    lemah, tiadaMarkah,
+                    lengkap: gredSubjek.length, jumSubjek: subjekUtama.length,
                     etrPurata, etrGred: etrPurata == null ? null : getGredFromMarkah(Math.round(etrPurata)),
                     capaiEtr: etrPurata == null ? null : (purataAkhir >= etrPurata),
                 });
@@ -7719,8 +7722,11 @@
                 const lemahTxt = m.lemah.length
                     ? m.lemah.map(x => `<span class="${gredWarna[x.gred]}">${x.sub} (${x.markah})</span>`).join(', ')
                     : '<span class="text-gray-300">—</span>';
-                const takLengkap = m.lengkap < m.jumSubjek
-                    ? `<div class="text-[10px] text-amber-600">⚠ ${m.lengkap} dari ${m.jumSubjek} subjek</div>` : '';
+                // Sebut SUBJEK yang belum masuk — guru terus tahu apa perlu dibuat.
+                const takLengkap = (m.tiadaMarkah && m.tiadaMarkah.length)
+                    ? `<div class="text-[10px] text-amber-600" title="Markah belum dimasukkan: ${m.tiadaMarkah.join(', ')}">⚠ ${m.tiadaMarkah.map(hcmSingkat).join(', ')} belum masuk</div>`
+                    : (m.lengkap < m.jumSubjek
+                        ? `<div class="text-[10px] text-amber-600">⚠ ${m.lengkap} dari ${m.jumSubjek} subjek</div>` : '');
                 return `<tr class="hover:bg-gray-50 border-t border-gray-100">
                     <td class="px-3 py-2 text-center text-sm font-semibold text-gray-500">${m.rank}</td>
                     <td class="px-3 py-2 text-sm font-medium text-gray-900">${m.nama}${takLengkap}</td>
@@ -7754,6 +7760,23 @@
                     Gred setiap lajur = gred purata subjek diutamakan. Lajur tebal = ujian terkini.
                     Subjek lemah = gred D, E, atau F.
                 </p>`;
+        }
+
+        // Singkatan nama subjek supaya muat dalam baris jadual.
+        // "BAHASA MELAYU" -> "BM", "PEND. JASMANI DAN KESIHATAN" -> "PJK".
+        const HCM_SINGKAT = {
+            'BAHASA MELAYU': 'BM', 'BAHASA INGGERIS': 'BI', 'BAHASA ARAB': 'BA',
+            'MATEMATIK': 'MATE', 'SAINS': 'SAINS', 'SEJARAH': 'SEJ',
+            'PENDIDIKAN ISLAM': 'PI', 'MORAL': 'MORAL', 'JAWI': 'JAWI',
+            'PEND. JASMANI DAN KESIHATAN': 'PJK', 'PENDIDIKAN SENI VISUAL': 'PSV',
+            'REKA BENTUK TEKNOLOGI': 'RBT', 'MUZIK': 'MUZIK',
+        };
+        function hcmSingkat(nama) {
+            if (HCM_SINGKAT[nama]) return HCM_SINGKAT[nama];
+            // fallback: ambil huruf pertama setiap perkataan bermakna
+            const kata = String(nama).split(/\s+/).filter(w => w.length > 2);
+            return kata.length > 1 ? kata.map(w => w[0]).join('').toUpperCase()
+                                   : String(nama).slice(0, 6).toUpperCase();
         }
 
         // Amaran subjek yang markahnya belum lengkap. Tanpa ini guru kena teka
@@ -7884,7 +7907,7 @@
             const head = ['Kedudukan', 'Nama', 'Kelas',
                 ...petaPep.map(p => `${p} (gred)`), ...petaPep.map(p => `${p} (purata)`),
                 'Sasaran ETR (gred)', 'Sasaran ETR (purata)', 'Capai Sasaran',
-                'Kumpulan', 'Subjek Lemah', 'Kelengkapan'];
+                'Kumpulan', 'Subjek Lemah', 'Markah Belum Masuk'];
             const baris = papar.map(m => [
                 m.rank, m.nama, m.kelas,
                 ...m.ujian.map(u => u ? getGredFromMarkah(Math.round(u.purata)) : ''),
@@ -7893,7 +7916,9 @@
                 m.capaiEtr == null ? 'tiada sasaran' : (m.capaiEtr ? 'YA' : 'BELUM'),
                 HCM_KUMP[m.kump].label,
                 m.lemah.map(x => `${x.sub} (${x.markah})`).join('; '),
-                `${m.lengkap}/${m.jumSubjek} subjek`,
+                (m.tiadaMarkah && m.tiadaMarkah.length)
+                    ? `Belum masuk: ${m.tiadaMarkah.join('; ')}`
+                    : 'Lengkap',
             ].map(esc).join(','));
             const csv = '\ufeff' + [head.map(esc).join(','), ...baris].join('\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
