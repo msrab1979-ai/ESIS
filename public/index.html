@@ -7407,6 +7407,11 @@
         // Rank dikira utk SELURUH DARJAH (tak dikira semula bila tapis kelas).
         // ==========================================================
         let hcMuridData = null;   // { darjah, cy, petaPep, subjekUtama, murid:[...] }
+        // Penjaga perlumbaan: hcLukisMurid() async & lambat (tarik markah + ETR dari
+        // Firestore). Kalau pengguna tukar dropdown semasa larian lama belum habis,
+        // larian lama boleh selesai KEMUDIAN dan menimpa hasil baharu — jadual nampak
+        // "ada sekejap, hilang semula". Hanya larian terbaru dibenarkan menulis.
+        let hcMuridRun = 0;
 
         const HCM_KUMP = {
             fullA:     { ikon: '🌟', label: 'Full A',    warna: 'text-purple-700', bg: 'bg-purple-50' },
@@ -7442,7 +7447,7 @@
             populatePanelYearDropdown('hcm-tahun-kal',
                 document.getElementById('hcm-tahun-kal').value || new Date().getFullYear().toString());
             hcMuridIsiKelas();
-            hcLukisMurid();
+            await hcLukisMurid();
         }
 
         function hcMuridIsiKelas() {
@@ -7458,6 +7463,8 @@
         function hcMuridDarjahTukar() { hcMuridIsiKelas(); hcLukisMurid(); }
 
         async function hcLukisMurid() {
+            const token = ++hcMuridRun;
+            const basi = () => token !== hcMuridRun;   // larian lain sudah bermula
             const cy = hcTahunAnalisa('hcm-tahun-kal');
             const darjah = document.getElementById('hcm-darjah').value;
             if (!darjah) return;
@@ -7465,8 +7472,10 @@
             tbl.innerHTML = '<p class="p-4 text-sm text-gray-500">Mengira…</p>';
 
             await hcMuatPepSemasa(cy);
+            if (basi()) return;
             const petaPep = hcNamaPep();
             const subjekUtama = await subjekUtamaUntuk(darjah);
+            if (basi()) return;
             const semuaSubjek = _semuaSubjekNama();
             const nota = document.getElementById('hcm-subjek-nota');
             nota.innerHTML = subjekUtama.length === semuaSubjek.length
@@ -7479,10 +7488,19 @@
                 return;
             }
 
+            // Data murid mungkin belum siap dimuat bila tab dibuka awal (muat dari
+            // cache/rangkaian). Tunggu sekejap dahulu — tanpa ini jadual papar
+            // "Tiada murid" dan tak cuba lagi walaupun data tiba sesaat kemudian.
+            let cubaan = 0;
+            while ((!GLOBAL_DATA.students || !GLOBAL_DATA.students.length) && cubaan < 40) {
+                await new Promise(r => setTimeout(r, 250));
+                if (basi()) return;
+                cubaan++;
+            }
             const kelasSenarai = hcKelasUntukTahun(darjah);
-            const muridSemua = GLOBAL_DATA.students.filter(s => s.tahun === darjah && s.kelas);
+            const muridSemua = (GLOBAL_DATA.students || []).filter(s => s.tahun === darjah && s.kelas);
             if (!muridSemua.length) {
-                tbl.innerHTML = '<p class="p-4 text-sm text-gray-500">Tiada murid untuk darjah ini.</p>';
+                tbl.innerHTML = `<p class="p-4 text-sm text-gray-500">Tiada murid untuk darjah ${darjah}. Pastikan senarai murid sudah diimport.</p>`;
                 document.getElementById('hcm-kpi').innerHTML = '';
                 return;
             }
@@ -7495,6 +7513,7 @@
                 for (const pep of petaPep) {
                     arPeta[sub][pep] = (await cariMarkahMurid({ calYear: cy, subjek: sub,
                         peperiksaan: pep, muridList: muridSemua, mod: 'no_kp' })).map;
+                    if (basi()) return;
                 }
             }
             // --- ETR: satu doc per kelas×subjek ---
@@ -7503,6 +7522,7 @@
                 etrPeta[sub] = {};
                 for (const kls of kelasSenarai) {
                     const doc = await hcBacaDocHeadcount(darjah, kls, sub, cy);
+                    if (basi()) return;
                     if (doc && doc.etr) Object.assign(etrPeta[sub], doc.etr);
                 }
             }
@@ -7570,12 +7590,15 @@
                 m.rank = rank;
             });
 
+            if (basi()) return;
             hcMuridData = { darjah, cy, petaPep, subjekUtama, murid: senarai };
             hcMuridRender();
         }
 
         function hcMuridRender() {
-            if (!hcMuridData) return;
+            // Dropdown kelas/kumpulan panggil fungsi ini terus. Kalau data belum siap
+            // (pengguna tukar semasa masih mengira), jangan senyap — kira semula.
+            if (!hcMuridData) { hcLukisMurid(); return; }
             const { petaPep, murid } = hcMuridData;
             const kelasPilih = document.getElementById('hcm-kelas').value;
             const kumpPilih = document.getElementById('hcm-kump').value;
