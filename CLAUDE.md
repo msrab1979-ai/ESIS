@@ -134,6 +134,39 @@ A per-class-per-subject student target-tracking feature. Four numbers per pupil:
 
 **Analisa tab** (`hcLukisAnalisa`, `hcStatKelas`): dashboard of % on-target, avg improvement (TOV→AR), grade distribution per kelas (bar chart via Chart.js loaded in `<head>`, table + JUMLAH footer). Toggle **Gred Sebenar (AR)** vs **🎯 Gred Sasaran (ETR)** (`hcTukarGredMod`) — target grades computed from ETR via `getGredFromMarkah`.
 
+#### Analisa correctness rules (audited 2026-09-05 — do not regress)
+
+All three analysis tabs (Analisa / Analisa Perbandingan / Perbandingan Gred) were cross-checked against an independent oracle (80k synthetic cases + 29 real `rekodHeadcount` docs, 0 discrepancies). Keep these invariants:
+
+1. **`% capai` denominator = `bilSasaran`**, NOT `bilAdaMarkah`. Only pupils with a mark **and** a valid OTI (needs both TOV and ETR) can ever be "capai", so pupils without ETR must not sit in the denominator. `peratusCapai` is `null` (not `0`) when nobody has a target. Displayed as "12 dari 28 murid".
+2. **Classes with no `rekodHeadcount` doc are excluded from every aggregate** (KPI, table footer, chart) and reported separately as a warning — they are "belum dibina", not 0%.
+3. **`TIDAK SAH` marks are never bucketed as F.** `hcTambahGred` returns `true` / `'rosak'` / `false`; grade `Gagal` counts as F, but non-numeric/out-of-range is excluded and surfaced via `hcAmaranRosak`. `pLulus` divides by `s.total` (valid grades), not `bilAdaMarkah`.
+4. **Exam order drives OTI ladders.** `hcSemakSusunan` flags duplicate/missing `order` in `examTypes` and `hcAmaranSusunan` prints the actual ladder order so teachers can verify. `tambahJenisPeperiksaan` computes `order` from `max(order)+1` **of the target year**, not `GLOBAL_DATA.examTypes.length` (which is the *displayed* year — caused colliding orders).
+5. **OTI step count comes from the live exam list**, so adding/removing an exam retroactively shifts ladders. This is intentional (avoids stale `petaOTI`); `hcAmaranTangga` warns when `doc.bilTangga` differs from the current exam count.
+6. **Calendar year is selectable** per tab (`hcTahunAnalisa('hca-tahun-kal')` etc.), threaded through `hcBacaDocHeadcount` / `hcMuatPepSemasa` / all stat functions. Tab Set Sasaran & Papan Jejak stay on the current year (data entry).
+7. **Wording is plain Malay, not jargon**: "Ikut Sasaran" (🟢 Baik ≥60% / 🟡 Sederhana 40–59% / 🟠 Perlu perhatian <40%) and "Markah Naik" showing actual vs `purataDiminta` (ETR−TOV) — a class with a modest target must not look weak just because its raw gain is small.
+
+### 🏆 Murid Terbaik tab + ⭐ Subjek Diutamakan (admin)
+
+Classifies pupils **across core subjects** with per-exam vs ETR comparison. Sixth Headcount tab (`hcTukarTab('murid')` → `hcInitMurid`); functions prefixed `hcm*` / `hcMurid*`.
+
+**Admin › ⭐ Subjek Diutamakan** (`toggleAdminTab('subjek-utama')` → `initSubjekUtama`): per-darjah core-subject checklist, reusing `renderSubjekChecklist`/`bacaSubjekTerlibat`. Stored at `settings/subjekUtama` = `{darjah: {EMPAT: [nama_penuh...]}}`. **Empty `[]` / missing = ALL subjects** (legacy-safe). Read via `subjekUtamaUntuk(darjah)`; `hcInitMurid` calls `bacaSubjekUtama(true)` on every tab open so admin changes apply without a page reload.
+
+**Classification** (`hcmKumpulan(gredList, jumSubjek)`) on the latest exam with marks, counting grades — not averages:
+- 🌟 **Full A** — all core subjects grade A **and marks complete** (`gredList.length >= jumSubjek`). A pupil with A A A and one subject unmarked is **not** Full A: the missing grade is unknown.
+- 🟢 **Terbaik** — no D/E/F · 🟡 **Sederhana** — has D, no E/F · 🟠 **Lemah** — has E or F.
+- Lemah/Sederhana do **not** require complete marks: one E already settles it. Check order is EF → D → allA+complete → terbaik.
+
+**Ranking is darjah-wide** and stored per pupil, so filtering by kelas hides rows without renumbering (a teacher sees their pupil is #3 in the darjah, not #1 in the class). Ties on average share a rank (1,2,2,4).
+
+**Surfaces:** 4 KPI cards (current exam) → `hcMuridBanding` comparison table (each group × each exam + ETR target column + "Beza" coloured by *direction*: green when Full A/Terbaik rise or Sederhana/Lemah fall) → ranked pupil list with per-exam grade columns, ETR grade, ✅/❗ status, group, and weak subjects (D/E/F with marks). CSV + print PDF follow the active filter.
+
+**Missing-mark handling:** `m.tiadaMarkah[]` records the *names* of unmarked core subjects, shown per row as "⚠ SAINS belum masuk" (abbreviated via `hcmSingkat`, full names in tooltip and CSV). `hcMuridAmaran` prints a per-subject coverage banner ("SAINS — 92 dari 207 murid ada markah"), worst first, red under 60%, and explains that Full A/Terbaik are provisional while Sederhana/Lemah are already reliable.
+
+**Race guard:** `hcLukisMurid` is slow (marks for every core subject × exam, plus ETR docs per kelas). It takes a token (`hcMuridRun`) and bails at every `await` if a newer run started — without this an older run finishes last and overwrites fresh results ("appears then disappears"). It also waits up to 10s for `GLOBAL_DATA.students`. Kelas/Kumpulan dropdowns call `hcMuridRender()` (filter only), never a recompute.
+
+**What is dynamic:** ETR, subjek diutamakan, grade ranges, exam types and class lists are all re-read on tab open — nothing is persisted except ETR. **Exception:** exam marks are cached (memory + IndexedDB), so newly entered marks need the 🔄 Segar Semula button or a page reload.
+
 **Key gotcha:** `hcTarikTOV(senyap, forceFresh)` — when `senyap` (auto-load from doc / refresh), it uses `hcState.tovSource` (from the saved doc), NOT the DOM dropdowns (which are hidden for teachers). Only reads dropdowns when admin clicks the button manually.
 
 All Headcount functions are prefixed `hc*` (user) / `bhc*` (admin bulk build). Reuses `cariMarkahMurid`, `getGredFromMarkah`, `getExamTypesForYear`, `ensureMarksLoaded`.
