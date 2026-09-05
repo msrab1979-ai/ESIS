@@ -7427,6 +7427,10 @@
         }
 
         async function hcInitMurid() {
+            // Baca semula subjek diutamakan setiap kali tab dibuka. Tanpa ini, cache
+            // yang diisi SEBELUM admin menyimpan (cth doc belum wujud -> {}) kekal
+            // basi, jadi tab terus kira semua subjek walaupun tetapan sudah disimpan.
+            await bacaSubjekUtama(true);
             const urutan = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
             const ada = urutan.filter(t => hcKelasUntukTahun(t).length);
             const dEl = document.getElementById('hcm-darjah');
