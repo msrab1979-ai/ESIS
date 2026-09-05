@@ -7428,14 +7428,21 @@
             lemah:     { ikon: '🟠', label: 'Lemah',     warna: 'text-orange-700', bg: 'bg-orange-50' },
         };
 
-        // Tentukan kumpulan dari senarai gred subjek utama
-        function hcmKumpulan(gredList) {
+        // Tentukan kumpulan dari senarai gred subjek utama.
+        // `jumSubjek` = bilangan subjek utama yang SEPATUTNYA ada.
+        // Full A menuntut markah LENGKAP: kalau satu subjek belum ada markah, kita
+        // belum tahu gredannya, jadi murid itu belum boleh disahkan Full A.
+        // Kumpulan lain tidak perlu lengkap — satu gred E sudah cukup mengesahkan
+        // Lemah, dan satu D mengesahkan Sederhana, tak kira berapa subjek lagi.
+        function hcmKumpulan(gredList, jumSubjek) {
             if (!gredList.length) return null;
-            if (gredList.every(g => g === 'A')) return 'fullA';
             const adaEF = gredList.some(g => g === 'E' || g === 'F');
             if (adaEF) return 'lemah';
             const adaD = gredList.some(g => g === 'D');
             if (adaD) return 'sederhana';
+            const semuaA = gredList.every(g => g === 'A');
+            const lengkap = (jumSubjek == null) || (gredList.length >= jumSubjek);
+            if (semuaA && lengkap) return 'fullA';
             return 'terbaik';
         }
 
@@ -7568,7 +7575,7 @@
                     gredSubjek.push(g);
                     if (g === 'D' || g === 'E' || g === 'F') lemah.push({ sub, markah: x, gred: g });
                 });
-                const kump = hcmKumpulan(gredSubjek);
+                const kump = hcmKumpulan(gredSubjek, subjekUtama.length);
                 if (!kump) return;
 
                 // Kumpulan bagi SETIAP ujian — utk jadual perbandingan pergerakan.
@@ -7581,7 +7588,7 @@
                         const g = getGredFromMarkah(x);
                         if (['A','B','C','D','E','F'].includes(g)) gl.push(g);
                     });
-                    return hcmKumpulan(gl);
+                    return hcmKumpulan(gl, subjekUtama.length);
                 });
                 // Kumpulan SASARAN — dari gred ETR setiap subjek utama
                 const gredEtr = [];
@@ -7592,7 +7599,7 @@
                     const g = getGredFromMarkah(x);
                     if (['A','B','C','D','E','F'].includes(g)) gredEtr.push(g);
                 });
-                const kumpSasar = hcmKumpulan(gredEtr);
+                const kumpSasar = hcmKumpulan(gredEtr, subjekUtama.length);
 
                 // ETR purata
                 let jumEtr = 0, nEtr = 0;
