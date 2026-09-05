@@ -897,7 +897,11 @@
             <section id="hc-skrin-analisa" class="hidden">
                 <!-- Kawalan -->
                 <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4 no-print">
-                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                    <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Tahun</span>
+                            <select id="hca-tahun-kal" onchange="hcLukisAnalisa()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
                         <label class="block">
                             <span class="text-xs text-gray-500">Darjah</span>
                             <select id="hca-darjah" onchange="hcLukisAnalisa()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
@@ -949,7 +953,11 @@
             <section id="hc-skrin-banding" class="hidden">
                 <!-- Kawalan -->
                 <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4 no-print">
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Tahun</span>
+                            <select id="hcb-tahun-kal" onchange="hcLukisBanding()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
                         <label class="block">
                             <span class="text-xs text-gray-500">Darjah</span>
                             <select id="hcb-darjah" onchange="hcLukisBanding()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
@@ -997,7 +1005,11 @@
             <!-- ===== SKRIN E: PERBANDINGAN GRED (gred sebenar vs gred sasaran) ===== -->
             <section id="hc-skrin-gred" class="hidden">
                 <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4 no-print">
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Tahun</span>
+                            <select id="hcg-tahun-kal" onchange="hcLukisGred()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
                         <label class="block">
                             <span class="text-xs text-gray-500">Darjah</span>
                             <select id="hcg-darjah" onchange="hcLukisGred()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
@@ -7328,12 +7340,13 @@
                 const subjekSet = document.getElementById('hc-subjek').value;
                 if (subjekSet) sEl.value = subjekSet;
             }
+            populatePanelYearDropdown('hca-tahun-kal', document.getElementById('hca-tahun-kal').value || new Date().getFullYear().toString());
             hcLukisAnalisa();
         }
 
         // Baca doc headcount tersimpan untuk satu kelas
-        async function hcBacaDocHeadcount(darjah, kelas, subjek) {
-            const cy = new Date().getFullYear();
+        async function hcBacaDocHeadcount(darjah, kelas, subjek, cy) {
+            if (!cy) cy = new Date().getFullYear();
             const id = `${darjah}_${kelas}_${subjek}_${cy}`;
             try {
                 const snap = await db.collection('rekodHeadcount').doc(id).get();
@@ -7341,14 +7354,19 @@
             } catch (e) { return null; }
         }
 
-        // Kira statistik satu kelas: {kelas, bilMurid, bilAdaMarkah, capai, peratusCapai, purataNaik, grades:{A..F}, total}
-        async function hcStatKelas(darjah, kelas, subjek, tanggaIdx) {
-            const doc = await hcBacaDocHeadcount(darjah, kelas, subjek);
+        // Kira statistik satu kelas: {kelas, bilMurid, bilAdaMarkah, bilSasaran, capai, peratusCapai, purataNaik, grades:{A..F}, total}
+        // NOTA PENYEBUT: peratusCapai = capai / bilSasaran (murid yang ada markah DAN
+        // laluan sasaran OTI yang sah), BUKAN / bilAdaMarkah. Murid tanpa ETR/TOV tak
+        // mungkin dikira "capai", jadi memasukkannya dlm penyebut menurunkan % secara palsu.
+        async function hcStatKelas(darjah, kelas, subjek, tanggaIdx, cy) {
+            if (!cy) cy = new Date().getFullYear();
+            const doc = await hcBacaDocHeadcount(darjah, kelas, subjek, cy);
             const murid = GLOBAL_DATA.students.filter(s => s.tahun === darjah && s.kelas === kelas);
-            const stat = { kelas, bilMurid: murid.length, bilAdaMarkah: 0, capai: 0, jumlahNaik: 0, bilNaik: 0,
+            const stat = { kelas, bilMurid: murid.length, bilAdaMarkah: 0, bilSasaran: 0, capai: 0, jumlahNaik: 0, bilNaik: 0,
                 grades: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 },        // gred SEBENAR (AR)
                 gredSasar: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 },     // gred DISASAR (dari ETR)
-                totalSasar: 0, total: 0, adaDoc: !!doc };
+                totalSasar: 0, total: 0, rosak: 0, rosakSasar: 0, adaDoc: !!doc,
+                bilTanggaDoc: doc ? (doc.bilTangga || (doc.petaOTI && doc.petaOTI.length) || null) : null };
             if (!doc || !murid.length) return stat;
             // Peta tangga = peperiksaan SEBENAR tahun ini (selaras Papan Jejak & dropdown
             // Analisa), bukan doc.petaOTI lama yg mungkin lapuk (bilTangga:1).
@@ -7356,7 +7374,6 @@
             const bil = petaPep.length || 1;
             const idx = Math.min(tanggaIdx, bil - 1);
             const pep = petaPep[idx];
-            const cy = new Date().getFullYear();
             // TOV (untuk purata naik)
             let tovMap = {};
             if (doc.tovSource) {
@@ -7369,34 +7386,40 @@
                 const etr = doc.etr ? doc.etr[kp] : null;
                 const tov = (doc.override && doc.override[kp] && doc.override[kp].tov != null) ? doc.override[kp].tov : tovMap[kp];
                 const ar = arMap[kp];
-                // Gred DISASAR — dari ETR (tak bergantung pada markah sebenar)
+                // Gred DISASAR — dari ETR (tak bergantung pada markah sebenar).
+                // 'TIDAK SAH' (bukan nombor / luar 0-100) TIDAK dikira sbg F — itu
+                // data rosak, bukan pencapaian lemah; ia akan naikkan %E+F secara palsu.
                 if (etr != null && etr !== '') {
                     const gs = getGredFromMarkah(etr);
-                    if (stat.gredSasar[gs] !== undefined) stat.gredSasar[gs]++;
-                    else if (gs === 'Gagal') stat.gredSasar.F++;
-                    stat.totalSasar++;
+                    if (stat.gredSasar[gs] !== undefined) { stat.gredSasar[gs]++; stat.totalSasar++; }
+                    else if (gs === 'Gagal') { stat.gredSasar.F++; stat.totalSasar++; }
+                    else stat.rosakSasar++;
                 }
                 if (ar == null) return;
                 stat.bilAdaMarkah++;
-                // gred dari markah sebenar
+                // gred dari markah sebenar — 'TIDAK SAH' diasingkan (lihat nota di atas)
                 const g = getGredFromMarkah(ar);
-                if (stat.grades[g] !== undefined) stat.grades[g]++;
-                else if (g === 'Gagal') stat.grades.F++;
-                stat.total++;
-                // capai sasaran: AR >= OTI tangga ni
-                if (tov != null && etr != null) {
+                if (stat.grades[g] !== undefined) { stat.grades[g]++; stat.total++; }
+                else if (g === 'Gagal') { stat.grades.F++; stat.total++; }
+                else stat.rosak++;
+                // capai sasaran: AR >= OTI tangga ni. Hanya murid dgn OTI sah masuk penyebut.
+                if (tov != null && etr != null && etr !== '') {
                     const oti = hcKiraOTI(tov, etr, bil)[idx];
-                    if (oti != null && ar >= oti) stat.capai++;
+                    if (oti != null) {
+                        stat.bilSasaran++;
+                        if (ar >= oti) stat.capai++;
+                    }
                 }
                 // purata naik
                 if (tov != null) { stat.jumlahNaik += (ar - tov); stat.bilNaik++; }
             });
-            stat.peratusCapai = stat.bilAdaMarkah ? Math.round(stat.capai / stat.bilAdaMarkah * 100) : 0;
+            stat.peratusCapai = stat.bilSasaran ? Math.round(stat.capai / stat.bilSasaran * 100) : null;
             stat.purataNaik = stat.bilNaik ? (stat.jumlahNaik / stat.bilNaik) : null;
             return stat;
         }
 
         async function hcLukisAnalisa() {
+            const cy = hcTahunAnalisa('hca-tahun-kal');
             const darjah = document.getElementById('hca-darjah').value;
             const subjek = document.getElementById('hca-subjek').value;
             const mod = document.getElementById('hca-mod').value;
@@ -7407,7 +7430,7 @@
             // bukan petaOTI doc lama — supaya konsisten dgn Papan Jejak & tak tercicir
             // bila jenis peperiksaan baru ditambah di Urus Peperiksaan.
             const semuaKelas = (GLOBAL_DATA.allClasses[darjah] || []).slice().sort();
-            await hcMuatPepSemasa();
+            await hcMuatPepSemasa(cy);
             const petaPep = hcNamaPep();
             const tEl = document.getElementById('hca-tangga');
             const prevT = tEl.value;
@@ -7432,7 +7455,7 @@
             const container = document.getElementById('hca-table');
             container.innerHTML = '<p class="p-4 text-sm text-gray-500">Mengira…</p>';
             const stats = [];
-            for (const k of kelasSenarai) stats.push(await hcStatKelas(darjah, k, subjek, tanggaIdx));
+            for (const k of kelasSenarai) stats.push(await hcStatKelas(darjah, k, subjek, tanggaIdx, cy));
             hcAnalisaData = stats;
 
             hcRenderKPI(stats);
@@ -7464,21 +7487,23 @@
                 const subjekSet = document.getElementById('hc-subjek').value;
                 if (subjekSet) sEl.value = subjekSet;
             }
+            populatePanelYearDropdown('hcb-tahun-kal', document.getElementById('hcb-tahun-kal').value || new Date().getFullYear().toString());
             hcLukisBanding();
         }
 
         // Kira stat SETIAP ujian utk satu kelas: purata AR, purata ETR, bil capai.
-        // Pulangkan { kelas, bilMurid, etrPurata, ujian:[{pep,purataAR,bilAdaMarkah,capai,peratusCapai,jurang}] }
-        async function hcStatBandingKelas(darjah, kelas, subjek, petaPep) {
-            const doc = await hcBacaDocHeadcount(darjah, kelas, subjek);
+        // Pulangkan { kelas, bilMurid, etrPurata, ujian:[{pep,purataAR,bilAdaMarkah,bilSasaran,capai,peratusCapai,jurang}] }
+        // PENYEBUT % capai = bilSasaran (ada markah DAN OTI sah), sama spt hcStatKelas.
+        async function hcStatBandingKelas(darjah, kelas, subjek, petaPep, cy) {
+            if (!cy) cy = new Date().getFullYear();
+            const doc = await hcBacaDocHeadcount(darjah, kelas, subjek, cy);
             const murid = GLOBAL_DATA.students.filter(s => s.tahun === darjah && s.kelas === kelas);
             const hasil = { kelas, bilMurid: murid.length, adaDoc: !!doc, etrPurata: null, bilEtr: 0,
                             tovPurata: null, tovPep: null, ujian: [] };
             if (!doc || !murid.length) {
-                hasil.ujian = petaPep.map(pep => ({ pep, purataAR: null, bilAdaMarkah: 0, capai: 0, peratusCapai: 0, jurang: null }));
+                hasil.ujian = petaPep.map(pep => ({ pep, purataAR: null, bilAdaMarkah: 0, bilSasaran: 0, capai: 0, peratusCapai: null, jurang: null }));
                 return hasil;
             }
-            const cy = new Date().getFullYear();
             // ETR purata kelas
             let jumEtr = 0;
             murid.forEach(m => {
@@ -7507,7 +7532,7 @@
                 const pep = petaPep[i];
                 const arMap = (await cariMarkahMurid({ calYear: cy, subjek, peperiksaan: pep,
                     muridList: murid, mod: 'no_kp' })).map;
-                let jum = 0, n = 0, capai = 0;
+                let jum = 0, n = 0, capai = 0, nSasar = 0;
                 murid.forEach(m => {
                     const kp = m.no_kp;
                     const ar = arMap[kp];
@@ -7519,13 +7544,16 @@
                     // Capai = AR >= OTI tangga ini (laluan sepatutnya pada ujian ke-i)
                     if (tov != null && etr != null && etr !== '') {
                         const oti = hcKiraOTI(tov, etr, bil)[i];
-                        if (oti != null && Number(ar) >= oti) capai++;
+                        if (oti != null) {
+                            nSasar++;
+                            if (Number(ar) >= oti) capai++;
+                        }
                     }
                 });
                 const purataAR = n ? (jum / n) : null;
                 hasil.ujian.push({
-                    pep, purataAR, bilAdaMarkah: n, capai,
-                    peratusCapai: n ? Math.round(capai / n * 100) : 0,
+                    pep, purataAR, bilAdaMarkah: n, bilSasaran: nSasar, capai,
+                    peratusCapai: nSasar ? Math.round(capai / nSasar * 100) : null,
                     jurang: (purataAR != null && hasil.etrPurata != null) ? (purataAR - hasil.etrPurata) : null
                 });
             }
@@ -7533,6 +7561,7 @@
         }
 
         async function hcLukisBanding() {
+            const cy = hcTahunAnalisa('hcb-tahun-kal');
             const darjah = document.getElementById('hcb-darjah').value;
             const subjek = document.getElementById('hcb-subjek').value;
             const mod = document.getElementById('hcb-mod').value;
@@ -7550,18 +7579,18 @@
             const tbl = document.getElementById('hcb-table');
             tbl.innerHTML = '<p class="p-4 text-sm text-gray-500">Mengira…</p>';
 
-            await hcMuatPepSemasa();
+            await hcMuatPepSemasa(cy);
             const petaPep = hcNamaPep();
             if (!petaPep.length) {
-                tbl.innerHTML = '<p class="p-4 text-sm text-gray-500">Tiada jenis peperiksaan untuk tahun semasa. Sila set di Admin › Urus Peperiksaan.</p>';
+                tbl.innerHTML = `<p class="p-4 text-sm text-gray-500">Tiada jenis peperiksaan untuk tahun ${cy}. Sila set di Admin › Urus Peperiksaan.</p>`;
                 document.getElementById('hcb-kpi').innerHTML = '';
                 if (hcBandingChart) { hcBandingChart.destroy(); hcBandingChart = null; }
                 return;
             }
 
             const stats = [];
-            for (const k of kelasSenarai) stats.push(await hcStatBandingKelas(darjah, k, subjek, petaPep));
-            hcBandingData = { darjah, subjek, petaPep, stats };
+            for (const k of kelasSenarai) stats.push(await hcStatBandingKelas(darjah, k, subjek, petaPep, cy));
+            hcBandingData = { darjah, subjek, petaPep, stats, cy };
 
             hcRenderBandingKPI(stats, petaPep);
             hcRenderBandingJadual(stats, petaPep);
@@ -7570,17 +7599,20 @@
 
         // KPI: ringkasan trend keseluruhan
         function hcRenderBandingKPI(stats, petaPep) {
+            // Kecualikan kelas belum dibina (tiada doc rekodHeadcount) drpd agregat.
+            const belum = stats.filter(s => !s.adaDoc);
+            stats = stats.filter(s => s.adaDoc);
             const n = petaPep.length;
             // Gabung semua kelas: purata berwajaran ikut bil murid ada markah
             const purataUjian = [];
             for (let i = 0; i < n; i++) {
-                let jum = 0, bil = 0, capai = 0, adaMarkah = 0;
+                let jum = 0, bil = 0, capai = 0, adaMarkah = 0, sasar = 0;
                 stats.forEach(s => {
                     const u = s.ujian[i];
                     if (u && u.purataAR != null) { jum += u.purataAR * u.bilAdaMarkah; bil += u.bilAdaMarkah; }
-                    if (u) { capai += u.capai; adaMarkah += u.bilAdaMarkah; }
+                    if (u) { capai += u.capai; adaMarkah += u.bilAdaMarkah; sasar += (u.bilSasaran || 0); }
                 });
-                purataUjian.push({ purata: bil ? jum / bil : null, peratusCapai: adaMarkah ? Math.round(capai / adaMarkah * 100) : 0, adaMarkah });
+                purataUjian.push({ purata: bil ? jum / bil : null, peratusCapai: sasar ? Math.round(capai / sasar * 100) : null, capai, sasar, adaMarkah });
             }
             let jumEtr = 0, bilEtr = 0;
             stats.forEach(s => { if (s.etrPurata != null) { jumEtr += s.etrPurata * s.bilEtr; bilEtr += s.bilEtr; } });
@@ -7604,7 +7636,12 @@
                 </div>`;
             const fmt = v => v == null ? '—' : v.toFixed(1);
             const tanda = v => v == null ? '' : (v >= 0 ? '+' : '');
-            document.getElementById('hcb-kpi').innerHTML =
+            const amaran = belum.length ? `
+                <div class="col-span-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    ⚠️ ${belum.length} kelas belum dibina headcount (${belum.map(s => s.kelas).join(', ')}) —
+                    tidak dimasukkan dalam kiraan di bawah.
+                </div>` : '';
+            document.getElementById('hcb-kpi').innerHTML = hcAmaranSusunan(petaPep) + amaran +
                 kad('Sasaran purata (ETR)', fmt(etrKeseluruhan), `${bilEtr} murid ada sasaran`, 'text-teal-700') +
                 kad('Markah terkini', fmt(akhir && akhir.purata), akhirIdx >= 0 ? petaPep[akhirIdx] : 'tiada markah') +
                 kad('Jurang ke sasaran', (jurang == null ? '—' : tanda(jurang) + jurang.toFixed(1)),
@@ -7625,7 +7662,7 @@
                     return `<td class="px-3 py-2 text-center border-l border-gray-100">
                         <div class="font-semibold">${fmt(u.purataAR)}</div>
                         <div class="text-xs ${wj}">${j == null ? '' : (j >= 0 ? '+' : '') + j.toFixed(1)}</div>
-                        <div class="text-xs text-gray-400">${u.bilAdaMarkah ? u.peratusCapai + '% capai' : 'tiada markah'}</div>
+                        <div class="text-xs text-gray-400">${u.peratusCapai == null ? (u.bilAdaMarkah ? 'tiada sasaran' : 'tiada markah') : `${u.peratusCapai}% capai (${u.capai}/${u.bilSasaran})`}</div>
                     </td>`;
                 }).join('');
                 return `<tr>
@@ -7640,17 +7677,18 @@
             // Baris JUMLAH (purata berwajaran semua kelas)
             let footer = '';
             if (stats.length > 1) {
+                const statsAda = stats.filter(s => s.adaDoc);
                 const sel = petaPep.map((_, i) => {
-                    let jum = 0, bil = 0, capai = 0, ada = 0;
-                    stats.forEach(s => { const u = s.ujian[i];
+                    let jum = 0, bil = 0, capai = 0, sasar = 0;
+                    statsAda.forEach(s => { const u = s.ujian[i];
                         if (u && u.purataAR != null) { jum += u.purataAR * u.bilAdaMarkah; bil += u.bilAdaMarkah; }
-                        if (u) { capai += u.capai; ada += u.bilAdaMarkah; } });
+                        if (u) { capai += u.capai; sasar += (u.bilSasaran || 0); } });
                     const p = bil ? jum / bil : null;
                     return `<td class="px-3 py-2 text-center border-l border-gray-200 font-semibold">
-                        ${fmt(p)}<div class="text-xs font-normal text-gray-500">${ada ? Math.round(capai / ada * 100) + '% capai' : '—'}</div></td>`;
+                        ${fmt(p)}<div class="text-xs font-normal text-gray-500">${sasar ? `${Math.round(capai / sasar * 100)}% capai (${capai}/${sasar})` : '—'}</div></td>`;
                 }).join('');
                 let je = 0, be = 0, jm = 0;
-                stats.forEach(s => { if (s.etrPurata != null) { je += s.etrPurata * s.bilEtr; be += s.bilEtr; } jm += s.bilMurid; });
+                statsAda.forEach(s => { if (s.etrPurata != null) { je += s.etrPurata * s.bilEtr; be += s.bilEtr; } jm += s.bilMurid; });
                 footer = `<tfoot class="bg-gray-50 border-t-2 border-gray-300"><tr>
                     <td class="px-3 py-2 text-sm font-bold">JUMLAH</td>
                     <td class="px-3 py-2 text-center text-sm font-bold">${jm}</td>
@@ -7676,6 +7714,7 @@
                 </table>
                 <p class="px-3 py-2 text-xs text-gray-400 border-t border-gray-100">
                     Setiap sel: purata markah · jurang dari ETR · % murid capai laluan sasaran (OTI) pada ujian itu.
+                    % capai dikira daripada murid yang ada markah <b>dan</b> sasaran (ETR + TOV) sahaja — dipapar sebagai (capai/ada sasaran).
                 </p>`;
         }
 
@@ -7689,6 +7728,7 @@
             // Kalau sumber TOV ialah ujian yang sama dengan tangga pertama (biasa
             // bila TOV diambil dari peperiksaan tahun semasa), titik TOV hanya
             // mengulang nilai yang sama — langkau supaya carta tak mengelirukan.
+            stats = stats.filter(s => s.adaDoc);   // siri kosong hanya kotorkan legenda
             const tovSamaDgnUjian1 = stats.length > 0 && stats.every(s =>
                 s.tovPep && petaPep[0] && s.tovPep === petaPep[0]);
             const labels = tovSamaDgnUjian1 ? [...petaPep] : ['TOV', ...petaPep];
@@ -7739,8 +7779,7 @@
 
         function hcCetakBandingPDF() {
             if (!hcBandingData) return;
-            const { darjah, subjek } = hcBandingData;
-            const cy = new Date().getFullYear();
+            const { darjah, subjek, cy } = hcBandingData;
             const jadual = document.getElementById('hcb-table').innerHTML;
             const win = window.open('', '_blank');
             win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
@@ -7787,50 +7826,61 @@
                 const subjekSet = document.getElementById('hc-subjek').value;
                 if (subjekSet) sEl.value = subjekSet;
             }
+            populatePanelYearDropdown('hcg-tahun-kal', document.getElementById('hcg-tahun-kal').value || new Date().getFullYear().toString());
             hcLukisGred();
         }
 
         function hcGredKosong() { return { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 }; }
 
-        // Masukkan satu markah ke dalam bakul gred (layan 'Gagal'/'TIDAK SAH' sbg F,
-        // selaras dgn hcStatKelas dan jadual analisa sedia ada).
+        // Masukkan satu markah ke dalam bakul gred. 'Gagal' (markah sah tapi di bawah
+        // semua julat gred) dikira F. 'TIDAK SAH' (bukan nombor / luar 0-100) TIDAK
+        // dikira — itu data rosak, bukan pencapaian lemah; mengiranya sbg F menaikkan
+        // %E+F secara palsu. Pulangkan 'rosak' supaya pemanggil boleh kira & lapor.
         function hcTambahGred(bakul, markah) {
             if (markah == null || markah === '') return false;
             const g = getGredFromMarkah(markah);
-            if (bakul[g] !== undefined) bakul[g]++;
-            else bakul.F++;
-            return true;
+            if (bakul[g] !== undefined) { bakul[g]++; return true; }
+            if (g === 'Gagal') { bakul.F++; return true; }
+            return 'rosak';
         }
 
         // Kira taburan gred setiap ujian + taburan gred sasaran utk satu kelas
-        async function hcStatGredKelas(darjah, kelas, subjek, petaPep) {
-            const doc = await hcBacaDocHeadcount(darjah, kelas, subjek);
+        async function hcStatGredKelas(darjah, kelas, subjek, petaPep, cy) {
+            if (!cy) cy = new Date().getFullYear();
+            const doc = await hcBacaDocHeadcount(darjah, kelas, subjek, cy);
             const murid = GLOBAL_DATA.students.filter(s => s.tahun === darjah && s.kelas === kelas);
             const hasil = { kelas, bilMurid: murid.length, adaDoc: !!doc,
-                            sasar: hcGredKosong(), bilSasar: 0, ujian: [] };
+                            sasar: hcGredKosong(), bilSasar: 0, rosakSasar: 0, ujian: [] };
             if (!doc || !murid.length) {
-                hasil.ujian = petaPep.map(pep => ({ pep, gred: hcGredKosong(), bil: 0 }));
+                hasil.ujian = petaPep.map(pep => ({ pep, gred: hcGredKosong(), bil: 0, rosak: 0 }));
                 return hasil;
             }
-            const cy = new Date().getFullYear();
             // Gred SASARAN — dari ETR setiap murid
             murid.forEach(m => {
                 const etr = doc.etr ? doc.etr[m.no_kp] : null;
-                if (etr != null && etr !== '' && hcTambahGred(hasil.sasar, etr)) hasil.bilSasar++;
+                if (etr == null || etr === '') return;
+                const r = hcTambahGred(hasil.sasar, etr);
+                if (r === true) hasil.bilSasar++;
+                else if (r === 'rosak') hasil.rosakSasar++;
             });
             // Gred SEBENAR — setiap ujian
             for (const pep of petaPep) {
                 const arMap = (await cariMarkahMurid({ calYear: cy, subjek, peperiksaan: pep,
                     muridList: murid, mod: 'no_kp' })).map;
                 const bakul = hcGredKosong();
-                let bil = 0;
-                murid.forEach(m => { if (hcTambahGred(bakul, arMap[m.no_kp])) bil++; });
-                hasil.ujian.push({ pep, gred: bakul, bil });
+                let bil = 0, rosak = 0;
+                murid.forEach(m => {
+                    const r = hcTambahGred(bakul, arMap[m.no_kp]);
+                    if (r === true) bil++;
+                    else if (r === 'rosak') rosak++;
+                });
+                hasil.ujian.push({ pep, gred: bakul, bil, rosak });
             }
             return hasil;
         }
 
         async function hcLukisGred() {
+            const cy = hcTahunAnalisa('hcg-tahun-kal');
             const darjah = document.getElementById('hcg-darjah').value;
             const subjek = document.getElementById('hcg-subjek').value;
             const mod = document.getElementById('hcg-mod').value;
@@ -7848,27 +7898,31 @@
             const tbl = document.getElementById('hcg-table');
             tbl.innerHTML = '<p class="p-4 text-sm text-gray-500">Mengira…</p>';
 
-            await hcMuatPepSemasa();
+            await hcMuatPepSemasa(cy);
             const petaPep = hcNamaPep();
             if (!petaPep.length) {
-                tbl.innerHTML = '<p class="p-4 text-sm text-gray-500">Tiada jenis peperiksaan untuk tahun semasa. Sila set di Admin › Urus Peperiksaan.</p>';
+                tbl.innerHTML = `<p class="p-4 text-sm text-gray-500">Tiada jenis peperiksaan untuk tahun ${cy}. Sila set di Admin › Urus Peperiksaan.</p>`;
                 document.getElementById('hcg-kpi').innerHTML = '';
                 if (hcGredChart) { hcGredChart.destroy(); hcGredChart = null; }
                 return;
             }
 
             const stats = [];
-            for (const k of kelasSenarai) stats.push(await hcStatGredKelas(darjah, k, subjek, petaPep));
-            hcGredData = { darjah, subjek, petaPep, stats };
+            for (const k of kelasSenarai) stats.push(await hcStatGredKelas(darjah, k, subjek, petaPep, cy));
+            hcGredData = { darjah, subjek, petaPep, stats, cy };
 
             // Gabung semua kelas terpilih
-            const gabung = { sasar: hcGredKosong(), bilSasar: 0, ujian: petaPep.map(pep => ({ pep, gred: hcGredKosong(), bil: 0 })) };
-            stats.forEach(s => {
+            const gabung = { sasar: hcGredKosong(), bilSasar: 0, rosak: 0, ujian: petaPep.map(pep => ({ pep, gred: hcGredKosong(), bil: 0, rosak: 0 })) };
+            gabung.belum = stats.filter(s => !s.adaDoc).map(s => s.kelas);   // kelas belum dibina
+            stats.filter(s => s.adaDoc).forEach(s => {
                 HC_GRED_KEYS.forEach(g => gabung.sasar[g] += s.sasar[g]);
                 gabung.bilSasar += s.bilSasar;
+                gabung.rosak += (s.rosakSasar || 0);
                 s.ujian.forEach((u, i) => {
                     HC_GRED_KEYS.forEach(g => gabung.ujian[i].gred[g] += u.gred[g]);
                     gabung.ujian[i].bil += u.bil;
+                    gabung.ujian[i].rosak += (u.rosak || 0);
+                    gabung.rosak += (u.rosak || 0);
                 });
             });
 
@@ -7898,7 +7952,12 @@
                     <div class="text-2xl font-bold ${warna || 'text-gray-800'}">${nilai}</div>
                     <div class="text-xs text-gray-400">${sub}</div>
                 </div>`;
-            document.getElementById('hcg-kpi').innerHTML =
+            const amaran = ((gabung.belum && gabung.belum.length) ? `
+                <div class="col-span-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    ⚠️ ${gabung.belum.length} kelas belum dibina headcount (${gabung.belum.join(', ')}) —
+                    tidak dimasukkan dalam kiraan di bawah.
+                </div>` : '') + hcAmaranRosak(gabung.rosak || 0, 0);
+            document.getElementById('hcg-kpi').innerHTML = hcAmaranSusunan(petaPep) + amaran +
                 kad('🎯 Sasaran A+B', pctSasar == null ? '—' : pctSasar + '%',
                     `${abSasar} dari ${gabung.bilSasar} murid`, 'text-teal-700') +
                 kad('A+B sebenar', pctSebenar == null ? '—' : pctSebenar + '%',
@@ -8007,8 +8066,7 @@
 
         function hcCetakGredPDF() {
             if (!hcGredData) return;
-            const { darjah, subjek } = hcGredData;
-            const cy = new Date().getFullYear();
+            const { darjah, subjek, cy } = hcGredData;
             const jadual = document.getElementById('hcg-table').innerHTML;
             const win = window.open('', '_blank');
             win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
@@ -8032,24 +8090,44 @@
         }
 
         function hcRenderKPI(stats) {
+            // Kelas tanpa doc rekodHeadcount = "belum dibina", BUKAN 0%. Kecualikan
+            // daripada semua agregat supaya purata tidak dicairkan oleh kelas kosong.
+            const semua = stats;
+            const belum = stats.filter(s => !s.adaDoc);
+            stats = stats.filter(s => s.adaDoc);
             const totMurid = stats.reduce((a, s) => a + s.bilMurid, 0);
             const totMarkah = stats.reduce((a, s) => a + s.bilAdaMarkah, 0);
             const totCapai = stats.reduce((a, s) => a + s.capai, 0);
-            const pCapai = totMarkah ? Math.round(totCapai / totMarkah * 100) : 0;
+            const totSasaran = stats.reduce((a, s) => a + (s.bilSasaran || 0), 0);
+            const pCapai = totSasaran ? Math.round(totCapai / totSasaran * 100) : null;
             const naikVals = stats.filter(s => s.purataNaik != null);
             const purataNaik = naikVals.length ? (naikVals.reduce((a, s) => a + s.purataNaik * s.bilNaik, 0) / naikVals.reduce((a, s) => a + s.bilNaik, 0)) : null;
+            // Penyebut = gred SAH sahaja (s.total), bukan bilAdaMarkah yang termasuk
+            // markah TIDAK SAH — kalau tidak, %lulus dicairkan oleh data rosak.
+            const totGredSah = stats.reduce((a, s) => a + (s.total || 0), 0);
             const cemerlang = stats.reduce((a, s) => a + s.grades.A + s.grades.B + s.grades.C + s.grades.D, 0);
-            const pLulus = totMarkah ? Math.round(cemerlang / totMarkah * 100) : 0;
+            const pLulus = totGredSah ? Math.round(cemerlang / totGredSah * 100) : null;
             const kad = (tajuk, nilai, warna) => `
                 <div class="bg-white rounded-lg border border-gray-200 p-3">
                     <div class="text-xs text-gray-500">${tajuk}</div>
                     <div class="text-2xl font-bold ${warna}">${nilai}</div>
                 </div>`;
+            const amaran = (belum.length ? `
+                <div class="col-span-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    ⚠️ ${belum.length} kelas belum dibina headcount (${belum.map(s => s.kelas).join(', ')}) —
+                    tidak dimasukkan dalam kiraan di bawah. Bina di Admin › 🎯 Bina Headcount.
+                </div>` : '') + hcAmaranRosak(
+                    stats.reduce((a, s) => a + (s.rosak || 0), 0),
+                    stats.reduce((a, s) => a + (s.rosakSasar || 0), 0));
             document.getElementById('hca-kpi').innerHTML =
+                hcAmaranSusunan(hcNamaPep()) + hcAmaranTangga(semua, hcNamaPep()) + amaran +
                 kad('Jumlah murid dinilai', `${totMarkah}<span class="text-sm text-gray-400">/${totMurid}</span>`, 'text-gray-800') +
-                kad('Capai sasaran', `${pCapai}%`, pCapai >= 50 ? 'text-green-700' : 'text-red-600') +
+                kad('Capai sasaran',
+                    pCapai == null ? '—<span class="text-sm text-gray-400"> tiada sasaran</span>'
+                                   : `${pCapai}%<span class="text-sm text-gray-400"> (${totCapai}/${totSasaran})</span>`,
+                    pCapai == null ? 'text-gray-400' : (pCapai >= 50 ? 'text-green-700' : 'text-red-600')) +
                 kad('Purata naik (TOV→AR)', purataNaik == null ? '—' : `${purataNaik >= 0 ? '+' : ''}${purataNaik.toFixed(1)}`, purataNaik >= 0 ? 'text-green-700' : 'text-red-600') +
-                kad('Lulus (A–D)', `${pLulus}%`, 'text-teal-700');
+                kad('Lulus (A–D)', pLulus == null ? '—' : `${pLulus}%`, 'text-teal-700');
         }
 
         // Mod gred dalam jadual analisa: 'sebenar' (dari AR) atau 'sasar' (dari ETR)
@@ -8071,8 +8149,8 @@
             const head = `<tr class="bg-gray-50 text-xs text-gray-500">
                 <th rowspan="2" class="px-3 py-2 text-left font-medium align-bottom">Kelas</th>
                 <th rowspan="2" class="px-3 py-2 text-center font-medium align-bottom">Dinilai</th>
-                <th rowspan="2" class="px-3 py-2 text-center font-medium align-bottom">% Capai</th>
-                <th rowspan="2" class="px-3 py-2 text-center font-medium align-bottom">Purata naik</th>
+                <th rowspan="2" class="px-3 py-2 text-center font-medium align-bottom">% Capai<div class="text-[10px] font-normal text-gray-400">drpd ada sasaran</div></th>
+                <th rowspan="2" class="px-3 py-2 text-center font-medium align-bottom">Purata naik<div class="text-[10px] font-normal text-gray-400">ada TOV+AR</div></th>
                 ${gred.map(g => `<th colspan="2" class="px-2 py-1 text-center font-semibold ${gWarna[g]} border-l border-gray-200">${g}</th>`).join('')}
             </tr>
             <tr class="bg-gray-50 text-[10px] text-gray-400">
@@ -8081,8 +8159,19 @@
             const selGred = 4 + gred.length * 2;   // colspan utk baris "belum diset"
             const rows = stats.map(s => {
                 if (!s.adaDoc) return `<tr class="text-gray-400"><td class="px-3 py-2">${s.kelas}</td><td colspan="${selGred - 1}" class="px-3 py-2 text-center text-xs">— belum diset (admin) —</td></tr>`;
-                const pWarna = s.peratusCapai >= 50 ? 'text-green-700' : 'text-red-600';
-                const nWarna = (s.purataNaik ?? 0) >= 0 ? 'text-green-700' : 'text-red-600';
+                const pWarna = s.peratusCapai == null ? 'text-gray-400' : (s.peratusCapai >= 50 ? 'text-green-700' : 'text-red-600');
+                const pTxt = s.peratusCapai == null
+                    ? '—<div class="text-[10px] font-normal text-gray-400">tiada sasaran</div>'
+                    : `${s.peratusCapai}%<div class="text-[10px] font-normal text-gray-500">${s.capai}/${s.bilSasaran}</div>`;
+                const nWarna = s.purataNaik == null ? 'text-gray-400' : (s.purataNaik >= 0 ? 'text-green-700' : 'text-red-600');
+                // #5 — purataNaik hanya atas murid yg ada TOV *dan* AR. Papar saiz sampel
+                // supaya purata dari segelintir murid tidak disangka mewakili kelas.
+                const nLiput = s.bilAdaMarkah ? Math.round(s.bilNaik / s.bilAdaMarkah * 100) : 0;
+                const nTxt = s.purataNaik == null
+                    ? '—<div class="text-[10px] font-normal text-gray-400">tiada TOV</div>'
+                    : `${s.purataNaik >= 0 ? '+' : ''}${s.purataNaik.toFixed(1)}` +
+                      `<div class="text-[10px] font-normal ${nLiput < 70 ? 'text-amber-600' : 'text-gray-500'}">` +
+                      `${s.bilNaik}/${s.bilAdaMarkah}${nLiput < 70 ? ' ⚠' : ''}</div>`;
                 const bilKol = `${s.bilAdaMarkah}/${s.bilMurid}`;
                 const selGredKlas = gred.map(gg =>
                     `<td class="px-2 py-2 text-center text-sm border-l border-gray-200">${s.grades[gg] || 0}</td>
@@ -8090,19 +8179,20 @@
                 return `<tr class="hover:bg-gray-50 border-t border-gray-100">
                     <td class="px-3 py-2 text-sm font-medium">${s.kelas}</td>
                     <td class="px-3 py-2 text-center text-sm text-gray-600">${bilKol}</td>
-                    <td class="px-3 py-2 text-center text-sm font-semibold ${pWarna}">${s.peratusCapai}%</td>
-                    <td class="px-3 py-2 text-center text-sm ${nWarna}">${s.purataNaik == null ? '—' : (s.purataNaik >= 0 ? '+' : '') + s.purataNaik.toFixed(1)}</td>
+                    <td class="px-3 py-2 text-center text-sm font-semibold ${pWarna}">${pTxt}</td>
+                    <td class="px-3 py-2 text-center text-sm ${nWarna}">${nTxt}</td>
                     ${selGredKlas}
                 </tr>`;
             }).join('');
             // footer jumlah — Sebenar & Sasaran berasingan
-            const tot = { grades: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 }, gredSasar: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 }, capai: 0, dinilai: 0 };
-            stats.forEach(s => { gred.forEach(k => { tot.grades[k] += s.grades[k] || 0; tot.gredSasar[k] += s.gredSasar[k] || 0; }); tot.capai += s.capai; tot.dinilai += s.bilAdaMarkah; });
-            const pTot = tot.dinilai ? Math.round(tot.capai / tot.dinilai * 100) : 0;
+            const tot = { grades: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 }, gredSasar: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 }, capai: 0, dinilai: 0, sasaran: 0 };
+            stats.filter(s => s.adaDoc).forEach(s => { gred.forEach(k => { tot.grades[k] += s.grades[k] || 0; tot.gredSasar[k] += s.gredSasar[k] || 0; }); tot.capai += s.capai; tot.dinilai += s.bilAdaMarkah; tot.sasaran += (s.bilSasaran || 0); });
+            const pTot = tot.sasaran ? Math.round(tot.capai / tot.sasaran * 100) : null;
+            const pTotTxt = pTot == null ? '—' : `${pTot}%<div class="text-[10px] font-normal text-gray-300">${tot.capai}/${tot.sasaran}</div>`;
             const foot = `<tr class="bg-gray-700 text-white font-semibold text-sm">
                 <td class="px-3 py-2">JUMLAH</td>
                 <td class="px-3 py-2 text-center">${tot.dinilai}</td>
-                <td class="px-3 py-2 text-center">${pTot}%</td>
+                <td class="px-3 py-2 text-center">${pTotTxt}</td>
                 <td class="px-3 py-2 text-center">—</td>
                 ${gred.map(g => `<td class="px-2 py-2 text-center border-l border-gray-500">${tot.grades[g]}</td><td class="px-2 py-2 text-center text-teal-200">${tot.gredSasar[g]}</td>`).join('')}
             </tr>`;
@@ -8113,6 +8203,7 @@
         function hcRenderCartaAnalisa(stats) {
             const ctx = document.getElementById('hca-chart').getContext('2d');
             if (hcAnalisaChart) hcAnalisaChart.destroy();
+            stats = stats.filter(s => s.adaDoc);   // kelas belum dibina tiada data utk dicarta
             const labels = stats.map(s => s.kelas);
             const gred = ['A', 'B', 'C', 'D', 'E', 'F'];
             const warna = { A: 'rgba(22,163,74,0.85)', B: 'rgba(59,130,246,0.85)', C: 'rgba(234,179,8,0.85)', D: 'rgba(249,115,22,0.85)', E: 'rgba(239,68,68,0.85)', F: 'rgba(156,163,175,0.85)' };
@@ -8150,8 +8241,9 @@
             const gred = ['A', 'B', 'C', 'D', 'E', 'F'];
             const head = ['Kelas', 'Dinilai', '% Capai', 'Purata naik', ...gred];
             const body = hcAnalisaData.map(s => [
-                s.kelas, `${s.bilAdaMarkah}/${s.bilMurid}`, `${s.peratusCapai}%`,
-                s.purataNaik == null ? '—' : (s.purataNaik >= 0 ? '+' : '') + s.purataNaik.toFixed(1),
+                s.kelas, `${s.bilAdaMarkah}/${s.bilMurid}`,
+                s.peratusCapai == null ? '—' : `${s.peratusCapai}% (${s.capai}/${s.bilSasaran})`,
+                s.purataNaik == null ? '—' : `${s.purataNaik >= 0 ? '+' : ''}${s.purataNaik.toFixed(1)} (${s.bilNaik}/${s.bilAdaMarkah})`,
                 ...gred.map(g => s.grades[g] || 0)
             ]);
             doc.autoTable({
@@ -8369,18 +8461,95 @@
         // Senarai peperiksaan untuk peta anak tangga — ikut tahun kalendar SEMASA
         // (AR ditarik dari markah tahun ini). Disimpan dalam cache oleh hcMuatPepSemasa.
         let hcPepSemasa = [];
-        async function hcMuatPepSemasa() {
-            const cy = new Date().getFullYear();
+        async function hcMuatPepSemasa(cy) {
+            if (!cy) cy = new Date().getFullYear();
             try {
                 const list = await getExamTypesForYear(cy);
                 hcPepSemasa = list.map(et => et.nama);
+                hcSemakSusunan(list);
             } catch (e) {
                 hcPepSemasa = GLOBAL_DATA.examTypes.map(et => et.nama);
+                hcSemakSusunan(GLOBAL_DATA.examTypes);
             }
             if (!hcPepSemasa.length) hcPepSemasa = GLOBAL_DATA.examTypes.map(et => et.nama);
         }
         function hcNamaPep() {
             return hcPepSemasa.length ? hcPepSemasa : GLOBAL_DATA.examTypes.map(et => et.nama);
+        }
+
+        // Susunan ujian menentukan tangga OTI: petaPep[i] dipadankan dgn OTI[i].
+        // Susunan itu datang dari medan `order` examTypes. Kalau `order` bertindih
+        // atau tiada, getExamTypesForYear jatuh ke tiebreak ABJAD nama — ujian Mac
+        // boleh jadi tangga terakhir tanpa sebarang tanda. Simpan diagnosis di sini
+        // supaya setiap tab Analisa boleh beri amaran kepada guru.
+        let hcPepSusunanIsu = null;
+        function hcSemakSusunan(list) {
+            hcPepSusunanIsu = null;
+            if (!list || list.length < 2) return;
+            const tiada = list.filter(et => et.order == null || et.order === '').map(et => et.nama);
+            const kira = {};
+            list.forEach(et => { if (et.order != null && et.order !== '') kira[et.order] = (kira[et.order] || 0) + 1; });
+            const tindih = Object.keys(kira).filter(k => kira[k] > 1);
+            if (!tiada.length && !tindih.length) return;
+            const sebab = [];
+            if (tindih.length) sebab.push(`${tindih.length} nombor susunan bertindih`);
+            if (tiada.length) sebab.push(`${tiada.length} peperiksaan tiada nombor susunan (${tiada.join(', ')})`);
+            hcPepSusunanIsu = sebab.join(' · ');
+        }
+
+        // #7 — Tahun kalendar analisa. Dulu setiap tab hardcode new Date().getFullYear()
+        // jadi headcount tahun lepas mustahil dilihat selepas masuk tahun baru.
+        // Sekarang ia dibaca dari dropdown tiap tab (fallback: tahun sistem).
+        function hcTahunAnalisa(id) {
+            const el = document.getElementById(id);
+            const v = el && parseInt(el.value);
+            return (v && !isNaN(v)) ? v : new Date().getFullYear();
+        }
+
+        // Banner markah/ETR tidak sah (bukan nombor atau luar julat 0-100). Nilai ini
+        // DIKELUARKAN dari taburan gred (tidak dikira F) supaya %E+F tidak naik palsu,
+        // jadi guru mesti diberitahu ia wujud & perlu dibetulkan di Rekod Markah.
+        function hcAmaranRosak(bilRosak, bilRosakSasar) {
+            const n = (bilRosak || 0) + (bilRosakSasar || 0);
+            if (!n) return '';
+            const bahagian = [];
+            if (bilRosak) bahagian.push(`${bilRosak} markah`);
+            if (bilRosakSasar) bahagian.push(`${bilRosakSasar} sasaran (ETR)`);
+            return `<div class="col-span-full rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800">
+                ⚠️ <b>${bahagian.join(' dan ')} tidak sah</b> (bukan nombor atau di luar julat 0–100).
+                Nilai ini <b>dikeluarkan</b> dari taburan gred — ia tidak dikira sebagai F.
+                Betulkan di Rekod &amp; Laporan supaya kiraan lengkap.
+            </div>`;
+        }
+
+        // #2 — Anak tangga OTI dikira dgn `bil` = bilangan peperiksaan SEMASA, bukan
+        // doc.bilTangga yang disimpan semasa headcount dibina. Ini disengajakan (elak
+        // petaOTI lapuk), tetapi kesan sampingannya: tambah/buang jenis peperiksaan
+        // menggerakkan semua anak tangga, jadi "% capai" berubah secara SURUT.
+        // Kesan & beritahu guru supaya perubahan nombor itu tidak mengelirukan.
+        function hcAmaranTangga(stats, petaPep) {
+            const bilKini = petaPep.length;
+            const beza = stats.filter(s => s.adaDoc && s.bilTanggaDoc && s.bilTanggaDoc !== bilKini);
+            if (!beza.length) return '';
+            const senarai = [...new Set(beza.map(s => s.bilTanggaDoc))].sort((a, b) => a - b);
+            return `<div class="col-span-full rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
+                ℹ️ <b>Anak tangga dikira semula.</b> ${beza.length} kelas dibina dengan
+                ${senarai.join('/')} anak tangga, tetapi tahun ini ada <b>${bilKini} peperiksaan</b>.
+                Anak tangga (OTI) diagihkan semula TOV→ETR mengikut ${bilKini} peperiksaan semasa,
+                jadi "% capai" mungkin berbeza daripada paparan sebelum ini. ETR tidak berubah.
+            </div>`;
+        }
+
+        // Banner amaran susunan — dikongsi ketiga-tiga tab Analisa Headcount.
+        function hcAmaranSusunan(petaPep) {
+            if (!hcPepSusunanIsu) return '';
+            return `<div class="col-span-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+                ⚠️ <b>Susunan peperiksaan tidak pasti</b> — ${hcPepSusunanIsu}.
+                Tangga sasaran (OTI) dipadankan mengikut susunan ini:
+                <b>${petaPep.map((p, i) => `${i + 1}. ${p}`).join(' → ')}</b>.
+                Jika susunan ini salah, % capai sasaran turut salah.
+                Betulkan di Admin › Urus Peperiksaan (guna anak panah ↑↓).
+            </div>`;
         }
 
         function hcLukisPetaOTI() {
@@ -12912,7 +13081,17 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             const subjekTerlibat = bacaSubjekTerlibat('new-exam-subjek');
 
             try {
-                const newOrder = GLOBAL_DATA.examTypes.length; // tambah di hujung
+                // `order` mesti dikira dari peperiksaan TAHUN YANG DITAMBAH, bukan
+                // GLOBAL_DATA.examTypes (tahun yang sedang dipapar). Kalau admin
+                // tambah utk tahun lain, .length tahun semasa boleh bertindih dgn
+                // order sedia ada tahun itu → susunan tangga OTI jadi salah.
+                let newOrder;
+                try {
+                    const sedia = await getExamTypesForYear(tahunKalendar);
+                    newOrder = sedia.reduce((m, et) => Math.max(m, (et.order ?? -1) + 1), 0);
+                } catch (e) {
+                    newOrder = GLOBAL_DATA.examTypes.length;
+                }
                 await db.collection('examTypes').add({
                     nama: nama,
                     darjah: darjahChecked,
