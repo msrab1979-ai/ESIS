@@ -1086,6 +1086,7 @@
                     <p id="hcm-subjek-nota" class="mt-3 text-xs text-gray-500"></p>
                 </div>
 
+                <div id="hcm-amaran" class="mb-3"></div>
                 <div id="hcm-kpi" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4"></div>
 
                 <div id="hcm-banding-wrap" class="bg-white rounded-lg border border-gray-200 mb-4">
@@ -7520,6 +7521,7 @@
             if (!muridSemua.length) {
                 tbl.innerHTML = `<p class="p-4 text-sm text-gray-500">Tiada murid untuk darjah ${darjah}. Pastikan senarai murid sudah diimport.</p>`;
                 document.getElementById('hcm-kpi').innerHTML = '';
+                document.getElementById('hcm-amaran').innerHTML = '';
                 return;
             }
 
@@ -7632,8 +7634,25 @@
                 m.rank = rank;
             });
 
+            // Liputan markah setiap subjek pada ujian TERKINI yang ada data — untuk
+            // amaran "subjek mana tertinggal". Guru tak perlu teka sendiri.
+            let pepAkhir = null;
+            for (let i = petaPep.length - 1; i >= 0; i--) {
+                if (senarai.some(m => m.ujian[i])) { pepAkhir = petaPep[i]; break; }
+            }
+            const liputan = subjekUtama.map(sub => {
+                let ada = 0;
+                if (pepAkhir) {
+                    muridSemua.forEach(m => {
+                        const v = arPeta[sub][pepAkhir][m.no_kp];
+                        if (v != null && v !== '' && !isNaN(parseInt(v))) ada++;
+                    });
+                }
+                return { sub, ada, jum: muridSemua.length };
+            });
+
             if (basi()) return;
-            hcMuridData = { darjah, cy, petaPep, subjekUtama, murid: senarai };
+            hcMuridData = { darjah, cy, petaPep, subjekUtama, murid: senarai, liputan, pepAkhir };
             hcMuridRender();
         }
 
@@ -7662,6 +7681,7 @@
             document.getElementById('hcm-kpi').innerHTML =
                 kad('fullA') + kad('terbaik') + kad('sederhana') + kad('lemah');
 
+            hcMuridAmaran();
             hcMuridBanding(papar, petaPep);
 
             if (!papar.length) {
@@ -7734,6 +7754,43 @@
                     Gred setiap lajur = gred purata subjek diutamakan. Lajur tebal = ujian terkini.
                     Subjek lemah = gred D, E, atau F.
                 </p>`;
+        }
+
+        // Amaran subjek yang markahnya belum lengkap. Tanpa ini guru kena teka
+        // sendiri subjek mana tertinggal — dan angka Full A/Terbaik nampak muktamad
+        // sedangkan ia masih boleh berubah.
+        function hcMuridAmaran() {
+            const el = document.getElementById('hcm-amaran');
+            if (!el || !hcMuridData) return;
+            const { liputan, pepAkhir } = hcMuridData;
+            if (!liputan || !liputan.length || !pepAkhir) { el.innerHTML = ''; return; }
+
+            // Subjek yang tidak lengkap (ada murid tanpa markah)
+            const kurang = liputan.filter(x => x.ada < x.jum)
+                                  .sort((a, b) => a.ada - b.ada);
+            if (!kurang.length) { el.innerHTML = ''; return; }
+
+            const senarai = kurang.map(x => {
+                const tiada = x.jum - x.ada;
+                const pct = Math.round(x.ada / x.jum * 100);
+                const merah = pct < 60;
+                return `<li class="mt-0.5">
+                    <b>${x.sub}</b> — ${x.ada} dari ${x.jum} murid ada markah
+                    <span class="${merah ? 'text-red-700 font-semibold' : 'text-amber-700'}">(${tiada} murid belum)</span>
+                </li>`;
+            }).join('');
+
+            el.innerHTML = `<div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <div class="font-semibold">⚠️ Markah belum lengkap untuk ${pepAkhir}</div>
+                <ul class="mt-1 text-xs list-disc list-inside">${senarai}</ul>
+                <div class="mt-2 text-xs">
+                    <b>Kesannya:</b> angka <b>🌟 Full A</b> dan <b>🟢 Terbaik</b> belum muktamad —
+                    ia akan berubah bila markah dimasukkan.
+                    Angka <b>🟡 Sederhana</b> dan <b>🟠 Lemah</b> sudah boleh dipercayai
+                    (gred D/E/F yang sedia ada tidak akan bertambah baik).
+                    Masukkan markah di <b>Rekod &amp; Laporan</b>.
+                </div>
+            </div>`;
         }
 
         // Jadual perbandingan: bil murid setiap kumpulan × setiap ujian + sasaran ETR.
@@ -7854,6 +7911,7 @@
             const kelasPilih = document.getElementById('hcm-kelas').value;
             const jadual = document.getElementById('hcm-table').innerHTML;
             const banding = document.getElementById('hcm-banding').innerHTML;
+            const amaran = document.getElementById('hcm-amaran').innerText.trim();
             const kpi = document.getElementById('hcm-kpi').innerText.replace(/\n/g, ' · ');
             const win = window.open('', '_blank');
             win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
@@ -7871,6 +7929,7 @@
                 <p class="sub">Darjah ${darjah}${kelasPilih ? ' — ' + kelasPilih : ' — semua kelas'} ·
                     Tahun ${cy} · Subjek diutamakan: ${subjekUtama.join(', ')}<br>
                     ${kpi} · Dicetak ${new Date().toLocaleDateString('ms-MY')}</p>
+                ${amaran ? `<div style="border:1px solid #d97706;background:#fffbeb;padding:8px;margin:0 0 12px;font-size:10px;white-space:pre-line">${amaran}</div>` : ''}
                 <h3 style="font-size:13px;margin:12px 0 4px">Perbandingan setiap ujian dengan sasaran</h3>
                 ${banding}
                 <h3 style="font-size:13px;margin:16px 0 4px">Senarai murid mengikut kedudukan</h3>
