@@ -8155,15 +8155,22 @@
 
         // Ringkasan satu baris di atas jadual — apa yang kebanyakan guru akan baca.
         function hcRingkasanKelas(stats) {
-            const ada = stats.filter(s => s.adaDoc && s.peratusCapai != null);
-            if (ada.length < 2) return '';
-            const isih = ada.slice().sort((a, b) => a.peratusCapai - b.peratusCapai);
-            const lemah = isih.filter(s => s.peratusCapai < 40).map(s => s.kelas);
-            const baik = isih.filter(s => s.peratusCapai >= 60).map(s => s.kelas);
+            const guna = stats.filter(s => s.adaDoc);
+            // Kelas yang guru belum masuk markah — sebut berasingan supaya tidak
+            // disangka prestasi lemah, dan supaya guru tahu apa perlu dibuat.
+            const kosong = guna.filter(s => s.bilAdaMarkah === 0).map(s => s.kelas);
+            const ada = guna.filter(s => s.peratusCapai != null);
             const bhg = [];
-            if (lemah.length) bhg.push(`Kelas paling perlu perhatian: <b>${lemah.join(', ')}</b>.`);
-            if (baik.length) bhg.push(`Kelas terbaik: <b>${baik.join(', ')}</b>.`);
-            if (!bhg.length) bhg.push(`Semua kelas berada di tahap sederhana — belum ada yang mencapai 60% ikut sasaran.`);
+            if (ada.length >= 2) {
+                const isih = ada.slice().sort((a, b) => a.peratusCapai - b.peratusCapai);
+                const lemah = isih.filter(s => s.peratusCapai < 40).map(s => s.kelas);
+                const baik = isih.filter(s => s.peratusCapai >= 60).map(s => s.kelas);
+                if (lemah.length) bhg.push(`Kelas paling perlu perhatian: <b>${lemah.join(', ')}</b>.`);
+                if (baik.length) bhg.push(`Kelas terbaik: <b>${baik.join(', ')}</b>.`);
+                if (!lemah.length && !baik.length) bhg.push(`Semua kelas berada di tahap sederhana — belum ada yang mencapai 60% ikut sasaran.`);
+            }
+            if (kosong.length) bhg.push(`<span class="text-amber-800">Belum masuk markah: <b>${kosong.join(', ')}</b> — kelas ini tidak dikira dalam jumlah.</span>`);
+            if (!bhg.length) return '';
             return `<div class="px-4 py-3 bg-blue-50 border-b border-blue-100 text-sm text-blue-900">${bhg.join(' ')}</div>`;
         }
 
@@ -8192,8 +8199,13 @@
                 if (!s.adaDoc) return `<tr class="text-gray-400"><td class="px-3 py-2">${s.kelas}</td><td colspan="${selGred - 1}" class="px-3 py-2 text-center text-xs">— belum diset (admin) —</td></tr>`;
                 const st = hcStatusSasaran(s.peratusCapai);
                 const pWarna = st.warna;
+                // Dua sebab berbeza mengapa % capai tiada — jangan campur:
+                // (a) markah belum dimasukkan, (b) sasaran (ETR) belum diset.
+                const sebabKosong = s.bilAdaMarkah === 0
+                    ? 'Belum masuk markah'
+                    : (s.totalSasar === 0 ? 'Belum ada sasaran' : 'Tiada padanan sasaran');
                 const pTxt = s.peratusCapai == null
-                    ? '<span class="text-xs">Belum ada sasaran</span>'
+                    ? `<span class="text-xs">${sebabKosong}</span>`
                     : `${st.ikon} ${st.label}` +
                       `<div class="text-[11px] font-normal text-gray-500 mt-0.5">${s.capai} dari ${s.bilSasaran} murid</div>`;
                 // Papar naik SEBENAR bersama naik DIMINTA (ETR-TOV). Tanpa perbandingan
@@ -8203,7 +8215,7 @@
                     : (s.purataNaik >= 0 ? 'text-gray-800' : 'text-red-600');
                 const nLiput = s.bilAdaMarkah ? Math.round(s.bilNaik / s.bilAdaMarkah * 100) : 0;
                 const nTxt = s.purataNaik == null
-                    ? '<span class="text-xs">Belum ada markah tahun lepas</span>'
+                    ? `<span class="text-xs">${s.bilAdaMarkah === 0 ? 'Belum masuk markah' : 'Belum ada markah tahun lepas'}</span>`
                     : `Naik ${s.purataNaik.toFixed(1)} markah` +
                       (s.purataDiminta != null
                         ? `<div class="text-[11px] font-normal text-gray-500 mt-0.5">sasaran naik ${s.purataDiminta.toFixed(1)}</div>`
@@ -8281,7 +8293,7 @@
             const head = ['Kelas', 'Dinilai', 'Ikut Sasaran', 'Markah Naik', ...gred];
             const body = hcAnalisaData.map(s => [
                 s.kelas, `${s.bilAdaMarkah}/${s.bilMurid}`,
-                s.peratusCapai == null ? 'Belum ada sasaran'
+                s.peratusCapai == null ? (s.bilAdaMarkah === 0 ? 'Belum masuk markah' : 'Belum ada sasaran')
                     : `${hcStatusSasaran(s.peratusCapai).label} — ${s.capai} dari ${s.bilSasaran} murid`,
                 s.purataNaik == null ? 'Tiada rekod lalu'
                     : `Naik ${s.purataNaik.toFixed(1)}` +
