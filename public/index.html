@@ -1127,6 +1127,23 @@
             </div>
         </div>
 
+        <!-- MODAL BUTIRAN MURID (Murid Terbaik) -->
+        <div id="hcm-modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onclick="hcmTutupKad(event)">
+            <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-auto" onclick="event.stopPropagation()">
+                <div class="p-4 border-b border-gray-200 flex justify-between items-start">
+                    <div>
+                        <h3 id="hcm-kad-nama" class="font-bold text-gray-900"></h3>
+                        <p id="hcm-kad-sub" class="text-xs text-gray-500"></p>
+                    </div>
+                    <button onclick="hcmTutupKad()" class="text-gray-400 hover:text-gray-700 text-2xl leading-none px-2">&times;</button>
+                </div>
+                <div id="hcm-kad-isi" class="p-4"></div>
+                <div class="p-4 border-t border-gray-200 flex justify-end">
+                    <button onclick="hcmCetakKad()" class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">📄 Cetak kad murid ini</button>
+                </div>
+            </div>
+        </div>
+
         <!-- PANEL MURID TERBAIK (BARU & BERASINGAN) -->
         <div id="murid-terbaik-panel" class="hidden bg-white p-6 rounded-xl shadow-xl print-panel">
             <div class="flex justify-between items-center border-b pb-3 mb-6">
@@ -7614,8 +7631,34 @@
                 const etrPurata = nEtr ? jumEtr / nEtr : null;
                 const purataAkhir = ujian[akhirIdx].purata;
 
+                // Pecahan PER SUBJEK untuk kad butiran: markah+gred setiap ujian,
+                // ETR, dan jarak ke sasaran. Guru nampak subjek MANA yang belum
+                // capai, bukan sekadar "belum capai" pada purata.
+                const pecahan = subjekUtama.map(sub => {
+                    const e = etrPeta[sub][kp];
+                    const etrNum = (e == null || e === '' || isNaN(parseInt(e))) ? null : parseInt(e);
+                    const perUjian = petaPep.map(pep => {
+                        const v = arPeta[sub][pep][kp];
+                        if (v == null || v === '') return null;
+                        const x = parseInt(v);
+                        if (isNaN(x)) return null;
+                        return { markah: x, gred: getGredFromMarkah(x) };
+                    });
+                    // ujian terkini yang ada markah bagi subjek ini
+                    let idxAkhir = -1;
+                    for (let i = perUjian.length - 1; i >= 0; i--) { if (perUjian[i]) { idxAkhir = i; break; } }
+                    const kini = idxAkhir >= 0 ? perUjian[idxAkhir] : null;
+                    return {
+                        sub, etr: etrNum,
+                        etrGred: etrNum == null ? null : getGredFromMarkah(etrNum),
+                        perUjian, idxAkhir,
+                        capai: (kini && etrNum != null) ? (kini.markah >= etrNum) : null,
+                        jurang: (kini && etrNum != null) ? (kini.markah - etrNum) : null,
+                    };
+                });
+
                 senarai.push({
-                    no_kp: kp, nama: m.nama || '(tiada nama)', kelas: m.kelas,
+                    no_kp: kp, nama: m.nama || '(tiada nama)', kelas: m.kelas, pecahan,
                     ujian, akhirIdx, purata: purataAkhir,
                     gred: getGredFromMarkah(Math.round(purataAkhir)),
                     kump, kumpUjian, kumpSasar,
@@ -7729,7 +7772,8 @@
                         ? `<div class="text-[10px] text-amber-600">⚠ ${m.lengkap} dari ${m.jumSubjek} subjek</div>` : '');
                 return `<tr class="hover:bg-gray-50 border-t border-gray-100">
                     <td class="px-3 py-2 text-center text-sm font-semibold text-gray-500">${m.rank}</td>
-                    <td class="px-3 py-2 text-sm font-medium text-gray-900">${m.nama}${takLengkap}</td>
+                    <td class="px-3 py-2 text-sm font-medium text-gray-900">
+                        <button onclick="hcmBukaKad('${m.no_kp}')" class="text-left hover:text-blue-700 hover:underline">${m.nama}</button>${takLengkap}</td>
                     <td class="px-3 py-2 text-sm text-gray-600">${m.kelas}</td>
                     ${selUjian}
                     ${etrSel}
@@ -7756,6 +7800,7 @@
                     <tbody>${rows}</tbody>
                 </table>
                 <p class="px-3 py-2 text-xs text-gray-400 border-t border-gray-100">
+                    <b>Klik nama murid</b> untuk lihat pecahan setiap subjek vs sasaran.
                     Kedudukan (#) dikira untuk <b>seluruh darjah</b> — tidak berubah bila tapis kelas.
                     Gred setiap lajur = gred purata subjek diutamakan. Lajur tebal = ujian terkini.
                     Subjek lemah = gred D, E, atau F.
@@ -7891,6 +7936,138 @@
                     Lajur tebal = ujian terkini. <b>Beza</b> = ujian terkini tolak sasaran —
                     hijau bermakna menuju arah yang betul (lebih ramai Full A/Terbaik, atau kurang Sederhana/Lemah).
                 </p>`;
+        }
+
+        // ===== KAD BUTIRAN MURID — pecahan setiap subjek vs sasaran =====
+        // Jadual utama hanya papar purata; guru tak nampak subjek MANA yang belum
+        // capai. Kad ini beri pecahan penuh: setiap subjek × setiap ujian vs ETR.
+        let hcmKadMurid = null;
+
+        function hcmBukaKad(noKp) {
+            if (!hcMuridData) return;
+            const m = hcMuridData.murid.find(x => x.no_kp === noKp);
+            if (!m) return;
+            hcmKadMurid = m;
+            const { petaPep } = hcMuridData;
+            const d = HCM_KUMP[m.kump];
+            const gredWarna = { A:'text-green-700', B:'text-blue-700', C:'text-yellow-700',
+                                D:'text-orange-700', E:'text-red-700', F:'text-gray-600' };
+
+            document.getElementById('hcm-kad-nama').textContent = m.nama;
+            document.getElementById('hcm-kad-sub').innerHTML =
+                `${m.kelas} · Kedudukan #${m.rank} dalam darjah ${hcMuridData.darjah} · ${d.ikon} ${d.label}`;
+
+            const headUjian = petaPep.map((p, i) =>
+                `<th class="px-2 py-2 text-center font-medium ${i === m.akhirIdx ? 'text-gray-800' : 'text-gray-400'}">${p}</th>`).join('');
+
+            const baris = m.pecahan.map(x => {
+                const selEtr = x.etr == null
+                    ? '<td class="px-2 py-2 text-center text-gray-300 bg-teal-50/60">—</td>'
+                    : `<td class="px-2 py-2 text-center bg-teal-50/60 font-semibold ${gredWarna[x.etrGred] || ''}">${x.etrGred}
+                        <div class="text-[10px] font-normal text-teal-700">${x.etr}</div></td>`;
+                const selUjian = x.perUjian.map((u, i) => {
+                    if (!u) return '<td class="px-2 py-2 text-center text-gray-300">—</td>';
+                    const tebal = i === x.idxAkhir ? 'font-bold' : '';
+                    return `<td class="px-2 py-2 text-center ${tebal} ${gredWarna[u.gred] || ''}">${u.gred}
+                        <div class="text-[10px] font-normal text-gray-500">${u.markah}</div></td>`;
+                }).join('');
+                const status = x.capai == null
+                    ? (x.perUjian.some(u => u) ? '<span class="text-xs text-gray-400">tiada sasaran</span>'
+                                              : '<span class="text-xs text-amber-600">belum masuk</span>')
+                    : (x.capai ? '<span class="text-green-600">✅</span>'
+                               : `<span class="text-amber-600 text-xs whitespace-nowrap">❗ ${x.jurang}</span>`);
+                return `<tr class="border-t border-gray-100">
+                    <td class="px-3 py-2 text-sm font-medium text-gray-800">${x.sub}</td>
+                    ${selEtr}${selUjian}
+                    <td class="px-2 py-2 text-center">${status}</td>
+                </tr>`;
+            }).join('');
+
+            // baris purata
+            const purataUjian = petaPep.map((_, i) => {
+                const u = m.ujian[i];
+                return u ? `<td class="px-2 py-2 text-center text-sm font-semibold">${u.purata.toFixed(1)}</td>`
+                         : '<td class="px-2 py-2 text-center text-gray-300">—</td>';
+            }).join('');
+            const purataEtr = m.etrPurata == null ? '<td class="px-2 py-2 text-center text-gray-300 bg-teal-50/60">—</td>'
+                : `<td class="px-2 py-2 text-center text-sm font-semibold bg-teal-50/60 text-teal-800">${m.etrPurata.toFixed(1)}</td>`;
+
+            // rumusan: subjek yang belum capai
+            const belum = m.pecahan.filter(x => x.capai === false);
+            const takdeMarkah = m.pecahan.filter(x => !x.perUjian.some(u => u));
+            let rumusan = '';
+            if (belum.length) {
+                const senarai = belum.sort((a,b) => a.jurang - b.jurang)
+                    .map(x => `<b>${x.sub}</b> (${x.jurang})`).join(', ');
+                rumusan = `<div class="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    <b>Tumpuan:</b> ${senarai} — belum capai sasaran.</div>`;
+            } else if (m.pecahan.some(x => x.capai === true)) {
+                rumusan = `<div class="mt-3 rounded border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+                    ✅ Semua subjek yang ada markah sudah capai sasaran.</div>`;
+            }
+            if (takdeMarkah.length) {
+                rumusan += `<div class="mt-2 rounded border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                    Belum ada markah: <b>${takdeMarkah.map(x => x.sub).join(', ')}</b></div>`;
+            }
+
+            document.getElementById('hcm-kad-isi').innerHTML = `
+                <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-xs text-gray-500">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-medium">Subjek</th>
+                            <th class="px-2 py-2 text-center font-medium bg-teal-50 text-teal-800">🎯 Sasaran</th>
+                            ${headUjian}
+                            <th class="px-2 py-2 text-center font-medium">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>${baris}</tbody>
+                    <tfoot class="bg-gray-50 border-t-2 border-gray-300">
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-bold">PURATA</td>
+                            ${purataEtr}${purataUjian}
+                            <td class="px-2 py-2 text-center">${
+                                m.capaiEtr == null ? '—'
+                                : m.capaiEtr ? '<span class="text-green-600">✅</span>'
+                                : `<span class="text-amber-600 text-xs">❗ ${(m.purata - m.etrPurata).toFixed(1)}</span>`}</td>
+                        </tr>
+                    </tfoot>
+                </table></div>
+                ${rumusan}
+                <p class="mt-3 text-xs text-gray-400">
+                    Lajur tebal = ujian terkini. Status membandingkan <b>markah</b> ujian terkini
+                    dengan sasaran (ETR) subjek itu — angka merah menunjukkan berapa markah lagi diperlukan.
+                </p>`;
+            document.getElementById('hcm-modal').classList.remove('hidden');
+        }
+
+        function hcmTutupKad(ev) {
+            if (ev && ev.target !== ev.currentTarget) return;
+            document.getElementById('hcm-modal').classList.add('hidden');
+        }
+
+        function hcmCetakKad() {
+            if (!hcmKadMurid) return;
+            const m = hcmKadMurid;
+            const isi = document.getElementById('hcm-kad-isi').innerHTML;
+            const sub = document.getElementById('hcm-kad-sub').innerText;
+            const win = window.open('', '_blank');
+            win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+                <title>${m.nama}</title>
+                <style>
+                    body{font-family:Arial,sans-serif;padding:24px;color:#111}
+                    h2{margin:0 0 2px;font-size:16px} p.sub{margin:0 0 14px;color:#555;font-size:11px}
+                    table{width:100%;border-collapse:collapse;font-size:11px}
+                    th,td{border:1px solid #999;padding:5px;text-align:center}
+                    th{background:#f0f0f0} td:first-child,th:first-child{text-align:left}
+                    .text-gray-300,.text-gray-400{color:#999}
+                </style></head><body>
+                <h2>${m.nama}</h2>
+                <p class="sub">${sub} · Dicetak ${new Date().toLocaleDateString('ms-MY')}</p>
+                ${isi}
+                </body></html>`);
+            win.document.close(); win.focus();
+            setTimeout(() => { win.print(); win.close(); }, 500);
         }
 
         // Muat turun CSV — ikut apa yang dipapar
