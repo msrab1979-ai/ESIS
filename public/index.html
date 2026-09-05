@@ -7441,8 +7441,11 @@
             const dEl = document.getElementById('hcm-darjah');
             if (!dEl.options.length) {
                 dEl.innerHTML = (ada.length ? ada : urutan).map(t => `<option value="${t}">${t}</option>`).join('');
-                const tahunSet = document.getElementById('hc-tahun').value;
-                if (tahunSet) dEl.value = tahunSet;
+                // Lalai ikut darjah yang pengguna sedang guna di tab lain (Set Sasaran
+                // atau Analisa) — bukan sentiasa SATU, yang selalunya belum ada markah.
+                const ikut = document.getElementById('hc-tahun').value
+                          || document.getElementById('hca-darjah').value;
+                if (ikut && [...dEl.options].some(o => o.value === ikut)) dEl.value = ikut;
             }
             populatePanelYearDropdown('hcm-tahun-kal',
                 document.getElementById('hcm-tahun-kal').value || new Date().getFullYear().toString());
@@ -7621,8 +7624,13 @@
                 kad('fullA') + kad('terbaik') + kad('sederhana') + kad('lemah');
 
             if (!papar.length) {
-                document.getElementById('hcm-table').innerHTML =
-                    '<p class="p-4 text-sm text-gray-500">Tiada murid untuk tapisan ini.</p>';
+                // Bezakan "tapisan terlalu ketat" dari "darjah ini memang tiada markah"
+                const adaLangsung = murid.length > 0;
+                const kelasTxt = kelasPilih ? ` kelas ${kelasPilih}` : '';
+                document.getElementById('hcm-table').innerHTML = adaLangsung
+                    ? `<p class="p-4 text-sm text-gray-500">Tiada murid dalam kumpulan ini${kelasTxt}. Cuba tukar tapisan Kumpulan kepada "Semua kumpulan".</p>`
+                    : `<p class="p-4 text-sm text-gray-500">Tiada markah direkodkan untuk darjah <b>${hcMuridData.darjah}</b> pada tahun ${hcMuridData.cy}.
+                       Sila pilih darjah lain, atau masukkan markah di Rekod &amp; Laporan.</p>`;
                 return;
             }
 
