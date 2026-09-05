@@ -1088,6 +1088,14 @@
 
                 <div id="hcm-kpi" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4"></div>
 
+                <div id="hcm-banding-wrap" class="bg-white rounded-lg border border-gray-200 mb-4">
+                    <div class="px-4 py-3 border-b border-gray-100">
+                        <h4 class="text-sm font-semibold text-gray-700">Perbandingan setiap ujian dengan sasaran</h4>
+                        <p class="text-xs text-gray-500">Berapa ramai murid dalam setiap kumpulan pada setiap ujian, berbanding sasaran (ETR).</p>
+                    </div>
+                    <div id="hcm-banding" class="overflow-x-auto"></div>
+                </div>
+
                 <div class="bg-white rounded-lg border border-gray-200">
                     <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                         <h4 class="text-sm font-semibold text-gray-700">Senarai murid mengikut kedudukan</h4>
@@ -7563,6 +7571,29 @@
                 const kump = hcmKumpulan(gredSubjek);
                 if (!kump) return;
 
+                // Kumpulan bagi SETIAP ujian — utk jadual perbandingan pergerakan.
+                const kumpUjian = petaPep.map(pep => {
+                    const gl = [];
+                    subjekUtama.forEach(sub => {
+                        const v = arPeta[sub][pep][kp];
+                        if (v == null || v === '') return;
+                        const x = parseInt(v); if (isNaN(x)) return;
+                        const g = getGredFromMarkah(x);
+                        if (['A','B','C','D','E','F'].includes(g)) gl.push(g);
+                    });
+                    return hcmKumpulan(gl);
+                });
+                // Kumpulan SASARAN — dari gred ETR setiap subjek utama
+                const gredEtr = [];
+                subjekUtama.forEach(sub => {
+                    const e = etrPeta[sub][kp];
+                    if (e == null || e === '') return;
+                    const x = parseInt(e); if (isNaN(x)) return;
+                    const g = getGredFromMarkah(x);
+                    if (['A','B','C','D','E','F'].includes(g)) gredEtr.push(g);
+                });
+                const kumpSasar = hcmKumpulan(gredEtr);
+
                 // ETR purata
                 let jumEtr = 0, nEtr = 0;
                 subjekUtama.forEach(sub => {
@@ -7576,7 +7607,8 @@
                     no_kp: kp, nama: m.nama || '(tiada nama)', kelas: m.kelas,
                     ujian, akhirIdx, purata: purataAkhir,
                     gred: getGredFromMarkah(Math.round(purataAkhir)),
-                    kump, lemah, lengkap: gredSubjek.length, jumSubjek: subjekUtama.length,
+                    kump, kumpUjian, kumpSasar,
+                    lemah, lengkap: gredSubjek.length, jumSubjek: subjekUtama.length,
                     etrPurata, etrGred: etrPurata == null ? null : getGredFromMarkah(Math.round(etrPurata)),
                     capaiEtr: etrPurata == null ? null : (purataAkhir >= etrPurata),
                 });
@@ -7622,6 +7654,8 @@
             };
             document.getElementById('hcm-kpi').innerHTML =
                 kad('fullA') + kad('terbaik') + kad('sederhana') + kad('lemah');
+
+            hcMuridBanding(papar, petaPep);
 
             if (!papar.length) {
                 // Bezakan "tapisan terlalu ketat" dari "darjah ini memang tiada markah"
@@ -7695,6 +7729,83 @@
                 </p>`;
         }
 
+        // Jadual perbandingan: bil murid setiap kumpulan × setiap ujian + sasaran ETR.
+        // Guru nampak PERGERAKAN kumpulan, bukan hanya keadaan terkini.
+        function hcMuridBanding(papar, petaPep) {
+            const wrap = document.getElementById('hcm-banding-wrap');
+            const el = document.getElementById('hcm-banding');
+            if (!papar.length) { wrap.classList.add('hidden'); return; }
+            wrap.classList.remove('hidden');
+
+            const kunci = ['fullA', 'terbaik', 'sederhana', 'lemah'];
+            // kira[kumpulan][idxUjian] dan kira[kumpulan].sasar
+            const kira = {};
+            kunci.forEach(k => { kira[k] = { ujian: petaPep.map(() => 0), sasar: 0 }; });
+            const jumUjian = petaPep.map(() => 0);
+            let jumSasar = 0;
+            papar.forEach(m => {
+                m.kumpUjian.forEach((k, i) => { if (k) { kira[k].ujian[i]++; jumUjian[i]++; } });
+                if (m.kumpSasar) { kira[m.kumpSasar].sasar++; jumSasar++; }
+            });
+
+            const sel = (bil, jum, tebal) => {
+                if (!jum) return '<td class="px-3 py-2 text-center text-gray-300">—</td>';
+                const pct = (bil / jum * 100).toFixed(1);
+                return `<td class="px-3 py-2 text-center ${tebal ? 'font-bold' : ''}">${bil}
+                    <div class="text-[11px] font-normal text-gray-500">${pct}%</div></td>`;
+            };
+            // ujian terkini yang ada murid — dijadikan tebal
+            let akhir = -1;
+            for (let i = jumUjian.length - 1; i >= 0; i--) { if (jumUjian[i] > 0) { akhir = i; break; } }
+
+            const rows = kunci.map(k => {
+                const d = HCM_KUMP[k];
+                const selUjian = petaPep.map((_, i) => sel(kira[k].ujian[i], jumUjian[i], i === akhir)).join('');
+                const selSasar = jumSasar
+                    ? `<td class="px-3 py-2 text-center bg-teal-50/60 border-l-2 border-teal-200 font-semibold text-teal-800">${kira[k].sasar}
+                        <div class="text-[11px] font-normal text-teal-600">${(kira[k].sasar / jumSasar * 100).toFixed(1)}%</div></td>`
+                    : '<td class="px-3 py-2 text-center bg-teal-50/60 border-l-2 border-teal-200 text-gray-300">—</td>';
+                // beza antara ujian terkini dan sasaran
+                const kini = akhir >= 0 ? kira[k].ujian[akhir] : null;
+                const beza = (kini != null && jumSasar) ? (kini - kira[k].sasar) : null;
+                const bezaTxt = beza == null ? '—'
+                    : (beza === 0 ? '<span class="text-gray-400">sama</span>'
+                       : `<span class="${(k === 'fullA' || k === 'terbaik') === (beza > 0) ? 'text-green-600' : 'text-amber-600'}">${beza > 0 ? '+' : ''}${beza}</span>`);
+                return `<tr class="border-t border-gray-100">
+                    <td class="px-3 py-2 text-sm font-medium ${d.warna} whitespace-nowrap">${d.ikon} ${d.label}</td>
+                    ${selUjian}${selSasar}
+                    <td class="px-3 py-2 text-center text-sm">${bezaTxt}</td>
+                </tr>`;
+            }).join('');
+
+            const head = petaPep.map((p, i) =>
+                `<th class="px-3 py-2 text-center font-medium ${i === akhir ? 'text-gray-800' : ''}">${p}</th>`).join('');
+            const jumRow = `<tr class="bg-gray-50 border-t-2 border-gray-300 text-sm font-semibold">
+                <td class="px-3 py-2">JUMLAH murid</td>
+                ${jumUjian.map(j => `<td class="px-3 py-2 text-center">${j || '—'}</td>`).join('')}
+                <td class="px-3 py-2 text-center bg-teal-50/60 border-l-2 border-teal-200 text-teal-800">${jumSasar || '—'}</td>
+                <td class="px-3 py-2 text-center">—</td>
+            </tr>`;
+
+            el.innerHTML = `
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-xs text-gray-500">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-medium">Kumpulan</th>
+                            ${head}
+                            <th class="px-3 py-2 text-center font-medium bg-teal-50 border-l-2 border-teal-200 text-teal-800">🎯 Sasaran (ETR)</th>
+                            <th class="px-3 py-2 text-center font-medium">Beza</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                    <tfoot>${jumRow}</tfoot>
+                </table>
+                <p class="px-3 py-2 text-xs text-gray-400 border-t border-gray-100">
+                    Lajur tebal = ujian terkini. <b>Beza</b> = ujian terkini tolak sasaran —
+                    hijau bermakna menuju arah yang betul (lebih ramai Full A/Terbaik, atau kurang Sederhana/Lemah).
+                </p>`;
+        }
+
         // Muat turun CSV — ikut apa yang dipapar
         function hcMuridCSV() {
             if (!hcMuridData) { showNotification('Muat Turun', 'Tiada data.', true); return; }
@@ -7735,6 +7846,7 @@
             const { darjah, cy, subjekUtama } = hcMuridData;
             const kelasPilih = document.getElementById('hcm-kelas').value;
             const jadual = document.getElementById('hcm-table').innerHTML;
+            const banding = document.getElementById('hcm-banding').innerHTML;
             const kpi = document.getElementById('hcm-kpi').innerText.replace(/\n/g, ' · ');
             const win = window.open('', '_blank');
             win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
@@ -7752,6 +7864,9 @@
                 <p class="sub">Darjah ${darjah}${kelasPilih ? ' — ' + kelasPilih : ' — semua kelas'} ·
                     Tahun ${cy} · Subjek diutamakan: ${subjekUtama.join(', ')}<br>
                     ${kpi} · Dicetak ${new Date().toLocaleDateString('ms-MY')}</p>
+                <h3 style="font-size:13px;margin:12px 0 4px">Perbandingan setiap ujian dengan sasaran</h3>
+                ${banding}
+                <h3 style="font-size:13px;margin:16px 0 4px">Senarai murid mengikut kedudukan</h3>
                 ${jadual}
                 </body></html>`);
             win.document.close(); win.focus();
