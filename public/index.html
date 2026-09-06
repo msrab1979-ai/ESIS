@@ -1122,6 +1122,15 @@
                 <div id="hcm-amaran" class="mb-3"></div>
                 <div id="hcm-kpi" class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4"></div>
 
+                <!-- Corak gred: 4A / 3A1B / ... ikut bilangan subjek diutamakan -->
+                <div class="bg-white rounded-lg border border-gray-200 mb-4">
+                    <div class="px-3 sm:px-4 py-2 border-b border-gray-100 flex items-center justify-between gap-2 flex-wrap">
+                        <h4 class="font-semibold text-gray-800 text-sm">📋 Corak Gred</h4>
+                        <button onclick="hcmCorakCSV()" class="rounded border border-gray-300 px-2.5 py-1 text-xs hover:bg-gray-50">📥 CSV</button>
+                    </div>
+                    <div id="hcm-corak" class="p-3 sm:p-4"></div>
+                </div>
+
                 <div id="hcm-banding-wrap" class="bg-white rounded-lg border border-gray-200 mb-4">
                     <div class="px-4 py-3 border-b border-gray-100">
                         <h4 class="text-sm font-semibold text-gray-700">Perbandingan setiap ujian dengan sasaran</h4>
@@ -7697,6 +7706,7 @@
                     ujian, akhirIdx, purata: purataAkhir,
                     gred: getGredFromMarkah(Math.round(purataAkhir)),
                     kump, kumpUjian, kumpSasar,
+                    gredSubjek,   // senarai gred subjek utama pd ujian terkini (utk corak 4A/3A1B)
                     lemah, tiadaMarkah,
                     lengkap: gredSubjek.length, jumSubjek: subjekUtama.length,
                     etrPurata, etrGred: etrPurata == null ? null : getGredFromMarkah(Math.round(etrPurata)),
@@ -7763,6 +7773,7 @@
                 kad('fullA') + kad('terbaik') + kad('sederhana') + kad('lemah');
 
             hcMuridAmaran();
+            hcMuridCorak(papar);
             hcMuridBanding(papar, petaPep);
 
             if (!papar.length) {
@@ -7840,6 +7851,187 @@
                     Gred setiap lajur = gred purata subjek diutamakan. Lajur tebal = ujian terkini.
                     Subjek lemah = gred D, E, atau F.
                 </p>`;
+        }
+
+        // ==========================================================
+        // 📋 CORAK GRED — "4A", "3A1B", "2A1B1C" ...
+        // Corak dibina dari gred subjek DIUTAMAKAN pada ujian TERKINI. Bilangan
+        // subjek ikut tetapan admin (⭐ Subjek Diutamakan) — 4 subjek -> corak
+        // penuh ialah "4A", 6 subjek -> "6A".
+        // Murid yang markah subjek utamanya BELUM LENGKAP diasingkan ke baris
+        // "Tidak lengkap" — sebab corak 3A1B tidak sah kalau satu subjek belum
+        // ada markah (gred sebenarnya masih tidak diketahui).
+        // ==========================================================
+        const HCM_URUT_GRED = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+        // ['A','A','B','A'] -> { label:'3A1B', bil:{A:3,B:1} }
+        function hcmCorakLabel(gredList) {
+            const bil = {};
+            gredList.forEach(g => { bil[g] = (bil[g] || 0) + 1; });
+            const label = HCM_URUT_GRED.filter(g => bil[g]).map(g => `${bil[g]}${g}`).join('');
+            return { label, bil };
+        }
+
+        // Susun corak dari terbaik ke terlemah: banding bilangan A dahulu, kemudian
+        // B, C, ... Corak dgn 4A mendahului 3A1B, yang mendahului 3A1C.
+        function hcmBandingCorak(a, b) {
+            for (const g of HCM_URUT_GRED) {
+                const da = (b.bil[g] || 0) - (a.bil[g] || 0);
+                if (da) return da;
+            }
+            return 0;
+        }
+
+        // Kumpulan corak bagi senarai murid yang SUDAH ditapis (kelas/kumpulan).
+        // Pulangkan { corak:[{label,bil,murid:[]}], takLengkap:[] }.
+        function hcmKiraCorak(papar) {
+            const peta = new Map();
+            const takLengkap = [];
+            papar.forEach(m => {
+                const gl = m.gredSubjek || [];
+                // lengkap = setiap subjek utama ada gred sah
+                if (!gl.length || gl.length < m.jumSubjek) { takLengkap.push(m); return; }
+                const { label, bil } = hcmCorakLabel(gl);
+                if (!peta.has(label)) peta.set(label, { label, bil, murid: [] });
+                peta.get(label).murid.push(m);
+            });
+            const corak = [...peta.values()].sort(hcmBandingCorak);
+            // dalam setiap corak, susun murid ikut kedudukan darjah
+            corak.forEach(c => c.murid.sort((a, b) => a.rank - b.rank));
+            takLengkap.sort((a, b) => a.rank - b.rank);
+            return { corak, takLengkap };
+        }
+
+        let hcmCorakBuka = new Set();   // label corak yang sedang dibuka
+
+        function hcMuridCorak(papar) {
+            const el = document.getElementById('hcm-corak');
+            if (!el || !hcMuridData) return;
+            const { subjekUtama, pepAkhir } = hcMuridData;
+            const { corak, takLengkap } = hcmKiraCorak(papar);
+
+            if (!corak.length && !takLengkap.length) {
+                el.innerHTML = '<p class="text-sm text-gray-500">Tiada murid untuk tapisan ini.</p>';
+                return;
+            }
+            // Bar dibandingkan dengan corak paling ramai supaya panjangnya bermakna.
+            const maxBil = Math.max(1, ...corak.map(c => c.murid.length));
+            const gredWarna = { A:'text-green-700', B:'text-blue-700', C:'text-yellow-700',
+                                D:'text-orange-700', E:'text-red-700', F:'text-gray-600' };
+
+            const barisCorak = corak.map(c => {
+                const buka = hcmCorakBuka.has(c.label);
+                const lebar = Math.round(c.murid.length / maxBil * 100);
+                // corak penuh A dihiasi ungu — sama warna dgn kad Full A
+                const penuh = (c.bil.A || 0) === subjekUtama.length;
+                const senarai = buka ? `
+                    <div class="px-3 pb-3">
+                        <table class="w-full text-sm">
+                            <thead class="text-xs text-gray-500">
+                                <tr><th class="px-2 py-1 text-center font-medium w-10">#</th>
+                                    <th class="px-2 py-1 text-left font-medium">Nama</th>
+                                    <th class="px-2 py-1 text-left font-medium">Kelas</th>
+                                    <th class="px-2 py-1 text-left font-medium">Gred subjek</th></tr>
+                            </thead>
+                            <tbody>${c.murid.map(m => `
+                                <tr class="border-t border-gray-100">
+                                    <td class="px-2 py-1 text-center text-gray-500">${m.rank}</td>
+                                    <td class="px-2 py-1 font-medium text-gray-900">
+                                        <button onclick="hcmBukaKad('${m.no_kp}')" class="text-left hover:text-blue-700 hover:underline">${m.nama}</button></td>
+                                    <td class="px-2 py-1 text-gray-600">${m.kelas}</td>
+                                    <td class="px-2 py-1 text-xs">${m.pecahan.filter(p => p.idxAkhir >= 0).map(p => {
+                                        const g = p.perUjian[p.idxAkhir].gred;
+                                        return `<span class="${gredWarna[g] || ''}" title="${p.sub}">${hcmSingkat(p.sub)}:${g}</span>`;
+                                    }).join(' · ')}</td>
+                                </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>` : '';
+                return `<div class="border ${penuh ? 'border-purple-200 bg-purple-50/40' : 'border-gray-200'} rounded-lg mb-2 overflow-hidden">
+                    <button onclick="hcmTogolCorak('${c.label}')" class="w-full flex items-center gap-2 sm:gap-3 px-3 py-2 hover:bg-gray-50 text-left">
+                        <span class="text-gray-400 text-xs w-3">${buka ? '▾' : '▸'}</span>
+                        <span class="font-bold text-sm sm:text-base w-16 sm:w-20 ${penuh ? 'text-purple-700' : 'text-gray-800'} whitespace-nowrap">${penuh ? '🌟 ' : ''}${c.label}</span>
+                        <span class="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden min-w-[40px]">
+                            <span class="block h-full ${penuh ? 'bg-purple-500' : 'bg-blue-400'}" style="width:${lebar}%"></span>
+                        </span>
+                        <span class="text-sm font-semibold text-gray-700 whitespace-nowrap">${c.murid.length} <span class="font-normal text-gray-500">murid</span></span>
+                    </button>
+                    ${senarai}
+                </div>`;
+            }).join('');
+
+            const barisTL = takLengkap.length ? `
+                <div class="border border-amber-200 bg-amber-50/50 rounded-lg mb-2 overflow-hidden">
+                    <button onclick="hcmTogolCorak('__TL__')" class="w-full flex items-center gap-2 sm:gap-3 px-3 py-2 hover:bg-amber-50 text-left">
+                        <span class="text-gray-400 text-xs w-3">${hcmCorakBuka.has('__TL__') ? '▾' : '▸'}</span>
+                        <span class="font-semibold text-sm text-amber-800 flex-1">⚠ Tidak lengkap</span>
+                        <span class="text-sm font-semibold text-amber-800 whitespace-nowrap">${takLengkap.length} <span class="font-normal">murid</span></span>
+                    </button>
+                    ${hcmCorakBuka.has('__TL__') ? `<div class="px-3 pb-3">
+                        <table class="w-full text-sm">
+                            <thead class="text-xs text-gray-500"><tr>
+                                <th class="px-2 py-1 text-center font-medium w-10">#</th>
+                                <th class="px-2 py-1 text-left font-medium">Nama</th>
+                                <th class="px-2 py-1 text-left font-medium">Kelas</th>
+                                <th class="px-2 py-1 text-left font-medium">Subjek belum masuk</th></tr></thead>
+                            <tbody>${takLengkap.map(m => `
+                                <tr class="border-t border-amber-100">
+                                    <td class="px-2 py-1 text-center text-gray-500">${m.rank}</td>
+                                    <td class="px-2 py-1 font-medium text-gray-900">
+                                        <button onclick="hcmBukaKad('${m.no_kp}')" class="text-left hover:text-blue-700 hover:underline">${m.nama}</button></td>
+                                    <td class="px-2 py-1 text-gray-600">${m.kelas}</td>
+                                    <td class="px-2 py-1 text-xs text-amber-700" title="${(m.tiadaMarkah || []).join(', ')}">${(m.tiadaMarkah || []).map(hcmSingkat).join(', ') || '—'}</td>
+                                </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>` : ''}
+                </div>` : '';
+
+            el.innerHTML = barisCorak + barisTL + `
+                <p class="text-xs text-gray-400 mt-2">
+                    Corak dikira dari <b>${subjekUtama.length} subjek diutamakan</b> (${subjekUtama.join(', ')})
+                    pada ujian <b>${pepAkhir || '—'}</b>. <b>Klik baris</b> untuk lihat nama murid.
+                    Murid yang ada subjek belum bermarkah tidak dimasukkan ke mana-mana corak.
+                </p>`;
+        }
+
+        function hcmTogolCorak(label) {
+            if (hcmCorakBuka.has(label)) hcmCorakBuka.delete(label);
+            else hcmCorakBuka.add(label);
+            hcMuridRender();
+        }
+
+        function hcmCorakCSV() {
+            if (!hcMuridData) { showNotification('Muat Turun', 'Tiada data.', true); return; }
+            const { darjah, cy, pepAkhir } = hcMuridData;
+            const kelasPilih = document.getElementById('hcm-kelas').value;
+            const kumpPilih = document.getElementById('hcm-kump').value;
+            const papar = hcMuridData.murid.filter(m =>
+                (!kelasPilih || m.kelas === kelasPilih) &&
+                (kumpPilih === 'semua' || m.kump === kumpPilih));
+            const { corak, takLengkap } = hcmKiraCorak(papar);
+            if (!corak.length && !takLengkap.length) { showNotification('Muat Turun', 'Tiada murid untuk tapisan ini.', true); return; }
+            const esc = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+            const baris = [];
+            corak.forEach(c => c.murid.forEach(m => baris.push([
+                c.label, c.murid.length, m.rank, m.nama, m.kelas,
+                m.pecahan.filter(p => p.idxAkhir >= 0).map(p => `${p.sub}=${p.perUjian[p.idxAkhir].gred}`).join('; '),
+                '',
+            ])));
+            takLengkap.forEach(m => baris.push([
+                'TIDAK LENGKAP', takLengkap.length, m.rank, m.nama, m.kelas,
+                m.pecahan.filter(p => p.idxAkhir >= 0).map(p => `${p.sub}=${p.perUjian[p.idxAkhir].gred}`).join('; '),
+                (m.tiadaMarkah || []).join('; '),
+            ]));
+            const head = ['Corak', 'Bil murid corak', 'Kedudukan', 'Nama', 'Kelas', 'Gred subjek', 'Subjek belum masuk'];
+            const csv = '﻿' + [head.map(esc).join(','), ...baris.map(r => r.map(esc).join(','))].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Corak_Gred_${darjah}${kelasPilih ? '_' + kelasPilih : ''}_${pepAkhir || ''}_${cy}.csv`.replace(/\s+/g, '_');
+            document.body.appendChild(a); a.click();
+            setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 100);
+            showNotification('Muat Turun', `${baris.length} baris dieksport.`, false);
         }
 
         // Singkatan nama subjek supaya muat dalam baris jadual.
@@ -8148,6 +8340,22 @@
             const kelasPilih = document.getElementById('hcm-kelas').value;
             const jadual = document.getElementById('hcm-table').innerHTML;
             const banding = document.getElementById('hcm-banding').innerHTML;
+            // Corak gred untuk cetakan: jadual ringkas (semua nama, tanpa accordion)
+            const kelasPilihPdf = document.getElementById('hcm-kelas').value;
+            const kumpPilihPdf = document.getElementById('hcm-kump').value;
+            const paparCorak = hcMuridData.murid.filter(m =>
+                (!kelasPilihPdf || m.kelas === kelasPilihPdf) &&
+                (kumpPilihPdf === 'semua' || m.kump === kumpPilihPdf));
+            const ck = hcmKiraCorak(paparCorak);
+            const corakHtml = (ck.corak.length || ck.takLengkap.length) ? `
+                <table><thead><tr><th style="width:70px">Corak</th><th style="width:45px">Bil</th>
+                    <th>Nama murid (kelas)</th></tr></thead><tbody>
+                ${ck.corak.map(c => `<tr>
+                    <td><b>${c.label}</b></td><td>${c.murid.length}</td>
+                    <td style="text-align:left">${c.murid.map(m => `${m.nama} (${m.kelas})`).join(', ')}</td></tr>`).join('')}
+                ${ck.takLengkap.length ? `<tr><td><b>Tidak lengkap</b></td><td>${ck.takLengkap.length}</td>
+                    <td style="text-align:left">${ck.takLengkap.map(m => `${m.nama} (${m.kelas})`).join(', ')}</td></tr>` : ''}
+                </tbody></table>` : '';
             const amaran = document.getElementById('hcm-amaran').innerText.trim();
             const kpi = document.getElementById('hcm-kpi').innerText.replace(/\n/g, ' · ');
             const win = window.open('', '_blank');
@@ -8167,7 +8375,8 @@
                     Tahun ${cy} · Subjek diutamakan: ${subjekUtama.join(', ')}<br>
                     ${kpi} · Dicetak ${new Date().toLocaleDateString('ms-MY')}</p>
                 ${amaran ? `<div style="border:1px solid #d97706;background:#fffbeb;padding:8px;margin:0 0 12px;font-size:10px;white-space:pre-line">${amaran}</div>` : ''}
-                <h3 style="font-size:13px;margin:12px 0 4px">Perbandingan setiap ujian dengan sasaran</h3>
+                ${corakHtml ? `<h3 style="font-size:13px;margin:12px 0 4px">Corak gred (${subjekUtama.length} subjek diutamakan)</h3>${corakHtml}` : ''}
+                <h3 style="font-size:13px;margin:16px 0 4px">Perbandingan setiap ujian dengan sasaran</h3>
                 ${banding}
                 <h3 style="font-size:13px;margin:16px 0 4px">Senarai murid mengikut kedudukan</h3>
                 ${jadual}
