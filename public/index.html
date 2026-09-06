@@ -1150,7 +1150,7 @@
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 items-end">
                         <label class="block">
                             <span class="text-xs text-gray-500">Tahun</span>
-                            <select id="hcg-tahun-kal" onchange="hcgLukis()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                            <select id="hcg-tahun-kal" onchange="hcgTahunTukar()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
                         </label>
                         <label class="block">
                             <span class="text-xs text-gray-500">Darjah</span>
@@ -8249,20 +8249,35 @@
         }
 
         async function hcgInit() {
+            const el = document.getElementById('hcg-senarai');
+            el.innerHTML = '<p class="text-sm text-gray-500">⏳ Memuatkan senarai...</p>';
+
+            // Tunggu senarai murid SEBELUM mengisi dropdown darjah. Tanpa ini, tab
+            // yang dibuka awal (data Firestore belum sampai) menghasilkan dropdown
+            // KOSONG — dan kerana kita hanya mengisi bila `!options.length`, ia tak
+            // pernah cuba semula walaupun data sampai kemudian.
+            for (let i = 0; i < 100 && !(GLOBAL_DATA.students || []).length; i++) {
+                await new Promise(r => setTimeout(r, 100));
+            }
             // Baca semula subjek diutamakan setiap kali tab dibuka — admin mungkin
             // baru menukarnya; tanpa ini cache lama kekal basi.
             await bacaSubjekUtama(true);
+
+            populatePanelYearDropdown('hcg-tahun-kal',
+                document.getElementById('hcg-tahun-kal').value || new Date().getFullYear().toString());
+
             const urutan = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
             const ada = urutan.filter(t => hcKelasUntukTahun(t).length);
             const dEl = document.getElementById('hcg-darjah');
-            if (!dEl.options.length) {
-                dEl.innerHTML = (ada.length ? ada : urutan).map(t => `<option value="${t}">${t}</option>`).join('');
-                const ikut = document.getElementById('hcm-darjah').value
-                          || document.getElementById('hc-tahun').value;
-                if (ikut && [...dEl.options].some(o => o.value === ikut)) dEl.value = ikut;
-            }
-            populatePanelYearDropdown('hcg-tahun-kal',
-                document.getElementById('hcg-tahun-kal').value || new Date().getFullYear().toString());
+            const simpanD = dEl.value;
+            // Isi semula setiap kali (bukan hanya bila kosong) supaya kelas yang
+            // baharu ditambah muncul tanpa reload.
+            dEl.innerHTML = (ada.length ? ada : urutan).map(t => `<option value="${t}">${t}</option>`).join('');
+            const ikut = simpanD
+                      || (document.getElementById('hcm-darjah') || {}).value
+                      || (document.getElementById('hc-tahun') || {}).value;
+            if (ikut && [...dEl.options].some(o => o.value === ikut)) dEl.value = ikut;
+
             hcgIsiKelas();
             await hcgIsiPep();
             await hcgLukis();
@@ -8283,9 +8298,28 @@
             const darjah = document.getElementById('hcg-darjah').value;
             const pEl = document.getElementById('hcg-pep');
             const simpan = pEl.value;
-            const senarai = (await getExamTypesForYear(cy))
-                .filter(e => !Array.isArray(e.darjah) || !e.darjah.length || e.darjah.includes(darjah))
-                .map(e => e.nama);
+            let senarai = [];
+            try {
+                senarai = (await getExamTypesForYear(cy))
+                    .filter(e => e && e.nama)
+                    .filter(e => !Array.isArray(e.darjah) || !e.darjah.length || e.darjah.includes(darjah))
+                    .map(e => e.nama);
+            } catch (e) {
+                console.warn('[Corak Gred] gagal baca examTypes:', e);
+            }
+            // Sandaran: kalau examTypes tiada/gagal, ambil nama peperiksaan yang
+            // benar-benar ada markah pada tahun itu. Lebih baik daripada dropdown
+            // kosong — guru tetap boleh pilih ujian yang sudah dimasukkan markah.
+            if (!senarai.length) {
+                try {
+                    await ensureMarksLoaded(cy);
+                    const set = new Set();
+                    getMarksByYear(cy).forEach(m => {
+                        if (m.tahun === darjah && m['JENIS PEPERIKSAAN']) set.add(m['JENIS PEPERIKSAAN']);
+                    });
+                    senarai = [...set].sort();
+                } catch (e) { console.warn('[Corak Gred] sandaran markah gagal:', e); }
+            }
             pEl.innerHTML = senarai.length
                 ? senarai.map(n => `<option value="${n}">${n}</option>`).join('')
                 : '<option value="">(tiada peperiksaan)</option>';
@@ -8294,6 +8328,12 @@
 
         async function hcgDarjahTukar() {
             hcgIsiKelas();
+            await hcgIsiPep();
+            await hcgLukis();
+        }
+
+        // Tukar tahun kalendar = senarai peperiksaan berbeza; mesti diisi semula.
+        async function hcgTahunTukar() {
             await hcgIsiPep();
             await hcgLukis();
         }
@@ -8317,9 +8357,17 @@
             document.getElementById('hcg-kpi').innerHTML = '';
             document.getElementById('hcg-amaran').innerHTML = '';
 
-            // Peperiksaan mungkin belum diisi (darjah baharu ditukar)
-            if (!darjah || !pep) {
-                el.innerHTML = '<p class="text-sm text-gray-500">Sila pilih darjah dan peperiksaan.</p>';
+            // Beritahu SEBAB dropdown kosong — jangan senyap.
+            if (!darjah) {
+                el.innerHTML = `<p class="text-sm text-gray-500">Tiada darjah untuk dipaparkan.
+                    Sila daftarkan murid &amp; kelas di panel <b>Guru Kelas</b> dahulu.</p>`;
+                hcgData = null;
+                return;
+            }
+            if (!pep) {
+                el.innerHTML = `<p class="text-sm text-gray-500">Tiada peperiksaan untuk darjah <b>${darjah}</b> pada tahun <b>${cy}</b>.
+                    Sila tambah jenis peperiksaan di <b>Admin › Urus Jenis Peperiksaan</b>,
+                    atau cuba tahun lain.</p>`;
                 hcgData = null;
                 return;
             }
