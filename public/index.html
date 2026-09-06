@@ -1094,7 +1094,7 @@
             <!-- ===== SKRIN F: MURID TERBAIK (kelas murid ikut subjek diutamakan) ===== -->
             <section id="hc-skrin-murid" class="hidden">
                 <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4 no-print">
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 items-end">
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 items-end">
                         <label class="block">
                             <span class="text-xs text-gray-500">Tahun</span>
                             <select id="hcm-tahun-kal" onchange="hcLukisMurid()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
@@ -1102,6 +1102,10 @@
                         <label class="block">
                             <span class="text-xs text-gray-500">Darjah</span>
                             <select id="hcm-darjah" onchange="hcMuridDarjahTukar()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Peperiksaan</span>
+                            <select id="hcm-pep" onchange="hcMuridRender()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
                         </label>
                         <label class="block">
                             <span class="text-xs text-gray-500">Kelas</span>
@@ -7570,6 +7574,26 @@
 
         function hcMuridDarjahTukar() { hcMuridIsiKelas(); hcLukisMurid(); }
 
+        // Dropdown Peperiksaan: senarai jenis peperiksaan tahun itu (ikut setup
+        // admin — UASA, MATRIKS PRISMA, UPSA...). Lalai "terkini" bermakna ujian
+        // TERAKHIR yang ada markah bagi setiap murid, iaitu kelakuan asal.
+        function hcMuridIsiPep(petaPep) {
+            const el = document.getElementById('hcm-pep');
+            if (!el) return;
+            const simpan = el.value;
+            el.innerHTML = '<option value="">Terkini (auto)</option>' +
+                petaPep.map((p, i) => `<option value="${i}">${p}</option>`).join('');
+            if (simpan && [...el.options].some(o => o.value === simpan)) el.value = simpan;
+        }
+
+        // Indeks ujian yang dipilih guru, atau null bila "Terkini (auto)".
+        function hcMuridPepIdx() {
+            const el = document.getElementById('hcm-pep');
+            if (!el || el.value === '') return null;
+            const i = parseInt(el.value);
+            return isNaN(i) ? null : i;
+        }
+
         async function hcLukisMurid() {
             const token = ++hcMuridRun;
             const basi = () => token !== hcMuridRun;   // larian lain sudah bermula
@@ -7593,8 +7617,10 @@
             if (!petaPep.length) {
                 tbl.innerHTML = `<p class="p-4 text-sm text-gray-500">Tiada jenis peperiksaan untuk tahun ${cy}.</p>`;
                 document.getElementById('hcm-kpi').innerHTML = '';
+                document.getElementById('hcm-pep').innerHTML = '<option value="">(tiada peperiksaan)</option>';
                 return;
             }
+            hcMuridIsiPep(petaPep);
 
             // Data murid mungkin belum siap dimuat bila tab dibuka awal (muat dari
             // cache/rangkaian). Tunggu sekejap dahulu — tanpa ini jadual papar
@@ -7654,35 +7680,31 @@
                 for (let i = ujian.length - 1; i >= 0; i--) { if (ujian[i]) { akhirIdx = i; break; } }
                 if (akhirIdx < 0) return;   // langsung tiada markah — jangan senarai
 
-                // gred setiap subjek pada ujian terkini (utk kumpulan + subjek lemah)
-                const gredSubjek = [];
-                const lemah = [];
-                const tiadaMarkah = [];   // nama subjek yg belum ada markah — lebih
-                                          // jelas drpd sekadar "3 dari 4 subjek"
-                subjekUtama.forEach(sub => {
-                    const v = arPeta[sub][petaPep[akhirIdx]][kp];
-                    if (v == null || v === '') { tiadaMarkah.push(sub); return; }
-                    const x = parseInt(v); if (isNaN(x)) { tiadaMarkah.push(sub); return; }
-                    const g = getGredFromMarkah(x);
-                    if (!['A','B','C','D','E','F'].includes(g)) { tiadaMarkah.push(sub); return; }
-                    gredSubjek.push(g);
-                    if (g === 'D' || g === 'E' || g === 'F') lemah.push({ sub, markah: x, gred: g });
+                // Butiran gred bagi SETIAP ujian (bukan ujian terkini sahaja),
+                // supaya guru boleh memilih peperiksaan dalam dropdown dan seluruh
+                // pengelasan dikira semula tanpa menarik data dari Firestore lagi.
+                const butirUjian = petaPep.map(pep => {
+                    const gl = [], lm = [], tm = [];
+                    subjekUtama.forEach(sub => {
+                        const v = arPeta[sub][pep][kp];
+                        if (v == null || v === '') { tm.push(sub); return; }
+                        const x = parseInt(v); if (isNaN(x)) { tm.push(sub); return; }
+                        const g = getGredFromMarkah(x);
+                        if (!['A','B','C','D','E','F'].includes(g)) { tm.push(sub); return; }
+                        gl.push(g);
+                        if (g === 'D' || g === 'E' || g === 'F') lm.push({ sub, markah: x, gred: g });
+                    });
+                    return { gredSubjek: gl, lemah: lm, tiadaMarkah: tm,
+                             kump: hcmKumpulan(gl, subjekUtama.length) };
                 });
-                const kump = hcmKumpulan(gredSubjek, subjekUtama.length);
+                const gredSubjek = butirUjian[akhirIdx].gredSubjek;
+                const lemah = butirUjian[akhirIdx].lemah;
+                const tiadaMarkah = butirUjian[akhirIdx].tiadaMarkah;
+                const kump = butirUjian[akhirIdx].kump;
                 if (!kump) return;
 
                 // Kumpulan bagi SETIAP ujian — utk jadual perbandingan pergerakan.
-                const kumpUjian = petaPep.map(pep => {
-                    const gl = [];
-                    subjekUtama.forEach(sub => {
-                        const v = arPeta[sub][pep][kp];
-                        if (v == null || v === '') return;
-                        const x = parseInt(v); if (isNaN(x)) return;
-                        const g = getGredFromMarkah(x);
-                        if (['A','B','C','D','E','F'].includes(g)) gl.push(g);
-                    });
-                    return hcmKumpulan(gl, subjekUtama.length);
-                });
+                const kumpUjian = butirUjian.map(b => b.kump);
                 // Kumpulan SASARAN — dari gred ETR setiap subjek utama
                 const gredEtr = [];
                 subjekUtama.forEach(sub => {
@@ -7731,7 +7753,7 @@
 
                 senarai.push({
                     no_kp: kp, nama: m.nama || '(tiada nama)', kelas: m.kelas, pecahan,
-                    ujian, akhirIdx, purata: purataAkhir,
+                    ujian, akhirIdx, purata: purataAkhir, butirUjian,
                     gred: getGredFromMarkah(Math.round(purataAkhir)),
                     kump, kumpUjian, kumpSasar,
                     lemah, tiadaMarkah,
@@ -7741,16 +7763,7 @@
                 });
             });
 
-            // --- Rank SELURUH DARJAH: Full A dahulu, kemudian purata menurun ---
-            const urutKump = { fullA: 0, terbaik: 1, sederhana: 2, lemah: 3 };
-            senarai.sort((a, b) => (urutKump[a.kump] - urutKump[b.kump]) || (b.purata - a.purata));
-            // rank sama bila purata sama (1,2,2,4)
-            let rank = 0, prev = null, sama = 0;
-            senarai.forEach((m, i) => {
-                const kunci = `${m.kump}|${m.purata.toFixed(4)}`;
-                if (kunci === prev) { sama++; } else { rank = i + 1; sama = 0; prev = kunci; }
-                m.rank = rank;
-            });
+            hcmSusunRank(senarai);
 
             // Liputan markah setiap subjek pada ujian TERKINI yang ada data — untuk
             // amaran "subjek mana tertinggal". Guru tak perlu teka sendiri.
@@ -7781,7 +7794,13 @@
             const { petaPep, murid } = hcMuridData;
             const kelasPilih = document.getElementById('hcm-kelas').value;
             const kumpPilih = document.getElementById('hcm-kump').value;
+            // Peperiksaan dipilih guru → kira semula pengelasan, subjek lemah dan
+            // kedudukan mengikut ujian ITU. Tanpa pilihan, kekal ujian terkini.
+            const pepIdx = hcMuridPepIdx();
+            murid.forEach(m => hcmPakaiUjian(m, pepIdx));
+            hcmSusunRank(murid);
             const papar = murid.filter(m =>
+                m.kump &&
                 (!kelasPilih || m.kelas === kelasPilih) &&
                 (kumpPilih === 'semua' || m.kump === kumpPilih));
 
@@ -7823,7 +7842,7 @@
                 const selUjian = m.ujian.map((u, i) => {
                     if (!u) return '<td class="px-2 py-2 text-center text-gray-300 border-l border-gray-100">—</td>';
                     const g = getGredFromMarkah(Math.round(u.purata));
-                    const tebal = i === m.akhirIdx ? 'font-bold' : '';
+                    const tebal = i === m.idxGuna ? 'font-bold' : '';
                     return `<td class="px-2 py-2 text-center border-l border-gray-100 ${tebal} ${gredWarna[g] || ''}">${g}
                         <div class="text-[10px] font-normal text-gray-400">${u.purata.toFixed(1)}</div></td>`;
                 }).join('');
@@ -7874,9 +7893,50 @@
                 <p class="px-3 py-2 text-xs text-gray-400 border-t border-gray-100">
                     <b>Klik nama murid</b> untuk lihat pecahan setiap subjek vs sasaran.
                     Kedudukan (#) dikira untuk <b>seluruh darjah</b> — tidak berubah bila tapis kelas.
-                    Gred setiap lajur = gred purata subjek diutamakan. Lajur tebal = ujian terkini.
+                    Gred setiap lajur = gred purata subjek diutamakan.
+                    Lajur tebal = peperiksaan yang sedang dikira (ikut dropdown Peperiksaan).
                     Subjek lemah = gred D, E, atau F.
                 </p>`;
+        }
+
+        // Tetapkan medan "ujian semasa" pada rekod murid mengikut peperiksaan yang
+        // dipilih guru. `idx` null = guna ujian TERAKHIR yang ada markah bagi murid
+        // itu (kelakuan asal). Murid tanpa markah pada ujian yang dipilih diberi
+        // kump = null supaya ia tersingkir dari senarai, bukan dikira sebagai lemah.
+        function hcmPakaiUjian(m, idx) {
+            const guna = (idx == null) ? m.akhirIdx : idx;
+            const b = m.butirUjian && m.butirUjian[guna];
+            const u = m.ujian[guna];
+            if (!b || !u) {
+                m.kump = null; m.gredSubjek = []; m.lemah = []; m.tiadaMarkah = [];
+                m.purata = 0; m.gred = null; m.lengkap = 0; m.idxGuna = guna;
+                m.capaiEtr = null;
+                return;
+            }
+            m.idxGuna = guna;
+            m.kump = b.kump;
+            m.gredSubjek = b.gredSubjek;
+            m.lemah = b.lemah;
+            m.tiadaMarkah = b.tiadaMarkah;
+            m.lengkap = b.gredSubjek.length;
+            m.purata = u.purata;
+            m.gred = getGredFromMarkah(Math.round(u.purata));
+            m.capaiEtr = m.etrPurata == null ? null : (u.purata >= m.etrPurata);
+        }
+
+        // Kedudukan SELURUH DARJAH: Full A dahulu, kemudian purata menurun.
+        // Rank sama bila kumpulan + purata sama (1,2,2,4).
+        function hcmSusunRank(senarai) {
+            const urutKump = { fullA: 0, terbaik: 1, sederhana: 2, lemah: 3 };
+            const nilai = k => (k in urutKump) ? urutKump[k] : 9;   // null di belakang
+            senarai.sort((a, b) => (nilai(a.kump) - nilai(b.kump)) || (b.purata - a.purata));
+            let rank = 0, prev = null;
+            senarai.forEach((m, i) => {
+                if (!m.kump) { m.rank = null; return; }
+                const kunci = `${m.kump}|${m.purata.toFixed(4)}`;
+                if (kunci === prev) { /* kongsi rank */ } else { rank = i + 1; prev = kunci; }
+                m.rank = rank;
+            });
         }
 
         // Singkatan nama subjek supaya muat dalam baris jadual.
@@ -8149,6 +8209,7 @@
             const kelasPilih = document.getElementById('hcm-kelas').value;
             const kumpPilih = document.getElementById('hcm-kump').value;
             const papar = murid.filter(m =>
+                m.kump &&
                 (!kelasPilih || m.kelas === kelasPilih) &&
                 (kumpPilih === 'semua' || m.kump === kumpPilih));
             if (!papar.length) { showNotification('Muat Turun', 'Tiada murid untuk tapisan ini.', true); return; }
