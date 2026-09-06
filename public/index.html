@@ -1150,26 +1150,26 @@
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 items-end">
                         <label class="block">
                             <span class="text-xs text-gray-500">Tahun</span>
-                            <select id="hcg-tahun-kal" onchange="hcgTahunTukar()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                            <select id="hcp-tahun-kal" onchange="hcgTahunTukar()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
                         </label>
                         <label class="block">
                             <span class="text-xs text-gray-500">Darjah</span>
-                            <select id="hcg-darjah" onchange="hcgDarjahTukar()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                            <select id="hcp-darjah" onchange="hcgDarjahTukar()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
                         </label>
                         <label class="block">
                             <span class="text-xs text-gray-500">Peperiksaan</span>
-                            <select id="hcg-pep" onchange="hcgLukis()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                            <select id="hcp-pep" onchange="hcgLukis()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
                         </label>
                         <label class="block">
                             <span class="text-xs text-gray-500">Kelas</span>
-                            <select id="hcg-kelas" onchange="hcgRender()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                            <select id="hcp-kelas" onchange="hcgRender()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
                         </label>
                     </div>
-                    <p id="hcg-nota" class="mt-3 text-xs text-gray-500"></p>
+                    <p id="hcp-nota" class="mt-3 text-xs text-gray-500"></p>
                 </div>
 
-                <div id="hcg-amaran" class="mb-3"></div>
-                <div id="hcg-kpi" class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4"></div>
+                <div id="hcp-amaran" class="mb-3"></div>
+                <div id="hcp-kpi" class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4"></div>
 
                 <div class="bg-white rounded-lg border border-gray-200">
                     <div class="px-3 sm:px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-2 flex-wrap">
@@ -1181,7 +1181,7 @@
                             <button onclick="hcgPDF()" class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">🖨️ Cetak PDF</button>
                         </div>
                     </div>
-                    <div id="hcg-senarai" class="p-3 sm:p-4"></div>
+                    <div id="hcp-senarai" class="p-3 sm:p-4"></div>
                 </div>
             </section>
         </div>
@@ -8250,7 +8250,7 @@
         }
 
         async function hcgInit() {
-            const el = document.getElementById('hcg-senarai');
+            const el = document.getElementById('hcp-senarai');
             el.innerHTML = '<p class="text-sm text-gray-500">⏳ Memuatkan senarai...</p>';
 
             // Dropdown diisi SEGERA (segerak) supaya tidak pernah kosong walaupun
@@ -8259,8 +8259,8 @@
             // kosong sedangkan mesej di bawah tetap memaparkan nilai lalai.
             hcgIsiDarjah();
             hcgIsiKelas();
-            populatePanelYearDropdown('hcg-tahun-kal',
-                document.getElementById('hcg-tahun-kal').value || new Date().getFullYear().toString());
+            populatePanelYearDropdown('hcp-tahun-kal',
+                document.getElementById('hcp-tahun-kal').value || new Date().getFullYear().toString());
 
             try {
                 // Baca semula subjek diutamakan — admin mungkin baru menukarnya.
@@ -8272,20 +8272,20 @@
                 }
                 hcgIsiDarjah();
                 hcgIsiKelas();
-                populatePanelYearDropdown('hcg-tahun-kal',
-                    document.getElementById('hcg-tahun-kal').value || new Date().getFullYear().toString());
+                populatePanelYearDropdown('hcp-tahun-kal',
+                    document.getElementById('hcp-tahun-kal').value || new Date().getFullYear().toString());
                 await hcgIsiPep();
                 // Darjah lalai (SATU) selalunya tiada peperiksaan, jadi tab dibuka
                 // dengan skrin kosong walaupun sekolah ada data. Lompat ke darjah
                 // PERTAMA yang benar-benar ada peperiksaan — hanya bila guru belum
                 // memilih apa-apa sendiri.
-                if (!document.getElementById('hcg-pep').value && !hcgPilihanGuru) {
-                    const dEl = document.getElementById('hcg-darjah');
+                if (!document.getElementById('hcp-pep').value && !hcgPilihanGuru) {
+                    const dEl = document.getElementById('hcp-darjah');
                     for (const o of [...dEl.options]) {
                         if (o.value === dEl.value) continue;
                         dEl.value = o.value;
                         await hcgIsiPep();
-                        if (document.getElementById('hcg-pep').value) { hcgIsiKelas(); break; }
+                        if (document.getElementById('hcp-pep').value) { hcgIsiKelas(); break; }
                     }
                 }
                 await hcgLukis();
@@ -8301,7 +8301,7 @@
         function hcgIsiDarjah() {
             const urutan = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
             const ada = urutan.filter(t => hcKelasUntukTahun(t).length);
-            const dEl = document.getElementById('hcg-darjah');
+            const dEl = document.getElementById('hcp-darjah');
             if (!dEl) return;
             const simpan = dEl.value;
             dEl.innerHTML = (ada.length ? ada : urutan)
@@ -8313,8 +8313,8 @@
         }
 
         function hcgIsiKelas() {
-            const d = document.getElementById('hcg-darjah').value;
-            const kEl = document.getElementById('hcg-kelas');
+            const d = document.getElementById('hcp-darjah').value;
+            const kEl = document.getElementById('hcp-kelas');
             const simpan = kEl.value;
             kEl.innerHTML = '<option value="">Semua kelas</option>' +
                 hcKelasUntukTahun(d).map(k => `<option value="${k}">${k}</option>`).join('');
@@ -8323,9 +8323,9 @@
 
         // Senarai peperiksaan bagi darjah + tahun kalendar yang dipilih.
         async function hcgIsiPep() {
-            const cy = hcTahunAnalisa('hcg-tahun-kal');
-            const darjah = document.getElementById('hcg-darjah').value;
-            const pEl = document.getElementById('hcg-pep');
+            const cy = hcTahunAnalisa('hcp-tahun-kal');
+            const darjah = document.getElementById('hcp-darjah').value;
+            const pEl = document.getElementById('hcp-pep');
             const simpan = pEl.value;
             let senarai = [];
             try {
@@ -8386,13 +8386,13 @@
         async function hcgLukis() {
             const token = ++hcgRun;
             const basi = () => token !== hcgRun;
-            const cy = hcTahunAnalisa('hcg-tahun-kal');
-            const darjah = document.getElementById('hcg-darjah').value;
-            const pep = document.getElementById('hcg-pep').value;
-            const el = document.getElementById('hcg-senarai');
+            const cy = hcTahunAnalisa('hcp-tahun-kal');
+            const darjah = document.getElementById('hcp-darjah').value;
+            const pep = document.getElementById('hcp-pep').value;
+            const el = document.getElementById('hcp-senarai');
             el.innerHTML = '<p class="text-sm text-gray-500">⏳ Mengira corak gred...</p>';
-            document.getElementById('hcg-kpi').innerHTML = '';
-            document.getElementById('hcg-amaran').innerHTML = '';
+            document.getElementById('hcp-kpi').innerHTML = '';
+            document.getElementById('hcp-amaran').innerHTML = '';
 
             // Beritahu SEBAB dropdown kosong — jangan senyap.
             if (!darjah) {
@@ -8419,7 +8419,12 @@
             const subjekUtama = await subjekUtamaUntuk(darjah);
             if (basi()) return;
             const semuaSubjek = _semuaSubjekNama();
-            document.getElementById('hcg-nota').innerHTML = subjekUtama.length === semuaSubjek.length
+            // Admin belum pilih subjek teras utk darjah ini? Maka SEMUA subjek
+            // dikira — termasuk PJK/PSV/Muzik yang selalunya tiada markah, jadi
+            // hampir setiap murid jadi "tidak lengkap" dan skrin nampak kosong.
+            const petaUtama = await bacaSubjekUtama();
+            const adminBelumSet = !Array.isArray(petaUtama[darjah]) || !petaUtama[darjah].length;
+            document.getElementById('hcp-nota').innerHTML = subjekUtama.length === semuaSubjek.length
                 ? `Corak dikira dari <b>semua ${subjekUtama.length} subjek</b>. Untuk pilih subjek teras sahaja, set di Admin › ⭐ Subjek Diutamakan.`
                 : `Corak dikira dari <b>${subjekUtama.length} subjek diutamakan</b>: ${subjekUtama.join(', ')}`;
 
@@ -8475,7 +8480,8 @@
             }));
 
             if (basi()) return;
-            hcgData = { darjah, cy, pep, subjekUtama, murid: senarai, liputan, bilMurid: muridSemua.length };
+            hcgData = { darjah, cy, pep, subjekUtama, murid: senarai, liputan,
+                        bilMurid: muridSemua.length, adminBelumSet };
             hcgRender();
         }
 
@@ -8497,10 +8503,10 @@
         }
 
         function hcgRender() {
-            const el = document.getElementById('hcg-senarai');
+            const el = document.getElementById('hcp-senarai');
             if (!hcgData) { hcgLukis(); return; }
             const { subjekUtama, darjah, pep, murid } = hcgData;
-            const kelasPilih = document.getElementById('hcg-kelas').value;
+            const kelasPilih = document.getElementById('hcp-kelas').value;
             const papar = murid.filter(m => !kelasPilih || m.kelas === kelasPilih);
             const { corak, takLengkap } = hcgKira(papar);
 
@@ -8514,7 +8520,7 @@
                     <div class="text-xl sm:text-2xl font-bold ${warna}">${nilai}</div>
                     <div class="text-[11px] sm:text-xs text-gray-500">${sub}</div>
                 </div>`;
-            document.getElementById('hcg-kpi').innerHTML =
+            document.getElementById('hcp-kpi').innerHTML =
                 kad(`🌟 ${penuhLabel} (semua A)`, bilPenuh, 'murid', 'text-purple-700', 'bg-purple-50') +
                 kad('📋 Jenis corak', corak.length, 'corak berbeza', 'text-blue-700', 'bg-blue-50') +
                 kad('✅ Markah lengkap', bilLengkap, `dari ${papar.length} murid`, 'text-green-700', 'bg-green-50') +
@@ -8597,12 +8603,24 @@
 
         // Amaran liputan markah — corak hanya boleh dipercayai bila markah lengkap.
         function hcgAmaran() {
-            const el = document.getElementById('hcg-amaran');
+            const el = document.getElementById('hcp-amaran');
             if (!el || !hcgData) return;
+            // Amaran UTAMA: admin belum pilih subjek teras. Tanpa ini guru nampak
+            // "13A" dan senarai hampir kosong tanpa tahu puncanya.
+            const nota = hcgData.adminBelumSet
+                ? `<div class="rounded-lg border border-blue-300 bg-blue-50 p-3 text-xs text-blue-900 mb-2">
+                    <b>ℹ️ Subjek teras belum ditetapkan untuk darjah ${hcgData.darjah}</b> —
+                    corak dikira daripada <b>kesemua ${hcgData.subjekUtama.length} subjek</b>,
+                    termasuk subjek yang mungkin tiada markah. Itulah sebabnya corak menjadi
+                    "${hcgData.subjekUtama.length}A" dan ramai murid tersenarai tidak lengkap.<br>
+                    Admin boleh pilih subjek teras di <b>Admin › ⭐ Subjek Diutamakan</b>
+                    supaya corak menjadi bermakna (contoh 4A untuk 4 subjek teras).
+                   </div>`
+                : '';
             const kurang = hcgData.liputan.filter(l => l.ada < l.jum)
                 .sort((a, b) => (a.ada / a.jum) - (b.ada / b.jum));
-            if (!kurang.length) { el.innerHTML = ''; return; }
-            el.innerHTML = `<div class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+            if (!kurang.length) { el.innerHTML = nota; return; }
+            el.innerHTML = nota + `<div class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
                 <b>⚠ Markah belum lengkap bagi peperiksaan ${hcgData.pep}</b>
                 <ul class="mt-1 space-y-0.5">
                     ${kurang.map(l => {
@@ -8618,7 +8636,7 @@
         function hcgCSV() {
             if (!hcgData) { showNotification('Muat Turun', 'Tiada data.', true); return; }
             const { darjah, cy, pep } = hcgData;
-            const kelasPilih = document.getElementById('hcg-kelas').value;
+            const kelasPilih = document.getElementById('hcp-kelas').value;
             const papar = hcgData.murid.filter(m => !kelasPilih || m.kelas === kelasPilih);
             const { corak, takLengkap } = hcgKira(papar);
             if (!corak.length && !takLengkap.length) { showNotification('Muat Turun', 'Tiada murid untuk tapisan ini.', true); return; }
@@ -8648,11 +8666,11 @@
         function hcgPDF() {
             if (!hcgData) { showNotification('Cetak', 'Tiada data.', true); return; }
             const { darjah, cy, pep, subjekUtama } = hcgData;
-            const kelasPilih = document.getElementById('hcg-kelas').value;
+            const kelasPilih = document.getElementById('hcp-kelas').value;
             const papar = hcgData.murid.filter(m => !kelasPilih || m.kelas === kelasPilih);
             const { corak, takLengkap } = hcgKira(papar);
             if (!corak.length && !takLengkap.length) { showNotification('Cetak', 'Tiada murid untuk tapisan ini.', true); return; }
-            const amaran = document.getElementById('hcg-amaran').innerText.trim();
+            const amaran = document.getElementById('hcp-amaran').innerText.trim();
             // Cetakan sentiasa penuh — tak ikut baris yang dibuka/tutup di skrin.
             const jadual = `
                 <table><thead><tr>
