@@ -15,6 +15,39 @@
     <!-- jsPDF, html2pdf, JSZip — dimuatkan secara lazy (on-demand) -->
     
     <style>
+        /* ===== UX MUDAH ALIH: jadual boleh digulung mendatar =====
+           Jadual Headcount ada banyak lajur (satu per ujian). Dalam telefon ia
+           mesti digulung, bukan dimampatkan sampai tak terbaca. Petunjuk bayang
+           di tepi kanan memberitahu pengguna ada lajur lagi. */
+        .jadual-gulung { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .jadual-gulung table { min-width: max-content; }
+        @media (max-width: 640px) {
+            .jadual-gulung {
+                background:
+                    linear-gradient(to right, #fff 30%, rgba(255,255,255,0)) left center,
+                    linear-gradient(to left,  #fff 30%, rgba(255,255,255,0)) right center,
+                    radial-gradient(farthest-side at 0 50%, rgba(0,0,0,.12), transparent) left center,
+                    radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.12), transparent) right center;
+                background-repeat: no-repeat;
+                background-size: 28px 100%, 28px 100%, 12px 100%, 12px 100%;
+                background-attachment: local, local, scroll, scroll;
+            }
+            .jadual-gulung table { font-size: 12px; }
+            .jadual-gulung th, .jadual-gulung td { padding-left: .4rem; padding-right: .4rem; }
+            /* Lajur pertama (Nama/Subjek/Kelas/Kumpulan) kekal nampak semasa digeser —
+               tanpa ini pengguna hilang konteks bila tatal ke lajur ujian di kanan. */
+            .jadual-gulung table th:first-child,
+            .jadual-gulung table td:first-child {
+                position: sticky; left: 0; z-index: 2;
+                background: #fff; box-shadow: 1px 0 0 rgba(0,0,0,.08);
+            }
+            .jadual-gulung table thead th:first-child { background: #f9fafb; z-index: 3; }
+            .jadual-gulung table tfoot td:first-child { background: #f9fafb; }
+        }
+        /* Bar tab: sorok bar gulung tapi kekalkan fungsi geser */
+        .tab-gulung::-webkit-scrollbar { height: 3px; }
+        .tab-gulung::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
         .card-menu { transition: transform 0.2s; }
         .card-menu:hover { transform: translateY(-5px); box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); }
         .spinner { border-top-color: #3b82f6; }
@@ -747,9 +780,9 @@
         </div>
 
         <!-- PANEL HEADCOUNT (BARU) -->
-        <div id="headcount-panel" class="hidden bg-white p-6 rounded-xl shadow-xl print-panel">
+        <div id="headcount-panel" class="hidden bg-white p-3 sm:p-6 rounded-xl shadow-xl print-panel overflow-x-hidden">
             <!-- Header -->
-            <div class="flex items-center gap-4 border-b pb-3 mb-4 no-print">
+            <div class="flex flex-wrap items-center gap-2 sm:gap-4 border-b pb-3 mb-4 no-print">
                 <button onclick="goHome()" class="btn-back">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/></svg>
                     Kembali
@@ -761,19 +794,19 @@
             </div>
 
             <!-- Tab dalaman -->
-            <div class="flex gap-1 border-b border-gray-300 mb-5 no-print">
+            <div class="flex gap-1 border-b border-gray-300 mb-5 no-print overflow-x-auto tab-gulung -mx-1 px-1" style="scrollbar-width:thin">
                 <button onclick="hcTukarTab('set')" id="hc-tab-set"
-                    class="px-4 py-2 text-sm font-medium border-b-2 border-teal-600 text-gray-900">Set Sasaran</button>
+                    class="px-3 sm:px-4 py-2 text-sm font-medium border-b-2 border-teal-600 text-gray-900 whitespace-nowrap shrink-0">Set Sasaran</button>
                 <button onclick="hcTukarTab('jejak')" id="hc-tab-jejak"
-                    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800">Papan Jejak</button>
+                    class="px-3 sm:px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800 whitespace-nowrap shrink-0">Papan Jejak</button>
                 <button onclick="hcTukarTab('analisa')" id="hc-tab-analisa"
-                    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800">📊 Analisa</button>
+                    class="px-3 sm:px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800 whitespace-nowrap shrink-0">📊 Analisa</button>
                 <button onclick="hcTukarTab('banding')" id="hc-tab-banding"
-                    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800">📈 Analisa Perbandingan</button>
+                    class="px-3 sm:px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800 whitespace-nowrap shrink-0">📈 Analisa Perbandingan</button>
                 <button onclick="hcTukarTab('gred')" id="hc-tab-gred"
-                    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800">📋 Perbandingan Gred</button>
+                    class="px-3 sm:px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800 whitespace-nowrap shrink-0">📋 Perbandingan Gred</button>
                 <button onclick="hcTukarTab('murid')" id="hc-tab-murid"
-                    class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800">🏆 Murid Terbaik</button>
+                    class="px-3 sm:px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800 whitespace-nowrap shrink-0">🏆 Murid Terbaik</button>
             </div>
 
             <!-- ===== SKRIN A: SET SASARAN ===== -->
@@ -899,7 +932,7 @@
             <section id="hc-skrin-analisa" class="hidden">
                 <!-- Kawalan -->
                 <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4 no-print">
-                    <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end">
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 items-end">
                         <label class="block">
                             <span class="text-xs text-gray-500">Tahun</span>
                             <select id="hca-tahun-kal" onchange="hcLukisAnalisa()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
@@ -933,7 +966,7 @@
                 </div>
 
                 <!-- Kad ringkasan -->
-                <div id="hca-kpi" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4"></div>
+                <div id="hca-kpi" class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4"></div>
 
                 <!-- Carta -->
                 <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
@@ -947,7 +980,7 @@
                         <h4 class="text-sm font-semibold text-gray-700">Butiran pencapaian</h4>
                         <button onclick="hcCetakAnalisaPDF()" class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 no-print">📄 Cetak PDF</button>
                     </div>
-                    <div id="hca-table" class="overflow-x-auto"></div>
+                    <div id="hca-table" class="jadual-gulung"></div>
                 </div>
             </section>
 
@@ -955,7 +988,7 @@
             <section id="hc-skrin-banding" class="hidden">
                 <!-- Kawalan -->
                 <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4 no-print">
-                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 items-end">
                         <label class="block">
                             <span class="text-xs text-gray-500">Tahun</span>
                             <select id="hcb-tahun-kal" onchange="hcLukisBanding()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
@@ -985,7 +1018,7 @@
                 </div>
 
                 <!-- Kad ringkasan -->
-                <div id="hcb-kpi" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4"></div>
+                <div id="hcb-kpi" class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4"></div>
 
                 <!-- Carta trend: purata AR tiap ujian vs garis ETR -->
                 <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
@@ -1000,14 +1033,14 @@
                         <h4 class="text-sm font-semibold text-gray-700">Perbandingan setiap ujian dengan sasaran</h4>
                         <button onclick="hcCetakBandingPDF()" class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 no-print">📄 Cetak PDF</button>
                     </div>
-                    <div id="hcb-table" class="overflow-x-auto"></div>
+                    <div id="hcb-table" class="jadual-gulung"></div>
                 </div>
             </section>
 
             <!-- ===== SKRIN E: PERBANDINGAN GRED (gred sebenar vs gred sasaran) ===== -->
             <section id="hc-skrin-gred" class="hidden">
                 <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4 no-print">
-                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 items-end">
                         <label class="block">
                             <span class="text-xs text-gray-500">Tahun</span>
                             <select id="hcg-tahun-kal" onchange="hcLukisGred()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
@@ -1037,7 +1070,7 @@
                 </div>
 
                 <!-- Kad ringkasan -->
-                <div id="hcg-kpi" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4"></div>
+                <div id="hcg-kpi" class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4"></div>
 
                 <!-- Carta bar bertimbun -->
                 <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
@@ -1052,14 +1085,14 @@
                         <h4 class="text-sm font-semibold text-gray-700">Bilangan murid mengikut gred</h4>
                         <button onclick="hcCetakGredPDF()" class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 no-print">📄 Cetak PDF</button>
                     </div>
-                    <div id="hcg-table" class="overflow-x-auto"></div>
+                    <div id="hcg-table" class="jadual-gulung"></div>
                 </div>
             </section>
 
             <!-- ===== SKRIN F: MURID TERBAIK (kelas murid ikut subjek diutamakan) ===== -->
             <section id="hc-skrin-murid" class="hidden">
                 <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4 no-print">
-                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 items-end">
                         <label class="block">
                             <span class="text-xs text-gray-500">Tahun</span>
                             <select id="hcm-tahun-kal" onchange="hcLukisMurid()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
@@ -1087,14 +1120,14 @@
                 </div>
 
                 <div id="hcm-amaran" class="mb-3"></div>
-                <div id="hcm-kpi" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4"></div>
+                <div id="hcm-kpi" class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4"></div>
 
                 <div id="hcm-banding-wrap" class="bg-white rounded-lg border border-gray-200 mb-4">
                     <div class="px-4 py-3 border-b border-gray-100">
                         <h4 class="text-sm font-semibold text-gray-700">Perbandingan setiap ujian dengan sasaran</h4>
                         <p class="text-xs text-gray-500">Berapa ramai murid dalam setiap kumpulan pada setiap ujian, berbanding sasaran (ETR).</p>
                     </div>
-                    <div id="hcm-banding" class="overflow-x-auto"></div>
+                    <div id="hcm-banding" class="jadual-gulung"></div>
                 </div>
 
                 <div class="bg-white rounded-lg border border-gray-200">
@@ -1105,7 +1138,7 @@
                             <button onclick="hcMuridPDF()" class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">🖨️ Cetak PDF</button>
                         </div>
                     </div>
-                    <div id="hcm-table" class="overflow-x-auto"></div>
+                    <div id="hcm-table" class="jadual-gulung"></div>
                 </div>
             </section>
         </div>
@@ -1128,8 +1161,8 @@
         </div>
 
         <!-- MODAL BUTIRAN MURID (Murid Terbaik) -->
-        <div id="hcm-modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onclick="hcmTutupKad(event)">
-            <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-auto" onclick="event.stopPropagation()">
+        <div id="hcm-modal" class="hidden fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50" onclick="hcmTutupKad(event)">
+            <div class="bg-white rounded-t-2xl sm:rounded-lg max-w-2xl w-full max-h-[92vh] sm:max-h-[90vh] overflow-auto" onclick="event.stopPropagation()">
                 <div class="p-4 border-b border-gray-200 flex justify-between items-start">
                     <div>
                         <h3 id="hcm-kad-nama" class="font-bold text-gray-900"></h3>
@@ -7140,8 +7173,10 @@
         }
 
         function hcTukarTab(tab) {
-            const aktif = 'px-4 py-2 text-sm font-medium border-b-2 border-teal-600 text-gray-900';
-            const mati = 'px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800';
+            // whitespace-nowrap + shrink-0 mesti kekal — tanpanya butang tab mengecut
+            // / pecah baris dlm mobile dan bar tab tak boleh digulung elok.
+            const aktif = 'px-3 sm:px-4 py-2 text-sm font-medium border-b-2 border-teal-600 text-gray-900 whitespace-nowrap shrink-0';
+            const mati = 'px-3 sm:px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800 whitespace-nowrap shrink-0';
             document.getElementById('hc-skrin-set').classList.toggle('hidden', tab !== 'set');
             document.getElementById('hc-skrin-jejak').classList.toggle('hidden', tab !== 'jejak');
             document.getElementById('hc-skrin-analisa').classList.toggle('hidden', tab !== 'analisa');
@@ -7718,10 +7753,10 @@
             papar.forEach(m => kira[m.kump]++);
             const kad = (k) => {
                 const d = HCM_KUMP[k];
-                return `<div class="rounded-lg border border-gray-200 ${d.bg} p-3">
-                    <div class="text-xs text-gray-600">${d.ikon} ${d.label}</div>
-                    <div class="text-2xl font-bold ${d.warna}">${kira[k]}</div>
-                    <div class="text-xs text-gray-500">murid</div>
+                return `<div class="rounded-lg border border-gray-200 ${d.bg} p-2 sm:p-3">
+                    <div class="text-[11px] sm:text-xs text-gray-600 whitespace-nowrap">${d.ikon} ${d.label}</div>
+                    <div class="text-xl sm:text-2xl font-bold ${d.warna}">${kira[k]}</div>
+                    <div class="text-[11px] sm:text-xs text-gray-500">murid</div>
                 </div>`;
             };
             document.getElementById('hcm-kpi').innerHTML =
@@ -8011,7 +8046,7 @@
             }
 
             document.getElementById('hcm-kad-isi').innerHTML = `
-                <div class="overflow-x-auto">
+                <div class="jadual-gulung">
                 <table class="w-full text-sm">
                     <thead class="bg-gray-50 text-xs text-gray-500">
                         <tr>
@@ -8464,10 +8499,10 @@
             const ubah = (akhir && awal && akhir.purata != null && awal.purata != null && akhirIdx > 0) ? (akhir.purata - awal.purata) : null;
 
             const kad = (tajuk, nilai, sub, warna) => `
-                <div class="rounded-lg border border-gray-200 bg-white p-3">
-                    <div class="text-xs text-gray-500">${tajuk}</div>
-                    <div class="text-2xl font-bold ${warna || 'text-gray-800'}">${nilai}</div>
-                    <div class="text-xs text-gray-400">${sub}</div>
+                <div class="rounded-lg border border-gray-200 bg-white p-2 sm:p-3">
+                    <div class="text-[11px] sm:text-xs text-gray-500">${tajuk}</div>
+                    <div class="text-lg sm:text-2xl font-bold ${warna || 'text-gray-800'} break-words">${nilai}</div>
+                    <div class="text-[11px] sm:text-xs text-gray-400">${sub}</div>
                 </div>`;
             const fmt = v => v == null ? '—' : v.toFixed(1);
             const tanda = v => v == null ? '' : (v >= 0 ? '+' : '');
@@ -8782,10 +8817,10 @@
             const jurangAB = (pctSebenar != null && pctSasar != null) ? (pctSebenar - pctSasar) : null;
 
             const kad = (tajuk, nilai, sub, warna) => `
-                <div class="rounded-lg border border-gray-200 bg-white p-3">
-                    <div class="text-xs text-gray-500">${tajuk}</div>
-                    <div class="text-2xl font-bold ${warna || 'text-gray-800'}">${nilai}</div>
-                    <div class="text-xs text-gray-400">${sub}</div>
+                <div class="rounded-lg border border-gray-200 bg-white p-2 sm:p-3">
+                    <div class="text-[11px] sm:text-xs text-gray-500">${tajuk}</div>
+                    <div class="text-lg sm:text-2xl font-bold ${warna || 'text-gray-800'} break-words">${nilai}</div>
+                    <div class="text-[11px] sm:text-xs text-gray-400">${sub}</div>
                 </div>`;
             const amaran = ((gabung.belum && gabung.belum.length) ? `
                 <div class="col-span-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -8943,9 +8978,9 @@
             const cemerlang = stats.reduce((a, s) => a + s.grades.A + s.grades.B + s.grades.C + s.grades.D, 0);
             const pLulus = totGredSah ? Math.round(cemerlang / totGredSah * 100) : null;
             const kad = (tajuk, nilai, warna) => `
-                <div class="bg-white rounded-lg border border-gray-200 p-3">
-                    <div class="text-xs text-gray-500">${tajuk}</div>
-                    <div class="text-2xl font-bold ${warna}">${nilai}</div>
+                <div class="bg-white rounded-lg border border-gray-200 p-2 sm:p-3">
+                    <div class="text-[11px] sm:text-xs text-gray-500">${tajuk}</div>
+                    <div class="text-lg sm:text-2xl font-bold ${warna} break-words">${nilai}</div>
                 </div>`;
             const amaran = (belum.length ? `
                 <div class="col-span-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
