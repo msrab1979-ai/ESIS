@@ -60,6 +60,40 @@
             .jadual-gulung table thead th:first-child { background: #f9fafb; z-index: 3; }
             .jadual-gulung table tfoot td:first-child { background: #f9fafb; }
         }
+        /* Blok "SASARAN" dipin ke kanan (Perbandingan Gred). Bila jenis
+           peperiksaan bertambah, jadual melebar ~262px setiap ujian dan blok
+           sasaran — nilai yang guru paling perlu banding — tertolak jauh ke
+           kanan. Dipin supaya ia sentiasa kelihatan semasa menggeser ujian.
+           Setiap lajur dalam blok perlu offset `right` sendiri kerana sticky
+           dikira per-sel, bukan per-kumpulan. Lebar sel diketap supaya offset
+           yang dikodkan di bawah sepadan dengan lebar sebenar. */
+        @media (min-width: 641px) {
+            .jadual-gulung table .hcp-pin {
+                position: sticky; z-index: 2;
+                width: 34px; min-width: 34px; max-width: 34px;
+                box-sizing: border-box;
+            }
+            .jadual-gulung table thead .hcp-pin { z-index: 3; }
+            /* 8 lajur: A B C D E F Jum GPS — dikira dari kanan */
+            .jadual-gulung table .hcp-pin-0 { right: 238px; box-shadow: -1px 0 0 rgba(0,0,0,.08); }
+            .jadual-gulung table .hcp-pin-1 { right: 204px; }
+            .jadual-gulung table .hcp-pin-2 { right: 170px; }
+            .jadual-gulung table .hcp-pin-3 { right: 136px; }
+            .jadual-gulung table .hcp-pin-4 { right: 102px; }
+            .jadual-gulung table .hcp-pin-5 { right: 68px; }
+            .jadual-gulung table .hcp-pin-6 { right: 34px; }
+            .jadual-gulung table .hcp-pin-7 { right: 0; }
+            /* Tajuk blok merentas kesemua 8 lajur */
+            .jadual-gulung table th.hcp-pin-tajuk {
+                position: sticky; right: 0; z-index: 3;
+                box-shadow: -1px 0 0 rgba(0,0,0,.08);
+            }
+            /* Latar legap wajib — tanpa ini sel di bawahnya menembusi */
+            .jadual-gulung table tbody .hcp-pin { background: #ecfeff; }
+            .jadual-gulung table thead .hcp-pin { background: #cffafe; }
+            .jadual-gulung table tfoot .hcp-pin { background: #a5f3fc; }
+        }
+
         /* Lajur teks panjang (Nama, Subjek Lemah) dibenarkan membungkus dan
            dihadkan lebarnya. Tanpa ini `min-width: max-content` memaksa satu
            baris panjang: Nama sahaja memakan ~518px dan Subjek Lemah ~468px,
@@ -9503,15 +9537,15 @@
                 if (v == null) warna = 'text-gray-300';
                 else if (sasaran) warna = 'text-teal-700';
                 else if (gpsSasaran != null) warna = v >= gpsSasaran ? 'text-green-600' : 'text-amber-600';
-                return `<td class="px-2 py-2 text-center text-xs font-bold ${warna} border-r border-gray-200 ${sasaran ? 'bg-teal-50/60' : ''}">${v == null ? '—' : v.toFixed(2)}</td>`;
+                return `<td class="px-2 py-2 text-center text-xs font-bold ${warna} border-r border-gray-200 ${sasaran ? 'bg-teal-50/60 hcp-pin hcp-pin-7' : ''}">${v == null ? '—' : v.toFixed(2)}</td>`;
             };
 
             // Sel A-F + jumlah utk satu blok
             const sel = (d, sasaran) => HC_GRED_KEYS.map((g, gi) =>
-                `<td class="px-2 py-2 text-center text-sm ${gi === 0 ? 'border-l-2 border-gray-300' : ''} ${sasaran ? 'bg-teal-50/60' : ''}">${
+                `<td class="px-2 py-2 text-center text-sm ${gi === 0 ? 'border-l-2 border-gray-300' : ''} ${sasaran ? `bg-teal-50/60 hcp-pin hcp-pin-${gi}` : ''}">${
                     d.gred[g] ? `<span style="color:${HC_GRED_WARNA[g]};font-weight:600">${d.gred[g]}</span>` : '<span class="text-gray-300">·</span>'
                 }</td>`).join('') +
-                `<td class="px-2 py-2 text-center text-xs font-semibold text-gray-500 ${sasaran ? 'bg-teal-50/60' : ''}">${d.bil || '—'}</td>` +
+                `<td class="px-2 py-2 text-center text-xs font-semibold text-gray-500 ${sasaran ? 'bg-teal-50/60 hcp-pin hcp-pin-6' : ''}">${d.bil || '—'}</td>` +
                 selGPS(d, sasaran);
 
             const rows = stats.map(s => `<tr class="hover:bg-gray-50">
@@ -9526,11 +9560,11 @@
 
             // Dua baris header: nama ujian (merentas 8 lajur) + A B C D E F Jum GPS
             const head1 = blok.map(b => `<th colspan="8"
-                    class="px-2 py-2 text-center text-xs font-semibold border-l-2 border-gray-300 ${b.sasaran ? 'bg-teal-100 text-teal-800' : 'bg-gray-100 text-gray-700'}">${b.tajuk}</th>`).join('');
+                    class="px-2 py-2 text-center text-xs font-semibold border-l-2 border-gray-300 ${b.sasaran ? 'bg-teal-100 text-teal-800 hcp-pin-tajuk' : 'bg-gray-100 text-gray-700'}">${b.tajuk}</th>`).join('');
             const head2 = blok.map(b => HC_GRED_KEYS.map((g, gi) =>
-                    `<th class="px-2 py-1 text-center text-xs font-medium ${gi === 0 ? 'border-l-2 border-gray-300' : ''} ${b.sasaran ? 'bg-teal-50' : ''}" style="color:${HC_GRED_WARNA[g]}">${g}</th>`).join('') +
-                    `<th class="px-2 py-1 text-center text-xs font-medium text-gray-400 ${b.sasaran ? 'bg-teal-50' : ''}">Jum</th>` +
-                    `<th class="px-2 py-1 text-center text-xs font-semibold text-gray-600 border-r border-gray-200 ${b.sasaran ? 'bg-teal-50' : ''}">GPS</th>`).join('');
+                    `<th class="px-2 py-1 text-center text-xs font-medium ${gi === 0 ? 'border-l-2 border-gray-300' : ''} ${b.sasaran ? `bg-teal-50 hcp-pin hcp-pin-${gi}` : ''}" style="color:${HC_GRED_WARNA[g]}">${g}</th>`).join('') +
+                    `<th class="px-2 py-1 text-center text-xs font-medium text-gray-400 ${b.sasaran ? 'bg-teal-50 hcp-pin hcp-pin-6' : ''}">Jum</th>` +
+                    `<th class="px-2 py-1 text-center text-xs font-semibold text-gray-600 border-r border-gray-200 ${b.sasaran ? 'bg-teal-50 hcp-pin hcp-pin-7' : ''}">GPS</th>`).join('');
 
             document.getElementById('hcg-table').innerHTML = `
                 <table class="w-full text-sm border-collapse">
@@ -9546,6 +9580,7 @@
                     Titik (·) bermaksud tiada murid pada gred itu. Skrol ke kanan jika ujian banyak.<br>
                     <b>GPS</b> = purata mata gred (A=6 … F=1, ikut Admin › Setting › Mata Gred) — makin tinggi makin baik.
                     Hijau = sudah mencapai GPS sasaran, jingga = belum.
+                    Blok 🎯 SASARAN dipin di sebelah kanan supaya kekal kelihatan semasa menggeser ujian.
                 </p>`;
         }
 
