@@ -159,7 +159,9 @@ Classifies pupils **across core subjects** with per-exam vs ETR comparison. Sixt
 
 **Ranking is darjah-wide** and stored per pupil, so filtering by kelas hides rows without renumbering (a teacher sees their pupil is #3 in the darjah, not #1 in the class). Ties on average share a rank (1,2,2,4).
 
-**Surfaces:** 4 KPI cards (current exam) → `hcMuridBanding` comparison table (each group × each exam + ETR target column + "Beza" coloured by *direction*: green when Full A/Terbaik rise or Sederhana/Lemah fall) → ranked pupil list with per-exam grade columns, ETR grade, ✅/❗ status, group, and weak subjects (D/E/F with marks). CSV + print PDF follow the active filter.
+**Exam selector** (`#hcm-pep`, `hcMuridIsiPep` / `hcMuridPepIdx`): lists that year's exam types per admin setup, with "Terkini (auto)" as the default preserving the original latest-exam-with-marks behaviour. Changing it reclassifies everything — group, weak subjects, average, ETR status, darjah rank — **without re-reading Firestore**: per-subject grades are computed for *every* exam during the initial load into `butirUjian[]`, and switching only changes which index `hcmPakaiUjian(m, idx)` applies. Pupils with no marks in the chosen exam get `kump = null` and drop out of the list rather than being miscounted as "lemah". Ranking logic lives in `hcmSusunRank` so the initial load and per-exam recompute share one code path.
+
+**Surfaces:** 4 KPI cards (selected exam) → `hcMuridBanding` comparison table (each group × each exam + ETR target column + "Beza" coloured by *direction*: green when Full A/Terbaik rise or Sederhana/Lemah fall) → ranked pupil list with per-exam grade columns, ETR grade, ✅/❗ status, group, and weak subjects (D/E/F with marks). CSV + print PDF follow the active filter.
 
 **Missing-mark handling:** `m.tiadaMarkah[]` records the *names* of unmarked core subjects, shown per row as "⚠ SAINS belum masuk" (abbreviated via `hcmSingkat`, full names in tooltip and CSV). `hcMuridAmaran` prints a per-subject coverage banner ("SAINS — 92 dari 207 murid ada markah"), worst first, red under 60%, and explains that Full A/Terbaik are provisional while Sederhana/Lemah are already reliable.
 
@@ -173,7 +175,11 @@ All Headcount functions are prefixed `hc*` (user) / `bhc*` (admin bulk build). R
 
 ### 📋 Corak Gred (tab berasingan)
 
-Seventh Headcount tab (`hcTukarTab('corak')` → `hcgInit`), functions prefixed `hcg*`. **Independent of 🏆 Murid Terbaik** — its own dropdowns, own state (`hcgData`), own race guard (`hcgRun`); it shares only the generic helpers (`cariMarkahMurid`, `getGredFromMarkah`, `subjekUtamaUntuk`, `hcmSingkat`).
+Seventh Headcount tab (`hcTukarTab('corak')` → `hcgInit`), functions prefixed `hcg*` but **DOM ids prefixed `hcp-`** (see gotcha below). **Independent of 🏆 Murid Terbaik** — its own dropdowns, own state (`hcgData`), own race guard (`hcgRun`); it shares only the generic helpers (`cariMarkahMurid`, `getGredFromMarkah`, `subjekUtamaUntuk`, `hcmSingkat`).
+
+**DOM id gotcha (cost several debugging rounds — do not repeat):** the `hcg-` id prefix was already taken by the **Perbandingan Gred** tab (`hcg-chart`, `hcg-mod`, `hcg-subjek`, `hcg-table`, `hcg-kpi`, `hcg-darjah`, `hcg-kelas`, `hcg-tahun-kal`). Duplicate ids do not error — `getElementById` silently returns the **first** match in DOM order, which was the hidden Gred tab. Symptom: this tab's dropdowns appeared empty and inert while `hcgData` held correct values, and its KPI area showed the *Analisa* tab's warning. Fixed by moving every id in this section to `hcp-` (pola). **Before adding a tab, grep the intended id prefix across the file.**
+
+**Exam is chosen from `examTypes.darjah`, which stores NUMBERS (`[4,5,6]`), not words.** Filtering with `e.darjah.includes('EMPAT')` matches nothing and empties the dropdown; convert with `_tahunToDarjah` first (the rest of the app already does). `hcgIsiPep` accepts both forms, falls back to exam names found in actual marks if `examTypes` is missing, and `hcgInit` auto-jumps to the first darjah that actually has exams (SATU usually has none) until the teacher picks one themselves (`hcgPilihanGuru`).
 
 Groups pupils by their **grade combination** across the core subjects: `4A`, `3A1B`, `2A1B1C`. Count follows Admin › ⭐ Subjek Diutamakan for that darjah, so 7 core subjects yields `7A`, `6A1B` — nothing is hardcoded to 4. Label built by `hcgLabel` (tally → `NA` `NB` … in A–F order); rows sorted best-first by `hcgBanding` (compare count of A, then B, then C…) — **not** by pupil count, so the drop-off reads top to bottom.
 
@@ -182,6 +188,16 @@ Groups pupils by their **grade combination** across the core subjects: `4A`, `3A
 - Accordion state in `hcgBuka` (survives re-render); "Buka semua"/"Tutup semua" buttons. 4 KPI cards, coverage warning (`hcgAmaran`), CSV (`hcgCSV`) and print PDF (`hcgPDF` — always prints every pattern in full regardless of which rows are expanded on screen). All follow the active kelas filter.
 
 `hcTukarTab` was refactored to loop over a tab-name array — add a new tab in that one array, not in three parallel lists.
+
+### Wide tables on desktop (`.jadual-gulung`)
+
+Shared wrapper class for horizontally scrollable tables. Its scroll affordances — edge-shadow hints, sticky first column — were originally inside `@media (max-width: 640px)`, so on **desktop** a wide table was silently cut off with no indication more columns existed (macOS hides overlay scrollbars until you drag). They now apply at every width, plus an always-visible styled scrollbar above 640px.
+
+Because `min-width: max-content` forces every cell onto one line, long text columns alone can blow the width out (Murid Terbaik: Nama 518px + Subjek Lemah 468px + the exam title 238px → 1800px in a 1166px space). Mark such columns `lajur-teks` (260px), `lajur-teks-kecil` (200px) or `lajur-tajuk-ujian` (120px) to let them wrap. Verify a new wide table with `table.offsetWidth <= wrapper.clientWidth`.
+
+### Firebase Hosting cache
+
+`firebase.json` sets `Cache-Control: no-cache, must-revalidate` for `index.html`. Firebase's default is `max-age=3600`, and since this app is a single HTML file that meant **every deploy took up to an hour to reach users** — fixes looked like they had not worked when they were already live. If a deployed change appears to have no effect, verify with `curl -sI` before assuming the code is wrong.
 
 ### Data Normalization
 
