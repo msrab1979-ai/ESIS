@@ -1199,31 +1199,6 @@
                             </select>
                         </label>
                     </div>
-                    <!-- Tapisan ikut SATU subjek — berasingan daripada Kumpulan yang
-                         menilai murid merentas semua subjek teras sekali gus. -->
-                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 items-end mt-3 pt-3 border-t border-gray-200">
-                        <label class="block">
-                            <span class="text-xs text-gray-500">Subjek</span>
-                            <select id="hcm-subjek" onchange="hcMuridRender()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
-                        </label>
-                        <label class="block">
-                            <span class="text-xs text-gray-500">Gred subjek itu</span>
-                            <select id="hcm-gred" onchange="hcMuridRender()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm">
-                                <option value="">Semua gred</option>
-                                <option value="A">A</option>
-                                <option value="B">B</option>
-                                <option value="C">C</option>
-                                <option value="D">D</option>
-                                <option value="E">E</option>
-                                <option value="F">F</option>
-                            </select>
-                        </label>
-                        <p class="col-span-2 sm:col-span-3 text-xs text-gray-500">
-                            Pilih satu subjek dan gred untuk menyenaraikan murid yang mendapat gred itu
-                            <b>dalam subjek tersebut sahaja</b> — tidak bercampur dengan gred subjek lain.
-                            Biarkan "Semua" untuk senarai penuh.
-                        </p>
-                    </div>
                     <p id="hcm-subjek-nota" class="mt-3 text-xs text-gray-500"></p>
                 </div>
 
@@ -7747,7 +7722,6 @@
             nota.innerHTML = subjekUtama.length === semuaSubjek.length
                 ? `Dikira dari <b>semua ${subjekUtama.length} subjek</b>. Untuk pilih subjek teras sahaja, set di Admin › ⭐ Subjek Diutamakan.`
                 : `Dikira dari <b>${subjekUtama.length} subjek diutamakan</b>: ${subjekUtama.join(', ')}`;
-            hcMuridIsiSubjek(subjekUtama);
 
             if (!petaPep.length) {
                 tbl.innerHTML = `<p class="p-4 text-sm text-gray-500">Tiada jenis peperiksaan untuk tahun ${cy}.</p>`;
@@ -7819,7 +7793,7 @@
                 // supaya guru boleh memilih peperiksaan dalam dropdown dan seluruh
                 // pengelasan dikira semula tanpa menarik data dari Firestore lagi.
                 const butirUjian = petaPep.map(pep => {
-                    const gl = [], lm = [], tm = [], ps = [];
+                    const gl = [], lm = [], tm = [];
                     subjekUtama.forEach(sub => {
                         const v = arPeta[sub][pep][kp];
                         if (v == null || v === '') { tm.push(sub); return; }
@@ -7827,12 +7801,9 @@
                         const g = getGredFromMarkah(x);
                         if (!['A','B','C','D','E','F'].includes(g)) { tm.push(sub); return; }
                         gl.push(g);
-                        // Pasangan subjek->gred diperlukan utk tapisan "Subjek + Gred":
-                        // gredSubjek[] sahaja tidak cukup kerana ia hilang nama subjek.
-                        ps.push({ sub, markah: x, gred: g });
                         if (g === 'D' || g === 'E' || g === 'F') lm.push({ sub, markah: x, gred: g });
                     });
-                    return { gredSubjek: gl, lemah: lm, tiadaMarkah: tm, perSubjek: ps,
+                    return { gredSubjek: gl, lemah: lm, tiadaMarkah: tm,
                              kump: hcmKumpulan(gl, subjekUtama.length) };
                 });
                 const gredSubjek = butirUjian[akhirIdx].gredSubjek;
@@ -7925,35 +7896,6 @@
             hcMuridRender();
         }
 
-        // Tapisan "Subjek + Gred": murid dipilih ikut gred dia dalam SATU subjek
-        // sahaja, tidak bercampur dengan gred subjek lain. Gred tanpa subjek
-        // bermakna "ada gred itu dalam mana-mana subjek diutamakan"; subjek tanpa
-        // gred bermakna "ada markah bagi subjek itu". Dikongsi oleh paparan dan CSV
-        // supaya kedua-duanya sentiasa menunjukkan senarai yang sama (PDF mengambil
-        // innerHTML jadual, jadi ia mengikut secara automatik).
-        function hcMuridTapisSG() {
-            const sub = (document.getElementById('hcm-subjek') || {}).value || '';
-            const gred = (document.getElementById('hcm-gred') || {}).value || '';
-            return { sub, gred, aktif: !!(sub || gred),
-                padan(m) {
-                    if (!sub && !gred) return true;
-                    return (m.perSubjek || []).some(p =>
-                        (!sub || p.sub === sub) && (!gred || p.gred === gred));
-                } };
-        }
-
-        // Dropdown subjek untuk tapisan di atas. Hanya subjek diutamakan disenaraikan
-        // kerana itu sahaja yang ada gred dikira dalam tab ini. Pilihan guru dikekalkan
-        // supaya menukar kelas atau peperiksaan tidak menetapkannya semula.
-        function hcMuridIsiSubjek(subjekUtama) {
-            const el = document.getElementById('hcm-subjek');
-            if (!el) return;
-            const pilihan = el.value;
-            el.innerHTML = '<option value="">Semua subjek</option>' +
-                subjekUtama.map(x => `<option value="${x}">${x}</option>`).join('');
-            if (pilihan && subjekUtama.includes(pilihan)) el.value = pilihan;
-        }
-
         function hcMuridRender() {
             // Dropdown kelas/kumpulan panggil fungsi ini terus. Kalau data belum siap
             // (pengguna tukar semasa masih mengira), jangan senyap — kira semula.
@@ -7966,12 +7908,10 @@
             const pepIdx = hcMuridPepIdx();
             murid.forEach(m => hcmPakaiUjian(m, pepIdx));
             hcmSusunRank(murid);
-            const tapisSG = hcMuridTapisSG();
             const papar = murid.filter(m =>
                 m.kump &&
                 (!kelasPilih || m.kelas === kelasPilih) &&
-                (kumpPilih === 'semua' || m.kump === kumpPilih) &&
-                tapisSG.padan(m));
+                (kumpPilih === 'semua' || m.kump === kumpPilih));
 
             // --- KPI ikut tapisan ---
             const kira = { fullA: 0, terbaik: 0, sederhana: 0, lemah: 0 };
@@ -7994,13 +7934,8 @@
                 // Bezakan "tapisan terlalu ketat" dari "darjah ini memang tiada markah"
                 const adaLangsung = murid.length > 0;
                 const kelasTxt = kelasPilih ? ` kelas ${kelasPilih}` : '';
-                // Sebut tapisan subjek+gred secara khusus — tanpa ini guru yang
-                // menapis "SAINS gred A" dan mendapat kosong menyangka data hilang.
-                const sgTxt = tapisSG.aktif
-                    ? ` Tiada murid mendapat gred <b>${tapisSG.gred || 'mana-mana'}</b> dalam <b>${tapisSG.sub || 'mana-mana subjek'}</b>${kelasTxt} bagi peperiksaan ini.`
-                    : '';
                 document.getElementById('hcm-table').innerHTML = adaLangsung
-                    ? `<p class="p-4 text-sm text-gray-500">${sgTxt || `Tiada murid dalam kumpulan ini${kelasTxt}. Cuba tukar tapisan Kumpulan kepada "Semua kumpulan".`}</p>`
+                    ? `<p class="p-4 text-sm text-gray-500">Tiada murid dalam kumpulan ini${kelasTxt}. Cuba tukar tapisan Kumpulan kepada "Semua kumpulan".</p>`
                     : `<p class="p-4 text-sm text-gray-500">Tiada markah direkodkan untuk darjah <b>${hcMuridData.darjah}</b> pada tahun ${hcMuridData.cy}.
                        Sila pilih darjah lain, atau masukkan markah di Rekod &amp; Laporan.</p>`;
                 return;
@@ -8085,7 +8020,6 @@
             const u = m.ujian[guna];
             if (!b || !u) {
                 m.kump = null; m.gredSubjek = []; m.lemah = []; m.tiadaMarkah = [];
-                m.perSubjek = [];
                 m.purata = 0; m.gred = null; m.lengkap = 0; m.idxGuna = guna;
                 m.capaiEtr = null;
                 return;
@@ -8093,7 +8027,6 @@
             m.idxGuna = guna;
             m.kump = b.kump;
             m.gredSubjek = b.gredSubjek;
-            m.perSubjek = b.perSubjek || [];
             m.lemah = b.lemah;
             m.tiadaMarkah = b.tiadaMarkah;
             m.lengkap = b.gredSubjek.length;
@@ -8386,12 +8319,10 @@
             const { petaPep, darjah, cy, murid } = hcMuridData;
             const kelasPilih = document.getElementById('hcm-kelas').value;
             const kumpPilih = document.getElementById('hcm-kump').value;
-            const tapisSG = hcMuridTapisSG();
             const papar = murid.filter(m =>
                 m.kump &&
                 (!kelasPilih || m.kelas === kelasPilih) &&
-                (kumpPilih === 'semua' || m.kump === kumpPilih) &&
-                tapisSG.padan(m));
+                (kumpPilih === 'semua' || m.kump === kumpPilih));
             if (!papar.length) { showNotification('Muat Turun', 'Tiada murid untuk tapisan ini.', true); return; }
             const esc = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
             const head = ['Kedudukan', 'Nama', 'Kelas',
@@ -8428,12 +8359,6 @@
             const banding = document.getElementById('hcm-banding').innerHTML;
             const amaran = document.getElementById('hcm-amaran').innerText.trim();
             const kpi = document.getElementById('hcm-kpi').innerText.replace(/\n/g, ' · ');
-            // Tapisan subjek+gred mesti tersurat pada cetakan — tanpa ini senarai
-            // yang ditapis kelihatan seperti senarai penuh apabila dicetak.
-            const sg = hcMuridTapisSG();
-            const tajukSG = sg.aktif
-                ? ` — ${sg.sub || 'semua subjek'}${sg.gred ? ' · gred ' + sg.gred : ''}`
-                : '';
             const win = window.open('', '_blank');
             win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
                 <title>Murid Terbaik — ${darjah}</title>
@@ -8446,7 +8371,7 @@
                     .text-gray-300,.text-gray-400{color:#999}
                     @page{size:landscape}
                 </style></head><body>
-                <h2>Senarai Murid Mengikut Kedudukan${tajukSG}</h2>
+                <h2>Senarai Murid Mengikut Kedudukan</h2>
                 <p class="sub">Darjah ${darjah}${kelasPilih ? ' — ' + kelasPilih : ' — semua kelas'} ·
                     Tahun ${cy} · Subjek diutamakan: ${subjekUtama.join(', ')}<br>
                     ${kpi} · Dicetak ${new Date().toLocaleDateString('ms-MY')}</p>
