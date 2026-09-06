@@ -807,6 +807,8 @@
                     class="px-3 sm:px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800 whitespace-nowrap shrink-0">📋 Perbandingan Gred</button>
                 <button onclick="hcTukarTab('murid')" id="hc-tab-murid"
                     class="px-3 sm:px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800 whitespace-nowrap shrink-0">🏆 Murid Terbaik</button>
+                <button onclick="hcTukarTab('corak')" id="hc-tab-corak"
+                    class="px-3 sm:px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800 whitespace-nowrap shrink-0">📋 Corak Gred</button>
             </div>
 
             <!-- ===== SKRIN A: SET SASARAN ===== -->
@@ -1139,6 +1141,47 @@
                         </div>
                     </div>
                     <div id="hcm-table" class="jadual-gulung"></div>
+                </div>
+            </section>
+
+            <!-- ===== SKRIN G: CORAK GRED (4A / 3A1B / ...) ===== -->
+            <section id="hc-skrin-corak" class="hidden">
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4 no-print">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 items-end">
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Tahun</span>
+                            <select id="hcg-tahun-kal" onchange="hcgLukis()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Darjah</span>
+                            <select id="hcg-darjah" onchange="hcgDarjahTukar()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Peperiksaan</span>
+                            <select id="hcg-pep" onchange="hcgLukis()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Kelas</span>
+                            <select id="hcg-kelas" onchange="hcgRender()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                    </div>
+                    <p id="hcg-nota" class="mt-3 text-xs text-gray-500"></p>
+                </div>
+
+                <div id="hcg-amaran" class="mb-3"></div>
+                <div id="hcg-kpi" class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4"></div>
+
+                <div class="bg-white rounded-lg border border-gray-200">
+                    <div class="px-3 sm:px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-2 flex-wrap">
+                        <h4 class="font-semibold text-gray-800">Corak Gred</h4>
+                        <div class="flex gap-2 no-print">
+                            <button onclick="hcgBukaSemua(true)" class="rounded border border-gray-300 px-2.5 py-1 text-xs hover:bg-gray-50">Buka semua</button>
+                            <button onclick="hcgBukaSemua(false)" class="rounded border border-gray-300 px-2.5 py-1 text-xs hover:bg-gray-50">Tutup semua</button>
+                            <button onclick="hcgCSV()" class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">📥 CSV</button>
+                            <button onclick="hcgPDF()" class="rounded border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">🖨️ Cetak PDF</button>
+                        </div>
+                    </div>
+                    <div id="hcg-senarai" class="p-3 sm:p-4"></div>
                 </div>
             </section>
         </div>
@@ -7177,23 +7220,17 @@
             // / pecah baris dlm mobile dan bar tab tak boleh digulung elok.
             const aktif = 'px-3 sm:px-4 py-2 text-sm font-medium border-b-2 border-teal-600 text-gray-900 whitespace-nowrap shrink-0';
             const mati = 'px-3 sm:px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800 whitespace-nowrap shrink-0';
-            document.getElementById('hc-skrin-set').classList.toggle('hidden', tab !== 'set');
-            document.getElementById('hc-skrin-jejak').classList.toggle('hidden', tab !== 'jejak');
-            document.getElementById('hc-skrin-analisa').classList.toggle('hidden', tab !== 'analisa');
-            document.getElementById('hc-skrin-banding').classList.toggle('hidden', tab !== 'banding');
-            document.getElementById('hc-skrin-gred').classList.toggle('hidden', tab !== 'gred');
-            document.getElementById('hc-skrin-murid').classList.toggle('hidden', tab !== 'murid');
-            document.getElementById('hc-tab-set').className = tab === 'set' ? aktif : mati;
-            document.getElementById('hc-tab-jejak').className = tab === 'jejak' ? aktif : mati;
-            document.getElementById('hc-tab-analisa').className = tab === 'analisa' ? aktif : mati;
-            document.getElementById('hc-tab-banding').className = tab === 'banding' ? aktif : mati;
-            document.getElementById('hc-tab-gred').className = tab === 'gred' ? aktif : mati;
-            document.getElementById('hc-tab-murid').className = tab === 'murid' ? aktif : mati;
+            // Satu senarai — tambah tab baharu di sini sahaja, bukan 3 tempat.
+            ['set', 'jejak', 'analisa', 'banding', 'gred', 'murid', 'corak'].forEach(t => {
+                document.getElementById('hc-skrin-' + t).classList.toggle('hidden', tab !== t);
+                document.getElementById('hc-tab-' + t).className = (tab === t) ? aktif : mati;
+            });
             if (tab === 'jejak') hcInitJejak();
             if (tab === 'analisa') hcInitAnalisa();
             if (tab === 'banding') hcInitBanding();
             if (tab === 'gred') hcInitGred();
             if (tab === 'murid') hcInitMurid();
+            if (tab === 'corak') hcgInit();
         }
 
         // Isi pemilih Papan Jejak (selaraskan dgn pilihan Set Sasaran), kemudian lukis
@@ -8170,6 +8207,402 @@
                 <h3 style="font-size:13px;margin:12px 0 4px">Perbandingan setiap ujian dengan sasaran</h3>
                 ${banding}
                 <h3 style="font-size:13px;margin:16px 0 4px">Senarai murid mengikut kedudukan</h3>
+                ${jadual}
+                </body></html>`);
+            win.document.close(); win.focus();
+            setTimeout(() => { win.print(); win.close(); }, 600);
+        }
+
+        // ==========================================================
+        // 📋 CORAK GRED — tab berdiri sendiri
+        // Kumpulkan murid ikut KOMBINASI gred subjek diutamakan: "4A", "3A1B",
+        // "2A1B1C". Bilangan subjek ikut tetapan Admin › ⭐ Subjek Diutamakan,
+        // jadi darjah dengan 7 subjek teras menghasilkan "7A", "6A1B" dsb.
+        // Guru boleh pilih peperiksaan mana yang hendak dilihat (bukan sentiasa
+        // yang terkini) — berguna untuk banding corak antara ujian.
+        // Murid yang subjek utamanya belum bermarkah DIASINGKAN: corak "3A1B"
+        // tidak sah kalau satu gred masih tidak diketahui.
+        // Prefiks fungsi: hcg*  (tiada kaitan dengan hcm* / Murid Terbaik)
+        // ==========================================================
+        let hcgData = null;        // { darjah, cy, pep, subjekUtama, murid:[], liputan:[] }
+        let hcgRun = 0;            // penjaga perlumbaan — sama sebab dgn hcMuridRun
+        let hcgBuka = new Set();   // label corak yang sedang dibuka
+        const HCG_URUT = ['A', 'B', 'C', 'D', 'E', 'F'];
+        const HCG_WARNA = { A:'text-green-700', B:'text-blue-700', C:'text-yellow-700',
+                            D:'text-orange-700', E:'text-red-700', F:'text-gray-600' };
+
+        // ['A','A','B','A'] -> { label:'3A1B', bil:{A:3,B:1} }
+        function hcgLabel(gredList) {
+            const bil = {};
+            gredList.forEach(g => { bil[g] = (bil[g] || 0) + 1; });
+            return { label: HCG_URUT.filter(g => bil[g]).map(g => `${bil[g]}${g}`).join(''), bil };
+        }
+
+        // Susun terbaik -> terlemah: banding bilangan A dahulu, kemudian B, C...
+        // Jadi 4A mendahului 3A1B, yang mendahului 3A1C.
+        function hcgBanding(a, b) {
+            for (const g of HCG_URUT) {
+                const d = (b.bil[g] || 0) - (a.bil[g] || 0);
+                if (d) return d;
+            }
+            return 0;
+        }
+
+        async function hcgInit() {
+            // Baca semula subjek diutamakan setiap kali tab dibuka — admin mungkin
+            // baru menukarnya; tanpa ini cache lama kekal basi.
+            await bacaSubjekUtama(true);
+            const urutan = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
+            const ada = urutan.filter(t => hcKelasUntukTahun(t).length);
+            const dEl = document.getElementById('hcg-darjah');
+            if (!dEl.options.length) {
+                dEl.innerHTML = (ada.length ? ada : urutan).map(t => `<option value="${t}">${t}</option>`).join('');
+                const ikut = document.getElementById('hcm-darjah').value
+                          || document.getElementById('hc-tahun').value;
+                if (ikut && [...dEl.options].some(o => o.value === ikut)) dEl.value = ikut;
+            }
+            populatePanelYearDropdown('hcg-tahun-kal',
+                document.getElementById('hcg-tahun-kal').value || new Date().getFullYear().toString());
+            hcgIsiKelas();
+            await hcgIsiPep();
+            await hcgLukis();
+        }
+
+        function hcgIsiKelas() {
+            const d = document.getElementById('hcg-darjah').value;
+            const kEl = document.getElementById('hcg-kelas');
+            const simpan = kEl.value;
+            kEl.innerHTML = '<option value="">Semua kelas</option>' +
+                hcKelasUntukTahun(d).map(k => `<option value="${k}">${k}</option>`).join('');
+            if (simpan && [...kEl.options].some(o => o.value === simpan)) kEl.value = simpan;
+        }
+
+        // Senarai peperiksaan bagi darjah + tahun kalendar yang dipilih.
+        async function hcgIsiPep() {
+            const cy = hcTahunAnalisa('hcg-tahun-kal');
+            const darjah = document.getElementById('hcg-darjah').value;
+            const pEl = document.getElementById('hcg-pep');
+            const simpan = pEl.value;
+            const senarai = (await getExamTypesForYear(cy))
+                .filter(e => !Array.isArray(e.darjah) || !e.darjah.length || e.darjah.includes(darjah))
+                .map(e => e.nama);
+            pEl.innerHTML = senarai.length
+                ? senarai.map(n => `<option value="${n}">${n}</option>`).join('')
+                : '<option value="">(tiada peperiksaan)</option>';
+            if (simpan && senarai.includes(simpan)) pEl.value = simpan;
+        }
+
+        async function hcgDarjahTukar() {
+            hcgIsiKelas();
+            await hcgIsiPep();
+            await hcgLukis();
+        }
+
+        function hcgBukaSemua(buka) {
+            if (!buka) { hcgBuka.clear(); hcgRender(); return; }
+            if (!hcgData) return;
+            hcgKira(hcgData.murid).corak.forEach(c => hcgBuka.add(c.label));
+            hcgBuka.add('__TL__');
+            hcgRender();
+        }
+
+        async function hcgLukis() {
+            const token = ++hcgRun;
+            const basi = () => token !== hcgRun;
+            const cy = hcTahunAnalisa('hcg-tahun-kal');
+            const darjah = document.getElementById('hcg-darjah').value;
+            const pep = document.getElementById('hcg-pep').value;
+            const el = document.getElementById('hcg-senarai');
+            el.innerHTML = '<p class="text-sm text-gray-500">⏳ Mengira corak gred...</p>';
+            document.getElementById('hcg-kpi').innerHTML = '';
+            document.getElementById('hcg-amaran').innerHTML = '';
+
+            // Peperiksaan mungkin belum diisi (darjah baharu ditukar)
+            if (!darjah || !pep) {
+                el.innerHTML = '<p class="text-sm text-gray-500">Sila pilih darjah dan peperiksaan.</p>';
+                hcgData = null;
+                return;
+            }
+
+            // Tunggu senarai murid — sama seperti hcLukisMurid, data mungkin
+            // belum sampai bila pengguna terus melompat ke tab ini.
+            for (let i = 0; i < 100 && !(GLOBAL_DATA.students || []).length; i++) {
+                await new Promise(r => setTimeout(r, 100));
+                if (basi()) return;
+            }
+
+            const subjekUtama = await subjekUtamaUntuk(darjah);
+            if (basi()) return;
+            const semuaSubjek = _semuaSubjekNama();
+            document.getElementById('hcg-nota').innerHTML = subjekUtama.length === semuaSubjek.length
+                ? `Corak dikira dari <b>semua ${subjekUtama.length} subjek</b>. Untuk pilih subjek teras sahaja, set di Admin › ⭐ Subjek Diutamakan.`
+                : `Corak dikira dari <b>${subjekUtama.length} subjek diutamakan</b>: ${subjekUtama.join(', ')}`;
+
+            const muridSemua = (GLOBAL_DATA.students || [])
+                .filter(m => m.tahun === darjah && m.no_kp);
+            if (!muridSemua.length) {
+                el.innerHTML = `<p class="text-sm text-gray-500">Tiada murid berdaftar untuk darjah <b>${darjah}</b>.</p>`;
+                hcgData = null;
+                return;
+            }
+
+            // Tarik markah setiap subjek utama untuk peperiksaan yang dipilih.
+            // mod 'no_kp' — murid dalam darjah ini, tak kira kelas.
+            const peta = {};
+            for (const sub of subjekUtama) {
+                const r = await cariMarkahMurid({ calYear: cy, subjek: sub, peperiksaan: pep,
+                                                  muridList: muridSemua, mod: 'no_kp' });
+                if (basi()) return;
+                peta[sub] = r.map;
+            }
+
+            const senarai = [];
+            muridSemua.forEach(m => {
+                const gredSubjek = [];
+                const tiadaMarkah = [];
+                const perSubjek = [];
+                subjekUtama.forEach(sub => {
+                    const v = peta[sub][m.no_kp];
+                    if (v == null || v === '' || isNaN(parseInt(v))) { tiadaMarkah.push(sub); return; }
+                    const x = parseInt(v);
+                    const g = getGredFromMarkah(x);
+                    // TIDAK SAH / luar julat bukan gred — jangan dikira sebagai F
+                    if (!HCG_URUT.includes(g)) { tiadaMarkah.push(sub); return; }
+                    gredSubjek.push(g);
+                    perSubjek.push({ sub, markah: x, gred: g });
+                });
+                // Murid tanpa sebarang markah langsung tidak disenaraikan — mereka
+                // mungkin tidak mengambil peperiksaan ini.
+                if (!gredSubjek.length) return;
+                senarai.push({
+                    no_kp: m.no_kp, nama: m.nama || '(tiada nama)', kelas: m.kelas || '—',
+                    gredSubjek, perSubjek, tiadaMarkah,
+                    jumSubjek: subjekUtama.length,
+                    purata: perSubjek.reduce((a, b) => a + b.markah, 0) / perSubjek.length,
+                });
+            });
+
+            // Liputan setiap subjek — supaya guru tahu subjek mana tertinggal
+            const liputan = subjekUtama.map(sub => ({
+                sub,
+                ada: muridSemua.filter(m => peta[sub][m.no_kp] != null).length,
+                jum: muridSemua.length,
+            }));
+
+            if (basi()) return;
+            hcgData = { darjah, cy, pep, subjekUtama, murid: senarai, liputan, bilMurid: muridSemua.length };
+            hcgRender();
+        }
+
+        // Kumpulkan senarai murid (sudah ditapis) kepada corak.
+        function hcgKira(papar) {
+            const peta = new Map();
+            const takLengkap = [];
+            papar.forEach(m => {
+                if (m.gredSubjek.length < m.jumSubjek) { takLengkap.push(m); return; }
+                const { label, bil } = hcgLabel(m.gredSubjek);
+                if (!peta.has(label)) peta.set(label, { label, bil, murid: [] });
+                peta.get(label).murid.push(m);
+            });
+            const corak = [...peta.values()].sort(hcgBanding);
+            const ikutNama = (a, b) => (b.purata - a.purata) || String(a.nama).localeCompare(b.nama);
+            corak.forEach(c => c.murid.sort(ikutNama));
+            takLengkap.sort(ikutNama);
+            return { corak, takLengkap };
+        }
+
+        function hcgRender() {
+            const el = document.getElementById('hcg-senarai');
+            if (!hcgData) { hcgLukis(); return; }
+            const { subjekUtama, darjah, pep, murid } = hcgData;
+            const kelasPilih = document.getElementById('hcg-kelas').value;
+            const papar = murid.filter(m => !kelasPilih || m.kelas === kelasPilih);
+            const { corak, takLengkap } = hcgKira(papar);
+
+            // --- KPI ---
+            const penuhLabel = `${subjekUtama.length}A`;
+            const bilPenuh = (corak.find(c => c.label === penuhLabel) || { murid: [] }).murid.length;
+            const bilLengkap = papar.length - takLengkap.length;
+            const kad = (tajuk, nilai, sub, warna, bg) =>
+                `<div class="rounded-lg border border-gray-200 ${bg} p-2 sm:p-3">
+                    <div class="text-[11px] sm:text-xs text-gray-600 whitespace-nowrap">${tajuk}</div>
+                    <div class="text-xl sm:text-2xl font-bold ${warna}">${nilai}</div>
+                    <div class="text-[11px] sm:text-xs text-gray-500">${sub}</div>
+                </div>`;
+            document.getElementById('hcg-kpi').innerHTML =
+                kad(`🌟 ${penuhLabel} (semua A)`, bilPenuh, 'murid', 'text-purple-700', 'bg-purple-50') +
+                kad('📋 Jenis corak', corak.length, 'corak berbeza', 'text-blue-700', 'bg-blue-50') +
+                kad('✅ Markah lengkap', bilLengkap, `dari ${papar.length} murid`, 'text-green-700', 'bg-green-50') +
+                kad('⚠ Tidak lengkap', takLengkap.length, 'murid', 'text-amber-700', 'bg-amber-50');
+
+            hcgAmaran();
+
+            if (!papar.length) {
+                el.innerHTML = `<p class="text-sm text-gray-500">Tiada markah untuk darjah <b>${darjah}</b>${kelasPilih ? ' kelas ' + kelasPilih : ''} pada peperiksaan <b>${pep}</b>.</p>`;
+                return;
+            }
+
+            const maxBil = Math.max(1, ...corak.map(c => c.murid.length));
+            const jadualMurid = (list, tl) => `
+                <div class="px-3 pb-3 overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="text-xs text-gray-500">
+                            <tr><th class="px-2 py-1 text-center font-medium w-8">#</th>
+                                <th class="px-2 py-1 text-left font-medium">Nama</th>
+                                <th class="px-2 py-1 text-left font-medium">Kelas</th>
+                                <th class="px-2 py-1 text-left font-medium">${tl ? 'Subjek belum masuk' : 'Gred subjek'}</th>
+                                <th class="px-2 py-1 text-right font-medium">Purata</th></tr>
+                        </thead>
+                        <tbody>${list.map((m, i) => `
+                            <tr class="border-t border-gray-100">
+                                <td class="px-2 py-1 text-center text-gray-400">${i + 1}</td>
+                                <td class="px-2 py-1 font-medium text-gray-900">${m.nama}</td>
+                                <td class="px-2 py-1 text-gray-600">${m.kelas}</td>
+                                <td class="px-2 py-1 text-xs ${tl ? 'text-amber-700' : ''}" title="${tl ? m.tiadaMarkah.join(', ') : m.perSubjek.map(p => p.sub + ' ' + p.markah).join(', ')}">${
+                                    tl ? m.tiadaMarkah.map(hcmSingkat).join(', ')
+                                       : m.perSubjek.map(p => `<span class="${HCG_WARNA[p.gred] || ''}">${hcmSingkat(p.sub)}:${p.gred}</span>`).join(' · ')}</td>
+                                <td class="px-2 py-1 text-right text-gray-600">${m.purata.toFixed(1)}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>`;
+
+            const barisCorak = corak.map(c => {
+                const buka = hcgBuka.has(c.label);
+                const lebar = Math.round(c.murid.length / maxBil * 100);
+                const penuh = c.label === penuhLabel;
+                return `<div class="border ${penuh ? 'border-purple-200 bg-purple-50/40' : 'border-gray-200'} rounded-lg mb-2 overflow-hidden">
+                    <button onclick="hcgTogol('${c.label}')" class="w-full flex items-center gap-2 sm:gap-3 px-3 py-2.5 hover:bg-gray-50 text-left">
+                        <span class="text-gray-400 text-xs w-3 shrink-0">${buka ? '▾' : '▸'}</span>
+                        <span class="font-bold text-sm sm:text-base w-20 sm:w-28 shrink-0 ${penuh ? 'text-purple-700' : 'text-gray-800'} whitespace-nowrap">${penuh ? '🌟 ' : ''}${c.label}</span>
+                        <span class="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden min-w-[30px]">
+                            <span class="block h-full ${penuh ? 'bg-purple-500' : 'bg-blue-400'}" style="width:${lebar}%"></span>
+                        </span>
+                        <span class="text-sm font-semibold text-gray-700 whitespace-nowrap shrink-0">${c.murid.length} <span class="font-normal text-gray-500">murid</span></span>
+                    </button>
+                    ${buka ? jadualMurid(c.murid, false) : ''}
+                </div>`;
+            }).join('');
+
+            const bukaTL = hcgBuka.has('__TL__');
+            const barisTL = takLengkap.length ? `
+                <div class="border border-amber-200 bg-amber-50/50 rounded-lg mb-2 overflow-hidden">
+                    <button onclick="hcgTogol('__TL__')" class="w-full flex items-center gap-2 sm:gap-3 px-3 py-2.5 hover:bg-amber-50 text-left">
+                        <span class="text-gray-400 text-xs w-3 shrink-0">${bukaTL ? '▾' : '▸'}</span>
+                        <span class="font-semibold text-sm text-amber-800 flex-1">⚠ Tidak lengkap</span>
+                        <span class="text-sm font-semibold text-amber-800 whitespace-nowrap">${takLengkap.length} <span class="font-normal">murid</span></span>
+                    </button>
+                    ${bukaTL ? jadualMurid(takLengkap, true) : ''}
+                </div>` : '';
+
+            el.innerHTML = barisCorak + barisTL + `
+                <p class="text-xs text-gray-400 mt-3">
+                    Darjah <b>${darjah}</b>${kelasPilih ? ` — kelas <b>${kelasPilih}</b>` : ' — semua kelas'} ·
+                    peperiksaan <b>${pep}</b> · ${subjekUtama.length} subjek diutamakan (${subjekUtama.join(', ')}).
+                    <b>Klik baris corak</b> untuk lihat nama murid. Corak disusun dari terbaik ke terlemah.
+                    Murid yang ada subjek belum bermarkah tidak dimasukkan ke mana-mana corak — gredannya masih tidak diketahui.
+                </p>`;
+        }
+
+        function hcgTogol(label) {
+            if (hcgBuka.has(label)) hcgBuka.delete(label);
+            else hcgBuka.add(label);
+            hcgRender();
+        }
+
+        // Amaran liputan markah — corak hanya boleh dipercayai bila markah lengkap.
+        function hcgAmaran() {
+            const el = document.getElementById('hcg-amaran');
+            if (!el || !hcgData) return;
+            const kurang = hcgData.liputan.filter(l => l.ada < l.jum)
+                .sort((a, b) => (a.ada / a.jum) - (b.ada / b.jum));
+            if (!kurang.length) { el.innerHTML = ''; return; }
+            el.innerHTML = `<div class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+                <b>⚠ Markah belum lengkap bagi peperiksaan ${hcgData.pep}</b>
+                <ul class="mt-1 space-y-0.5">
+                    ${kurang.map(l => {
+                        const p = Math.round(l.ada / l.jum * 100);
+                        return `<li${p < 60 ? ' class="text-red-700 font-semibold"' : ''}>${l.sub} — ${l.ada} dari ${l.jum} murid ada markah (${p}%)</li>`;
+                    }).join('')}
+                </ul>
+                <p class="mt-1.5">Corak hanya dikira untuk murid yang <b>semua ${hcgData.subjekUtama.length} subjek</b> sudah bermarkah.
+                   Selebihnya ada dalam baris "Tidak lengkap".</p>
+            </div>`;
+        }
+
+        function hcgCSV() {
+            if (!hcgData) { showNotification('Muat Turun', 'Tiada data.', true); return; }
+            const { darjah, cy, pep } = hcgData;
+            const kelasPilih = document.getElementById('hcg-kelas').value;
+            const papar = hcgData.murid.filter(m => !kelasPilih || m.kelas === kelasPilih);
+            const { corak, takLengkap } = hcgKira(papar);
+            if (!corak.length && !takLengkap.length) { showNotification('Muat Turun', 'Tiada murid untuk tapisan ini.', true); return; }
+            const esc = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+            const baris = [];
+            corak.forEach(c => c.murid.forEach(m => baris.push([
+                c.label, c.murid.length, m.nama, m.kelas,
+                m.perSubjek.map(p => `${p.sub}=${p.gred} (${p.markah})`).join('; '),
+                m.purata.toFixed(1), '',
+            ])));
+            takLengkap.forEach(m => baris.push([
+                'TIDAK LENGKAP', takLengkap.length, m.nama, m.kelas,
+                m.perSubjek.map(p => `${p.sub}=${p.gred} (${p.markah})`).join('; '),
+                m.purata.toFixed(1), m.tiadaMarkah.join('; '),
+            ]));
+            const head = ['Corak', 'Bil murid corak', 'Nama', 'Kelas', 'Gred subjek', 'Purata', 'Subjek belum masuk'];
+            const csv = '﻿' + [head.map(esc).join(','), ...baris.map(r => r.map(esc).join(','))].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Corak_Gred_${darjah}${kelasPilih ? '_' + kelasPilih : ''}_${pep}_${cy}.csv`.replace(/\s+/g, '_');
+            document.body.appendChild(a); a.click();
+            setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 100);
+            showNotification('Muat Turun', `${baris.length} baris dieksport.`, false);
+        }
+
+        function hcgPDF() {
+            if (!hcgData) { showNotification('Cetak', 'Tiada data.', true); return; }
+            const { darjah, cy, pep, subjekUtama } = hcgData;
+            const kelasPilih = document.getElementById('hcg-kelas').value;
+            const papar = hcgData.murid.filter(m => !kelasPilih || m.kelas === kelasPilih);
+            const { corak, takLengkap } = hcgKira(papar);
+            if (!corak.length && !takLengkap.length) { showNotification('Cetak', 'Tiada murid untuk tapisan ini.', true); return; }
+            const amaran = document.getElementById('hcg-amaran').innerText.trim();
+            // Cetakan sentiasa penuh — tak ikut baris yang dibuka/tutup di skrin.
+            const jadual = `
+                <table><thead><tr>
+                    <th style="width:70px">Corak</th><th style="width:40px">Bil</th>
+                    <th>Nama murid (kelas)</th></tr></thead><tbody>
+                ${corak.map(c => `<tr>
+                    <td><b>${c.label}</b></td><td>${c.murid.length}</td>
+                    <td style="text-align:left">${c.murid.map(m => `${m.nama} (${m.kelas})`).join(', ')}</td></tr>`).join('')}
+                ${takLengkap.length ? `<tr><td><b>Tidak lengkap</b></td><td>${takLengkap.length}</td>
+                    <td style="text-align:left">${takLengkap.map(m => `${m.nama} (${m.kelas})`).join(', ')}</td></tr>` : ''}
+                </tbody></table>`;
+            const ringkas = `<table><thead><tr><th>Corak</th><th>Bilangan murid</th></tr></thead><tbody>
+                ${corak.map(c => `<tr><td><b>${c.label}</b></td><td>${c.murid.length}</td></tr>`).join('')}
+                ${takLengkap.length ? `<tr><td>Tidak lengkap</td><td>${takLengkap.length}</td></tr>` : ''}
+                </tbody></table>`;
+            const win = window.open('', '_blank');
+            win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+                <title>Corak Gred — ${darjah}</title>
+                <style>
+                    body{font-family:Arial,sans-serif;padding:20px;color:#111}
+                    h2{margin:0 0 4px;font-size:17px} p.sub{margin:0 0 12px;color:#555;font-size:11px}
+                    h3{font-size:13px;margin:14px 0 4px}
+                    table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:10px}
+                    th,td{border:1px solid #999;padding:4px;text-align:center}
+                    th{background:#f0f0f0}
+                </style></head><body>
+                <h2>Corak Gred Murid</h2>
+                <p class="sub">Darjah ${darjah}${kelasPilih ? ' — ' + kelasPilih : ' — semua kelas'} ·
+                    Peperiksaan ${pep} · Tahun ${cy}<br>
+                    ${subjekUtama.length} subjek diutamakan: ${subjekUtama.join(', ')} ·
+                    Dicetak ${new Date().toLocaleDateString('ms-MY')}</p>
+                ${amaran ? `<div style="border:1px solid #d97706;background:#fffbeb;padding:8px;margin:0 0 12px;font-size:10px;white-space:pre-line">${amaran}</div>` : ''}
+                <h3>Ringkasan</h3>
+                ${ringkas}
+                <h3>Senarai nama mengikut corak</h3>
                 ${jadual}
                 </body></html>`);
             win.document.close(); win.focus();

@@ -171,6 +171,18 @@ Classifies pupils **across core subjects** with per-exam vs ETR comparison. Sixt
 
 All Headcount functions are prefixed `hc*` (user) / `bhc*` (admin bulk build). Reuses `cariMarkahMurid`, `getGredFromMarkah`, `getExamTypesForYear`, `ensureMarksLoaded`.
 
+### 📋 Corak Gred (tab berasingan)
+
+Seventh Headcount tab (`hcTukarTab('corak')` → `hcgInit`), functions prefixed `hcg*`. **Independent of 🏆 Murid Terbaik** — its own dropdowns, own state (`hcgData`), own race guard (`hcgRun`); it shares only the generic helpers (`cariMarkahMurid`, `getGredFromMarkah`, `subjekUtamaUntuk`, `hcmSingkat`).
+
+Groups pupils by their **grade combination** across the core subjects: `4A`, `3A1B`, `2A1B1C`. Count follows Admin › ⭐ Subjek Diutamakan for that darjah, so 7 core subjects yields `7A`, `6A1B` — nothing is hardcoded to 4. Label built by `hcgLabel` (tally → `NA` `NB` … in A–F order); rows sorted best-first by `hcgBanding` (compare count of A, then B, then C…) — **not** by pupil count, so the drop-off reads top to bottom.
+
+- **Exam is selectable** (`#hcg-pep`, filtered to the darjah via `getExamTypesForYear`) — unlike Murid Terbaik which always uses the latest exam. Lets a teacher compare patterns between exams.
+- **Incomplete marks are excluded from every pattern** and collected into a separate "⚠ Tidak lengkap" row (`hcgKira`): `3A1B` is not a valid claim while one grade is still unknown — same rule as Full A. `TIDAK SAH`/out-of-range is treated as missing, never bucketed as F.
+- Accordion state in `hcgBuka` (survives re-render); "Buka semua"/"Tutup semua" buttons. 4 KPI cards, coverage warning (`hcgAmaran`), CSV (`hcgCSV`) and print PDF (`hcgPDF` — always prints every pattern in full regardless of which rows are expanded on screen). All follow the active kelas filter.
+
+`hcTukarTab` was refactored to loop over a tab-name array — add a new tab in that one array, not in three parallel lists.
+
 ### Data Normalization
 
 CSV imports normalize:
