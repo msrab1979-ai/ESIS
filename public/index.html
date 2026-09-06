@@ -1250,7 +1250,7 @@
                 </div>
 
                 <div id="hcp-amaran" class="mb-3"></div>
-                <div id="hcp-kpi" class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4"></div>
+                <div id="hcp-kpi" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mb-4"></div>
 
                 <div class="bg-white rounded-lg border border-gray-200">
                     <div class="px-3 sm:px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-2 flex-wrap">
@@ -8382,6 +8382,24 @@
             return { label: HCG_URUT.filter(g => bil[g]).map(g => `${bil[g]}${g}`).join(''), bil };
         }
 
+        // GPS seorang murid = purata mata gred merentas subjek teras dia.
+        // Bezanya dengan lajur "Purata" yang sedia ada: itu purata MARKAH
+        // (cth 82.5), ini purata MATA GRED (cth 5.75) ikut Admin > Mata Gred.
+        // Hanya gred lengkap dikira — murid tak lengkap ada gred tidak diketahui.
+        function hcgGPSMurid(gredList) {
+            if (!gredList || !gredList.length) return null;
+            const bil = {};
+            gredList.forEach(g => { bil[g] = (bil[g] || 0) + 1; });
+            return kiraGPS(bil, gredList.length);
+        }
+
+        // GPS purata sekumpulan murid (setiap murid ditimbang sama rata).
+        function hcgGPSPurata(list) {
+            const nilai = list.map(m => hcgGPSMurid(m.gredSubjek)).filter(v => v != null);
+            if (!nilai.length) return null;
+            return Math.round(nilai.reduce((a, b) => a + b, 0) / nilai.length * 100) / 100;
+        }
+
         // Susun terbaik -> terlemah: banding bilangan A dahulu, kemudian B, C...
         // Jadi 4A mendahului 3A1B, yang mendahului 3A1C.
         function hcgBanding(a, b) {
@@ -8635,7 +8653,7 @@
             papar.forEach(m => {
                 if (m.gredSubjek.length < m.jumSubjek) { takLengkap.push(m); return; }
                 const { label, bil } = hcgLabel(m.gredSubjek);
-                if (!peta.has(label)) peta.set(label, { label, bil, murid: [] });
+                if (!peta.has(label)) peta.set(label, { label, bil, murid: [], gps: hcgGPSMurid(m.gredSubjek) });
                 peta.get(label).murid.push(m);
             });
             const corak = [...peta.values()].sort(hcgBanding);
@@ -8663,8 +8681,11 @@
                     <div class="text-xl sm:text-2xl font-bold ${warna}">${nilai}</div>
                     <div class="text-[11px] sm:text-xs text-gray-500">${sub}</div>
                 </div>`;
+            const gpsSemua = hcgGPSPurata(papar.filter(m => m.gredSubjek.length >= m.jumSubjek));
             document.getElementById('hcp-kpi').innerHTML =
                 kad(`🌟 ${penuhLabel} (semua A)`, bilPenuh, 'murid', 'text-purple-700', 'bg-purple-50') +
+                kad('📊 GPS keseluruhan', gpsSemua == null ? '—' : gpsSemua.toFixed(2),
+                    'purata mata gred', 'text-teal-700', 'bg-teal-50') +
                 kad('📋 Jenis corak', corak.length, 'corak berbeza', 'text-blue-700', 'bg-blue-50') +
                 kad('✅ Markah lengkap', bilLengkap, `dari ${papar.length} murid`, 'text-green-700', 'bg-green-50') +
                 kad('⚠ Tidak lengkap', takLengkap.length, 'murid', 'text-amber-700', 'bg-amber-50');
@@ -8685,7 +8706,8 @@
                                 <th class="px-2 py-1 text-left font-medium">Nama</th>
                                 <th class="px-2 py-1 text-left font-medium">Kelas</th>
                                 <th class="px-2 py-1 text-left font-medium">${tl ? 'Subjek belum masuk' : 'Gred subjek'}</th>
-                                <th class="px-2 py-1 text-right font-medium">Purata</th></tr>
+                                <th class="px-2 py-1 text-right font-medium">Purata</th>
+                                <th class="px-2 py-1 text-right font-medium">GPS</th></tr>
                         </thead>
                         <tbody>${list.map((m, i) => `
                             <tr class="border-t border-gray-100">
@@ -8696,6 +8718,8 @@
                                     tl ? m.tiadaMarkah.map(hcmSingkat).join(', ')
                                        : m.perSubjek.map(p => `<span class="${HCG_WARNA[p.gred] || ''}">${hcmSingkat(p.sub)}:${p.gred}</span>`).join(' · ')}</td>
                                 <td class="px-2 py-1 text-right text-gray-600">${m.purata.toFixed(1)}</td>
+                                <td class="px-2 py-1 text-right font-semibold text-teal-700">${
+                                    (v => v == null ? '<span class="text-gray-300">—</span>' : v.toFixed(2))(hcgGPSMurid(m.gredSubjek))}</td>
                             </tr>`).join('')}
                         </tbody>
                     </table>
@@ -8712,6 +8736,8 @@
                         <span class="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden min-w-[30px]">
                             <span class="block h-full ${penuh ? 'bg-purple-500' : 'bg-blue-400'}" style="width:${lebar}%"></span>
                         </span>
+                        <span class="text-xs font-bold text-teal-700 whitespace-nowrap shrink-0 hidden sm:inline"
+                              title="GPS corak ini — semua murid dalam corak yang sama ada gred yang sama, jadi GPS mereka serupa">GPS ${c.gps == null ? '—' : c.gps.toFixed(2)}</span>
                         <span class="text-sm font-semibold text-gray-700 whitespace-nowrap shrink-0">${c.murid.length} <span class="font-normal text-gray-500">murid</span></span>
                     </button>
                     ${buka ? jadualMurid(c.murid, false) : ''}
@@ -8735,6 +8761,8 @@
                     peperiksaan <b>${pep}</b> · ${subjekUtama.length} subjek diutamakan (${subjekUtama.join(', ')}).
                     <b>Klik baris corak</b> untuk lihat nama murid. Corak disusun dari terbaik ke terlemah.
                     Murid yang ada subjek belum bermarkah tidak dimasukkan ke mana-mana corak — gredannya masih tidak diketahui.
+                    <b>GPS</b> = purata mata gred (A=6 … F=1, ikut Admin › Setting › Mata Gred) — makin tinggi makin baik.
+                    Ia berbeza daripada lajur <b>Purata</b> yang merupakan purata markah.
                 </p>`;
         }
 
@@ -8785,17 +8813,18 @@
             if (!corak.length && !takLengkap.length) { showNotification('Muat Turun', 'Tiada murid untuk tapisan ini.', true); return; }
             const esc = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
             const baris = [];
+            const gpsTeks = m => { const v = hcgGPSMurid(m.gredSubjek); return v == null ? '' : v.toFixed(2); };
             corak.forEach(c => c.murid.forEach(m => baris.push([
-                c.label, c.murid.length, m.nama, m.kelas,
+                c.label, c.murid.length, c.gps == null ? '' : c.gps.toFixed(2), m.nama, m.kelas,
                 m.perSubjek.map(p => `${p.sub}=${p.gred} (${p.markah})`).join('; '),
-                m.purata.toFixed(1), '',
+                m.purata.toFixed(1), gpsTeks(m), '',
             ])));
             takLengkap.forEach(m => baris.push([
-                'TIDAK LENGKAP', takLengkap.length, m.nama, m.kelas,
+                'TIDAK LENGKAP', takLengkap.length, '', m.nama, m.kelas,
                 m.perSubjek.map(p => `${p.sub}=${p.gred} (${p.markah})`).join('; '),
-                m.purata.toFixed(1), m.tiadaMarkah.join('; '),
+                m.purata.toFixed(1), '', m.tiadaMarkah.join('; '),
             ]));
-            const head = ['Corak', 'Bil murid corak', 'Nama', 'Kelas', 'Gred subjek', 'Purata', 'Subjek belum masuk'];
+            const head = ['Corak', 'Bil murid corak', 'GPS corak', 'Nama', 'Kelas', 'Gred subjek', 'Purata', 'GPS murid', 'Subjek belum masuk'];
             const csv = '﻿' + [head.map(esc).join(','), ...baris.map(r => r.map(esc).join(','))].join('\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const a = document.createElement('a');
@@ -8817,18 +8846,21 @@
             // Cetakan sentiasa penuh — tak ikut baris yang dibuka/tutup di skrin.
             const jadual = `
                 <table><thead><tr>
-                    <th style="width:70px">Corak</th><th style="width:40px">Bil</th>
+                    <th style="width:70px">Corak</th><th style="width:40px">Bil</th><th style="width:45px">GPS</th>
                     <th>Nama murid (kelas)</th></tr></thead><tbody>
                 ${corak.map(c => `<tr>
-                    <td><b>${c.label}</b></td><td>${c.murid.length}</td>
+                    <td><b>${c.label}</b></td><td>${c.murid.length}</td><td>${c.gps == null ? '—' : c.gps.toFixed(2)}</td>
                     <td style="text-align:left">${c.murid.map(m => `${m.nama} (${m.kelas})`).join(', ')}</td></tr>`).join('')}
-                ${takLengkap.length ? `<tr><td><b>Tidak lengkap</b></td><td>${takLengkap.length}</td>
+                ${takLengkap.length ? `<tr><td><b>Tidak lengkap</b></td><td>${takLengkap.length}</td><td>—</td>
                     <td style="text-align:left">${takLengkap.map(m => `${m.nama} (${m.kelas})`).join(', ')}</td></tr>` : ''}
                 </tbody></table>`;
-            const ringkas = `<table><thead><tr><th>Corak</th><th>Bilangan murid</th></tr></thead><tbody>
-                ${corak.map(c => `<tr><td><b>${c.label}</b></td><td>${c.murid.length}</td></tr>`).join('')}
-                ${takLengkap.length ? `<tr><td>Tidak lengkap</td><td>${takLengkap.length}</td></tr>` : ''}
-                </tbody></table>`;
+            const gpsKeseluruhan = hcgGPSPurata(papar.filter(m => m.gredSubjek.length >= m.jumSubjek));
+            const ringkas = `<table><thead><tr><th>Corak</th><th>Bilangan murid</th><th>GPS</th></tr></thead><tbody>
+                ${corak.map(c => `<tr><td><b>${c.label}</b></td><td>${c.murid.length}</td><td>${c.gps == null ? '—' : c.gps.toFixed(2)}</td></tr>`).join('')}
+                ${takLengkap.length ? `<tr><td>Tidak lengkap</td><td>${takLengkap.length}</td><td>—</td></tr>` : ''}
+                </tbody><tfoot><tr><td colspan="2"><b>GPS KESELURUHAN</b></td>
+                    <td><b>${gpsKeseluruhan == null ? '—' : gpsKeseluruhan.toFixed(2)}</b></td></tr></tfoot></table>
+                <p style="font-size:9px;color:#666;margin:0 0 10px">GPS = purata mata gred (A=6 … F=1). Makin tinggi makin baik.</p>`;
             const win = window.open('', '_blank');
             win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
                 <title>Corak Gred — ${darjah}</title>
