@@ -21,17 +21,60 @@
            di tepi kanan memberitahu pengguna ada lajur lagi. */
         .jadual-gulung { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .jadual-gulung table { min-width: max-content; }
-        @media (max-width: 640px) {
-            .jadual-gulung {
-                background:
-                    linear-gradient(to right, #fff 30%, rgba(255,255,255,0)) left center,
-                    linear-gradient(to left,  #fff 30%, rgba(255,255,255,0)) right center,
-                    radial-gradient(farthest-side at 0 50%, rgba(0,0,0,.12), transparent) left center,
-                    radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.12), transparent) right center;
-                background-repeat: no-repeat;
-                background-size: 28px 100%, 28px 100%, 12px 100%, 12px 100%;
-                background-attachment: local, local, scroll, scroll;
+
+        /* Petunjuk boleh-geser + lajur pertama melekat: dahulu dikunci dalam
+           @media (max-width: 640px), jadi pada DESKTOP jadual lebar (cth Senarai
+           Murid Mengikut Kedudukan, ~1800px) terpotong senyap tanpa sebarang
+           isyarat bahawa masih ada lajur di sebelah kanan. Kini terpakai pada
+           semua saiz skrin. */
+        .jadual-gulung {
+            background:
+                linear-gradient(to right, #fff 30%, rgba(255,255,255,0)) left center,
+                linear-gradient(to left,  #fff 30%, rgba(255,255,255,0)) right center,
+                radial-gradient(farthest-side at 0 50%, rgba(0,0,0,.12), transparent) left center,
+                radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.12), transparent) right center;
+            background-repeat: no-repeat;
+            background-size: 28px 100%, 28px 100%, 12px 100%, 12px 100%;
+            background-attachment: local, local, scroll, scroll;
+        }
+        /* Bar skrol sentiasa kelihatan pada desktop. macOS menyembunyikan bar
+           skrol "overlay" sehingga pengguna menggeser — pada jadual yang
+           terpotong itu bermakna tiada petunjuk langsung. */
+        @media (min-width: 641px) {
+            .jadual-gulung { scrollbar-width: thin; padding-bottom: 2px; }
+            .jadual-gulung::-webkit-scrollbar { height: 10px; }
+            .jadual-gulung::-webkit-scrollbar-track {
+                background: #f1f5f9; border-radius: 5px;
             }
+            .jadual-gulung::-webkit-scrollbar-thumb {
+                background: #cbd5e1; border-radius: 5px;
+            }
+            .jadual-gulung::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+            /* Lajur pertama kekal nampak semasa digeser — sama seperti mobile,
+               supaya nombor kedudukan/nama tidak hilang konteks. */
+            .jadual-gulung table th:first-child,
+            .jadual-gulung table td:first-child {
+                position: sticky; left: 0; z-index: 2;
+                background: #fff; box-shadow: 1px 0 0 rgba(0,0,0,.08);
+            }
+            .jadual-gulung table thead th:first-child { background: #f9fafb; z-index: 3; }
+            .jadual-gulung table tfoot td:first-child { background: #f9fafb; }
+        }
+        /* Lajur teks panjang (Nama, Subjek Lemah) dibenarkan membungkus dan
+           dihadkan lebarnya. Tanpa ini `min-width: max-content` memaksa satu
+           baris panjang: Nama sahaja memakan ~518px dan Subjek Lemah ~468px,
+           menolak jadual ke 1800px sedangkan ruang desktop hanya ~1166px. */
+        .jadual-gulung td.lajur-teks, .jadual-gulung th.lajur-teks {
+            white-space: normal; max-width: 260px;
+        }
+        .jadual-gulung td.lajur-teks-kecil, .jadual-gulung th.lajur-teks-kecil {
+            white-space: normal; max-width: 200px;
+        }
+        .jadual-gulung th.lajur-tajuk-ujian {
+            white-space: normal; max-width: 120px; line-height: 1.25;
+        }
+
+        @media (max-width: 640px) {
             .jadual-gulung table { font-size: 12px; }
             .jadual-gulung th, .jadual-gulung td { padding-left: .4rem; padding-right: .4rem; }
             /* Lajur pertama (Nama/Subjek/Kelas/Kumpulan) kekal nampak semasa digeser —
@@ -7832,8 +7875,10 @@
                 return;
             }
 
+            // Nama peperiksaan boleh panjang ("UJIAN PERTENGAHAN TAHUN (UPSA)")
+            // dan tanpa pembungkusan ia seorang diri menolak jadual ~240px.
             const headUjian = petaPep.map(p =>
-                `<th class="px-2 py-2 text-center font-medium border-l border-gray-200">${p}</th>`).join('');
+                `<th class="px-2 py-2 text-center font-medium border-l border-gray-200 lajur-tajuk-ujian">${p}</th>`).join('');
             const gredWarna = { A:'text-green-700', B:'text-blue-700', C:'text-yellow-700',
                                 D:'text-orange-700', E:'text-red-700', F:'text-gray-600' };
 
@@ -7863,14 +7908,14 @@
                         ? `<div class="text-[10px] text-amber-600">⚠ ${m.lengkap} dari ${m.jumSubjek} subjek</div>` : '');
                 return `<tr class="hover:bg-gray-50 border-t border-gray-100">
                     <td class="px-3 py-2 text-center text-sm font-semibold text-gray-500">${m.rank}</td>
-                    <td class="px-3 py-2 text-sm font-medium text-gray-900">
+                    <td class="px-3 py-2 text-sm font-medium text-gray-900 lajur-teks">
                         <button onclick="hcmBukaKad('${m.no_kp}')" class="text-left hover:text-blue-700 hover:underline">${m.nama}</button>${takLengkap}</td>
                     <td class="px-3 py-2 text-sm text-gray-600">${m.kelas}</td>
                     ${selUjian}
                     ${etrSel}
                     <td class="px-2 py-2 text-center">${status}</td>
                     <td class="px-3 py-2 text-center text-sm ${d.warna} whitespace-nowrap">${d.ikon} ${d.label}</td>
-                    <td class="px-3 py-2 text-xs">${lemahTxt}</td>
+                    <td class="px-3 py-2 text-xs lajur-teks-kecil">${lemahTxt}</td>
                 </tr>`;
             }).join('');
 
@@ -7879,13 +7924,13 @@
                     <thead class="bg-gray-50 text-xs text-gray-500">
                         <tr>
                             <th class="px-3 py-2 text-center font-medium">#</th>
-                            <th class="px-3 py-2 text-left font-medium">Nama</th>
+                            <th class="px-3 py-2 text-left font-medium lajur-teks">Nama</th>
                             <th class="px-3 py-2 text-left font-medium">Kelas</th>
                             ${headUjian}
                             <th class="px-2 py-2 text-center font-medium bg-teal-50 border-l-2 border-teal-200">🎯 Sasaran</th>
                             <th class="px-2 py-2 text-center font-medium">Status</th>
                             <th class="px-3 py-2 text-center font-medium">Kumpulan</th>
-                            <th class="px-3 py-2 text-left font-medium">Subjek Lemah</th>
+                            <th class="px-3 py-2 text-left font-medium lajur-teks-kecil">Subjek Lemah</th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
