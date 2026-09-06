@@ -5,6 +5,21 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        "//": "index.html mengandungi SELURUH aplikasi (HTML+CSS+JS). Lalai Firebase ialah max-age=3600, jadi selepas deploy guru masih nampak versi lama sampai sejam — itulah sebab pembetulan 'sudah naik' tapi 'masih rosak'. must-revalidate memaksa browser bertanya kepada pelayan setiap kali; ETag memastikan balasan 304 kecil bila tiada perubahan.",
+        "source": "/index.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+        ]
+      },
+      {
+        "source": "/",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+        ]
+      }
     ]
   },
   "storage": {
