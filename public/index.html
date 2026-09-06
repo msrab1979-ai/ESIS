@@ -2936,6 +2936,9 @@
                 }
                 await batch.commit();
                 setStatus(`✓ ${bil} mata gred disimpan.`, 'text-green-600');
+                // Lukis semula paparan yang bergantung pada mata gred supaya
+                // GPS terus berubah tanpa perlu refresh halaman.
+                try { if (typeof hcGredData !== 'undefined' && hcGredData) hcLukisGred(); } catch (e) { console.warn('redraw GPS', e); }
             } catch (e) {
                 console.error('simpanMataGred', e);
                 setStatus('✗ Gagal simpan: ' + (e.message || e), 'text-red-600');
@@ -9490,12 +9493,26 @@
 
             const ambil = (s, b) => b.sasaran ? { gred: s.sasar, bil: s.bilSasar } : s.ujian[b.idx];
 
+            // GPS satu blok — purata mata gred (A=6..F=1 ikut Admin > Mata Gred).
+            // Pembahagi = d.bil (gred sah sahaja); markah TIDAK SAH sudah dibuang ke `rosak`
+            // oleh hcTambahGred, jadi ia tidak menipiskan GPS. Gred "Gagal" dibakul sebagai F.
+            const gpsSasaran = kiraGPS(gabung.sasar, gabung.bilSasar);
+            const selGPS = (d, sasaran) => {
+                const v = kiraGPS(d.gred, d.bil);
+                let warna = 'text-gray-700';
+                if (v == null) warna = 'text-gray-300';
+                else if (sasaran) warna = 'text-teal-700';
+                else if (gpsSasaran != null) warna = v >= gpsSasaran ? 'text-green-600' : 'text-amber-600';
+                return `<td class="px-2 py-2 text-center text-xs font-bold ${warna} border-r border-gray-200 ${sasaran ? 'bg-teal-50/60' : ''}">${v == null ? '—' : v.toFixed(2)}</td>`;
+            };
+
             // Sel A-F + jumlah utk satu blok
             const sel = (d, sasaran) => HC_GRED_KEYS.map((g, gi) =>
                 `<td class="px-2 py-2 text-center text-sm ${gi === 0 ? 'border-l-2 border-gray-300' : ''} ${sasaran ? 'bg-teal-50/60' : ''}">${
                     d.gred[g] ? `<span style="color:${HC_GRED_WARNA[g]};font-weight:600">${d.gred[g]}</span>` : '<span class="text-gray-300">·</span>'
                 }</td>`).join('') +
-                `<td class="px-2 py-2 text-center text-xs font-semibold text-gray-500 ${sasaran ? 'bg-teal-50/60' : ''}">${d.bil || '—'}</td>`;
+                `<td class="px-2 py-2 text-center text-xs font-semibold text-gray-500 ${sasaran ? 'bg-teal-50/60' : ''}">${d.bil || '—'}</td>` +
+                selGPS(d, sasaran);
 
             const rows = stats.map(s => `<tr class="hover:bg-gray-50">
                     <td class="px-3 py-2 text-sm font-medium text-gray-800 whitespace-nowrap sticky left-0 bg-white">${s.kelas}${s.adaDoc ? '' : ' <span class="text-xs text-amber-600">(belum set)</span>'}</td>
@@ -9507,12 +9524,13 @@
                     ${blok.map(b => sel(b.sasaran ? { gred: gabung.sasar, bil: gabung.bilSasar } : gabung.ujian[b.idx], b.sasaran)).join('')}
                 </tr></tfoot>` : '';
 
-            // Dua baris header: nama ujian (merentas 7 lajur) + A B C D E F Jum
-            const head1 = blok.map(b => `<th colspan="7"
+            // Dua baris header: nama ujian (merentas 8 lajur) + A B C D E F Jum GPS
+            const head1 = blok.map(b => `<th colspan="8"
                     class="px-2 py-2 text-center text-xs font-semibold border-l-2 border-gray-300 ${b.sasaran ? 'bg-teal-100 text-teal-800' : 'bg-gray-100 text-gray-700'}">${b.tajuk}</th>`).join('');
             const head2 = blok.map(b => HC_GRED_KEYS.map((g, gi) =>
                     `<th class="px-2 py-1 text-center text-xs font-medium ${gi === 0 ? 'border-l-2 border-gray-300' : ''} ${b.sasaran ? 'bg-teal-50' : ''}" style="color:${HC_GRED_WARNA[g]}">${g}</th>`).join('') +
-                    `<th class="px-2 py-1 text-center text-xs font-medium text-gray-400 ${b.sasaran ? 'bg-teal-50' : ''}">Jum</th>`).join('');
+                    `<th class="px-2 py-1 text-center text-xs font-medium text-gray-400 ${b.sasaran ? 'bg-teal-50' : ''}">Jum</th>` +
+                    `<th class="px-2 py-1 text-center text-xs font-semibold text-gray-600 border-r border-gray-200 ${b.sasaran ? 'bg-teal-50' : ''}">GPS</th>`).join('');
 
             document.getElementById('hcg-table').innerHTML = `
                 <table class="w-full text-sm border-collapse">
@@ -9525,7 +9543,9 @@
                 </table>
                 <p class="px-3 py-2 text-xs text-gray-400 border-t border-gray-100">
                     Setiap kumpulan lajur = satu ujian. Kumpulan terakhir (biru) = gred disasar dari ETR.
-                    Titik (·) bermaksud tiada murid pada gred itu. Skrol ke kanan jika ujian banyak.
+                    Titik (·) bermaksud tiada murid pada gred itu. Skrol ke kanan jika ujian banyak.<br>
+                    <b>GPS</b> = purata mata gred (A=6 … F=1, ikut Admin › Setting › Mata Gred) — makin tinggi makin baik.
+                    Hijau = sudah mencapai GPS sasaran, jingga = belum.
                 </p>`;
         }
 
