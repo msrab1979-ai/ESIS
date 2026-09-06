@@ -8227,6 +8227,7 @@
         let hcgData = null;        // { darjah, cy, pep, subjekUtama, murid:[], liputan:[] }
         let hcgRun = 0;            // penjaga perlumbaan — sama sebab dgn hcMuridRun
         let hcgBuka = new Set();   // label corak yang sedang dibuka
+        let hcgPilihanGuru = false;   // guru sudah pilih darjah sendiri? (jangan auto-lompat)
         const HCG_URUT = ['A', 'B', 'C', 'D', 'E', 'F'];
         const HCG_WARNA = { A:'text-green-700', B:'text-blue-700', C:'text-yellow-700',
                             D:'text-orange-700', E:'text-red-700', F:'text-gray-600' };
@@ -8274,6 +8275,19 @@
                 populatePanelYearDropdown('hcg-tahun-kal',
                     document.getElementById('hcg-tahun-kal').value || new Date().getFullYear().toString());
                 await hcgIsiPep();
+                // Darjah lalai (SATU) selalunya tiada peperiksaan, jadi tab dibuka
+                // dengan skrin kosong walaupun sekolah ada data. Lompat ke darjah
+                // PERTAMA yang benar-benar ada peperiksaan — hanya bila guru belum
+                // memilih apa-apa sendiri.
+                if (!document.getElementById('hcg-pep').value && !hcgPilihanGuru) {
+                    const dEl = document.getElementById('hcg-darjah');
+                    for (const o of [...dEl.options]) {
+                        if (o.value === dEl.value) continue;
+                        dEl.value = o.value;
+                        await hcgIsiPep();
+                        if (document.getElementById('hcg-pep').value) { hcgIsiKelas(); break; }
+                    }
+                }
                 await hcgLukis();
             } catch (e) {
                 console.error('[Corak Gred] init gagal:', e);
@@ -8315,9 +8329,16 @@
             const simpan = pEl.value;
             let senarai = [];
             try {
+                // PENTING: examTypes.darjah menyimpan NOMBOR ([4,5,6]), bukan
+                // perkataan ("EMPAT"). Membandingkan terus dengan nama darjah
+                // sentiasa gagal dan menjadikan dropdown kosong. Terima kedua-dua
+                // bentuk supaya doc lama (kalau ada yang menyimpan perkataan)
+                // turut berfungsi.
+                const dNum = _tahunToDarjah[darjah];
                 senarai = (await getExamTypesForYear(cy))
                     .filter(e => e && e.nama)
-                    .filter(e => !Array.isArray(e.darjah) || !e.darjah.length || e.darjah.includes(darjah))
+                    .filter(e => !Array.isArray(e.darjah) || !e.darjah.length
+                              || e.darjah.includes(dNum) || e.darjah.includes(darjah))
                     .map(e => e.nama);
             } catch (e) {
                 console.warn('[Corak Gred] gagal baca examTypes:', e);
@@ -8342,6 +8363,7 @@
         }
 
         async function hcgDarjahTukar() {
+            hcgPilihanGuru = true;   // hormati pilihan guru — berhenti auto-lompat
             hcgIsiKelas();
             await hcgIsiPep();
             await hcgLukis();
