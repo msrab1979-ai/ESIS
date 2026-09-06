@@ -8252,35 +8252,50 @@
             const el = document.getElementById('hcg-senarai');
             el.innerHTML = '<p class="text-sm text-gray-500">⏳ Memuatkan senarai...</p>';
 
-            // Tunggu senarai murid SEBELUM mengisi dropdown darjah. Tanpa ini, tab
-            // yang dibuka awal (data Firestore belum sampai) menghasilkan dropdown
-            // KOSONG — dan kerana kita hanya mengisi bila `!options.length`, ia tak
-            // pernah cuba semula walaupun data sampai kemudian.
-            for (let i = 0; i < 100 && !(GLOBAL_DATA.students || []).length; i++) {
-                await new Promise(r => setTimeout(r, 100));
-            }
-            // Baca semula subjek diutamakan setiap kali tab dibuka — admin mungkin
-            // baru menukarnya; tanpa ini cache lama kekal basi.
-            await bacaSubjekUtama(true);
-
+            // Dropdown diisi SEGERA (segerak) supaya tidak pernah kosong walaupun
+            // Firestore lambat — sebelum ini pengisian berlaku selepas `await`,
+            // jadi sebarang kelewatan/ralat meninggalkan ketiga-tiga dropdown
+            // kosong sedangkan mesej di bawah tetap memaparkan nilai lalai.
+            hcgIsiDarjah();
+            hcgIsiKelas();
             populatePanelYearDropdown('hcg-tahun-kal',
                 document.getElementById('hcg-tahun-kal').value || new Date().getFullYear().toString());
 
+            try {
+                // Baca semula subjek diutamakan — admin mungkin baru menukarnya.
+                await bacaSubjekUtama(true);
+                // Data murid mungkin belum sampai kalau tab dibuka serta-merta.
+                // Tunggu sebentar, kemudian isi semula dropdown darjah/kelas.
+                for (let i = 0; i < 100 && !(GLOBAL_DATA.students || []).length; i++) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+                hcgIsiDarjah();
+                hcgIsiKelas();
+                populatePanelYearDropdown('hcg-tahun-kal',
+                    document.getElementById('hcg-tahun-kal').value || new Date().getFullYear().toString());
+                await hcgIsiPep();
+                await hcgLukis();
+            } catch (e) {
+                console.error('[Corak Gred] init gagal:', e);
+                el.innerHTML = `<p class="text-sm text-red-600">Ralat memuatkan data: ${e && e.message ? e.message : e}.
+                    Cuba tekan 🔄 Segar Semula atau muat semula halaman.</p>`;
+            }
+        }
+
+        // Isi dropdown darjah. Kekalkan pilihan semasa; kalau belum ada, ikut
+        // darjah yang guru sedang guna di tab lain.
+        function hcgIsiDarjah() {
             const urutan = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
             const ada = urutan.filter(t => hcKelasUntukTahun(t).length);
             const dEl = document.getElementById('hcg-darjah');
-            const simpanD = dEl.value;
-            // Isi semula setiap kali (bukan hanya bila kosong) supaya kelas yang
-            // baharu ditambah muncul tanpa reload.
-            dEl.innerHTML = (ada.length ? ada : urutan).map(t => `<option value="${t}">${t}</option>`).join('');
-            const ikut = simpanD
+            if (!dEl) return;
+            const simpan = dEl.value;
+            dEl.innerHTML = (ada.length ? ada : urutan)
+                .map(t => `<option value="${t}">${t}</option>`).join('');
+            const ikut = simpan
                       || (document.getElementById('hcm-darjah') || {}).value
                       || (document.getElementById('hc-tahun') || {}).value;
             if (ikut && [...dEl.options].some(o => o.value === ikut)) dEl.value = ikut;
-
-            hcgIsiKelas();
-            await hcgIsiPep();
-            await hcgLukis();
         }
 
         function hcgIsiKelas() {
