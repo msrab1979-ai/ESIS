@@ -1339,7 +1339,7 @@
             </div>
 
             <!-- Borang Pilihan Murid Terbaik -->
-            <div class="grid grid-cols-1 sm:grid-cols-5 gap-4 mb-6 no-print">
+            <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6 no-print">
 
                 <div>
                     <label for="murid-terbaik-year" class="block text-sm font-medium text-gray-700">Tahun (Kalendar)</label>
@@ -1365,6 +1365,19 @@
                     <label for="terbaik-peperiksaan" class="block text-sm font-medium text-gray-700">Jenis Peperiksaan</label>
                     <select id="terbaik-peperiksaan" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
                         <option value="">-- Pilih Jenis --</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="terbaik-gred" class="block text-sm font-medium text-gray-700">Gred</label>
+                    <select id="terbaik-gred" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                        <option value="">Semua Gred</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
                     </select>
                 </div>
 
@@ -3880,6 +3893,7 @@
             const subjek = document.getElementById('terbaik-subjek').value;
             const peperiksaan = document.getElementById('terbaik-peperiksaan').value;
             const tahun = document.getElementById('terbaik-tahun').value;
+            const gredPilih = document.getElementById('terbaik-gred').value;
             const laporanContainer = document.getElementById('murid-terbaik-laporan-container');
 
             if (!subjek || !peperiksaan || !tahun) {
@@ -3898,14 +3912,29 @@
                  laporanContainer.classList.add('hidden');
                  return;
             }
-            
-            const muridTerbaik = filteredMarks.sort((a, b) => b.markah - a.markah);
-            
+
+            // Tapisan gred dibuat selepas rekod dijumpai supaya mesej ralat dapat
+            // membezakan "tiada markah langsung" daripada "tiada murid gred itu".
+            const ikutGred = gredPilih
+                ? filteredMarks.filter(m => getGredFromMarkah(m.markah) === gredPilih)
+                : filteredMarks;
+
+            if (ikutGred.length === 0) {
+                showNotification("TIADA MURID",
+                    `Tiada murid mendapat gred ${gredPilih} bagi ${subjek} (${peperiksaan}, ${tahun}).`, true);
+                laporanContainer.classList.add('hidden');
+                return;
+            }
+
+            const muridTerbaik = ikutGred.sort((a, b) => b.markah - a.markah);
+
             muridTerbaikReportData = muridTerbaik; 
 
             renderMuridTerbaikTable(muridTerbaik, 'murid-terbaik-data-table');
 
-            document.getElementById('murid-terbaik-laporan-metadata').textContent = `Subjek: ${subjek} | Tahun: ${tahun} | Peperiksaan: ${peperiksaan}`;
+            document.getElementById('murid-terbaik-laporan-metadata').textContent =
+                `Subjek: ${subjek} | Tahun: ${tahun} | Peperiksaan: ${peperiksaan}` +
+                (gredPilih ? ` | Gred: ${gredPilih} (${muridTerbaik.length} murid)` : '');
             laporanContainer.classList.remove('hidden');
         }
 
@@ -13741,7 +13770,10 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             doc.setFontSize(12);
             doc.text(`${peperiksaan} - ${subjek}`, 15, 28);
             doc.setFontSize(10);
-            doc.text(`Tahun: ${tahun} | Tarikh Laporan: ${today}`, 15, 36);
+            // Tapisan gred mesti tersurat pada cetakan — tanpa ini senarai yang
+            // ditapis kelihatan seperti senarai penuh apabila dicetak.
+            const gredPilih = document.getElementById('terbaik-gred').value;
+            doc.text(`Tahun: ${tahun}${gredPilih ? ` | Gred: ${gredPilih}` : ''} | Tarikh Laporan: ${today}`, 15, 36);
 
             // 1. Jadual Murid Terbaik
             const muridTerbaikHeaders = [
