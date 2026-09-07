@@ -9108,12 +9108,29 @@
                 });
             });
 
-            // GPS keseluruhan setiap peperiksaan — dikira dari SEMUA markah sekali gus
-            // (bukan purata GPS subjek), supaya subjek dengan lebih ramai murid
+            // GPS keseluruhan setiap peperiksaan — dikira dari markah mentah sekali
+            // gus (bukan purata GPS subjek), supaya subjek dengan lebih ramai murid
             // ditimbang dengan betul.
+            //
+            // PENTING: hanya subjek yang ada markah dalam SETIAP peperiksaan dikira.
+            // Peperiksaan berbeza menguji set subjek berbeza (UPSA menguji 13 subjek,
+            // MATRIKS hanya 4 teras). Mencampurkan kesemuanya membandingkan benda
+            // yang berlainan: subjek yang GPS-nya tinggi dan hanya wujud dalam satu
+            // peperiksaan menaikkan purata peperiksaan itu secara palsu, lalu trend
+            // menunjukkan penurunan sedangkan setiap subjek sebenarnya naik.
+            // Hanya peperiksaan yang BENAR-BENAR ada markah diambil kira. Peperiksaan
+            // yang belum dijalankan (semua subjek kosong) tidak boleh menyebabkan
+            // setiap subjek gagal ujian "ada dalam semua peperiksaan".
+            const pepAdaMarkah = petaPep
+                .map((pep, i) => i)
+                .filter(i => subjekAda.some(sub => gpsSubjek[sub][i].gps != null));
+            const subjekSepunya = subjekAda.filter(sub =>
+                pepAdaMarkah.every(i => gpsSubjek[sub][i].gps != null));
+            const asasKeseluruhan = subjekSepunya.length ? subjekSepunya : subjekAda;
             const gpsKeseluruhan = petaPep.map(pep => {
                 const senarai = semuaMarkah
-                    .filter(m => m['JENIS PEPERIKSAAN'] === pep).map(m => m.markah);
+                    .filter(m => m['JENIS PEPERIKSAAN'] === pep && asasKeseluruhan.includes(m.subjek))
+                    .map(m => m.markah);
                 const r = hctGPSDariMarkah(senarai);
                 return { pep, gps: r.gps, bil: r.bil };
             });
@@ -9138,14 +9155,17 @@
                 }
                 const r = hctGPSDariMarkah(markahEtr);
                 etrSubjek[sub] = r;
-                etrSemuaMarkah = etrSemuaMarkah.concat(markahEtr);
+                // Guna asas subjek yang sama seperti GPS keseluruhan, supaya
+                // "GPS dari ETR" boleh dibanding terus dengan "GPS sekarang".
+                if (asasKeseluruhan.includes(sub)) etrSemuaMarkah = etrSemuaMarkah.concat(markahEtr);
             }
             const etrKeseluruhan = hctGPSDariMarkah(etrSemuaMarkah);
             if (basi()) return;
 
             hctData = { cy, darjah, kelasPilih, kelasSenarai, petaPep, subjekAda,
                         gpsSubjek, gpsKeseluruhan, etrSubjek, etrKeseluruhan,
-                        belumDibina, bilMurid: murid.length };
+                        belumDibina, bilMurid: murid.length,
+                        asasKeseluruhan, subjekDikecualikan: subjekAda.filter(x => !asasKeseluruhan.includes(x)) };
 
             // Pilihan graf: tandakan beberapa subjek secara automatik pada kali
             // pertama supaya graf terus bermakna. Tanpa ini hanya satu garisan
@@ -9260,6 +9280,18 @@
             const etrAll = d.etrKeseluruhan.gps;
             const sasarAll = (hctSasaran[d.darjah] || {})._darjah;
 
+            // Terangkan asas KESELURUHAN apabila sebahagian subjek dikecualikan,
+            // supaya guru tidak tertanya mengapa angka keseluruhan tidak sepadan
+            // dengan purata kasar semua subjek di atasnya.
+            const notaAsas = (d.subjekDikecualikan && d.subjekDikecualikan.length) ? `
+                <p class="px-3 py-2 text-xs text-blue-800 bg-blue-50 border-t border-blue-100">
+                    ℹ️ Baris <b>KESELURUHAN</b> dikira daripada <b>${d.asasKeseluruhan.length} subjek</b>
+                    yang diuji dalam <b>semua</b> peperiksaan (${d.asasKeseluruhan.map(hcmSingkat).join(', ')}).
+                    ${d.subjekDikecualikan.length} subjek lain dikecualikan kerana hanya diuji dalam
+                    sebahagian peperiksaan — memasukkannya akan membandingkan set subjek yang berbeza
+                    dan memberi trend yang mengelirukan.
+                </p>` : '';
+
             document.getElementById('hct-jadual').innerHTML = `
                 <table class="w-full text-sm border-collapse">
                     <thead class="bg-gray-50">
@@ -9307,7 +9339,7 @@
                     <b>GPS dari ETR</b> = GPS yang akan dicapai jika setiap murid mengena sasaran ETR mereka ·
                     <b>Sedia?</b> = adakah ETR sudah cukup tinggi untuk sasaran (masih boleh diubah) ·
                     <b>Capai?</b> = adakah markah sebenar peperiksaan sudah mencapai sasaran.
-                </p>`;
+                </p>${notaAsas}`;
         }
 
         function hctRenderPilihSubjek() {
