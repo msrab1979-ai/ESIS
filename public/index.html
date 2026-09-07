@@ -886,6 +886,8 @@
                     class="px-3 sm:px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800 whitespace-nowrap shrink-0">🏆 Murid Terbaik</button>
                 <button onclick="hcTukarTab('corak')" id="hc-tab-corak"
                     class="px-3 sm:px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800 whitespace-nowrap shrink-0">📋 Corak Gred</button>
+                <button onclick="hcTukarTab('trend')" id="hc-tab-trend"
+                    class="px-3 sm:px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800 whitespace-nowrap shrink-0">📈 Trend GPS</button>
             </div>
 
             <!-- ===== SKRIN A: SET SASARAN ===== -->
@@ -1263,6 +1265,61 @@
                         </div>
                     </div>
                     <div id="hcp-senarai" class="p-3 sm:p-4"></div>
+                </div>
+            </section>
+
+            <!-- ===== SKRIN H: TREND GPS (rujuk ke belakang + rancang ke hadapan) ===== -->
+            <!-- Prefix id: hct- (hcg-/hcp- sudah terpakai oleh Perbandingan Gred & Corak Gred) -->
+            <section id="hc-skrin-trend" class="hidden">
+                <div class="bg-gray-50 rounded-lg border border-gray-200 p-4 mb-4 no-print">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 items-end">
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Tahun</span>
+                            <select id="hct-tahun-kal" onchange="hctLukis()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Darjah</span>
+                            <select id="hct-darjah" onchange="hctLukis()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <label class="block">
+                            <span class="text-xs text-gray-500">Kelas</span>
+                            <select id="hct-kelas" onchange="hctLukis()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                        </label>
+                        <div class="flex gap-2">
+                            <button onclick="hctCSV()" class="flex-1 rounded border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">📥 CSV</button>
+                            <button onclick="hctPDF()" class="flex-1 rounded border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">🖨️ PDF</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="hct-amaran" class="mb-3"></div>
+                <div id="hct-kpi" class="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-4"></div>
+
+                <!-- Jadual perancangan: GPS sekarang vs GPS dari ETR vs sasaran guru -->
+                <div class="bg-white rounded-lg border border-gray-200 mb-4">
+                    <div class="px-4 py-3 border-b border-gray-200">
+                        <h4 class="text-sm font-semibold text-gray-700">Sasaran GPS setiap subjek</h4>
+                        <p class="text-xs text-gray-500 mt-0.5">
+                            Taip sasaran GPS anda dalam lajur terakhir, kemudian tekan Simpan.
+                            Lajur <b>GPS dari ETR</b> ialah GPS yang akan dicapai jika semua murid mengena sasaran ETR mereka —
+                            ubah ETR di tab <b>Ubah Sasaran (ETR)</b> untuk menaikkannya.
+                        </p>
+                    </div>
+                    <div id="hct-jadual" class="jadual-gulung"></div>
+                    <div class="px-4 py-3 border-t border-gray-200 flex items-center gap-3 no-print">
+                        <button onclick="hctSimpanSasaran()" class="rounded bg-teal-600 text-white px-4 py-2 text-sm font-semibold hover:bg-teal-700">Simpan sasaran GPS</button>
+                        <span id="hct-simpan-status" class="text-sm"></span>
+                    </div>
+                </div>
+
+                <!-- Graf trend merentas semua peperiksaan -->
+                <div class="bg-white rounded-lg border border-gray-200 p-4">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-1">Trend GPS merentas peperiksaan</h4>
+                    <p class="text-xs text-gray-500 mb-3 no-print">
+                        Tandakan subjek yang hendak dipaparkan. Garis putus-putus ialah sasaran GPS anda.
+                    </p>
+                    <div style="position:relative; height:380px"><canvas id="hct-chart"></canvas></div>
+                    <div id="hct-pilih-subjek" class="mt-3 no-print"></div>
                 </div>
             </section>
         </div>
@@ -7334,7 +7391,7 @@
             const aktif = 'px-3 sm:px-4 py-2 text-sm font-medium border-b-2 border-teal-600 text-gray-900 whitespace-nowrap shrink-0';
             const mati = 'px-3 sm:px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-800 whitespace-nowrap shrink-0';
             // Satu senarai — tambah tab baharu di sini sahaja, bukan 3 tempat.
-            ['set', 'jejak', 'analisa', 'banding', 'gred', 'murid', 'corak'].forEach(t => {
+            ['set', 'jejak', 'analisa', 'banding', 'gred', 'murid', 'corak', 'trend'].forEach(t => {
                 document.getElementById('hc-skrin-' + t).classList.toggle('hidden', tab !== t);
                 document.getElementById('hc-tab-' + t).className = (tab === t) ? aktif : mati;
             });
@@ -7344,6 +7401,7 @@
             if (tab === 'gred') hcInitGred();
             if (tab === 'murid') hcInitMurid();
             if (tab === 'corak') hcgInit();
+            if (tab === 'trend') hctInit();
         }
 
         // Isi pemilih Papan Jejak (selaraskan dgn pilihan Set Sasaran), kemudian lukis
@@ -8915,6 +8973,491 @@
             win.document.close(); win.focus();
             setTimeout(() => { win.print(); win.close(); }, 600);
         }
+
+        // ==========================================================
+        // TREND GPS — melihat ke belakang (graf trend merentas peperiksaan)
+        // dan merancang ke hadapan (sasaran GPS setiap subjek).
+        //
+        // BACA SAHAJA bagi markah dan ETR: GPS dikira daripada rekodMarkah dan
+        // rekodHeadcount sedia ada, tiada apa-apa ditulis balik ke sana. Satu-satunya
+        // tulisan ialah sasaran GPS guru ke settings/sasaranGPS (dokumen berasingan).
+        //
+        // Prefix DOM id ialah hct- kerana hcg- (Perbandingan Gred) dan hcp- (Corak
+        // Gred) sudah terpakai; id bertindih tidak memberi ralat, cuma senyap
+        // mengembalikan padanan pertama dalam DOM.
+        // ==========================================================
+        let hctChart = null;
+        let hctData = null;
+        let hctRun = 0;          // penjaga perlumbaan — lihat hcLukisMurid
+        let hctSasaran = {};     // {darjah: {_darjah: n, NAMA_SUBJEK: n}}
+        let hctPilihan = null;   // set nama subjek yang ditanda pada graf
+
+        // GPS bagi satu senarai markah mentah. Markah tidak sah dibuang daripada
+        // pembilang DAN penyebut — sama seperti hcTambahGred, supaya "TIDAK SAH"
+        // tidak dibakulkan sebagai F dan menjatuhkan GPS secara palsu.
+        function hctGPSDariMarkah(senarai) {
+            const bakul = { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 };
+            let bil = 0;
+            (senarai || []).forEach(v => {
+                if (v == null || v === '') return;
+                const x = parseInt(v);
+                if (isNaN(x)) return;
+                const g = getGredFromMarkah(x);
+                if (!HC_GRED_KEYS.includes(g)) return;
+                bakul[g]++; bil++;
+            });
+            return { gps: kiraGPS(bakul, bil), bil };
+        }
+
+        async function hctBacaSasaran(paksa) {
+            if (!paksa && Object.keys(hctSasaran).length) return hctSasaran;
+            try {
+                const snap = await db.collection('settings').doc('sasaranGPS').get();
+                hctSasaran = snap.exists ? (snap.data() || {}) : {};
+            } catch (e) { console.warn('hctBacaSasaran', e); hctSasaran = {}; }
+            return hctSasaran;
+        }
+
+        // Sasaran bagi satu subjek: nilai khusus subjek, jika tiada ikut nilai darjah.
+        function hctSasaranSubjek(darjah, subjek) {
+            const d = hctSasaran[darjah] || {};
+            const v = (subjek && d[subjek] != null && d[subjek] !== '') ? d[subjek] : d._darjah;
+            const n = parseFloat(v);
+            return isNaN(n) ? null : n;
+        }
+
+        async function hctInit() {
+            const urutan = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
+            populatePanelYearDropdown('hct-tahun-kal',
+                document.getElementById('hct-tahun-kal').value || new Date().getFullYear().toString());
+            const dEl = document.getElementById('hct-darjah');
+            if (dEl && !dEl.options.length) {
+                const ada = urutan.filter(t => hcKelasUntukTahun(t).length);
+                dEl.innerHTML = (ada.length ? ada : urutan)
+                    .map(d => `<option value="${d}">${d}</option>`).join('');
+                // Ikut darjah yang sedang dilihat di tab lain supaya guru tidak
+                // perlu memilih semula; SATU selalunya tiada markah langsung.
+                const ikut = (document.getElementById('hcm-darjah') || {}).value
+                          || (document.getElementById('hc-tahun') || {}).value;
+                if (ikut && [...dEl.options].some(o => o.value === ikut)) dEl.value = ikut;
+            }
+            await hctBacaSasaran(true);   // baca semula setiap kali tab dibuka
+            hctLukis();
+        }
+
+        async function hctLukis() {
+            const token = ++hctRun;
+            const basi = () => token !== hctRun;
+            const cy = hcTahunAnalisa('hct-tahun-kal');
+            const darjah = document.getElementById('hct-darjah').value;
+            const jad = document.getElementById('hct-jadual');
+            if (!darjah) return;
+
+            // Dropdown kelas: "Semua kelas" + setiap kelas darjah ini
+            const semuaKelas = hcKelasUntukTahun(darjah);
+            const kEl = document.getElementById('hct-kelas');
+            if (kEl.dataset.darjah !== darjah + '_' + cy) {
+                const pilihanLama = kEl.value;
+                kEl.innerHTML = '<option value="">Semua kelas</option>' +
+                    semuaKelas.map(k => `<option value="${k}">${k}</option>`).join('');
+                kEl.dataset.darjah = darjah + '_' + cy;
+                if (pilihanLama && semuaKelas.includes(pilihanLama)) kEl.value = pilihanLama;
+            }
+            const kelasPilih = kEl.value;
+            const kelasSenarai = kelasPilih ? [kelasPilih] : semuaKelas;
+
+            jad.innerHTML = '<p class="p-4 text-sm text-gray-500">Mengira…</p>';
+
+            await hcMuatPepSemasa(cy);
+            if (basi()) return;
+            const petaPep = hcNamaPep();
+            if (!petaPep.length) {
+                jad.innerHTML = `<p class="p-4 text-sm text-gray-500">Tiada jenis peperiksaan untuk tahun ${cy}. Sila set di Admin › Urus Peperiksaan.</p>`;
+                document.getElementById('hct-kpi').innerHTML = '';
+                if (hctChart) { hctChart.destroy(); hctChart = null; }
+                return;
+            }
+
+            await ensureMarksLoaded(cy);
+            if (basi()) return;
+            const murid = (GLOBAL_DATA.students || []).filter(s =>
+                s.tahun === darjah && kelasSenarai.includes(s.kelas));
+            const kpSet = new Set(murid.map(m => m.no_kp));
+
+            // Subjek: yang benar-benar ada markah bagi darjah ini pada tahun ini.
+            const semuaMarkah = (getMarksByYear(cy) || []).filter(m =>
+                m.tahun === darjah && kpSet.has(m.no_kp));
+            const subjekAda = [...new Set(semuaMarkah.map(m => m.subjek))].filter(Boolean).sort();
+
+            if (!subjekAda.length) {
+                jad.innerHTML = `<p class="p-4 text-sm text-gray-500">Tiada markah direkodkan untuk darjah <b>${darjah}</b> pada tahun ${cy}.</p>`;
+                document.getElementById('hct-kpi').innerHTML = '';
+                if (hctChart) { hctChart.destroy(); hctChart = null; }
+                return;
+            }
+
+            // --- GPS SEBENAR: setiap subjek x setiap peperiksaan ---
+            const gpsSubjek = {};      // {subjek: [{pep, gps, bil}...]}
+            subjekAda.forEach(sub => {
+                gpsSubjek[sub] = petaPep.map(pep => {
+                    const senarai = semuaMarkah
+                        .filter(m => m.subjek === sub && m['JENIS PEPERIKSAAN'] === pep)
+                        .map(m => m.markah);
+                    const r = hctGPSDariMarkah(senarai);
+                    return { pep, gps: r.gps, bil: r.bil };
+                });
+            });
+
+            // GPS keseluruhan setiap peperiksaan — dikira dari SEMUA markah sekali gus
+            // (bukan purata GPS subjek), supaya subjek dengan lebih ramai murid
+            // ditimbang dengan betul.
+            const gpsKeseluruhan = petaPep.map(pep => {
+                const senarai = semuaMarkah
+                    .filter(m => m['JENIS PEPERIKSAAN'] === pep).map(m => m.markah);
+                const r = hctGPSDariMarkah(senarai);
+                return { pep, gps: r.gps, bil: r.bil };
+            });
+
+            // --- GPS DARI ETR: baca rekodHeadcount setiap kelas x subjek ---
+            // Ini bahagian paling lambat (kelas x subjek dokumen), jadi ia dibaca
+            // sekali di sini dan disimpan dalam hctData; menanda checkbox subjek
+            // tidak membacanya semula.
+            const etrSubjek = {};      // {subjek: {gps, bil}}
+            const belumDibina = [];    // kelas x subjek tanpa dokumen headcount
+            let etrSemuaMarkah = [];
+            for (const sub of subjekAda) {
+                let markahEtr = [];
+                for (const k of kelasSenarai) {
+                    const doc = await hcBacaDocHeadcount(darjah, k, sub, cy);
+                    if (basi()) return;
+                    if (!doc || !doc.etr) { belumDibina.push(`${k} · ${sub}`); continue; }
+                    murid.filter(m => m.kelas === k).forEach(m => {
+                        const v = doc.etr[m.no_kp];
+                        if (v != null && v !== '') markahEtr.push(v);
+                    });
+                }
+                const r = hctGPSDariMarkah(markahEtr);
+                etrSubjek[sub] = r;
+                etrSemuaMarkah = etrSemuaMarkah.concat(markahEtr);
+            }
+            const etrKeseluruhan = hctGPSDariMarkah(etrSemuaMarkah);
+            if (basi()) return;
+
+            hctData = { cy, darjah, kelasPilih, kelasSenarai, petaPep, subjekAda,
+                        gpsSubjek, gpsKeseluruhan, etrSubjek, etrKeseluruhan,
+                        belumDibina, bilMurid: murid.length };
+
+            // Pilihan graf: mula dengan keseluruhan sahaja — 13 subjek serentak
+            // menjadikan graf benang kusut.
+            if (!hctPilihan) hctPilihan = new Set();
+
+            hctRenderKPI();
+            hctRenderJadual();
+            hctRenderPilihSubjek();
+            hctRenderCarta();
+            hctAmaran();
+        }
+
+        function hctRenderKPI() {
+            const d = hctData;
+            const akhir = [...d.gpsKeseluruhan].reverse().find(x => x.gps != null);
+            const pertama = d.gpsKeseluruhan.find(x => x.gps != null);
+            const beza = (akhir && pertama && akhir !== pertama) ? (akhir.gps - pertama.gps) : null;
+            const sasar = hctSasaranSubjek(d.darjah, null);
+            const etr = d.etrKeseluruhan.gps;
+
+            const kad = (tajuk, nilai, sub, warna, bg) => `
+                <div class="rounded-lg border border-gray-200 ${bg || 'bg-white'} p-2 sm:p-3">
+                    <div class="text-[11px] sm:text-xs text-gray-600">${tajuk}</div>
+                    <div class="text-xl sm:text-2xl font-bold ${warna || 'text-gray-800'}">${nilai}</div>
+                    <div class="text-[11px] sm:text-xs text-gray-500">${sub}</div>
+                </div>`;
+
+            document.getElementById('hct-kpi').innerHTML =
+                kad('📊 GPS terkini', akhir && akhir.gps != null ? akhir.gps.toFixed(2) : '—',
+                    akhir ? akhir.pep : 'tiada markah', 'text-teal-700', 'bg-teal-50') +
+                kad('📈 Perubahan', beza == null ? '—' : (beza >= 0 ? '+' : '') + beza.toFixed(2),
+                    beza == null ? 'perlu 2 peperiksaan' : `sejak ${pertama.pep}`,
+                    beza == null ? '' : (beza >= 0 ? 'text-green-600' : 'text-red-600'),
+                    beza == null ? '' : (beza >= 0 ? 'bg-green-50' : 'bg-red-50')) +
+                kad('🎯 GPS dari ETR', etr == null ? '—' : etr.toFixed(2),
+                    etr == null ? 'ETR belum ditetapkan' : 'jika semua capai ETR', 'text-blue-700', 'bg-blue-50') +
+                kad('🏁 Sasaran anda', sasar == null ? '—' : sasar.toFixed(2),
+                    sasar == null ? 'belum ditetapkan' : (etr == null ? '' :
+                        (etr >= sasar ? '✓ ETR sudah cukup' : `ETR kurang ${(sasar - etr).toFixed(2)}`)),
+                    'text-purple-700', 'bg-purple-50');
+        }
+
+        function hctRenderJadual() {
+            const d = hctData;
+            const akhirIdx = (() => {
+                for (let i = d.petaPep.length - 1; i >= 0; i--)
+                    if (d.gpsKeseluruhan[i].gps != null) return i;
+                return -1;
+            })();
+
+            const baris = d.subjekAda.map(sub => {
+                const seri = d.gpsSubjek[sub];
+                const kini = akhirIdx >= 0 ? seri[akhirIdx].gps : null;
+                const etr = d.etrSubjek[sub] ? d.etrSubjek[sub].gps : null;
+                const sasar = hctSasaranSubjek(d.darjah, sub);
+                // Status membandingkan ETR dengan sasaran: itulah yang guru boleh
+                // ubah sekarang. GPS sebenar hanya diketahui selepas peperiksaan.
+                let status = '<span class="text-gray-400">—</span>';
+                if (sasar != null && etr != null) {
+                    const bz = etr - sasar;
+                    status = bz >= 0
+                        ? `<span class="text-green-600 font-semibold">🟢 cukup (+${bz.toFixed(2)})</span>`
+                        : `<span class="text-amber-600 font-semibold">🟠 kurang ${Math.abs(bz).toFixed(2)}</span>`;
+                } else if (sasar == null) {
+                    status = '<span class="text-gray-400">belum set sasaran</span>';
+                } else if (etr == null) {
+                    status = '<span class="text-gray-400">ETR belum ada</span>';
+                }
+                const nilaiSasar = (hctSasaran[d.darjah] || {})[sub];
+                return `<tr class="hover:bg-gray-50">
+                    <td class="px-3 py-2 text-sm font-medium text-gray-800 whitespace-nowrap sticky left-0 bg-white lajur-teks">${sub}</td>
+                    <td class="px-3 py-2 text-center text-sm font-semibold ${kini == null ? 'text-gray-300' : 'text-gray-800'}">${kini == null ? '—' : kini.toFixed(2)}</td>
+                    <td class="px-3 py-2 text-center text-sm font-semibold ${etr == null ? 'text-gray-300' : 'text-blue-700'}">${etr == null ? '—' : etr.toFixed(2)}</td>
+                    <td class="px-3 py-2 text-center">
+                        <input type="number" step="0.01" min="0" max="10" value="${nilaiSasar == null ? '' : nilaiSasar}"
+                            data-subjek="${sub}" placeholder="—"
+                            class="hct-input-sasaran w-20 rounded border border-gray-300 px-2 py-1 text-sm text-center">
+                    </td>
+                    <td class="px-3 py-2 text-sm whitespace-nowrap">${status}</td>
+                </tr>`;
+            }).join('');
+
+            const kiniAll = akhirIdx >= 0 ? d.gpsKeseluruhan[akhirIdx].gps : null;
+            const etrAll = d.etrKeseluruhan.gps;
+            const sasarAll = (hctSasaran[d.darjah] || {})._darjah;
+
+            document.getElementById('hct-jadual').innerHTML = `
+                <table class="w-full text-sm border-collapse">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 sticky left-0 bg-gray-50">Subjek</th>
+                            <th class="px-3 py-2 text-center text-xs font-medium text-gray-500">GPS sekarang<br><span class="font-normal">${akhirIdx >= 0 ? d.petaPep[akhirIdx] : '—'}</span></th>
+                            <th class="px-3 py-2 text-center text-xs font-medium text-blue-700">GPS dari ETR</th>
+                            <th class="px-3 py-2 text-center text-xs font-medium text-purple-700">Sasaran GPS anda</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">${baris}</tbody>
+                    <tfoot class="bg-gray-100 border-t-2 border-gray-400">
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-bold sticky left-0 bg-gray-100">KESELURUHAN</td>
+                            <td class="px-3 py-2 text-center text-sm font-bold">${kiniAll == null ? '—' : kiniAll.toFixed(2)}</td>
+                            <td class="px-3 py-2 text-center text-sm font-bold text-blue-700">${etrAll == null ? '—' : etrAll.toFixed(2)}</td>
+                            <td class="px-3 py-2 text-center">
+                                <input type="number" step="0.01" min="0" max="10" value="${sasarAll == null ? '' : sasarAll}"
+                                    data-subjek="_darjah" placeholder="—"
+                                    class="hct-input-sasaran w-20 rounded border border-purple-300 bg-purple-50 px-2 py-1 text-sm text-center font-semibold">
+                            </td>
+                            <td class="px-3 py-2 text-xs text-gray-500">Sasaran darjah — subjek tanpa nilai sendiri mengikut angka ini</td>
+                        </tr>
+                    </tfoot>
+                </table>
+                <p class="px-3 py-2 text-xs text-gray-400 border-t border-gray-100">
+                    <b>GPS sekarang</b> = markah sebenar peperiksaan terkini ·
+                    <b>GPS dari ETR</b> = GPS yang akan dicapai jika setiap murid mengena sasaran ETR mereka ·
+                    <b>Status</b> membandingkan ETR dengan sasaran anda, kerana ETR itulah yang boleh diubah sekarang.
+                </p>`;
+        }
+
+        function hctRenderPilihSubjek() {
+            const d = hctData;
+            const kotak = d.subjekAda.map(sub => `
+                <label class="inline-flex items-center gap-1.5 mr-3 mb-1.5 text-xs cursor-pointer">
+                    <input type="checkbox" value="${sub}" ${hctPilihan.has(sub) ? 'checked' : ''}
+                        onchange="hctTogolSubjek(this.value, this.checked)"
+                        class="rounded border-gray-300 text-teal-600 focus:ring-teal-500">
+                    <span class="text-gray-700">${hcmSingkat(sub)}</span>
+                </label>`).join('');
+            document.getElementById('hct-pilih-subjek').innerHTML = `
+                <div class="border-t border-gray-100 pt-3">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-xs font-medium text-gray-600">Tunjuk subjek:</span>
+                        <button onclick="hctPilihSemua(true)" class="text-xs text-teal-600 hover:underline">Semua</button>
+                        <button onclick="hctPilihSemua(false)" class="text-xs text-teal-600 hover:underline">Tiada</button>
+                    </div>
+                    ${kotak}
+                </div>`;
+        }
+
+        function hctTogolSubjek(sub, on) {
+            if (on) hctPilihan.add(sub); else hctPilihan.delete(sub);
+            hctRenderCarta();          // hanya lukis semula graf — tiada bacaan Firestore
+        }
+
+        function hctPilihSemua(on) {
+            hctPilihan = on ? new Set(hctData.subjekAda) : new Set();
+            hctRenderPilihSubjek();
+            hctRenderCarta();
+        }
+
+        const HCT_WARNA = ['#0d9488', '#2563eb', '#dc2626', '#ea580c', '#7c3aed',
+                           '#059669', '#db2777', '#ca8a04', '#0891b2', '#4f46e5',
+                           '#b91c1c', '#15803d', '#9333ea'];
+
+        function hctRenderCarta() {
+            const el = document.getElementById('hct-chart');
+            if (!el || typeof Chart === 'undefined' || !hctData) return;
+            if (hctChart) { hctChart.destroy(); hctChart = null; }
+            const d = hctData;
+
+            const sets = [];
+            // Garisan tebal: GPS keseluruhan
+            sets.push({
+                label: 'GPS Keseluruhan',
+                data: d.gpsKeseluruhan.map(x => x.gps),
+                borderColor: '#0f766e', backgroundColor: '#0f766e',
+                borderWidth: 3, pointRadius: 4, tension: 0.25, spanGaps: true
+            });
+            // Garis putus-putus: sasaran darjah (mendatar)
+            const sasarAll = hctSasaranSubjek(d.darjah, null);
+            if (sasarAll != null) {
+                sets.push({
+                    label: 'Sasaran anda',
+                    data: d.petaPep.map(() => sasarAll),
+                    borderColor: '#7c3aed', backgroundColor: '#7c3aed',
+                    borderWidth: 2, borderDash: [6, 4], pointRadius: 0, tension: 0
+                });
+            }
+            // Garisan tambahan: subjek yang ditanda
+            [...hctPilihan].forEach((sub, i) => {
+                sets.push({
+                    label: hcmSingkat(sub),
+                    data: (d.gpsSubjek[sub] || []).map(x => x.gps),
+                    borderColor: HCT_WARNA[i % HCT_WARNA.length],
+                    backgroundColor: HCT_WARNA[i % HCT_WARNA.length],
+                    borderWidth: 2, pointRadius: 3, tension: 0.25, spanGaps: true
+                });
+            });
+
+            hctChart = new Chart(el.getContext('2d'), {
+                type: 'line',
+                data: { labels: d.petaPep, datasets: sets },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        y: { title: { display: true, text: 'GPS (tinggi = lebih baik)' },
+                             beginAtZero: false, suggestedMin: 1, suggestedMax: 6 }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                        tooltip: { callbacks: {
+                            label: c => `${c.dataset.label}: ${c.parsed.y == null ? '—' : c.parsed.y.toFixed(2)}`
+                        } }
+                    }
+                }
+            });
+        }
+
+        function hctAmaran() {
+            const el = document.getElementById('hct-amaran');
+            const d = hctData;
+            if (!d.belumDibina.length) { el.innerHTML = ''; return; }
+            // Kelas tanpa dokumen headcount dilaporkan, bukan dikira sebagai sifar —
+            // sama seperti peraturan audit tab Analisa.
+            const senarai = d.belumDibina.slice(0, 8).join(', ');
+            const lagi = d.belumDibina.length > 8 ? ` dan ${d.belumDibina.length - 8} lagi` : '';
+            el.innerHTML = `<div class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+                <b>⚠ ${d.belumDibina.length} kelas × subjek belum ada sasaran ETR</b> — ${senarai}${lagi}.
+                Lajur <b>GPS dari ETR</b> bagi subjek berkenaan hanya mengira murid yang sudah ada ETR,
+                jadi ia mungkin tidak mewakili seluruh darjah. Bina di tab <b>Ubah Sasaran (ETR)</b>.
+            </div>`;
+        }
+
+        async function hctSimpanSasaran() {
+            const st = document.getElementById('hct-simpan-status');
+            const set = (msg, w) => { st.textContent = msg; st.className = `text-sm font-medium ${w}`; };
+            if (!hctData) return;
+            const darjah = hctData.darjah;
+            try {
+                set('Menyimpan…', 'text-gray-500');
+                const baru = {};
+                document.querySelectorAll('.hct-input-sasaran').forEach(inp => {
+                    const v = inp.value.trim();
+                    if (v === '') return;                  // kosong = tiada sasaran
+                    const n = parseFloat(v);
+                    if (!isNaN(n)) baru[inp.dataset.subjek] = n;
+                });
+                // merge:true supaya darjah lain dalam dokumen yang sama tidak tersentuh
+                await db.collection('settings').doc('sasaranGPS')
+                    .set({ [darjah]: baru }, { merge: true });
+                hctSasaran[darjah] = baru;
+                set(`✓ Sasaran ${darjah} disimpan.`, 'text-green-600');
+                hctRenderKPI(); hctRenderJadual(); hctRenderCarta();
+            } catch (e) {
+                console.error('hctSimpanSasaran', e);
+                set('✗ Gagal simpan: ' + (e.message || e), 'text-red-600');
+            }
+        }
+
+        function hctCSV() {
+            if (!hctData) { showNotification('Muat Turun', 'Tiada data.', true); return; }
+            const d = hctData;
+            const esc = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+            const head = ['Subjek', ...d.petaPep, 'GPS dari ETR', 'Sasaran GPS', 'Status'];
+            const baris = d.subjekAda.map(sub => {
+                const etr = d.etrSubjek[sub] ? d.etrSubjek[sub].gps : null;
+                const sasar = hctSasaranSubjek(d.darjah, sub);
+                const status = (sasar == null) ? 'belum set sasaran'
+                    : (etr == null) ? 'ETR belum ada'
+                    : (etr >= sasar ? `cukup (+${(etr - sasar).toFixed(2)})` : `kurang ${(sasar - etr).toFixed(2)}`);
+                return [sub, ...d.gpsSubjek[sub].map(x => x.gps == null ? '' : x.gps.toFixed(2)),
+                        etr == null ? '' : etr.toFixed(2), sasar == null ? '' : sasar.toFixed(2), status];
+            });
+            baris.push(['KESELURUHAN', ...d.gpsKeseluruhan.map(x => x.gps == null ? '' : x.gps.toFixed(2)),
+                        d.etrKeseluruhan.gps == null ? '' : d.etrKeseluruhan.gps.toFixed(2),
+                        (hctSasaran[d.darjah] || {})._darjah ?? '', '']);
+            const csv = '﻿' + [head.map(esc).join(','), ...baris.map(r => r.map(esc).join(','))].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Trend_GPS_${d.darjah}${d.kelasPilih ? '_' + d.kelasPilih : ''}_${d.cy}.csv`.replace(/\s+/g, '_');
+            document.body.appendChild(a); a.click();
+            setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 100);
+            showNotification('Muat Turun', `${baris.length} baris dieksport.`, false);
+        }
+
+        function hctPDF() {
+            if (!hctData) { showNotification('Cetak', 'Tiada data.', true); return; }
+            const d = hctData;
+            const jadual = document.getElementById('hct-jadual').innerHTML;
+            const kpi = document.getElementById('hct-kpi').innerText.replace(/\n+/g, ' · ');
+            const amaran = document.getElementById('hct-amaran').innerText.trim();
+            const imej = hctChart ? hctChart.toBase64Image() : null;
+            const win = window.open('', '_blank');
+            win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+                <title>Trend GPS — ${d.darjah}</title>
+                <style>
+                    body{font-family:Arial,sans-serif;padding:20px;color:#111}
+                    h2{margin:0 0 4px;font-size:17px} p.sub{margin:0 0 12px;color:#555;font-size:11px}
+                    h3{font-size:13px;margin:14px 0 6px}
+                    table{width:100%;border-collapse:collapse;font-size:10px}
+                    th,td{border:1px solid #999;padding:4px;text-align:center}
+                    th{background:#f0f0f0} td:first-child,th:first-child{text-align:left}
+                    tfoot{font-weight:bold;background:#f3f4f6}
+                    input{border:none;font-size:10px;text-align:center;width:40px}
+                    img{max-width:100%;margin:8px 0}
+                    p.nota{font-size:9px;color:#666}
+                </style></head><body>
+                <h2>Trend GPS &amp; Sasaran</h2>
+                <p class="sub">Darjah ${d.darjah}${d.kelasPilih ? ' — ' + d.kelasPilih : ' — semua kelas'} ·
+                    Tahun ${d.cy} · ${d.bilMurid} murid<br>
+                    ${kpi} · Dicetak ${new Date().toLocaleDateString('ms-MY')}</p>
+                ${amaran ? `<div style="border:1px solid #d97706;background:#fffbeb;padding:8px;margin:0 0 12px;font-size:10px">${amaran}</div>` : ''}
+                <h3>Sasaran GPS setiap subjek</h3>
+                ${jadual}
+                ${imej ? `<h3>Trend GPS merentas peperiksaan</h3><img src="${imej}">` : ''}
+                </body></html>`);
+            win.document.close(); win.focus();
+            setTimeout(() => { win.print(); win.close(); }, 700);
+        }
+
 
         // ==========================================================
         // ANALISA HEADCOUNT — dashboard % capai sasaran, purata naik, taburan gred
