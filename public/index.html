@@ -9201,18 +9201,34 @@
                 const kini = akhirIdx >= 0 ? seri[akhirIdx].gps : null;
                 const etr = d.etrSubjek[sub] ? d.etrSubjek[sub].gps : null;
                 const sasar = hctSasaranSubjek(d.darjah, sub);
-                // Status membandingkan ETR dengan sasaran: itulah yang guru boleh
-                // ubah sekarang. GPS sebenar hanya diketahui selepas peperiksaan.
+                // DUA status berbeza, jangan dikelirukan:
+                // - "Sedia?" membandingkan ETR dengan sasaran = adakah PERANCANGAN
+                //   sudah cukup tinggi (masih boleh diubah dgn menaikkan ETR).
+                // - "Capai?" membandingkan markah SEBENAR dengan sasaran = adakah
+                //   sasaran itu benar-benar dicapai dalam peperiksaan.
                 let status = '<span class="text-gray-400">—</span>';
                 if (sasar != null && etr != null) {
                     const bz = etr - sasar;
                     status = bz >= 0
-                        ? `<span class="text-green-600 font-semibold">🟢 cukup (+${bz.toFixed(2)})</span>`
+                        ? `<span class="text-green-600 font-semibold">🟢 cukup</span>`
                         : `<span class="text-amber-600 font-semibold">🟠 kurang ${Math.abs(bz).toFixed(2)}</span>`;
                 } else if (sasar == null) {
-                    status = '<span class="text-gray-400">belum set sasaran</span>';
+                    status = '<span class="text-gray-400">belum set</span>';
                 } else if (etr == null) {
                     status = '<span class="text-gray-400">ETR belum ada</span>';
+                }
+
+                // Pencapaian SEBENAR: GPS peperiksaan terkini lawan sasaran.
+                let capai = '<span class="text-gray-400">—</span>';
+                if (sasar != null && kini != null) {
+                    const bz = kini - sasar;
+                    capai = bz >= 0
+                        ? `<span class="text-green-700 font-bold">✅ capai (+${bz.toFixed(2)})</span>`
+                        : `<span class="text-red-600 font-bold">❌ kurang ${Math.abs(bz).toFixed(2)}</span>`;
+                } else if (sasar == null) {
+                    capai = '<span class="text-gray-400">belum set</span>';
+                } else if (kini == null) {
+                    capai = '<span class="text-gray-400">tiada markah</span>';
                 }
                 const nilaiSasar = (hctSasaran[d.darjah] || {})[sub];
                 return `<tr class="hover:bg-gray-50">
@@ -9225,6 +9241,7 @@
                             class="hct-input-sasaran w-20 rounded border border-gray-300 px-2 py-1 text-sm text-center">
                     </td>
                     <td class="px-3 py-2 text-sm whitespace-nowrap">${status}</td>
+                    <td class="px-3 py-2 text-sm whitespace-nowrap border-l border-gray-200">${capai}</td>
                 </tr>`;
             }).join('');
 
@@ -9240,7 +9257,8 @@
                             <th class="px-3 py-2 text-center text-xs font-medium text-gray-500">GPS sekarang<br><span class="font-normal">${akhirIdx >= 0 ? d.petaPep[akhirIdx] : '—'}</span></th>
                             <th class="px-3 py-2 text-center text-xs font-medium text-blue-700">GPS dari ETR</th>
                             <th class="px-3 py-2 text-center text-xs font-medium text-purple-700">Sasaran GPS anda</th>
-                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Status</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Sedia?<br><span class="font-normal">ETR vs sasaran</span></th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-l border-gray-200">Capai?<br><span class="font-normal">sebenar vs sasaran</span></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">${baris}</tbody>
@@ -9254,14 +9272,30 @@
                                     data-subjek="_darjah" placeholder="—"
                                     class="hct-input-sasaran w-20 rounded border border-purple-300 bg-purple-50 px-2 py-1 text-sm text-center font-semibold">
                             </td>
-                            <td class="px-3 py-2 text-xs text-gray-500">Sasaran darjah — subjek tanpa nilai sendiri mengikut angka ini</td>
+                            <td class="px-3 py-2 text-sm whitespace-nowrap">${(() => {
+                                const sA = hctSasaranSubjek(d.darjah, null);
+                                if (sA == null) return '<span class="text-gray-400">belum set</span>';
+                                if (etrAll == null) return '<span class="text-gray-400">ETR belum ada</span>';
+                                const bz = etrAll - sA;
+                                return bz >= 0 ? '<span class="text-green-600 font-semibold">🟢 cukup</span>'
+                                               : `<span class="text-amber-600 font-semibold">🟠 kurang ${Math.abs(bz).toFixed(2)}</span>`;
+                            })()}</td>
+                            <td class="px-3 py-2 text-sm whitespace-nowrap border-l border-gray-200">${(() => {
+                                const sA = hctSasaranSubjek(d.darjah, null);
+                                if (sA == null) return '<span class="text-gray-400">belum set</span>';
+                                if (kiniAll == null) return '<span class="text-gray-400">tiada markah</span>';
+                                const bz = kiniAll - sA;
+                                return bz >= 0 ? `<span class="text-green-700 font-bold">✅ capai (+${bz.toFixed(2)})</span>`
+                                               : `<span class="text-red-600 font-bold">❌ kurang ${Math.abs(bz).toFixed(2)}</span>`;
+                            })()}</td>
                         </tr>
                     </tfoot>
                 </table>
                 <p class="px-3 py-2 text-xs text-gray-400 border-t border-gray-100">
                     <b>GPS sekarang</b> = markah sebenar peperiksaan terkini ·
                     <b>GPS dari ETR</b> = GPS yang akan dicapai jika setiap murid mengena sasaran ETR mereka ·
-                    <b>Status</b> membandingkan ETR dengan sasaran anda, kerana ETR itulah yang boleh diubah sekarang.
+                    <b>Sedia?</b> = adakah ETR sudah cukup tinggi untuk sasaran (masih boleh diubah) ·
+                    <b>Capai?</b> = adakah markah sebenar peperiksaan sudah mencapai sasaran.
                 </p>`;
         }
 
@@ -9400,19 +9434,28 @@
             if (!hctData) { showNotification('Muat Turun', 'Tiada data.', true); return; }
             const d = hctData;
             const esc = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
-            const head = ['Subjek', ...d.petaPep, 'GPS dari ETR', 'Sasaran GPS', 'Status'];
+            const head = ['Subjek', ...d.petaPep, 'GPS dari ETR', 'Sasaran GPS', 'Sedia (ETR vs sasaran)', 'Capai (sebenar vs sasaran)'];
             const baris = d.subjekAda.map(sub => {
                 const etr = d.etrSubjek[sub] ? d.etrSubjek[sub].gps : null;
                 const sasar = hctSasaranSubjek(d.darjah, sub);
                 const status = (sasar == null) ? 'belum set sasaran'
                     : (etr == null) ? 'ETR belum ada'
                     : (etr >= sasar ? `cukup (+${(etr - sasar).toFixed(2)})` : `kurang ${(sasar - etr).toFixed(2)}`);
-                return [sub, ...d.gpsSubjek[sub].map(x => x.gps == null ? '' : x.gps.toFixed(2)),
-                        etr == null ? '' : etr.toFixed(2), sasar == null ? '' : sasar.toFixed(2), status];
+                const seri = d.gpsSubjek[sub];
+                const kini = (() => { for (let i = seri.length - 1; i >= 0; i--) if (seri[i].gps != null) return seri[i].gps; return null; })();
+                const capai = (sasar == null) ? 'belum set sasaran'
+                    : (kini == null) ? 'tiada markah'
+                    : (kini >= sasar ? `capai (+${(kini - sasar).toFixed(2)})` : `kurang ${(sasar - kini).toFixed(2)}`);
+                return [sub, ...seri.map(x => x.gps == null ? '' : x.gps.toFixed(2)),
+                        etr == null ? '' : etr.toFixed(2), sasar == null ? '' : sasar.toFixed(2), status, capai];
             });
+            const sA = hctSasaranSubjek(d.darjah, null);
+            const kiniA = (() => { for (let i = d.gpsKeseluruhan.length - 1; i >= 0; i--) if (d.gpsKeseluruhan[i].gps != null) return d.gpsKeseluruhan[i].gps; return null; })();
             baris.push(['KESELURUHAN', ...d.gpsKeseluruhan.map(x => x.gps == null ? '' : x.gps.toFixed(2)),
                         d.etrKeseluruhan.gps == null ? '' : d.etrKeseluruhan.gps.toFixed(2),
-                        (hctSasaran[d.darjah] || {})._darjah ?? '', '']);
+                        (hctSasaran[d.darjah] || {})._darjah ?? '', '',
+                        (sA == null || kiniA == null) ? '' :
+                          (kiniA >= sA ? `capai (+${(kiniA - sA).toFixed(2)})` : `kurang ${(sA - kiniA).toFixed(2)}`)]);
             const csv = '﻿' + [head.map(esc).join(','), ...baris.map(r => r.map(esc).join(','))].join('\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const a = document.createElement('a');
