@@ -9147,9 +9147,20 @@
                         gpsSubjek, gpsKeseluruhan, etrSubjek, etrKeseluruhan,
                         belumDibina, bilMurid: murid.length };
 
-            // Pilihan graf: mula dengan keseluruhan sahaja — 13 subjek serentak
-            // menjadikan graf benang kusut.
-            if (!hctPilihan) hctPilihan = new Set();
+            // Pilihan graf: tandakan beberapa subjek secara automatik pada kali
+            // pertama supaya graf terus bermakna. Tanpa ini hanya satu garisan
+            // mendatar kelihatan dan tab nampak kosong. Dihadkan kepada 4 —
+            // 13 subjek serentak menjadikan graf benang kusut.
+            if (!hctPilihan) {
+                // Pilih subjek dengan liputan markah TERBANYAK, bukan 4 pertama
+                // mengikut abjad — subjek separa bermarkah memberi garisan
+                // terputus-putus yang tidak memberitahu apa-apa.
+                const ikutLiputan = subjekAda
+                    .map(sub => ({ sub, bil: gpsSubjek[sub].reduce((a, x) => a + (x.bil || 0), 0) }))
+                    .filter(x => x.bil > 0)
+                    .sort((a, b) => b.bil - a.bil);
+                hctPilihan = new Set(ikutLiputan.slice(0, 4).map(x => x.sub));
+            }
 
             hctRenderKPI();
             hctRenderJadual();
@@ -9334,6 +9345,46 @@
                            '#059669', '#db2777', '#ca8a04', '#0891b2', '#4f46e5',
                            '#b91c1c', '#15803d', '#9333ea'];
 
+        // Plugin kecil: tulis nilai GPS atas setiap titik supaya angka terbaca
+        // tanpa perlu hover. chartjs-plugin-datalabels tidak dimuatkan dalam projek
+        // ini, jadi ia dilukis terus pada kanvas.
+        const HCT_LABEL_NILAI = {
+            id: 'hctLabelNilai',
+            afterDatasetsDraw(chart) {
+                const { ctx } = chart;
+                ctx.save();
+                ctx.font = '600 10px system-ui, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                // Kumpul dahulu, kemudian selaraskan label yang bertindih. Bila
+                // beberapa subjek berkumpul rapat (cth 4.30 dan 4.34) label
+                // bertindan dan kedua-duanya tidak terbaca.
+                const perTitik = {};
+                chart.data.datasets.forEach((ds, di) => {
+                    if (ds.borderDash) return;                    // langkau garis sasaran
+                    const meta = chart.getDatasetMeta(di);
+                    if (meta.hidden) return;
+                    meta.data.forEach((titik, i) => {
+                        const v = ds.data[i];
+                        if (v == null) return;
+                        (perTitik[i] = perTitik[i] || []).push({ x: titik.x, y: titik.y, v, warna: ds.borderColor });
+                    });
+                });
+                Object.values(perTitik).forEach(senarai => {
+                    senarai.sort((a, b) => a.y - b.y);
+                    let akhirY = -Infinity;
+                    senarai.forEach(t => {
+                        let y = t.y - 6;
+                        if (y - akhirY < 13) y = akhirY + 13;     // tolak ke bawah
+                        akhirY = y;
+                        ctx.fillStyle = t.warna;
+                        ctx.fillText(t.v.toFixed(2), t.x, y);
+                    });
+                });
+                ctx.restore();
+            }
+        };
+
         function hctRenderCarta() {
             const el = document.getElementById('hct-chart');
             if (!el || typeof Chart === 'undefined' || !hctData) return;
@@ -9369,15 +9420,32 @@
                 });
             });
 
+            // Julat-Y daripada nilai yang benar-benar dilukis, dengan sedikit
+            // ruang lega atas/bawah supaya titik tidak melekat pada bingkai.
+            const semuaNilai = sets.flatMap(x => x.data).filter(v => v != null);
+            let julatMin = 1, julatMax = 6;
+            if (semuaNilai.length) {
+                const lo = Math.min(...semuaNilai), hi = Math.max(...semuaNilai);
+                const lega = Math.max((hi - lo) * 0.25, 0.15);   // minimum supaya
+                julatMin = Math.max(0, Math.floor((lo - lega) * 10) / 10);
+                julatMax = Math.ceil((hi + lega) * 10) / 10;      // garisan rata tak melekat
+            }
+
             hctChart = new Chart(el.getContext('2d'), {
                 type: 'line',
                 data: { labels: d.petaPep, datasets: sets },
+                plugins: [HCT_LABEL_NILAI],
                 options: {
                     responsive: true, maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
+                    layout: { padding: { top: 24 } },   // ruang utk label nilai
                     scales: {
+                        // Auto-zoom pada julat data sebenar. Skala tetap 1–6
+                        // memampatkan perubahan sebenar (cth 4.30→4.37) menjadi
+                        // garisan rata yang kelihatan seperti tiada apa-apa berlaku.
                         y: { title: { display: true, text: 'GPS (tinggi = lebih baik)' },
-                             beginAtZero: false, suggestedMin: 1, suggestedMax: 6 }
+                             beginAtZero: false, min: julatMin, max: julatMax,
+                             ticks: { precision: 2 } }
                     },
                     plugins: {
                         legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
