@@ -84,6 +84,7 @@ Per-exam subject grade-point average. **Higher is better** (A=6…F=1, opposite 
 - Grade "Gagal"/"TIDAK SAH" = **0 points but still counted in the divisor** (matches existing tables that only bucket A–F in `grades{}` yet still `total++`). GPS shown to **2 decimals**.
 - **Helpers** (near `getGredFromMarkah`): `getMataMap()` returns `{A..F: number}` merging `GLOBAL_DATA.grades[].mata` over defaults; `kiraGPS(grades, jumlah)` returns a 2-dp number or `null` when `jumlah<=0`. Both use the fixed A–F keys (grades are hardcoded A–F across the app).
 - **Admin UI:** card "📊 Mata Gred (GPS)" inside Admin › Setting (`#mata-gred-container`), rendered by `renderMataGred()` on tab open, saved by `simpanMataGred()` (`db.batch().set(..., {merge:true})` per grade doc + live-updates `GLOBAL_DATA.grades`).
+- **Also surfaced in Headcount:** **Perbandingan Gred** table (a GPS column per exam block + the SASARAN block, `hcRenderGredJadual`), **Corak Gred** (GPS per pattern row, per pupil, and a KPI card — note this is the average *grade point*, e.g. `3A1B` = 5.75, not the average *mark*), and **📈 Trend GPS** (see below). `simpanMataGred` redraws Perbandingan Gred so changed point values apply without a reload.
 - **Surfaces:** (a) **Analisa Keseluruhan** — big green **GPS Keseluruhan** summary card above the chart (`#analisa-gps-kad`, filled in `cariAnalisa`), plus a **GPS** column + **TOTAL GPS** footer row in the table (`renderAnalisaDataTable`), and GPS in CSV (`exportAnalisaCSV`) and PDF (`cetakAnalisaPDF`). (b) **Analisa Subjek** — GPS column in table (`renderAnalisaSubjekDataTable`, far right — scroll) + CSV. (c) **Analisa Kelas** — GPS column per kelas + GPS in JUMLAH footer (`renderAnalisaKelas`); the print view (`cetakAnalisaKelas`) reuses the table HTML so GPS carries over automatically. **Analisa Subjek PDF is NOT modified** (its multi-subject-per-year layout is separate from `analisaSubjekReportData`).
 
 ### Exam-type dedup gotcha (dropdown consistency)
@@ -129,7 +130,7 @@ A per-class-per-subject student target-tracking feature. Four numbers per pupil:
 **Firestore collection `rekodHeadcount`** — one doc per kelas×subjek. Doc id: `` `${tahun}_${kelas}_${subjek}_${calYear}` `` (tahun = darjah word SATU..ENAM). Doc shape: `{tahun, kelas, subjek, cal_year, tovSource:{tahun,peperiksaan}, bilTangga, petaOTI:[examName...], etr:{no_kp:val}, override:{no_kp:{tov:n}}, timestamp}`.
 
 **Two surfaces:**
-- **Guru (user) panel** — main-menu card 🎯 Headcount (`#headcount-panel`), gated like Rekod Markah (`markahEnabled`/`isAuthenticated`). Three internal tabs via `hcTukarTab`: **Ubah Sasaran (ETR)** / **Papan Jejak** / **📊 Analisa**. For non-admins, the TOV-source + anak-tangga blocks are hidden (`hcAturPaparan()`), a locked "tetapan admin" banner shows instead, and the TOV column is read-only (only ETR editable). Papan Jejak headers show the **real exam name** from `petaOTI` (not "Ujian N"). Per-row + per-card **individual PDF print** (`hcCetakIndividu`).
+- **Guru (user) panel** — main-menu card 🎯 Headcount (`#headcount-panel`), gated like Rekod Markah (`markahEnabled`/`isAuthenticated`). Eight internal tabs via `hcTukarTab`: **Ubah Sasaran (ETR)** / **Papan Jejak** / **📊 Analisa** / **📈 Analisa Perbandingan** / **📋 Perbandingan Gred** / **🏆 Murid Terbaik** / **📋 Corak Gred** / **📈 Trend GPS**. For non-admins, the TOV-source + anak-tangga blocks are hidden (`hcAturPaparan()`), a locked "tetapan admin" banner shows instead, and the TOV column is read-only (only ETR editable). Papan Jejak headers show the **real exam name** from `petaOTI` (not "Ujian N"). Per-row + per-card **individual PDF print** (`hcCetakIndividu`).
 - **Admin bulk-build** — tab "🎯 Bina Headcount" inside Admin Panel (`toggleAdminTab('bina-headcount')` → `initBinaHeadcount`). Sets TOV source + anak tangga for a whole darjah and batch-writes one `rekodHeadcount` doc per selected kelas×subjek (`bhcBinaSemua`, `db.batch()` chunked at 450).
 
 **Analisa tab** (`hcLukisAnalisa`, `hcStatKelas`): dashboard of % on-target, avg improvement (TOV→AR), grade distribution per kelas (bar chart via Chart.js loaded in `<head>`, table + JUMLAH footer). Toggle **Gred Sebenar (AR)** vs **🎯 Gred Sasaran (ETR)** (`hcTukarGredMod`) — target grades computed from ETR via `getGredFromMarkah`.
@@ -145,6 +146,12 @@ All three analysis tabs (Analisa / Analisa Perbandingan / Perbandingan Gred) wer
 5. **OTI step count comes from the live exam list**, so adding/removing an exam retroactively shifts ladders. This is intentional (avoids stale `petaOTI`); `hcAmaranTangga` warns when `doc.bilTangga` differs from the current exam count.
 6. **Calendar year is selectable** per tab (`hcTahunAnalisa('hca-tahun-kal')` etc.), threaded through `hcBacaDocHeadcount` / `hcMuatPepSemasa` / all stat functions. Tab Set Sasaran & Papan Jejak stay on the current year (data entry).
 7. **Wording is plain Malay, not jargon**: "Ikut Sasaran" (🟢 Baik ≥60% / 🟡 Sederhana 40–59% / 🟠 Perlu perhatian <40%) and "Markah Naik" showing actual vs `purataDiminta` (ETR−TOV) — a class with a modest target must not look weak just because its raw gain is small.
+
+### Murid Terbaik (main menu panel) — grade filter
+
+The main-menu panel **Murid Terbaik Mengikut Subjek** (`murid-terbaik-panel`, `cariMuridTerbaik`) has a **Gred** dropdown beside Jenis Peperiksaan, default "Semua Gred". It filters the listing to pupils who scored that grade in that subject. Filtering happens *after* records are found so the error message can tell "no marks at all for this selection" apart from "marks exist but nobody got that grade". CSV and PDF follow the filter, and the PDF header states the grade.
+
+**Do not confuse this with the Headcount tab of the same name** — a subject+grade filter was once added to the Headcount 🏆 Murid Terbaik tab and reverted (`82c50c5`); the main-menu panel is the right home for it.
 
 ### 🏆 Murid Terbaik tab + ⭐ Subjek Diutamakan (admin)
 
@@ -189,11 +196,52 @@ Groups pupils by their **grade combination** across the core subjects: `4A`, `3A
 
 `hcTukarTab` was refactored to loop over a tab-name array — add a new tab in that one array, not in three parallel lists.
 
+### 📈 Trend GPS (tab kelapan)
+
+Eighth Headcount tab (`hcTukarTab('trend')` → `hctInit`), functions prefixed `hct*`, **DOM ids `hct-`** (`hcg-`/`hcp-` were already taken — grep the prefix before adding a tab). Answers two questions that previously needed several menus: *are we improving?* and *how much must ETR rise to hit our target?*
+
+**Two halves.** Top: a planning table, one row per subject with **GPS sekarang** (real marks), **GPS dari ETR** (what GPS would be if every pupil hit their ETR), a teacher-editable **Sasaran GPS**, and two status columns. Bottom: a **line chart** across every exam of that year — thick line for overall GPS, dashed line for the target, one line per ticked subject.
+
+**Two status columns, deliberately separate** — merging them hides one of the two stories:
+- **Sedia?** = ETR vs target. Still changeable *now* by raising ETR.
+- **Capai?** = real marks vs target. A result that already happened.
+
+Real example: SAINS target 4.66, ETR gives 4.19 (planning short by 0.47) while actual marks are 3.66 (short by 1.00).
+
+**Targets are set by teachers, not admin** — same as ETR. Stored at `settings/sasaranGPS` = `{darjah: {_darjah: n, NAMA_SUBJEK: n}}`, written with `merge:true` so other darjah are untouched. A subject with no value of its own **inherits `_darjah`**. Marks and `rekodHeadcount` are **read-only** here; the only write is this one settings doc.
+
+#### KESELURUHAN counts only subjects common to every exam (do not regress)
+
+Different exams test different subject sets — UPSA tested 13 subjects including BAHASA ARAB (GPS 5.24) and JAWI (4.85); MATRIKS PRISMA tested only the 4 core ones. Averaging everything made darjah EMPAT look like it **dropped** 4.37 → 4.30 while every individual subject **rose**. `asasKeseluruhan` therefore keeps only subjects with marks in *every* exam that has data, giving the true 3.50 → 4.30 (+0.80). A blue note under the table names the basis and how many subjects were excluded. Exams with no marks at all are skipped when computing that set — otherwise every subject fails the "in every exam" test and the basis silently falls back.
+
+**Kad Perubahan always shows the full trend** (first → last exam with marks), never up to the selected exam — binding it to the dropdown made picking UPSA erase the +0.80.
+
+**ETR is read with ONE query** (`where('tahun')` + `where('cal_year')`), not per kelas×subjek. The old per-doc loop was 7×13 = 91 serial reads ≈ 10s; the query is ~0.3s and returns only docs that exist. A per-doc fallback runs if the query throws (e.g. missing composite index).
+
+Chart defaults: the 4 subjects with the **most mark coverage** are auto-ticked (picking the first 4 alphabetically gave part-marked subjects and broken lines), the y-axis **auto-zooms** to the data range (a fixed 1–6 scale flattened a real 4.30→4.37 move into a straight line), and every point is **labelled** by a small inline canvas plugin with overlap pushed downward.
+
 ### Wide tables on desktop (`.jadual-gulung`)
 
 Shared wrapper class for horizontally scrollable tables. Its scroll affordances — edge-shadow hints, sticky first column — were originally inside `@media (max-width: 640px)`, so on **desktop** a wide table was silently cut off with no indication more columns existed (macOS hides overlay scrollbars until you drag). They now apply at every width, plus an always-visible styled scrollbar above 640px.
 
 Because `min-width: max-content` forces every cell onto one line, long text columns alone can blow the width out (Murid Terbaik: Nama 518px + Subjek Lemah 468px + the exam title 238px → 1800px in a 1166px space). Mark such columns `lajur-teks` (260px), `lajur-teks-kecil` (200px) or `lajur-tajuk-ujian` (120px) to let them wrap. Verify a new wide table with `table.offsetWidth <= wrapper.clientWidth`.
+
+### Prestasi muat data (diukur 7 Sep 2026)
+
+Measured on live data, not guessed:
+
+| Step | Time |
+|---|---|
+| HTML load | 0.3s |
+| IndexedDB cache read (3.1 MB) | 0.06s |
+| `students` collection (1,138 docs) | 1.3s |
+| **`rekodMarkah` collection (20,918 docs)** | **16.5s** |
+
+**The landing-page wait is `rekodMarkah`.** `bacaInitialData` fetches the whole collection even though a single calendar year needs only ~8,115 of those 20,918 docs, and the gap widens every year. The IndexedDB cache hides this on repeat visits, but a first visit or a 🔄 Segar Semula pays it in full.
+
+**Not yet fixed** — it sits on the load path every panel depends on. The fix is to filter by `timestamp` range for the wanted year and load other years on demand; before doing so, count how many docs have a missing or malformed `timestamp`, because those would silently vanish from every panel.
+
+**General rule this uncovered:** never read Firestore docs one at a time in a loop. Per-doc reads cost ~113ms each, so 91 of them is ~10s while one filtered query returning the same data is ~0.3s — a 70× difference. See the Trend GPS ETR query above.
 
 ### Firebase Hosting cache
 
