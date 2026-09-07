@@ -1282,8 +1282,8 @@
                             <select id="hct-darjah" onchange="hctLukis()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
                         </label>
                         <label class="block">
-                            <span class="text-xs text-gray-500">Kelas</span>
-                            <select id="hct-kelas" onchange="hctLukis()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
+                            <span class="text-xs text-gray-500">Jenis Peperiksaan</span>
+                            <select id="hct-pep" onchange="hctTukarPep()" class="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"></select>
                         </label>
                         <div class="flex gap-2">
                             <button onclick="hctCSV()" class="flex-1 rounded border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50">📥 CSV</button>
@@ -9053,18 +9053,10 @@
             const jad = document.getElementById('hct-jadual');
             if (!darjah) return;
 
-            // Dropdown kelas: "Semua kelas" + setiap kelas darjah ini
-            const semuaKelas = hcKelasUntukTahun(darjah);
-            const kEl = document.getElementById('hct-kelas');
-            if (kEl.dataset.darjah !== darjah + '_' + cy) {
-                const pilihanLama = kEl.value;
-                kEl.innerHTML = '<option value="">Semua kelas</option>' +
-                    semuaKelas.map(k => `<option value="${k}">${k}</option>`).join('');
-                kEl.dataset.darjah = darjah + '_' + cy;
-                if (pilihanLama && semuaKelas.includes(pilihanLama)) kEl.value = pilihanLama;
-            }
-            const kelasPilih = kEl.value;
-            const kelasSenarai = kelasPilih ? [kelasPilih] : semuaKelas;
+            // Sentiasa semua kelas darjah ini — tab ini melihat pencapaian
+            // peringkat darjah, dan tapisan per-kelas sudah ada di tab lain.
+            const kelasSenarai = hcKelasUntukTahun(darjah);
+            const kelasPilih = '';
 
             jad.innerHTML = '<p class="p-4 text-sm text-gray-500">Mengira…</p>';
 
@@ -9182,6 +9174,7 @@
                 hctPilihan = new Set(ikutLiputan.slice(0, 4).map(x => x.sub));
             }
 
+            hctIsiPep();
             hctRenderKPI();
             hctRenderJadual();
             hctRenderPilihSubjek();
@@ -9189,11 +9182,53 @@
             hctAmaran();
         }
 
+        // Dropdown jenis peperiksaan. "Terkini (auto)" mengekalkan kelakuan asal
+        // iaitu mengikut peperiksaan terakhir yang ada markah. Memilih peperiksaan
+        // tertentu menukar lajur "GPS sekarang" dan "Capai?" supaya guru boleh
+        // menyemak pencapaian sesuatu ujian walaupun ujian lain sudah berlalu.
+        // Graf kekal menunjukkan SEMUA peperiksaan — itulah maksud trend.
+        function hctIsiPep() {
+            const el = document.getElementById('hct-pep');
+            if (!el || !hctData) return;
+            const simpan = el.value;
+            el.innerHTML = '<option value="">Terkini (auto)</option>' +
+                hctData.petaPep.map((p, i) => {
+                    const ada = hctData.gpsKeseluruhan[i].gps != null;
+                    return `<option value="${i}"${ada ? '' : ' disabled'}>${p}${ada ? '' : ' (tiada markah)'}</option>`;
+                }).join('');
+            if (simpan !== '' && el.querySelector(`option[value="${simpan}"]:not([disabled])`)) el.value = simpan;
+        }
+
+        // Indeks peperiksaan yang hendak dipakai untuk lajur "GPS sekarang".
+        // Kosong = peperiksaan terakhir yang ada markah.
+        function hctIdxPep() {
+            const el = document.getElementById('hct-pep');
+            const v = el ? el.value : '';
+            if (v !== '' && hctData && hctData.gpsKeseluruhan[+v] &&
+                hctData.gpsKeseluruhan[+v].gps != null) return +v;
+            if (!hctData) return -1;
+            for (let i = hctData.gpsKeseluruhan.length - 1; i >= 0; i--)
+                if (hctData.gpsKeseluruhan[i].gps != null) return i;
+            return -1;
+        }
+
+        // Tukar peperiksaan: lukis semula paparan sahaja, tiada bacaan Firestore.
+        function hctTukarPep() {
+            if (!hctData) { hctLukis(); return; }
+            hctRenderKPI(); hctRenderJadual(); hctRenderCarta();
+        }
+
         function hctRenderKPI() {
             const d = hctData;
-            const akhir = [...d.gpsKeseluruhan].reverse().find(x => x.gps != null);
-            const pertama = d.gpsKeseluruhan.find(x => x.gps != null);
-            const beza = (akhir && pertama && akhir !== pertama) ? (akhir.gps - pertama.gps) : null;
+            const idxPakai = hctIdxPep();
+            const akhir = idxPakai >= 0 ? d.gpsKeseluruhan[idxPakai] : null;
+            // Kad Perubahan sentiasa menunjukkan trend PENUH (pertama -> terakhir
+            // yang ada markah), bukan sehingga peperiksaan yang dipilih. Memilih
+            // UPSA tidak bermakna trend keseluruhan lenyap.
+            const adaGps = d.gpsKeseluruhan.filter(x => x.gps != null);
+            const pertama = adaGps[0] || null;
+            const terakhir = adaGps[adaGps.length - 1] || null;
+            const beza = (pertama && terakhir && pertama !== terakhir) ? (terakhir.gps - pertama.gps) : null;
             const sasar = hctSasaranSubjek(d.darjah, null);
             const etr = d.etrKeseluruhan.gps;
 
@@ -9221,11 +9256,7 @@
 
         function hctRenderJadual() {
             const d = hctData;
-            const akhirIdx = (() => {
-                for (let i = d.petaPep.length - 1; i >= 0; i--)
-                    if (d.gpsKeseluruhan[i].gps != null) return i;
-                return -1;
-            })();
+            const akhirIdx = hctIdxPep();
 
             const baris = d.subjekAda.map(sub => {
                 const seri = d.gpsSubjek[sub];
@@ -9423,13 +9454,18 @@
             if (hctChart) { hctChart.destroy(); hctChart = null; }
             const d = hctData;
 
+            // Titik peperiksaan yang dipilih dibesarkan supaya guru nampak
+            // di mana kedudukan jadual pada garis masa graf.
+            const idxPakai = hctIdxPep();
+            const saizTitik = (asas) => d.petaPep.map((_, i) => i === idxPakai ? asas + 4 : asas);
+
             const sets = [];
             // Garisan tebal: GPS keseluruhan
             sets.push({
                 label: 'GPS Keseluruhan',
                 data: d.gpsKeseluruhan.map(x => x.gps),
                 borderColor: '#0f766e', backgroundColor: '#0f766e',
-                borderWidth: 3, pointRadius: 4, tension: 0.25, spanGaps: true
+                borderWidth: 3, pointRadius: saizTitik(4), tension: 0.25, spanGaps: true
             });
             // Garis putus-putus: sasaran darjah (mendatar)
             const sasarAll = hctSasaranSubjek(d.darjah, null);
@@ -9448,7 +9484,7 @@
                     data: (d.gpsSubjek[sub] || []).map(x => x.gps),
                     borderColor: HCT_WARNA[i % HCT_WARNA.length],
                     backgroundColor: HCT_WARNA[i % HCT_WARNA.length],
-                    borderWidth: 2, pointRadius: 3, tension: 0.25, spanGaps: true
+                    borderWidth: 2, pointRadius: saizTitik(3), tension: 0.25, spanGaps: true
                 });
             });
 
@@ -9560,7 +9596,8 @@
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = `Trend_GPS_${d.darjah}${d.kelasPilih ? '_' + d.kelasPilih : ''}_${d.cy}.csv`.replace(/\s+/g, '_');
+            const idxP = hctIdxPep();
+            a.download = `Trend_GPS_${d.darjah}_${idxP >= 0 ? d.petaPep[idxP] : ''}_${d.cy}.csv`.replace(/\s+/g, '_');
             document.body.appendChild(a); a.click();
             setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 100);
             showNotification('Muat Turun', `${baris.length} baris dieksport.`, false);
@@ -9589,8 +9626,9 @@
                     p.nota{font-size:9px;color:#666}
                 </style></head><body>
                 <h2>Trend GPS &amp; Sasaran</h2>
-                <p class="sub">Darjah ${d.darjah}${d.kelasPilih ? ' — ' + d.kelasPilih : ' — semua kelas'} ·
-                    Tahun ${d.cy} · ${d.bilMurid} murid<br>
+                <p class="sub">Darjah ${d.darjah} — semua kelas ·
+                    Tahun ${d.cy} · ${d.bilMurid} murid ·
+                    Lajur "GPS sekarang": ${(() => { const i = hctIdxPep(); return i >= 0 ? d.petaPep[i] : '—'; })()}<br>
                     ${kpi} · Dicetak ${new Date().toLocaleDateString('ms-MY')}</p>
                 ${amaran ? `<div style="border:1px solid #d97706;background:#fffbeb;padding:8px;margin:0 0 12px;font-size:10px">${amaran}</div>` : ''}
                 <h3>Sasaran GPS setiap subjek</h3>
