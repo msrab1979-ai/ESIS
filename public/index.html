@@ -2893,18 +2893,26 @@
             await ensureMarksLoaded(yr);
             const kpSet = new Set((muridList || []).map(m => m.no_kp));
             const map = {};
+            const thSet = new Set();   // murid Tidak Hadir bagi subjek+pep ini
             if (subjek && peperiksaan) {
                 getMarksByYear(yr).forEach(m => {
                     if (m.subjek !== subjek || m["JENIS PEPERIKSAAN"] !== peperiksaan) return;
                     if (mod === 'kelas' && (m.tahun !== tahun || m.kelas !== kelas)) return;
                     if (!kpSet.has(m.no_kp)) return;
+                    // TH tiada markah — jangan masuk peta langsung. Murid ini akan
+                    // dilaporkan dalam `th` (bukan `tiada`) supaya pemanggil boleh
+                    // membezakan "tidak hadir" daripada "guru belum isi".
+                    if (isTH(m)) { thSet.add(m.no_kp); return; }
                     const v = parseInt(m.markah);
                     if (!isNaN(v)) map[m.no_kp] = v;
                 });
             }
             const jumpa = (muridList || []).filter(m => map[m.no_kp] != null).map(m => m.no_kp);
+            // `tiada` kekal bermaksud "tiada markah" (termasuk TH) supaya pemanggil
+            // sedia ada tidak berubah kelakuan; `th` diasingkan untuk pelaporan.
             const tiada = (muridList || []).filter(m => map[m.no_kp] == null).map(m => m.no_kp);
-            return { map, jumpa, tiada };
+            const th = (muridList || []).filter(m => thSet.has(m.no_kp)).map(m => m.no_kp);
+            return { map, jumpa, tiada, th };
         }
 
         // Populate year dropdown untuk sesebuah panel
@@ -2952,8 +2960,11 @@
 
             if (!gredSpan) return;
 
-            if (markah >= 0 && markah <= 100) {
-                gred = getGredFromMarkah(markah); 
+            // Baris bertanda TH — papar 'TH' tanpa mengira markah langsung
+            if (inputElement.dataset && inputElement.dataset.th === '1') {
+                gred = GRED_TH;
+            } else if (markah >= 0 && markah <= 100) {
+                gred = getGredFromMarkah(markah);
             } else if (inputElement.value === '') {
                  gred = '';
             } else {
@@ -2961,6 +2972,7 @@
             }
 
             switch (gred.toUpperCase()) {
+                case GRED_TH: colorClass = 'bg-slate-300 text-slate-700'; break;
                 case 'A': colorClass = 'bg-green-200 text-green-800'; break;
                 case 'B': colorClass = 'bg-blue-200 text-blue-800'; break;
                 case 'C': colorClass = 'bg-yellow-200 text-yellow-800'; break;
@@ -2994,6 +3006,35 @@
         // Kira GPS dari kiraan gred {A..F} dan jumlah murid.
         // Gred Gagal/tidak sah = 0 mata tetapi tetap dikira dalam pembahagi (jumlah).
         // Pulangkan nombor (2 t.p.) atau null jika tiada murid.
+        // TH = Tidak Hadir. Bukan markah, bukan gred gagal — murid tiada semasa ujian.
+        // Rekod TH WUJUD dalam Firestore (markah:null, gred:'TH', th:true) supaya kita
+        // tahu guru sudah proses murid itu, tetapi ia DIKECUALIKAN dari setiap kiraan:
+        // bukan 0, bukan F, dan dibuang dari penyebut peratus/GPS.
+        const GRED_TH = 'TH';
+
+        // Betul: rekod ini TH? Terima objek rekod atau nilai markah mentah.
+        function isTH(rekod) {
+            if (rekod == null) return false;
+            if (typeof rekod === 'object') {
+                return rekod.th === true || String(rekod.gred || '').toUpperCase() === GRED_TH;
+            }
+            return String(rekod).trim().toUpperCase() === GRED_TH;
+        }
+
+        // Buang rekod TH dari senarai markah SEBELUM sebarang agregasi.
+        // Guna ini di hulu setiap fungsi analisa supaya TH tidak masuk
+        // pembilang mahupun penyebut — murid tidak hadir tiada markah untuk
+        // dinilai, jadi dia bukan 0, bukan F, dan bukan sebahagian kelas
+        // bagi tujuan peratus/GPS.
+        function tanpaTH(marks) {
+            return (marks || []).filter(m => !isTH(m));
+        }
+
+        // Bilangan rekod TH dalam satu senarai — untuk nota "N murid TH dikecualikan".
+        function bilTH(marks) {
+            return (marks || []).filter(m => isTH(m)).length;
+        }
+
         function kiraGPS(grades, jumlah) {
             const total = jumlah || 0;
             if (total <= 0) return null;
@@ -3050,6 +3091,7 @@
         }
 
         function getGredFromMarkah(markah) {
+            if (isTH(markah)) return GRED_TH;
             const markahNum = parseInt(markah);
             if (isNaN(markahNum) || markahNum < 0 || markahNum > 100) return 'TIDAK SAH';
             
@@ -3947,9 +3989,10 @@
 
             // Tapisan gred dibuat selepas rekod dijumpai supaya mesej ralat dapat
             // membezakan "tiada markah langsung" daripada "tiada murid gred itu".
+            // Murid TH tiada markah — tidak layak disenaraikan sebagai murid terbaik
             const ikutGred = gredPilih
-                ? filteredMarks.filter(m => getGredFromMarkah(m.markah) === gredPilih)
-                : filteredMarks;
+                ? tanpaTH(filteredMarks).filter(m => getGredFromMarkah(m.markah) === gredPilih)
+                : tanpaTH(filteredMarks);
 
             if (ikutGred.length === 0) {
                 showNotification("TIADA MURID",
@@ -5946,9 +5989,13 @@
                         r.subjek.toLowerCase().trim() === subjectName.toLowerCase().trim()
                     );
                 }
-                const markah = markRecord ? markRecord.markah : '-';
-                const gred = markRecord ? markRecord.gred : '-';
-                const markahNum = parseFloat(markah);
+                // TH: papar 'TH' pada kedua-dua lajur; markah null akan kelihatan
+                // kosong dan mengelirukan. Ia tidak masuk JUMLAH MARKAH mahupun
+                // pembahagi peratus.
+                const recTH = markRecord && isTH(markRecord);
+                const markah = recTH ? 'TH' : (markRecord ? markRecord.markah : '-');
+                const gred = recTH ? 'TH' : (markRecord ? markRecord.gred : '-');
+                const markahNum = recTH ? NaN : parseFloat(markah);
                 if (!isNaN(markahNum)) { jumlahMarkah += markahNum; bilSubjekAdaMarkah++; }
                 bil++;
                 tableData.push([String(bil), subjectName, markah, gred]);
@@ -6525,9 +6572,10 @@
                 // Add marks for each subject
                 selectedSubjects.forEach(subjectName => {
                     const markRecord = studentMarks.find(r => r.subjek === subjectName);
-                    const markah = markRecord ? markRecord.markah : '-';
-                    const gred = markRecord ? markRecord.gred : '-';
-                    
+                    const recTH = markRecord && isTH(markRecord);
+                    const markah = recTH ? 'TH' : (markRecord ? markRecord.markah : '-');
+                    const gred = recTH ? 'TH' : (markRecord ? markRecord.gred : '-');
+
                     row.push(markah);
                     row.push(gred);
                 });
@@ -7810,11 +7858,18 @@
             // --- Tarik markah semua subjek utama × semua ujian, sekali sahaja ---
             // arPeta[subjek][pep] = {no_kp: markah}
             const arPeta = {};
+            // arTH[subjek][pep] = Set(no_kp) — murid Tidak Hadir. Diasingkan supaya
+            // laporan boleh membezakan "guru belum masukkan markah" daripada
+            // "murid tidak hadir"; kedua-duanya tiada markah tetapi maksudnya lain.
+            const arTH = {};
             for (const sub of subjekUtama) {
                 arPeta[sub] = {};
+                arTH[sub] = {};
                 for (const pep of petaPep) {
-                    arPeta[sub][pep] = (await cariMarkahMurid({ calYear: cy, subjek: sub,
-                        peperiksaan: pep, muridList: muridSemua, mod: 'no_kp' })).map;
+                    const r = await cariMarkahMurid({ calYear: cy, subjek: sub,
+                        peperiksaan: pep, muridList: muridSemua, mod: 'no_kp' });
+                    arPeta[sub][pep] = r.map;
+                    arTH[sub][pep] = new Set(r.th || []);
                     if (basi()) return;
                 }
             }
@@ -7851,8 +7906,10 @@
                 // supaya guru boleh memilih peperiksaan dalam dropdown dan seluruh
                 // pengelasan dikira semula tanpa menarik data dari Firestore lagi.
                 const butirUjian = petaPep.map(pep => {
-                    const gl = [], lm = [], tm = [];
+                    const gl = [], lm = [], tm = [], th = [];
                     subjekUtama.forEach(sub => {
+                        // TH dahulu — bukan "belum masuk", murid memang tidak hadir
+                        if (arTH[sub][pep] && arTH[sub][pep].has(kp)) { th.push(sub); return; }
                         const v = arPeta[sub][pep][kp];
                         if (v == null || v === '') { tm.push(sub); return; }
                         const x = parseInt(v); if (isNaN(x)) { tm.push(sub); return; }
@@ -7861,12 +7918,16 @@
                         gl.push(g);
                         if (g === 'D' || g === 'E' || g === 'F') lm.push({ sub, markah: x, gred: g });
                     });
-                    return { gredSubjek: gl, lemah: lm, tiadaMarkah: tm,
-                             kump: hcmKumpulan(gl, subjekUtama.length) };
+                    // Subjek TH tidak dikira dalam jumlah subjek teras: murid dengan
+                    // 3A + 1 TH ialah "Full A" atas 3 subjek yang dia duduki, bukan
+                    // ditolak kerana gred keempat yang memang tiada.
+                    return { gredSubjek: gl, lemah: lm, tiadaMarkah: tm, subjekTH: th,
+                             kump: hcmKumpulan(gl, subjekUtama.length - th.length) };
                 });
                 const gredSubjek = butirUjian[akhirIdx].gredSubjek;
                 const lemah = butirUjian[akhirIdx].lemah;
                 const tiadaMarkah = butirUjian[akhirIdx].tiadaMarkah;
+                const subjekTH = butirUjian[akhirIdx].subjekTH;
                 const kump = butirUjian[akhirIdx].kump;
                 if (!kump) return;
 
@@ -7923,7 +7984,7 @@
                     ujian, akhirIdx, purata: purataAkhir, butirUjian,
                     gred: getGredFromMarkah(Math.round(purataAkhir)),
                     kump, kumpUjian, kumpSasar,
-                    lemah, tiadaMarkah,
+                    lemah, tiadaMarkah, subjekTH,
                     lengkap: gredSubjek.length, jumSubjek: subjekUtama.length,
                     etrPurata, etrGred: etrPurata == null ? null : getGredFromMarkah(Math.round(etrPurata)),
                     capaiEtr: etrPurata == null ? null : (purataAkhir >= etrPurata),
@@ -7939,14 +8000,18 @@
                 if (senarai.some(m => m.ujian[i])) { pepAkhir = petaPep[i]; break; }
             }
             const liputan = subjekUtama.map(sub => {
-                let ada = 0;
+                let ada = 0, th = 0;
                 if (pepAkhir) {
                     muridSemua.forEach(m => {
+                        // Murid TH keluar dari penyebut liputan — guru tidak boleh
+                        // "melengkapkan" markah murid yang tidak hadir, jadi
+                        // mengiranya sebagai kekurangan menimbulkan amaran palsu.
+                        if (arTH[sub][pepAkhir] && arTH[sub][pepAkhir].has(m.no_kp)) { th++; return; }
                         const v = arPeta[sub][pepAkhir][m.no_kp];
                         if (v != null && v !== '' && !isNaN(parseInt(v))) ada++;
                     });
                 }
-                return { sub, ada, jum: muridSemua.length };
+                return { sub, ada, th, jum: muridSemua.length - th };
             });
 
             if (basi()) return;
@@ -8026,10 +8091,16 @@
                     ? m.lemah.map(x => `<span class="${gredWarna[x.gred]}">${x.sub} (${x.markah})</span>`).join(', ')
                     : '<span class="text-gray-300">—</span>';
                 // Sebut SUBJEK yang belum masuk — guru terus tahu apa perlu dibuat.
-                const takLengkap = (m.tiadaMarkah && m.tiadaMarkah.length)
+                // TH ditunjuk berasingan (kelabu, bukan amaran): tiada apa guru
+                // boleh buat, murid memang tidak hadir.
+                const bilTHm = (m.subjekTH && m.subjekTH.length) || 0;
+                const thTxt = bilTHm
+                    ? `<div class="text-[10px] text-slate-500" title="Tidak hadir: ${m.subjekTH.join(', ')}">TH: ${m.subjekTH.map(hcmSingkat).join(', ')}</div>`
+                    : '';
+                const takLengkap = ((m.tiadaMarkah && m.tiadaMarkah.length)
                     ? `<div class="text-[10px] text-amber-600" title="Markah belum dimasukkan: ${m.tiadaMarkah.join(', ')}">⚠ ${m.tiadaMarkah.map(hcmSingkat).join(', ')} belum masuk</div>`
-                    : (m.lengkap < m.jumSubjek
-                        ? `<div class="text-[10px] text-amber-600">⚠ ${m.lengkap} dari ${m.jumSubjek} subjek</div>` : '');
+                    : (m.lengkap < (m.jumSubjek - bilTHm)
+                        ? `<div class="text-[10px] text-amber-600">⚠ ${m.lengkap} dari ${m.jumSubjek - bilTHm} subjek</div>` : '')) + thTxt;
                 return `<tr class="hover:bg-gray-50 border-t border-gray-100">
                     <td class="px-3 py-2 text-center text-sm font-semibold text-gray-500">${m.rank}</td>
                     <td class="px-3 py-2 text-sm font-medium text-gray-900 lajur-teks">
@@ -8077,7 +8148,7 @@
             const b = m.butirUjian && m.butirUjian[guna];
             const u = m.ujian[guna];
             if (!b || !u) {
-                m.kump = null; m.gredSubjek = []; m.lemah = []; m.tiadaMarkah = [];
+                m.kump = null; m.gredSubjek = []; m.lemah = []; m.tiadaMarkah = []; m.subjekTH = [];
                 m.purata = 0; m.gred = null; m.lengkap = 0; m.idxGuna = guna;
                 m.capaiEtr = null;
                 return;
@@ -8087,6 +8158,7 @@
             m.gredSubjek = b.gredSubjek;
             m.lemah = b.lemah;
             m.tiadaMarkah = b.tiadaMarkah;
+            m.subjekTH = b.subjekTH || [];
             m.lengkap = b.gredSubjek.length;
             m.purata = u.purata;
             m.gred = getGredFromMarkah(Math.round(u.purata));
@@ -8143,9 +8215,10 @@
                 const tiada = x.jum - x.ada;
                 const pct = Math.round(x.ada / x.jum * 100);
                 const merah = pct < 60;
+                const notaTH = x.th ? ` <span class="text-slate-600">· ${x.th} TH</span>` : '';
                 return `<li class="mt-0.5">
                     <b>${x.sub}</b> — ${x.ada} dari ${x.jum} murid ada markah
-                    <span class="${merah ? 'text-red-700 font-semibold' : 'text-amber-700'}">(${tiada} murid belum)</span>
+                    <span class="${merah ? 'text-red-700 font-semibold' : 'text-amber-700'}">(${tiada} murid belum)</span>${notaTH}
                 </li>`;
             }).join('');
 
@@ -8386,7 +8459,7 @@
             const head = ['Kedudukan', 'Nama', 'Kelas',
                 ...petaPep.map(p => `${p} (gred)`), ...petaPep.map(p => `${p} (purata)`),
                 'Sasaran ETR (gred)', 'Sasaran ETR (purata)', 'Capai Sasaran',
-                'Kumpulan', 'Subjek Lemah', 'Markah Belum Masuk'];
+                'Kumpulan', 'Subjek Lemah', 'Markah Belum Masuk', 'Tidak Hadir (TH)'];
             const baris = papar.map(m => [
                 m.rank, m.nama, m.kelas,
                 ...m.ujian.map(u => u ? getGredFromMarkah(Math.round(u.purata)) : ''),
@@ -8398,6 +8471,7 @@
                 (m.tiadaMarkah && m.tiadaMarkah.length)
                     ? `Belum masuk: ${m.tiadaMarkah.join('; ')}`
                     : 'Lengkap',
+                (m.subjekTH && m.subjekTH.length) ? m.subjekTH.join('; ') : '',
             ].map(esc).join(','));
             const csv = '\ufeff' + [head.map(esc).join(','), ...baris].join('\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -8687,19 +8761,26 @@
             // Tarik markah setiap subjek utama untuk peperiksaan yang dipilih.
             // mod 'no_kp' — murid dalam darjah ini, tak kira kelas.
             const peta = {};
+            const petaTH = {};   // {subjek: Set(no_kp)} — murid Tidak Hadir
             for (const sub of subjekUtama) {
                 const r = await cariMarkahMurid({ calYear: cy, subjek: sub, peperiksaan: pep,
                                                   muridList: muridSemua, mod: 'no_kp' });
                 if (basi()) return;
                 peta[sub] = r.map;
+                petaTH[sub] = new Set(r.th || []);
             }
 
             const senarai = [];
             muridSemua.forEach(m => {
                 const gredSubjek = [];
                 const tiadaMarkah = [];
+                const subjekTH = [];
                 const perSubjek = [];
                 subjekUtama.forEach(sub => {
+                    // TH: murid tidak menduduki subjek ini. Bukan "belum masuk" —
+                    // corak dikira atas subjek yang dia benar-benar ambil, jadi
+                    // 3A + 1 TH ialah corak `3A`, bukan "tidak lengkap".
+                    if (petaTH[sub] && petaTH[sub].has(m.no_kp)) { subjekTH.push(sub); return; }
                     const v = peta[sub][m.no_kp];
                     if (v == null || v === '' || isNaN(parseInt(v))) { tiadaMarkah.push(sub); return; }
                     const x = parseInt(v);
@@ -8714,18 +8795,23 @@
                 if (!gredSubjek.length) return;
                 senarai.push({
                     no_kp: m.no_kp, nama: m.nama || '(tiada nama)', kelas: m.kelas || '—',
-                    gredSubjek, perSubjek, tiadaMarkah,
-                    jumSubjek: subjekUtama.length,
+                    gredSubjek, perSubjek, tiadaMarkah, subjekTH,
+                    jumSubjek: subjekUtama.length - subjekTH.length,
+                    jumSubjekPenuh: subjekUtama.length,
                     purata: perSubjek.reduce((a, b) => a + b.markah, 0) / perSubjek.length,
                 });
             });
 
             // Liputan setiap subjek — supaya guru tahu subjek mana tertinggal
-            const liputan = subjekUtama.map(sub => ({
-                sub,
-                ada: muridSemua.filter(m => peta[sub][m.no_kp] != null).length,
-                jum: muridSemua.length,
-            }));
+            const liputan = subjekUtama.map(sub => {
+                const th = muridSemua.filter(m => petaTH[sub] && petaTH[sub].has(m.no_kp)).length;
+                return {
+                    sub,
+                    ada: muridSemua.filter(m => peta[sub][m.no_kp] != null).length,
+                    th,
+                    jum: muridSemua.length - th,   // TH keluar dari penyebut liputan
+                };
+            });
 
             if (basi()) return;
             hcgData = { darjah, cy, pep, subjekUtama, murid: senarai, liputan,
@@ -8905,13 +8991,15 @@
                 c.label, c.murid.length, c.gps == null ? '' : c.gps.toFixed(2), m.nama, m.kelas,
                 m.perSubjek.map(p => `${p.sub}=${p.gred} (${p.markah})`).join('; '),
                 m.purata.toFixed(1), gpsTeks(m), '',
+                (m.subjekTH && m.subjekTH.length) ? m.subjekTH.join('; ') : '',
             ])));
             takLengkap.forEach(m => baris.push([
                 'TIDAK LENGKAP', takLengkap.length, '', m.nama, m.kelas,
                 m.perSubjek.map(p => `${p.sub}=${p.gred} (${p.markah})`).join('; '),
                 m.purata.toFixed(1), '', m.tiadaMarkah.join('; '),
+                (m.subjekTH && m.subjekTH.length) ? m.subjekTH.join('; ') : '',
             ]));
-            const head = ['Corak', 'Bil murid corak', 'GPS corak', 'Nama', 'Kelas', 'Gred subjek', 'Purata', 'GPS murid', 'Subjek belum masuk'];
+            const head = ['Corak', 'Bil murid corak', 'GPS corak', 'Nama', 'Kelas', 'Gred subjek', 'Purata', 'GPS murid', 'Subjek belum masuk', 'Tidak Hadir (TH)'];
             const csv = '﻿' + [head.map(esc).join(','), ...baris.map(r => r.map(esc).join(','))].join('\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const a = document.createElement('a');
@@ -9000,6 +9088,7 @@
             let bil = 0;
             (senarai || []).forEach(v => {
                 if (v == null || v === '') return;
+                if (isTH(v)) return;          // TH tiada markah — bukan 0, bukan F
                 const x = parseInt(v);
                 if (isNaN(x)) return;
                 const g = getGredFromMarkah(x);
@@ -10194,6 +10283,9 @@
         // %E+F secara palsu. Pulangkan 'rosak' supaya pemanggil boleh kira & lapor.
         function hcTambahGred(bakul, markah) {
             if (markah == null || markah === '') return false;
+            // TH = tidak hadir. Bukan data rosak — sah tetapi dikecualikan terus,
+            // jadi ia tidak masuk pembilang mahupun penyebut.
+            if (isTH(markah)) return false;
             const g = getGredFromMarkah(markah);
             if (bakul[g] !== undefined) { bakul[g]++; return true; }
             if (g === 'Gagal') { bakul.F++; return true; }
@@ -12022,10 +12114,12 @@
                     markahInputCell.className = 'no-print';
                     const markahInput = document.createElement('input');
                     markahInput.type = 'number';
-                    markahInput.value = mark.markah || '';
-                    markahInput.min = 1;
+                    // `|| ''` salah di sini: markah 0 adalah falsy, jadi 0 yang sah
+                    // akan dipapar sebagai kosong dan hilang semasa simpan.
+                    markahInput.value = (mark.markah == null || mark.markah === '') ? '' : mark.markah;
+                    markahInput.min = 0;
                     markahInput.max = 100;
-                    markahInput.placeholder = '1-100';
+                    markahInput.placeholder = '0-100';
                     markahInput.className = 'border border-gray-300 p-2 rounded-md w-full text-sm';
                     markahInput.setAttribute('data-docid', mark.id || '');
                     markahInput.setAttribute('data-nokp', mark.no_kp);
@@ -12033,9 +12127,26 @@
                     markahInput.setAttribute('data-jantina', mark.jantina || '');
                     markahInput.setAttribute('data-agama', mark.agama || '');
 
+                    // Penanda TH pada input — dibaca oleh simpanEditMarkah & updateGredDisplay
+                    const adalahTH = isTH(mark);
+                    markahInput.dataset.th = adalahTH ? '1' : '0';
+                    if (adalahTH) { markahInput.value = ''; markahInput.disabled = true; }
+
+                    // Kotak semak TH (Tidak Hadir) — di bawah input markah
+                    const thWrap = document.createElement('label');
+                    thWrap.className = 'mt-1 flex items-center gap-1 text-xs text-slate-600 cursor-pointer select-none';
+                    const thBox = document.createElement('input');
+                    thBox.type = 'checkbox';
+                    thBox.className = 'h-3.5 w-3.5 accent-slate-500 cursor-pointer';
+                    thBox.checked = adalahTH;
+                    thWrap.appendChild(thBox);
+                    thWrap.appendChild(document.createTextNode('TH'));
+                    thWrap.title = 'Tidak Hadir — tidak dikira dalam sebarang analisis';
+
                     // Kolum Markah Paparan (cetak)
                     const markahDisplayCell = row.insertCell();
-                    markahDisplayCell.textContent = mark.markah || '';
+                    markahDisplayCell.textContent = adalahTH ? GRED_TH
+                        : ((mark.markah == null || mark.markah === '') ? '' : mark.markah);
                     markahDisplayCell.className = 'text-center';
 
                     // Gred Display
@@ -12043,24 +12154,40 @@
                     gredCell.className = 'text-center';
                     gredCell.appendChild(document.createElement('span'));
 
-                    // Tandakan baris "belum diisi" (kuning muda) untuk markah kosong
-                    if (String(markahInput.value).trim() === '') {
-                        row.classList.add('baris-belum-isi');
-                        row.style.backgroundColor = '#fffbeb';
-                    }
+                    // Baris "belum diisi" (kuning muda) = markah kosong DAN bukan TH.
+                    // TH sudah selesai diproses guru, jadi ia tidak kuning.
+                    const tandaBarisKosong = () => {
+                        const kosong = markahInput.dataset.th !== '1' &&
+                                       String(markahInput.value).trim() === '';
+                        row.classList.toggle('baris-belum-isi', kosong);
+                        row.style.backgroundColor = kosong ? '#fffbeb' :
+                                                   (markahInput.dataset.th === '1' ? '#f8fafc' : '');
+                    };
+                    tandaBarisKosong();
 
                     markahInput.oninput = function() {
                         markahDisplayCell.textContent = this.value;
                         updateGredDisplay(this, gredCell);
-                        // Kemas kini penanda baris + banner secara langsung
-                        const kosong = String(this.value).trim() === '';
-                        row.classList.toggle('baris-belum-isi', kosong);
-                        row.style.backgroundColor = kosong ? '#fffbeb' : '';
+                        tandaBarisKosong();
                         this.style.borderColor = '';
                         kemaskiniBannerBelumLengkap();
                     };
+
+                    // Tanda TH → kunci + kosongkan input; buang tanda → hidupkan semula
+                    thBox.onchange = function() {
+                        markahInput.dataset.th = this.checked ? '1' : '0';
+                        markahInput.disabled = this.checked;
+                        if (this.checked) markahInput.value = '';
+                        markahInput.style.borderColor = '';
+                        markahDisplayCell.textContent = this.checked ? GRED_TH : markahInput.value;
+                        updateGredDisplay(markahInput, gredCell);
+                        tandaBarisKosong();
+                        kemaskiniBannerBelumLengkap();
+                    };
+
                     updateGredDisplay(markahInput, gredCell, true);
                     markahInputCell.appendChild(markahInput);
+                    markahInputCell.appendChild(thWrap);
 
                     // Lajur Tindakan wujud bila bukan read-only.
                     // Butang PADAM hanya untuk rekod SEDIA ADA (ada mark.id);
@@ -12082,8 +12209,9 @@
                     }
                 } else {
                     // Mod baca sahaja — paparan markah sahaja
+                    const barisTH = isTH(mark);
                     const markahDisplayCell = row.insertCell();
-                    markahDisplayCell.textContent = mark.markah;
+                    markahDisplayCell.textContent = barisTH ? GRED_TH : mark.markah;
                     markahDisplayCell.className = 'text-center';
 
                     // Gred Display
@@ -12092,7 +12220,8 @@
                     const gredSpan = document.createElement('span');
                     gredCell.appendChild(gredSpan);
                     const dummyInput = document.createElement('input');
-                    dummyInput.value = mark.markah;
+                    dummyInput.value = barisTH ? '' : mark.markah;
+                    dummyInput.dataset.th = barisTH ? '1' : '0';
                     updateGredDisplay(dummyInput, gredCell, true);
                 }
             });
@@ -12108,7 +12237,11 @@
             if (!tableEl) return;
 
             const inputs = document.querySelectorAll('#markah-table-edit input[type="number"]');
-            const kosong = Array.from(inputs).filter(i => String(i.value).trim() === '').length;
+            // TH bukan "belum diisi" — guru sudah proses murid itu
+            const kosong = Array.from(inputs).filter(i =>
+                i.dataset.th !== '1' && String(i.value).trim() === ''
+            ).length;
+            const bilTH = Array.from(inputs).filter(i => i.dataset.th === '1').length;
 
             // Cipta banner jika belum wujud (letak sebelum jadual)
             if (!banner) {
@@ -12119,8 +12252,15 @@
                 parent.insertBefore(banner, tableEl);
             }
 
+            const notaTH = bilTH > 0
+                ? ` <span class="text-slate-600">(${bilTH} murid Tidak Hadir — tidak dikira dalam analisis.)</span>`
+                : '';
+
             if (inputs.length > 0 && kosong > 0) {
-                banner.innerHTML = `📝 <b>Markah belum lengkap</b> — ${kosong} daripada ${inputs.length} murid belum diisi. Anda tetap boleh <b>Simpan</b>; murid yang kosong akan dilangkau dan boleh diisi kemudian.`;
+                banner.innerHTML = `📝 <b>Markah belum lengkap</b> — ${kosong} daripada ${inputs.length} murid belum diisi. Anda tetap boleh <b>Simpan</b>; murid yang kosong akan dilangkau dan boleh diisi kemudian.${notaTH}`;
+                banner.classList.remove('hidden');
+            } else if (inputs.length > 0 && bilTH > 0) {
+                banner.innerHTML = `✅ <b>Markah lengkap</b> —${notaTH}`;
                 banner.classList.remove('hidden');
             } else {
                 banner.classList.add('hidden');
@@ -12140,15 +12280,18 @@
                 return;
             }
             
-            const totalStudents = marks.length;
+            // TH dibuang dari penyebut — murid tidak hadir tiada markah untuk dinilai
+            const marksDinilai = tanpaTH(marks);
+            const jumlahTH = bilTH(marks);
+            const totalStudents = marksDinilai.length;
             const gradesData = {};
-            const gradeCategories = ['A', 'B', 'C', 'D', 'E', 'F']; 
-            
+            const gradeCategories = ['A', 'B', 'C', 'D', 'E', 'F'];
+
             // Initialize grade counts
             gradeCategories.forEach(g => { gradesData[g] = 0; });
-            
+
             // Count grades from the marks data
-            marks.forEach(mark => {
+            marksDinilai.forEach(mark => {
                 const gred = String(mark.gred || '').toUpperCase();
                 if (gradeCategories.includes(gred)) {
                     gradesData[gred]++;
@@ -12198,6 +12341,14 @@
 
             tableDiv.innerHTML = '';
             tableDiv.appendChild(table);
+
+            // Nota TH — supaya guru faham kenapa penyebut lebih kecil dari bil. murid
+            if (jumlahTH > 0) {
+                const nota = document.createElement('p');
+                nota.className = 'mt-2 text-xs text-slate-600';
+                nota.textContent = `Nota: ${jumlahTH} murid Tidak Hadir (TH) dikecualikan daripada kiraan. Peratus dikira atas ${totalStudents} murid.`;
+                tableDiv.appendChild(nota);
+            }
         }
 
         // Semak sama ada exam untuk edit-year semasa berada dalam mod tengok sahaja (aktif === false)
@@ -12233,12 +12384,16 @@
 
             // Semak ada input kosong — BENARKAN SIMPAN SEPARA
             // Sel kosong DILANGKAU (tidak ditulis rekod), sel berisi disimpan.
-            const emptyInputs = Array.from(markahInputs).filter(input => input.value.trim() === '');
-            const filledInputs = Array.from(markahInputs).filter(input => input.value.trim() !== '');
+            // TH diasingkan dahulu — ia BUKAN kosong (ada rekod ditulis) dan
+            // BUKAN markah (tiada nilai). Ia laluan ketiga.
+            const thInputs = Array.from(markahInputs).filter(input => input.dataset.th === '1');
+            const bukanTH = Array.from(markahInputs).filter(input => input.dataset.th !== '1');
+            const emptyInputs = bukanTH.filter(input => input.value.trim() === '');
+            const filledInputs = bukanTH.filter(input => input.value.trim() !== '');
 
-            if (filledInputs.length === 0) {
-                // Betul-betul tiada markah untuk disimpan
-                showNotification("RALAT", "Tiada markah diisi. Sila isi sekurang-kurangnya satu markah.", true);
+            if (filledInputs.length === 0 && thInputs.length === 0) {
+                // Betul-betul tiada apa untuk disimpan
+                showNotification("RALAT", "Tiada markah diisi. Sila isi sekurang-kurangnya satu markah atau tandakan TH.", true);
                 editStatus.textContent = '';
                 return;
             }
@@ -12261,12 +12416,23 @@
             }
 
             markahInputs.forEach((input, index) => {
-                // Langkau sel kosong — jangan tulis rekod (biar boleh diisi lain kali)
-                if (input.value.trim() === '') return;
-                const newMarkah = parseInt(input.value);
-                const gredSpan = input.parentNode.parentNode.querySelector('td span');
-                if (isNaN(newMarkah) || newMarkah < 1 || newMarkah > 100) return;
-                const newGred = gredSpan ? gredSpan.textContent : getGredFromMarkah(newMarkah);
+                const inputTH = input.dataset.th === '1';
+
+                // Langkau sel kosong yang BUKAN TH — jangan tulis rekod
+                // (biar boleh diisi lain kali)
+                if (!inputTH && input.value.trim() === '') return;
+
+                let newMarkah, newGred;
+                if (inputTH) {
+                    // TH — rekod wujud tetapi tiada markah
+                    newMarkah = null;
+                    newGred = GRED_TH;
+                } else {
+                    newMarkah = parseInt(input.value);
+                    if (isNaN(newMarkah) || newMarkah < 0 || newMarkah > 100) return;
+                    const gredSpan = input.parentNode.parentNode.querySelector('td span');
+                    newGred = gredSpan ? gredSpan.textContent : getGredFromMarkah(newMarkah);
+                }
 
                 // Keputusan per-baris (bukan flag global) supaya jadual campuran
                 // (rekod sedia ada + baris kosong baru) dikendali dengan betul.
@@ -12283,6 +12449,7 @@
                         no_kp: nokp, nama, tahun, kelas, subjek, jantina, agama,
                         "JENIS PEPERIKSAAN": peperiksaan,
                         markah: newMarkah, gred: newGred,
+                        th: inputTH,
                         cal_year: calYear,
                         timestamp: firebase.firestore.FieldValue.serverTimestamp()
                     });
@@ -12292,10 +12459,14 @@
                     // Rekod SEDIA ADA — update jika berubah
                     const oldMark = reportMarkahData.find(m => m.id === existingDocId);
                     if (oldMark) {
-                        const changed = parseInt(oldMark.markah) !== newMarkah || oldMark.gred !== newGred;
+                        const lamaTH = isTH(oldMark);
+                        const changed = lamaTH !== inputTH ||
+                                        (!inputTH && parseInt(oldMark.markah) !== newMarkah) ||
+                                        oldMark.gred !== newGred;
                         if (changed) {
                             batch.update(db.collection('rekodMarkah').doc(existingDocId), {
                                 markah: newMarkah, gred: newGred,
+                                th: inputTH,
                                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
                             });
                             updatesCount++;
@@ -12320,13 +12491,15 @@
                 console.log('   ✅ Firestore batch commit SUCCESS!');
                 
                 const bakiKosong = emptyInputs.length;
+                const notaTH = thInputs.length > 0
+                    ? ` (${thInputs.length} murid TH — tidak dikira dalam analisis)` : '';
                 if (bakiKosong > 0) {
-                    showNotification("BERJAYA (SEPARA)", `Berjaya menyimpan ${updatesCount} rekod. ${bakiKosong} murid masih belum diisi — sila lengkapkan kemudian.`, false);
-                    editStatus.textContent = `✅ ${updatesCount} rekod disimpan · ⚠️ ${bakiKosong} murid belum lengkap.`;
+                    showNotification("BERJAYA (SEPARA)", `Berjaya menyimpan ${updatesCount} rekod${notaTH}. ${bakiKosong} murid masih belum diisi — sila lengkapkan kemudian.`, false);
+                    editStatus.textContent = `✅ ${updatesCount} rekod disimpan${notaTH} · ⚠️ ${bakiKosong} murid belum lengkap.`;
                     editStatus.className = 'mt-2 text-sm font-medium text-amber-600';
                 } else {
-                    showNotification("BERJAYA!", `Berjaya mengemas kini ${updatesCount} rekod markah.`, false);
-                    editStatus.textContent = `Penyimpanan ${updatesCount} rekod BERJAYA!`;
+                    showNotification("BERJAYA!", `Berjaya mengemas kini ${updatesCount} rekod markah${notaTH}.`, false);
+                    editStatus.textContent = `Penyimpanan ${updatesCount} rekod BERJAYA!${notaTH}`;
                     editStatus.className = 'mt-2 text-sm font-medium text-green-600';
                 }
                 
@@ -12366,18 +12539,27 @@
                     // Rekod sedia ada — cukup kemas kini setempat (tak perlu reload semua)
                     markahInputs.forEach(input => {
                         const docId = input.getAttribute('data-docid');
-                        if (input.value.trim() === '') return;
-                        const newMarkah = parseInt(input.value);
-                        if (!docId || isNaN(newMarkah)) return;
+                        if (!docId) return;
+                        const inputTH = input.dataset.th === '1';
+                        if (!inputTH && input.value.trim() === '') return;
 
-                        const gredSpan = input.parentNode.parentNode.querySelector('td:last-child span');
-                        const newGred = gredSpan ? gredSpan.textContent : getGredFromMarkah(newMarkah);
+                        let newMarkah, newGred;
+                        if (inputTH) {
+                            newMarkah = null;
+                            newGred = GRED_TH;
+                        } else {
+                            newMarkah = parseInt(input.value);
+                            if (isNaN(newMarkah)) return;
+                            const gredSpan = input.parentNode.parentNode.querySelector('td:last-child span');
+                            newGred = gredSpan ? gredSpan.textContent : getGredFromMarkah(newMarkah);
+                        }
 
                         // Update local cache
                         const localMark = reportMarkahData.find(m => m.id === docId);
                         if (localMark) {
                             localMark.markah = newMarkah;
                             localMark.gred = newGred;
+                            localMark.th = inputTH;
                         }
 
                         // Update GLOBAL_DATA cache
@@ -12385,6 +12567,7 @@
                         if (globalMark) {
                             globalMark.markah = newMarkah;
                             globalMark.gred = newGred;
+                            globalMark.th = inputTH;
                         }
                     });
                     // Clear cache in background (don't wait for it)
@@ -12466,12 +12649,14 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             const peperiksaan = firstRecord["JENIS PEPERIKSAAN"];
             
             // Kira analisa gred
-            const totalStudents = reportMarkahData.length;
+            const _dinilai = tanpaTH(reportMarkahData);
+            const _jumTH = bilTH(reportMarkahData);
+            const totalStudents = _dinilai.length;
             const gradeCategories = ['A', 'B', 'C', 'D', 'E', 'F'];
             const gradesData = {};
             gradeCategories.forEach(g => { gradesData[g] = 0; });
-            
-            reportMarkahData.forEach(mark => {
+
+            _dinilai.forEach(mark => {
                 const gred = String(mark.gred || '').toUpperCase();
                 if (gradeCategories.includes(gred)) {
                     gradesData[gred]++;
@@ -12491,20 +12676,31 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             // Table Markah Pelajar
             csvContent += `Bil,Nama Murid,Markah,Gred\n`;
             reportMarkahData.forEach((mark, index) => {
-                csvContent += `${index + 1},${mark.nama},${mark.markah},${mark.gred}\n`;
+                // TH: markah null akan keluar sebagai medan kosong dan mengelirukan
+                const mTH = isTH(mark);
+                const mk = mTH ? 'TH' : (mark.markah == null ? '' : mark.markah);
+                const gd = mTH ? 'TH' : (mark.gred || '');
+                csvContent += `${index + 1},${mark.nama},${mk},${gd}\n`;
             });
-            
+
             csvContent += `\n`; // Blank line
-            
+
             // Table Analisa Gred
             csvContent += `ANALISA GRED\n`;
             csvContent += `Gred,Bil,Peratus (%)\n`;
-            
+
             gradeCategories.forEach(gred => {
                 const count = gradesData[gred];
                 const percentage = totalStudents > 0 ? ((count / totalStudents) * 100).toFixed(2) : '0.00';
                 csvContent += `${gred},${count},${percentage}\n`;
             });
+
+            // TH dilaporkan berasingan — bukan gred, tidak masuk peratus
+            if (_jumTH > 0) {
+                csvContent += `TH (Tidak Hadir),${_jumTH},-\n`;
+                csvContent += `\n`;
+                csvContent += `Nota,"${_jumTH} murid Tidak Hadir dikecualikan. Peratus dikira atas ${totalStudents} murid."\n`;
+            }
 
             // Download CSV
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -12546,12 +12742,16 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
 
             // Jadual Markah Pelajar
             const markahHeaders = [['BIL', 'NAMA MURID', 'MARKAH', 'GRED']];
-            const markahBody = reportMarkahData.map((mark, index) => [
-                index + 1,
-                mark.nama || 'N/A',
-                String(mark.markah),
-                mark.gred
-            ]);
+            // String(null) mencetak "null" dalam PDF — TH mesti dikendali khusus
+            const markahBody = reportMarkahData.map((mark, index) => {
+                const mTH = isTH(mark);
+                return [
+                    index + 1,
+                    mark.nama || 'N/A',
+                    mTH ? 'TH' : (mark.markah == null ? '-' : String(mark.markah)),
+                    mTH ? 'TH' : (mark.gred || '-')
+                ];
+            });
             
             doc.autoTable({
                 startY: 50,
@@ -12563,12 +12763,14 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             });
 
             // Kira analisa gred
-            const totalStudents = reportMarkahData.length;
+            const _dinilai = tanpaTH(reportMarkahData);
+            const _jumTH = bilTH(reportMarkahData);
+            const totalStudents = _dinilai.length;
             const gradeCategories = ['A', 'B', 'C', 'D', 'E', 'F'];
             const gradesData = {};
             gradeCategories.forEach(g => { gradesData[g] = 0; });
-            
-            reportMarkahData.forEach(mark => {
+
+            _dinilai.forEach(mark => {
                 const gred = String(mark.gred || '').toUpperCase();
                 if (gradeCategories.includes(gred)) {
                     gradesData[gred]++;
@@ -12586,7 +12788,9 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 const percentage = totalStudents > 0 ? ((count / totalStudents) * 100).toFixed(2) : '0.00';
                 return [gred, count, percentage];
             });
-            
+            // TH sebagai baris berasingan — bukan gred, tiada peratus
+            if (_jumTH > 0) analisaBody.push(['TH', _jumTH, '-']);
+
             doc.autoTable({
                 startY: finalY + 5,
                 head: analisaHeaders,
@@ -12595,6 +12799,14 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0] },
                 margin: { left: 10, right: 10 }
             });
+
+            if (_jumTH > 0) {
+                doc.setFontSize(8);
+                doc.text(
+                    `Nota: ${_jumTH} murid Tidak Hadir (TH) dikecualikan. Peratus dikira atas ${totalStudents} murid.`,
+                    15, doc.lastAutoTable.finalY + 6
+                );
+            }
 
             // Save PDF
             const fileName = `LAPORAN_${peperiksaan}_${kelas}_${subjek}_${tahun}.pdf`;
@@ -12723,7 +12935,8 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             const subjectMap = new Map(GLOBAL_DATA.allSubjects.map(s => [s.nama_penuh, s.nama_pendek || s.id]));
             const analisaData = {}; // Cth: { 'BAHASA MELAYU': { A: 5, B: 10, total: 15 }, ... }
 
-            filteredMarks.forEach(mark => {
+            // TH dibuang di hulu — tidak masuk baldi gred mahupun `total`
+            tanpaTH(filteredMarks).forEach(mark => {
                 const subjek = mark.subjek;
                 const gred = String(mark.gred || 'F').toUpperCase();
 
@@ -13237,10 +13450,10 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             // Group by subjek
             const subjekMap = {};
             
-            allMarks.forEach(mark => {
+            tanpaTH(allMarks).forEach(mark => {
                 const subjek = mark.subjek;
                 const gred = String(mark.gred || 'F').toUpperCase();
-                
+
                 if (!subjekMap[subjek]) {
                     subjekMap[subjek] = {
                         subjek: subjek,
@@ -14033,7 +14246,7 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 m.subjek === subjek && m['JENIS PEPERIKSAAN'] === perik
             );
             const agg = {};
-            marks.forEach(m => {
+            tanpaTH(marks).forEach(m => {
                 const d = m.tahun;
                 if (!d) return;
                 if (!agg[d]) agg[d] = { label: d, grades: { A:0, B:0, C:0, D:0, E:0, F:0 }, total: 0 };
@@ -14051,7 +14264,7 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 m.subjek === subjek && m['JENIS PEPERIKSAAN'] === perik && m.tahun === darjah
             );
             const agg = {};
-            filtered.forEach(m => {
+            tanpaTH(filtered).forEach(m => {
                 const yr = String(getTimestampYear(m));
                 if (!yr || yr === 'null' || yr === 'NaN') return;
                 if (!agg[yr]) agg[yr] = { label: yr, grades: { A:0, B:0, C:0, D:0, E:0, F:0 }, total: 0 };
@@ -14568,19 +14781,34 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                         nama: mark.nama,
                         kelas: mark.kelas,
                         subjectMarks: {},
-                        totalMarkah: 0
+                        totalMarkah: 0,
+                        bilSubjekDinilai: 0,
+                        subjekTH: []
                     };
+                }
+                // TH: `parseInt(null) || 0` akan memberi 0 dan menghukum murid yang
+                // tidak hadir. Subjek itu dikeluarkan dari pengangka DAN penyebut.
+                if (isTH(mark)) {
+                    studentMap[mark.no_kp].subjectMarks[mark.subjek] = 'TH';
+                    studentMap[mark.no_kp].subjekTH.push(mark.subjek);
+                    return;
                 }
                 studentMap[mark.no_kp].subjectMarks[mark.subjek] = parseInt(mark.markah) || 0;
                 studentMap[mark.no_kp].totalMarkah += parseInt(mark.markah) || 0;
+                studentMap[mark.no_kp].bilSubjekDinilai++;
             });
             
             mkData = Object.values(studentMap).map(student => {
-                const percentage = (student.totalMarkah / (selectedSubjects.length * 100)) * 100;
+                // Penyebut = subjek yang murid ini benar-benar diduduki (tolak TH),
+                // bukan semua subjek dipilih.
+                const bilDinilai = student.bilSubjekDinilai || 0;
+                const percentage = bilDinilai > 0
+                    ? (student.totalMarkah / (bilDinilai * 100)) * 100
+                    : 0;
                 return {
                     ...student,
                     percentage: percentage.toFixed(2),
-                    gred: getGredFromMarkah(percentage)
+                    gred: bilDinilai > 0 ? getGredFromMarkah(percentage) : 'TH'
                 };
             });
             
@@ -14826,19 +15054,34 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                         nama: mark.nama,
                         kelas: mark.kelas,
                         subjectMarks: {},
-                        totalMarkah: 0
+                        totalMarkah: 0,
+                        bilSubjekDinilai: 0,
+                        subjekTH: []
                     };
+                }
+                // TH: `parseInt(null) || 0` akan memberi 0 dan menghukum murid yang
+                // tidak hadir. Subjek itu dikeluarkan dari pengangka DAN penyebut.
+                if (isTH(mark)) {
+                    studentMap[mark.no_kp].subjectMarks[mark.subjek] = 'TH';
+                    studentMap[mark.no_kp].subjekTH.push(mark.subjek);
+                    return;
                 }
                 studentMap[mark.no_kp].subjectMarks[mark.subjek] = parseInt(mark.markah) || 0;
                 studentMap[mark.no_kp].totalMarkah += parseInt(mark.markah) || 0;
+                studentMap[mark.no_kp].bilSubjekDinilai++;
             });
             
             mtData = Object.values(studentMap).map(student => {
-                const percentage = (student.totalMarkah / (selectedSubjects.length * 100)) * 100;
+                // Penyebut = subjek yang murid ini benar-benar diduduki (tolak TH),
+                // bukan semua subjek dipilih.
+                const bilDinilai = student.bilSubjekDinilai || 0;
+                const percentage = bilDinilai > 0
+                    ? (student.totalMarkah / (bilDinilai * 100)) * 100
+                    : 0;
                 return {
                     ...student,
                     percentage: percentage.toFixed(2),
-                    gred: getGredFromMarkah(percentage)
+                    gred: bilDinilai > 0 ? getGredFromMarkah(percentage) : 'TH'
                 };
             });
             
@@ -15966,11 +16209,15 @@ ${tableHTML}
 
             // Guna getMarksByYear — sama seperti panel lain
             const yearMarks = getMarksByYear(parseInt(year));
-            const marks = yearMarks.filter(m =>
+            // TH dibuang di hulu — jika tidak, 'TH' menjadi lajur gred tersendiri
+            // dan menaikkan jumlah setiap kelas.
+            const marksSemua = yearMarks.filter(m =>
                 (m['JENIS PEPERIKSAAN'] || '') === pep &&
                 (m.tahun || '') === tahun &&
                 (m.subjek || '') === subjek
             );
+            const marks = tanpaTH(marksSemua);
+            const akJumTH = bilTH(marksSemua);
 
             if (!marks.length) {
                 document.getElementById('ak-container').classList.add('hidden');
