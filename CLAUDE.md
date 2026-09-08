@@ -101,6 +101,36 @@ Each exam type in `examTypes` has an `aktif` boolean, toggled in Admin. `aktif: 
 
 Each dropdown level is populated from **two sources merged**: (a) values that already have marks (`getMarksByYear`) — for editing existing records incl. inactive exams in read-only mode; and (b) for **active** exam types, the school structure so teachers can **start entering marks for a brand-new exam that has zero marks yet** — jenis from `examTypes` aktif (`onEditYearChange`), darjah from `examType.darjah` (`onEditPeperiksaanChange`), kelas from `GLOBAL_DATA.allClasses[tahun]` (`onEditTahunChange`). `cariMarkahEdit()` then builds an empty per-student template to fill (~line 7956). Without (b), a new active exam is invisible (chicken-and-egg: no marks → not shown → can't add marks).
 
+### TH (Tidak Hadir) — absent pupils
+
+Teachers tick a **TH** checkbox beside each mark box in Rekod & Laporan. TH is **not a mark and not a failing grade** — the pupil was absent, so there is nothing to assess.
+
+**Three distinct states** (do not collapse them):
+
+| State | Meaning | Firestore |
+|---|---|---|
+| Empty | Teacher has not filled it in yet | **No record** |
+| TH | Teacher checked; pupil was absent | **Record exists**: `{markah: null, gred: 'TH', th: true}` |
+| 0-100 | Real mark | Record exists |
+
+A TH record is written so it is clear the teacher *processed* that pupil — a TH row is therefore **not** highlighted yellow "belum diisi", and does not count toward the incomplete-marks banner.
+
+**Helpers** (declared near the top of the script, before `tanpaTH`/`kiraGPS` — `GRED_TH` is a `const`, so ordering matters):
+- `isTH(rekod)` — accepts a record object *or* a raw value; checks `th === true` or `gred === 'TH'`
+- `tanpaTH(marks)` / `bilTH(marks)` — **use these at the top of every aggregation**, not per-bucket conditionals. 16 call sites.
+
+**The invariant: TH leaves both the numerator and the denominator.** A class of 30 with 2 TH is scored out of 28. This differs from grade `Gagal`, which is 0 points but *stays* in the divisor. Getting this wrong silently drops a class's GPS and % lulus.
+
+**Where the bugs were** (all fixed — do not regress):
+- Four sites bucketed grades with `String(m.gred || 'F')`, turning TH into an F, and ran `total++` unconditionally.
+- **Murid Terbaik** used `parseInt(mark.markah) || 0`, which gave absent pupils **0 marks** and sank their ranking. Percentage now divides by `bilSubjekDinilai` (subjects actually sat), not `selectedSubjects.length`.
+- The report **PDF printed the literal string `"null"`** for a TH mark via `String(mark.markah)`.
+- Coverage warnings counted TH as "markah belum masuk", producing a red warning a teacher could never clear. `cariMarkahMurid` now returns a separate `th` array alongside `tiada`.
+
+**Classification rule:** a pupil with `3A + 1 TH` is **Full A**, and their Corak Gred pattern is `3A` — judged on the subjects they actually sat (`jumSubjek` is reduced by the TH count). This is deliberately different from a pupil with 3A whose fourth subject the teacher simply *has not entered*: that one stays "tidak lengkap", because the grade exists but is unknown. If the school ever decides Full A requires every core subject present, change `hcmKumpulan(gl, subjekUtama.length - th.length)` back to the unadjusted count.
+
+**Related fix — mark 0 was silently lost.** `simpanEditMarkah` rejected anything `< 1` and `renderEditTable` used `mark.markah || ''` (0 is falsy in JS). A teacher entering 0 got a "BERJAYA" message while no record was written. Both now accept 0; `input.min` is 0.
+
 ### Subjek Terlibat (subjects involved per exam type)
 
 `examTypes.subjek` = array of subject `nama_penuh` involved in that exam. **Empty `[]` / missing = ALL subjects** (default; legacy docs are safe). Admin sets it via a dynamically-generated checklist (from `GLOBAL_DATA.allSubjects`, not static HTML) in the Add form (`new-exam-subjek`) and Edit modal (`edit-exam-subjek`) — all checked by default; admin unticks those not involved. Helpers: `renderSubjekChecklist(prefix, selectedNames)`, `setSubjekChecks(prefix, val)`, `bacaSubjekTerlibat(prefix)` (returns `[]` when all/none ticked, else the ticked names). Saved by `tambahJenisPeperiksaan`/`saveEditJenisPeperiksaan`.
