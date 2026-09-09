@@ -265,11 +265,22 @@ Measured on live data, not guessed:
 | HTML load | 0.3s |
 | IndexedDB cache read (3.1 MB) | 0.06s |
 | `students` collection (1,138 docs) | 1.3s |
-| **`rekodMarkah` collection (20,918 docs)** | **16.5s** |
+| **`rekodMarkah` — whole collection (20,925 docs)** | **17.1s** ← what it used to do |
+| `rekodMarkah` — one year only (8,122 docs) | **6.3s** ← what it does now |
 
-**The landing-page wait is `rekodMarkah`.** `bacaInitialData` fetches the whole collection even though a single calendar year needs only ~8,115 of those 20,918 docs, and the gap widens every year. The IndexedDB cache hides this on repeat visits, but a first visit or a 🔄 Segar Semula pays it in full.
+**Fixed (9 Sep 2026) — verified live.** `bacaInitialData` no longer fetches the whole collection: it probes each year with `.limit(1)` **in parallel**, then pulls only the year that has data (8,122 docs, ~6.3s instead of 20,925 docs, ~17.1s). Other years load on demand via `ensureMarksLoaded(year)`. The parallel probe matters in January, when the current year is still empty — a serial loop paid a full round-trip per empty year.
 
-**Not yet fixed** — it sits on the load path every panel depends on. The fix is to filter by `timestamp` range for the wanted year and load other years on demand; before doing so, count how many docs have a missing or malformed `timestamp`, because those would silently vanish from every panel.
+**`timestamp` integrity audited on live data:** 20,925/20,925 docs valid, **0 missing, 0 malformed**, and `cal_year` agrees 100% (2025: 12,803 · 2026: 8,122). Nothing is dropped by the `timestamp` filter. Re-run that audit before switching the query field.
+
+### IndexedDB cache can wedge — always leave a recovery path
+
+A worse landing-page stall hid behind the cache: `ESIS_Cache` can reach a state where **both `open()` and `deleteDatabase()` hang forever** (measured: corrupt DB open = 4000ms timeout, fresh DB name = 6ms). The 5s timeout guard in `initIndexedDB` keeps the app from freezing permanently, but it was charged on **every single load** because nothing ever repaired the DB.
+
+Two rules this produced — do not regress:
+- **Always set `onversionchange`** on an open IndexedDB connection and close it. Without it, this page's own connection blocks any `deleteDatabase`, so the delete hangs and the wedge is permanent.
+- **Recover by renaming, not just deleting.** `pulihIndexedDB()` writes a new DB name to `localStorage` (`esis_db_name`, read by the `CACHE_CONFIG.DB_NAME` getter) and abandons the broken DB, because the delete itself may hang. Deletion is still attempted in the background to reclaim space. Called from both the cache read and write paths.
+
+Symptom to recognise: console shows `❌ Cache read error: IndexedDB timeout (5s)` on every load, and the page takes ~5s longer than the Firestore queries alone explain.
 
 **General rule this uncovered:** never read Firestore docs one at a time in a loop. Per-doc reads cost ~113ms each, so 91 of them is ~10s while one filtered query returning the same data is ~0.3s — a 70× difference. See the Trend GPS ETR query above.
 
