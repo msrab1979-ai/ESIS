@@ -6647,7 +6647,14 @@
         // INDEXEDDB CACHING SYSTEM
         // ========================================
         const CACHE_CONFIG = {
-            DB_NAME: 'ESIS_Cache',
+            // Nama DB disimpan dalam localStorage supaya kalau DB ini rosak
+            // (open/delete tergantung selama-lamanya — pernah berlaku dan TIDAK
+            // boleh dipulihkan dengan deleteDatabase), kita boleh tinggalkan terus
+            // dan mula guna nama baru. Cache hilang sekali, bukan beku 5s selamanya.
+            get DB_NAME() {
+                try { return localStorage.getItem('esis_db_name') || 'ESIS_Cache'; }
+                catch (e) { return 'ESIS_Cache'; }
+            },
             DB_VERSION: 1,
             STORE_NAME: 'data_cache',
             CACHE_DURATION: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
@@ -6676,6 +6683,18 @@
                 request.onsuccess = () => {
                     bersih();
                     dbInstance = request.result;
+
+                    // WAJIB: tanpa ini, sambungan ini menyekat sebarang deleteDatabase
+                    // atau upgrade versi dari tab lain — permintaan padam tergantung
+                    // selama-lamanya dan SETIAP muatan seterusnya bayar timeout 5s
+                    // penuh sebelum jatuh ke Firebase. Tutup & lepaskan bila diminta.
+                    dbInstance.onversionchange = () => {
+                        try { dbInstance.close(); } catch (e) {}
+                        dbInstance = null;
+                        console.warn('⚠️ IndexedDB ditutup (versionchange) — cache dilangkau muatan ini');
+                    };
+                    dbInstance.onclose = () => { dbInstance = null; };
+
                     habis(resolve, dbInstance);
                 };
                 
@@ -6730,6 +6749,7 @@
                 return true;
             } catch (error) {
                 console.error(`❌ Cache save error (${key}):`, error);
+                pulihIndexedDB();   // DB rosak juga menampakkan diri di sini
                 return false;
             }
         }
@@ -6787,8 +6807,41 @@
                 });
             } catch (error) {
                 console.error(`❌ Cache read error (${key}):`, error);
+                // DB tersekat/rosak: buang ia di latar belakang supaya muatan
+                // SETERUSNYA tidak bayar timeout 5s lagi. Tanpa ini, sekali DB
+                // wedged, setiap kali buka app tergantung 5s selama-lamanya.
+                pulihIndexedDB();
                 return null;
             }
+        }
+
+        // Pemulihan DB tersekat — jalan sekali, tidak menyekat muatan semasa.
+        //
+        // Kenapa TUKAR NAMA dan bukan sekadar padam: DB yang rosak boleh jadi
+        // deleteDatabase pun tergantung (disahkan pada data sebenar — open 4000ms
+        // timeout sementara DB nama baru buka dalam 6ms). Kalau kita hanya cuba
+        // padam, setiap muatan seterusnya bayar timeout 5s selama-lamanya. Jadi
+        // kita tinggalkan DB rosak itu dan mula guna nama baru; padam tetap dicuba
+        // di latar belakang untuk melepaskan ruang kalau ia akhirnya berjaya.
+        let pemulihanBerjalan = false;
+        function pulihIndexedDB() {
+            if (pemulihanBerjalan) return;
+            pemulihanBerjalan = true;
+            const namaLama = CACHE_CONFIG.DB_NAME;
+            try { if (dbInstance) { dbInstance.close(); dbInstance = null; } } catch (e) {}
+
+            try {
+                localStorage.setItem('esis_db_name', 'ESIS_Cache_' + Date.now());
+                console.warn(`🧹 Cache '${namaLama}' ditinggalkan (rosak) — guna '${CACHE_CONFIG.DB_NAME}' mulai muatan seterusnya`);
+            } catch (e) {
+                console.warn('🧹 localStorage tidak tersedia — cache dilangkau muatan ini');
+            }
+
+            try {
+                const req = indexedDB.deleteDatabase(namaLama);
+                req.onsuccess = () => console.warn(`🧹 DB lama '${namaLama}' berjaya dibuang`);
+                req.onblocked = () => console.warn(`🧹 Padam '${namaLama}' tersekat — ruang dilepaskan kemudian`);
+            } catch (e) {}
         }
 
         // Clear all cache
@@ -6961,12 +7014,34 @@
                     return data;
                 });
 
-                // 4. Rekod Markah — guna TIMESTAMP, cari tahun terbaru yang ada data
+                // 4. Rekod Markah — guna TIMESTAMP, cari tahun terbaru yang ada data.
+                // Tinjau semua tahun SERENTAK dengan .limit(1) (murah, ~0.1s setiap
+                // satu) supaya tahun kosong tidak dibayar satu demi satu. Cuma tahun
+                // yang betul-betul ada data ditarik penuh. Sebelum ini gelung bersiri:
+                // pada Januari (tahun semasa masih kosong) setiap tahun kosong menambah
+                // satu round-trip penuh sebelum sampai ke tahun yang ada data.
+                const julatTahun = (y) => [
+                    firebase.firestore.Timestamp.fromDate(new Date(y, 0, 1)),
+                    firebase.firestore.Timestamp.fromDate(new Date(y + 1, 0, 1))
+                ];
                 let marksDocs = [];
                 let dataYear = calYear;
-                for (let y = calYear; y >= calYear - 5; y--) {
-                    const startTs = firebase.firestore.Timestamp.fromDate(new Date(y, 0, 1));
-                    const endTs   = firebase.firestore.Timestamp.fromDate(new Date(y + 1, 0, 1));
+                const tahunDisemak = [];
+                for (let y = calYear; y >= calYear - 5; y--) tahunDisemak.push(y);
+
+                const tinjauan = await Promise.all(tahunDisemak.map(y => {
+                    const [startTs, endTs] = julatTahun(y);
+                    return db.collection("rekodMarkah")
+                        .where('timestamp', '>=', startTs)
+                        .where('timestamp', '<', endTs)
+                        .limit(1).get()
+                        .then(s => s.size > 0 ? y : null)
+                        .catch(() => null);
+                }));
+                const tahunAdaData = tinjauan.filter(y => y !== null).sort((a, b) => b - a);
+
+                for (const y of tahunAdaData.slice(0, 1)) {
+                    const [startTs, endTs] = julatTahun(y);
                     const snap = await db.collection("rekodMarkah")
                         .where('timestamp', '>=', startTs)
                         .where('timestamp', '<', endTs).get();
