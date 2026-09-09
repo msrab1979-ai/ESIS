@@ -141,6 +141,10 @@ Filtering applies **only at mark entry**: `onEditKelasChange` restricts the `edi
 
 IndexedDB is used to cache Firestore data client-side. A "force refresh" button in the UI invalidates this cache. Cache keys follow the pattern `year_subject_marks`.
 
+**The cache stores data AFTER processing** — `normalizeAgama`/`normalizeJantina` run on read and the *result* is what gets cached. So a fix that changes how data is interpreted does not reach users who already hold a cache: they keep seeing the old code's output until it expires (24h) or they hit 🔄 Segar Semula, and the fix looks like it did not work.
+
+**`CACHE_CONFIG.DATA_VERSION` (currently 2) guards this.** It is written onto every entry and checked on read, before the expiry check; a mismatch (or a missing `version`, i.e. pre-dating this system) discards the entry and refetches once. **Bump it whenever a change alters how cached data is derived, not only when the data's shape changes** — the shape looking unchanged is exactly what makes this easy to miss. See the IndexedDB wedge section for the separate `DB_NAME` recovery mechanism.
+
 ### Cross-Year Mark Matching (IMPORTANT)
 
 For any mark lookup **across calendar years** (e.g. Headcount TOV = last year's mark, or tracking a pupil's progression), **always match by `no_kp` only** — never by `tahun`/`kelas`. A pupil's `no_kp` is stable, but their `tahun` (darjah) and `kelas` change every year (a ENAM 2026 pupil was LIMA 2025, possibly in a different class). Matching cross-year on `tahun`/`kelas` silently returns 0.
@@ -290,9 +294,19 @@ Symptom to recognise: console shows `❌ Cache read error: IndexedDB timeout (5s
 
 ### Data Normalization
 
-CSV imports normalize:
-- **Agama** (religion): → `"ISLAM"` or `"TIDAK"`
-- **Jantina** (gender): → standardized uppercase format
+`normalizeAgama` / `normalizeJantina` run on every student read (`bacaInitialData`), not on CSV import — the importer stores raw values. They canonicalise spelling variants only:
+
+- **Agama**: `ISLAM` and `TIDAK` are canonical; **any other religion is preserved as-is** (`HINDU`, `KRISTIAN`, …). Empty stays empty.
+- **Jantina**: `LELAKI`/`L` → `L`, `PEREMPUAN`/`P` → `P`. Unknown values preserved, empty stays empty.
+
+**Fixed 9 Sep 2026 — do not regress.** Both functions used to return a default for unrecognised input (`'ISLAM'` and `'L'`), so the school's 2 HINDU + 1 KRISTIAN pupils were displayed as Islam everywhere. Two rules came out of it:
+
+- **Never default an unknown value to the majority case.** Preserve it, or return empty. A silent default is indistinguishable from real data once it is displayed.
+- **A `<select>` must contain an `<option>` for the value it is showing.** The Guru Kelas agama dropdown had only ISLAM/TIDAK, so for a HINDU pupil the browser auto-selected the *first* option — and `simpanEditMurid` then wrote `ISLAM` to Firestore when a teacher edited *any* field on that row (e.g. fixing a name). The dropdowns now emit an extra `<option>` for any out-of-list value. **Grep for other 2-option selects bound to free-form data before adding one.**
+
+Order matters in `normalizeAgama`: `'BUKAN ISLAM'` contains `'ISLAM'`, so the negation is checked first.
+
+All agama filters use `isIslam = (agama === 'ISLAM')` and `!isIslam` for "Tidak" (5 sites), so preserved religions fall into "bukan Islam" correctly with no other change.
 
 ### Deletion Safety
 
