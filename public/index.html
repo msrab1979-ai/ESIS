@@ -6679,6 +6679,15 @@
             DB_VERSION: 1,
             STORE_NAME: 'data_cache',
             CACHE_DURATION: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
+
+            // NAIKKAN nilai ini setiap kali perubahan kod mengubah CARA data
+            // diproses semasa dibaca (cth normalizeAgama/normalizeJantina), bukan
+            // hanya bila bentuk data berubah. Cache menyimpan hasil SELEPAS diproses,
+            // jadi tanpa ini guru terus nampak hasil kod LAMA sehingga cache luput
+            // 24 jam — fix nampak macam tak berkesan walhal sudah live.
+            //
+            // 2 = 9 Sep 2026: normalizeAgama kekalkan HINDU/KRISTIAN (dulu jadi ISLAM)
+            DATA_VERSION: 2,
         };
 
         let dbInstance = null;
@@ -6762,7 +6771,7 @@
                     key: key,
                     data: data,
                     timestamp: Date.now(),
-                    version: '1.0'
+                    version: CACHE_CONFIG.DATA_VERSION
                 };
                 
                 await store.put(cacheEntry);
@@ -6799,6 +6808,19 @@
                             return;
                         }
                         
+                        // Cache ditulis oleh versi kod LAMA — buang. Entri lama
+                        // menyimpan hasil selepas diproses (cth agama sudah ditukar
+                        // jadi ISLAM oleh normalizeAgama lama), jadi memakainya
+                        // bermakna guru terus nampak hasil kod lama walaupun fix
+                        // sudah live. Entri tanpa `version` = sebelum sistem ini.
+                        const versiEntri = result.version;
+                        if (versiEntri !== CACHE_CONFIG.DATA_VERSION) {
+                            console.log(`🔄 Cache versi lama dibuang: ${key} (v${versiEntri == null ? '?' : versiEntri} → v${CACHE_CONFIG.DATA_VERSION})`);
+                            try { deleteFromCache(key); } catch (e) {}
+                            resolve(null);
+                            return;
+                        }
+
                         // Check if cache is expired
                         const age = Date.now() - result.timestamp;
                         if (age > CACHE_CONFIG.CACHE_DURATION) {
