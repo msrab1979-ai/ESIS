@@ -1,0 +1,13 @@
+{
+  "tarikh": "2026-09-09T00:39:56.417Z",
+  "sumber": "Firestore collection 'students' (sistem-esis)",
+  "nota": "Sandaran sebelum fix normalizeAgama. Rekod PENUH bagi murid yang agamanya bukan ISLAM/TIDAK — inilah satu-satunya yang boleh ditulis-ganti oleh dropdown 2-pilihan pada simpanEditMurid.",
+  "jumlahDocStudents": 1138,
+  "taburanAgama": { "ISLAM": 1126, "TIDAK": 9, "HINDU": 2, "KRISTIAN": 1 },
+  "taburanJantina": { "LELAKI": 550, "PEREMPUAN": 579, "P": 5, "L": 4 },
+  "rekodPenuhBerisiko": [
+    { "_docId": "170603080030", "no_kp": "170603080030", "nama": "BHIRYNTAVEE A/P HARIVEEN KUMAR", "agama": "HINDU",    "jantina": "PEREMPUAN", "tahun": "TIGA", "kelas": "PIXEL" },
+    { "_docId": "190220110616", "no_kp": "190220110616", "nama": "MONIESHA A/P UGENDRAN",          "agama": "HINDU",    "jantina": "PEREMPUAN", "tahun": "SATU", "kelas": "PIXEL" },
+    { "_docId": "190401110279", "no_kp": "190401110279", "nama": "BRANDON GANI ANAK SEMAN",        "agama": "KRISTIAN", "jantina": "LELAKI",    "tahun": "SATU", "kelas": "PIXEL" }
+  ]
+}

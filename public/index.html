@@ -2711,21 +2711,31 @@
         
         // Normalize agama values to canonical format (UPPERCASE untuk consistency)
         function normalizeAgama(agama) {
-            if (!agama) return 'ISLAM';
-            const upper = String(agama).toUpperCase().trim();
-            // Map all variations to canonical UPPERCASE values
-            if (upper === 'ISLAM' || upper.includes('ISLAM')) return 'ISLAM';
-            if (upper === 'TIDAK' || upper === 'BUKAN ISLAM' || upper === 'BUKAN' || upper.includes('TIDAK')) return 'TIDAK';
-            return 'ISLAM'; // Default
+            const upper = String(agama == null ? '' : agama).toUpperCase().trim();
+            if (upper === '') return '';   // Kosong kekal kosong — JANGAN teka 'ISLAM'
+            // Seragamkan variasi ejaan kepada dua nilai kanonik
+            if (upper === 'ISLAM' || upper.includes('ISLAM')) {
+                // 'BUKAN ISLAM' juga mengandungi 'ISLAM' — periksa penafian dahulu
+                if (upper.includes('BUKAN') || upper.includes('TIDAK')) return 'TIDAK';
+                return 'ISLAM';
+            }
+            if (upper === 'TIDAK' || upper === 'BUKAN' || upper.includes('TIDAK') || upper.includes('BUKAN')) return 'TIDAK';
+            // Agama lain (HINDU, KRISTIAN, BUDDHA...) DIKEKALKAN.
+            // Dulu fungsi ini memulangkan 'ISLAM' untuk semua nilai tak dikenali,
+            // menyebabkan murid Hindu/Kristian dipapar sebagai Islam. Semua penapis
+            // agama dalam app menggunakan corak isIslam = (agama === 'ISLAM') dan
+            // !isIslam untuk 'Tidak', jadi nilai ini jatuh betul ke kategori
+            // 'bukan Islam' tanpa sebarang perubahan lain.
+            return upper;
         }
         
         // Normalize jantina values to canonical format
         function normalizeJantina(jantina) {
-            if (!jantina) return 'L';
-            const upper = String(jantina).toUpperCase().trim();
+            const upper = String(jantina == null ? '' : jantina).toUpperCase().trim();
+            if (upper === '') return '';   // Kosong kekal kosong — jangan andaikan 'L'
             if (upper === 'L' || upper === 'LELAKI' || upper === 'LAKI-LAKI') return 'L';
             if (upper === 'P' || upper === 'PEREMPUAN') return 'P';
-            return 'L';
+            return upper;   // Nilai tak dikenali dikekalkan, bukan dipaksa jadi 'L'
         }
 
         // Pembolehubah Global
@@ -4133,6 +4143,11 @@
                 // Escape HTML entities untuk prevent XSS
                 const escapedNama = (s.nama || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 const escapedNoKp = (s.no_kp || '').replace(/"/g, '&quot;');
+                // Nilai agama/jantina sedia ada mesti ada <option> sendiri. Tanpa ini
+                // pelayar auto-pilih option PERTAMA, jadi menyimpan murid HINDU tanpa
+                // menyentuh medan agama pun akan menulis-ganti agamanya jadi ISLAM.
+                const escapedAgama = (s.agama || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const escapedJantina = (s.jantina || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 
                 // Build KELAS dropdown options
                 let kelasOptionsHTML = '';
@@ -4167,12 +4182,18 @@
                              <select class="p-1 border border-gray-300 w-full text-sm" data-field="jantina">
                                  <option value="L" ${s.jantina === 'L' ? 'selected' : ''}>L</option>
                                  <option value="P" ${s.jantina === 'P' ? 'selected' : ''}>P</option>
+                                 ${(s.jantina && s.jantina !== 'L' && s.jantina !== 'P')
+                                     ? `<option value="${escapedJantina}" selected>${escapedJantina}</option>`
+                                     : ''}
                              </select>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                             <select class="p-1 border border-gray-300 w-full text-sm" data-field="agama">
                                  <option value="ISLAM" ${s.agama === 'ISLAM' ? 'selected' : ''}>Islam</option>
                                  <option value="TIDAK" ${s.agama === 'TIDAK' ? 'selected' : ''}>Bukan Islam</option>
+                                 ${(s.agama && s.agama !== 'ISLAM' && s.agama !== 'TIDAK')
+                                     ? `<option value="${escapedAgama}" selected>${escapedAgama}</option>`
+                                     : ''}
                             </select>
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-center">
