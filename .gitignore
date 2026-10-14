@@ -13,3 +13,4 @@ node_modules/
 # Skrip sementara / backup manual — jangan commit
 semak_koam_temp.cjs
 public/index.backup.html
+backup/index.sebelum-*.html

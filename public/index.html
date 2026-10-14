@@ -446,6 +446,24 @@
                 <p class="mt-2 text-sm">Surat siaran, pekeliling &amp; makluman terkini.</p>
             </div>
 
+            <!-- MENU ANUGERAH — modul berasingan (anugerah-admin.html), bukan showPanel -->
+            <a id="anugerah-card" href="anugerah-admin.html" class="card-menu block bg-gradient-to-r from-yellow-600 to-amber-700 text-white p-6 rounded-xl shadow-lg cursor-pointer no-underline">
+                <div class="flex items-center justify-between">
+                    <span class="text-4xl">🏆</span>
+                    <h2 class="text-xl font-bold">Anugerah</h2>
+                </div>
+                <p class="mt-2 text-sm">Majlis anugerah — pilih murid dari markah, giliran, tiket &amp; petugas.</p>
+            </a>
+
+            <!-- MENU HELPER SPPB — halaman panduan berasingan (helper-sppb.html) -->
+            <a id="helper-sppb-card" href="helper-sppb.html" class="card-menu block bg-gradient-to-r from-sky-700 to-blue-800 text-white p-6 rounded-xl shadow-lg cursor-pointer no-underline">
+                <div class="flex items-center justify-between">
+                    <span class="text-4xl">📋</span>
+                    <h2 class="text-xl font-bold">Markah ke SPPB</h2>
+                </div>
+                <p class="mt-2 text-sm">Salin markah terus ke borang SPPB &mdash; tak perlu taip semula.</p>
+            </a>
+
             <!-- PANEL ADMIN -->
             <div id="admin-menu-card" onclick="showPanel('admin')" class="card-menu bg-gradient-to-r from-red-500 to-red-600 text-white p-6 rounded-xl shadow-lg cursor-pointer hidden">
                 <div class="flex items-center justify-between">
@@ -566,8 +584,13 @@
                     <button id="btn-simpan-edit" onclick="simpanEditMarkah()" class="bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 transition font-semibold sm:w-1/4">Simpan Markah</button>
                     <button id="btn-padam-markah" onclick="deleteMarkahByFilter()" class="bg-red-600 text-white py-3 rounded-md hover:bg-red-700 transition font-semibold sm:w-1/4">🗑️ Padam Markah</button>
                     <button onclick="exportCSVEdit()" class="bg-indigo-600 text-white py-3 rounded-md hover:bg-indigo-700 transition font-semibold sm:w-1/4">Eksport CSV</button>
+                    <button id="btn-salin-sppb" type="button" onclick="salinUntukSPPB()" title="Salin markah untuk ditampal ke borang SPPB" class="bg-sky-700 text-white py-3 rounded-md hover:bg-sky-800 transition font-semibold sm:w-1/4">📋 Salin untuk SPPB</button>
                     <button onclick="cetakLaporanEditPDF()" class="bg-gray-600 text-white py-3 rounded-md hover:bg-gray-700 transition font-semibold sm:w-1/4">Cetak Laporan (PDF)</button>
                 </div>
+                <p class="mt-3 text-sm text-center text-gray-600 no-print">
+                    Kali pertama guna <b>Salin untuk SPPB</b>?
+                    <a href="helper-sppb.html" target="_blank" class="text-sky-700 font-semibold underline">Baca panduan pasang &rarr;</a>
+                </p>
                 <p id="edit-status" class="mt-2 text-sm font-medium text-center"></p>
             </div>
 
@@ -12389,6 +12412,108 @@
             document.getElementById('edit-readonly-banner').classList.toggle('hidden', !isReadOnly);
             document.getElementById('btn-simpan-edit').classList.toggle('hidden', isReadOnly);
             document.getElementById('btn-padam-markah').classList.toggle('hidden', isReadOnly);
+        }
+
+        // ====== SALIN MARKAH UNTUK BORANG SPPB ======
+        // Baca jadual Rekod & Laporan yang sedang dipapar, salin ke papan klip.
+        // Kunci padanan = no_kp (data-nokp pada setiap input markah).
+        // TIDAK mengubah sebarang data — hanya membaca skrin.
+        // Helper SPPB disokong untuk Chrome sahaja — bookmarklet + papan klip
+        // berkelakuan berbeza di pelayar lain. Edge/Brave guna enjin Chromium yang
+        // sama tetapi nama menu & kekunci berbeza, jadi panduan tidak terpakai.
+        function adalahChromeTulen() {
+            const ua = navigator.userAgent;
+            const adaChrome = /Chrome\//.test(ua);
+            const lain = /Edg\/|OPR\/|Brave\/|SamsungBrowser\//.test(ua);
+            return adaChrome && !lain;
+        }
+
+        function salinUntukSPPB() {
+            if (!adalahChromeTulen()) {
+                showNotification('GUNA GOOGLE CHROME',
+                    'Helper SPPB disokong untuk Google Chrome sahaja. Sila buka ESIS dalam Chrome, kemudian cuba semula.', true);
+                return;
+            }
+
+            const tbody = document.getElementById('markah-table-edit-body');
+            const inputs = tbody ? tbody.querySelectorAll('input[type="number"][data-nokp]') : [];
+
+            if (!inputs.length) {
+                showNotification('TIADA SENARAI',
+                    'Tiada senarai murid di skrin. Sila pilih Darjah, Kelas, Subjek dan klik Cari dahulu.', true);
+                return;
+            }
+
+            const murid = [];
+            inputs.forEach((inp, i) => {
+                const adalahTH = inp.dataset.th === '1';
+                const nilai = String(inp.value || '').trim();
+                murid.push({
+                    bil: i + 1,
+                    nokp: inp.getAttribute('data-nokp') || '',
+                    nama: inp.getAttribute('data-nama') || '',
+                    markah: (adalahTH || nilai === '') ? null : Number(nilai),
+                    th: adalahTH
+                });
+            });
+
+            const bolehIsi = murid.filter(m => m.markah !== null).length;
+            if (bolehIsi === 0) {
+                showNotification('TIADA MARKAH',
+                    'Semua markah masih kosong atau Tidak Hadir. Sila isi markah dahulu.', true);
+                return;
+            }
+
+            const teksPilihan = (id) => {
+                const el = document.getElementById(id);
+                if (!el) return '';
+                const opt = el.options[el.selectedIndex];
+                return opt ? (opt.textContent || '').trim() : '';
+            };
+
+            const bungkusan = {
+                jenisData: 'ESIS-SPPB-v1',
+                masa: new Date().toISOString(),
+                konteks: {
+                    tahun:  teksPilihan('edit-year'),
+                    jenis:  teksPilihan('edit-peperiksaan'),
+                    darjah: teksPilihan('edit-tahun'),
+                    kelas:  teksPilihan('edit-kelas'),
+                    subjek: teksPilihan('edit-subjek')
+                },
+                murid: murid
+            };
+
+            const k = bungkusan.konteks;
+            const bilTHSalin = murid.filter(m => m.th).length;
+            const bilKosong  = murid.filter(m => !m.th && m.markah === null).length;
+
+            const siap = () => {
+                let pesan = `${bolehIsi} markah disalin — ${k.darjah} ${k.kelas}, ${k.subjek}.`;
+                if (bilTHSalin) pesan += ` ${bilTHSalin} murid Tidak Hadir akan dilangkau.`;
+                if (bilKosong)  pesan += ` ${bilKosong} markah kosong akan dilangkau.`;
+                pesan += ' Seterusnya: buka SPPB pada kelas dan subjek yang sama, kemudian klik Tampal SPPB di bar penanda.';
+                showNotification('SALINAN SIAP', pesan, false);
+            };
+
+            const teks = JSON.stringify(bungkusan);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(teks).then(siap).catch(() => salinCaraLamaSPPB(teks, siap));
+            } else {
+                salinCaraLamaSPPB(teks, siap);
+            }
+        }
+
+        function salinCaraLamaSPPB(teks, bilaSiap) {
+            const kotak = document.createElement('textarea');
+            kotak.value = teks;
+            kotak.style.position = 'fixed';
+            kotak.style.top = '-9999px';
+            document.body.appendChild(kotak);
+            kotak.select();
+            try { document.execCommand('copy'); } catch (e) {}
+            document.body.removeChild(kotak);
+            bilaSiap();
         }
 
         function renderAnalisaTable(marks, tableDivId) {

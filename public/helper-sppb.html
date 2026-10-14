@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Helper Markah ESIS ke SPPB</title>
+<link rel="icon" href="favicon.svg">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitter:wght@600;700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono&display=swap">
+<style>
+:root{
+  --tinta:#17408b; --kertas:#faf9f6; --kad:#fff;
+  --teks:#1a1d24; --lembut:#5c6472; --samar:#8b92a1;
+  --garis:#ddd9d0; --garis-kuat:#c4bfb4;
+  --sah:#1a7f45; --amaran:#b45309; --henti:#b4232a; --kod-bg:#f2f0ea;
+  --tajuk:"Bitter",Georgia,serif;
+  --badan:"Source Sans 3",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --tinta:#7ba3e8; --kertas:#14161a; --kad:#1c1f26;
+    --teks:#e9eaed; --lembut:#a0a7b5; --samar:#767d8c;
+    --garis:#2d323c; --garis-kuat:#424857;
+    --sah:#4ab877; --amaran:#d98825; --henti:#e0574f; --kod-bg:#232730;
+  }
+}
+*{box-sizing:border-box}
+body{background:var(--kertas);color:var(--teks);font-family:var(--badan);
+  font-size:17px;line-height:1.65;margin:0;padding:34px 18px 52px}
+.bungkus{max-width:660px;margin:0 auto}
+header{border-bottom:2px solid var(--garis-kuat);padding-bottom:18px;margin-bottom:24px}
+.cop{font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--tinta);margin-bottom:8px}
+h1{font-family:var(--tajuk);font-weight:700;font-size:30px;line-height:1.2;
+  margin:0 0 7px;letter-spacing:-.015em;text-wrap:balance}
+.sari{color:var(--lembut);margin:0;font-size:16.5px}
+
+/* pemilih cara */
+.pilih{display:flex;gap:8px;margin-bottom:20px;background:var(--kod-bg);
+  padding:6px;border-radius:9px}
+.pilih button{flex:1;background:none;border:0;padding:11px 10px;border-radius:7px;
+  font-family:var(--badan);font-size:15.5px;font-weight:600;color:var(--lembut);
+  cursor:pointer;line-height:1.3}
+.pilih button[aria-selected="true"]{background:var(--kad);color:var(--tinta);
+  box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.pilih button:focus-visible{outline:2px solid var(--tinta);outline-offset:-2px}
+
+.langkah{background:var(--kad);border:1px solid var(--garis);border-radius:9px;
+  margin-bottom:14px;overflow:hidden}
+.kepala{display:flex;align-items:center;gap:13px;padding:15px 20px;
+  border-bottom:1px solid var(--garis);background:var(--kod-bg)}
+.bulat{font-family:var(--tajuk);font-weight:700;font-size:17px;color:#fff;
+  background:var(--tinta);width:31px;height:31px;border-radius:50%;
+  display:grid;place-items:center;flex:none}
+.kepala h2{font-family:var(--tajuk);font-weight:600;font-size:18.5px;margin:0;
+  letter-spacing:-.01em}
+.kepala .di{font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--tinta);margin-left:auto;
+  border:1px solid var(--garis-kuat);border-radius:20px;padding:3px 11px;white-space:nowrap}
+.isi{padding:18px 20px}
+.isi p{margin:0 0 10px}
+.isi p:last-child{margin-bottom:0}
+
+kbd{font-family:var(--mono);font-size:14px;background:var(--kad);
+  border:1px solid var(--garis-kuat);border-bottom-width:2px;
+  border-radius:5px;padding:3px 8px;white-space:nowrap}
+code{font-family:var(--mono);font-size:14px;background:var(--kod-bg);
+  padding:2.5px 7px;border-radius:4px}
+
+.btn-salin{background:var(--tinta);color:#fff;border:0;border-radius:7px;
+  padding:14px 26px;font-family:var(--tajuk);font-weight:600;font-size:17px;
+  cursor:pointer;width:100%;box-shadow:0 2px 6px rgba(23,64,139,.28)}
+.btn-salin:hover{filter:brightness(1.08)}
+.btn-salin:focus-visible{outline:3px solid var(--amaran);outline-offset:3px}
+.btn-salin.siap{background:var(--sah)}
+
+.seret{display:inline-block;background:var(--tinta);color:#fff;text-decoration:none;
+  padding:13px 28px;border-radius:7px;font-family:var(--tajuk);font-weight:600;
+  font-size:17px;cursor:grab;box-shadow:0 2px 6px rgba(23,64,139,.28)}
+.seret:active{cursor:grabbing;transform:translateY(1px)}
+.kotak-seret{text-align:center;padding:22px 18px;margin:4px 0 12px;
+  background:var(--kod-bg);border:2px dashed var(--garis-kuat);border-radius:8px}
+.kotak-seret .arah{font-size:14px;color:var(--lembut);margin-top:11px}
+
+.borang{background:var(--kod-bg);border-radius:8px;padding:15px 17px;margin:13px 0}
+.borang .medan{margin-bottom:12px}
+.borang .medan:last-child{margin-bottom:0}
+.borang label{display:block;font-family:var(--mono);font-size:11.5px;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--samar);margin-bottom:5px}
+.borang .nilai{background:var(--kad);border:1px solid var(--garis-kuat);
+  border-radius:6px;padding:9px 12px;font-family:var(--mono);font-size:14px}
+.borang .nilai.tampal{color:var(--tinta);font-weight:600}
+
+.barisan{display:flex;gap:7px;flex-wrap:wrap;margin:13px 0;padding:14px;
+  background:var(--kod-bg);border-radius:7px;overflow-x:auto}
+.btn{font-size:12.5px;padding:7px 11px;border-radius:5px;color:#fff;
+  white-space:nowrap;font-weight:600}
+.b1{background:#2563eb}.b2{background:#dc2626}.b3{background:#4f46e5}
+.b4{background:#0369a1;outline:3px solid var(--amaran);outline-offset:2px}
+.b5{background:#4b5563}
+.tunjuk{font-size:14px;color:var(--amaran);font-weight:700;margin-top:9px}
+
+.nota{border-left:3px solid var(--garis-kuat);padding:11px 0 11px 15px;
+  margin:13px 0;font-size:16px;color:var(--lembut)}
+.nota.amaran{border-left-color:var(--amaran)}
+.nota.sah{border-left-color:var(--sah)}
+.nota.henti{border-left-color:var(--henti)}
+.nota b{color:var(--teks)}
+.nota:last-child{margin-bottom:0}
+
+h3{font-family:var(--tajuk);font-size:18px;margin:26px 0 12px;font-weight:600}
+.kekunci{width:100%;border-collapse:collapse;margin:12px 0;font-size:15.5px}
+.kekunci td{padding:9px 12px 9px 0;border-bottom:1px solid var(--garis);vertical-align:middle}
+.kekunci tr:last-child td{border-bottom:0}
+.kekunci td:first-child{font-family:var(--mono);font-size:11.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--samar);width:92px;white-space:nowrap}
+.chrome-nota{display:flex;align-items:center;gap:11px;background:var(--kod-bg);
+  border:1px solid var(--garis-kuat);border-radius:8px;padding:13px 16px;
+  margin-bottom:20px;font-size:15.5px}
+.chrome-nota .bulat-c{font-size:22px;flex:none}
+table{width:100%;border-collapse:collapse;font-size:15.5px;background:var(--kad);
+  border:1px solid var(--garis);border-radius:8px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--garis);
+  vertical-align:top}
+th{font-family:var(--mono);font-size:11.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--samar);font-weight:400}
+tbody tr:last-child td{border-bottom:0}
+footer{margin-top:30px;padding-top:17px;border-top:1px solid var(--garis);
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--samar);text-align:center}
+</style>
+</head>
+<body>
+<div class="bungkus">
+
+<header>
+  <div class="cop">SK Sultan Ismail · Sistem ESIS</div>
+  <h1>Helper Markah ESIS ke SPPB</h1>
+  <p class="sari">Markah sudah ada di ESIS. Helper salin terus ke borang SPPB — tak perlu taip semula.</p>
+</header>
+
+<div class="chrome-nota">
+  <span class="bulat-c">🌐</span>
+  <div><b>Guna Google Chrome.</b> Helper ini disokong untuk Chrome sahaja — Mac dan Windows.</div>
+</div>
+
+<h3 style="margin-top:0">Pasang helper — pilih satu cara</h3>
+<div class="pilih" role="tablist">
+  <button role="tab" id="tab-tampal" aria-selected="true"  aria-controls="cara-tampal" onclick="tukar('tampal')">Salin &amp; tampal<br><small style="font-weight:400">tiada seret</small></button>
+  <button role="tab" id="tab-seret"  aria-selected="false" aria-controls="cara-seret"  onclick="tukar('seret')">Seret butang<br><small style="font-weight:400">kalau biasa</small></button>
+</div>
+
+<!-- ============ CARA A: SALIN & TAMPAL ============ -->
+<div id="cara-tampal" role="tabpanel" aria-labelledby="tab-tampal">
+
+  <div class="langkah">
+    <div class="kepala"><span class="bulat">1</span><h2>Salin kod helper</h2><span class="di">Klik</span></div>
+    <div class="isi">
+      <button class="btn-salin" id="btnSalinKod" onclick="salinKod()">Salin kod helper</button>
+      <p class="nota" id="statusSalin">Klik butang di atas. Kod akan masuk papan klip.</p>
+    </div>
+  </div>
+
+  <div class="langkah">
+    <div class="kepala"><span class="bulat">2</span><h2>Buka pengurus penanda</h2><span class="di">Chrome</span></div>
+    <div class="isi">
+      <table class="kekunci">
+        <tr><td>Mac</td><td><kbd>Cmd</kbd> + <kbd>Option</kbd> + <kbd>B</kbd></td></tr>
+        <tr><td>Windows</td><td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>O</kbd></td></tr>
+      </table>
+      <p class="nota">Tetingkap <b>Bookmarks</b> / <b>Penanda Halaman</b> akan terbuka.</p>
+    </div>
+  </div>
+
+  <div class="langkah">
+    <div class="kepala"><span class="bulat">3</span><h2>Tambah penanda baharu</h2><span class="di">Klik kanan</span></div>
+    <div class="isi">
+      <p><b>Klik kanan</b> di ruang kosong → pilih <b>Add new bookmark</b> (Tambah penanda baharu).</p>
+      <p>Isi dua kotak ini:</p>
+      <div class="borang">
+        <div class="medan">
+          <label>Name / Nama</label>
+          <div class="nilai">Tampal SPPB</div>
+        </div>
+        <div class="medan">
+          <label>URL</label>
+          <div class="nilai tampal">tekan Cmd+V atau Ctrl+V di sini</div>
+        </div>
+      </div>
+      <p>Tekan <b>Save</b>. Siap — pasang sekali sahaja.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============ CARA B: SERET ============ -->
+<div id="cara-seret" role="tabpanel" aria-labelledby="tab-seret" hidden>
+  <div class="langkah">
+    <div class="kepala"><span class="bulat">1</span><h2>Seret ke bar penanda</h2><span class="di">Sekali sahaja</span></div>
+    <div class="isi">
+      <p><b>Bar penanda mesti nampak dahulu</b> — kalau tidak, seret akan tersasar ke kotak alamat.</p>
+      <table class="kekunci">
+        <tr><td>Mac</td><td><kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd></td></tr>
+        <tr><td>Windows</td><td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd></td></tr>
+      </table>
+      <p>Satu baris kosong akan muncul di bawah kotak alamat. Di situlah anda lepaskan butang.</p>
+      <div class="kotak-seret">
+        <a class="seret" href="javascript:(function%20()%20{%0A%20%20'use%20strict';%0A%20%20function%20bersihKP(v)%20{%0A%20%20%20%20return%20String(v%20||%20'').replace(/%5CD/g,%20'');%0A%20%20}%0A%20%20function%20papar(tajuk,%20isi,%20warna)%20{%0A%20%20%20%20var%20lama%20=%20document.getElementById('pesanSPPB');%0A%20%20%20%20if%20(lama)%20lama.remove();%0A%20%20%20%20var%20k%20=%20document.createElement('div');%0A%20%20%20%20k.id%20=%20'pesanSPPB';%0A%20%20%20%20k.style.cssText%20=%0A%20%20%20%20%20%20'position:fixed;top:18px;right:18px;z-index:2147483647;background:#fff;'%20+%0A%20%20%20%20%20%20'border-left:6px%20solid%20'%20+%20warna%20+%20';box-shadow:0%206px%2024px%20rgba(0,0,0,.28);'%20+%0A%20%20%20%20%20%20'border-radius:9px;padding:17px%2021px;max-width:430px;max-height:82vh;overflow:auto;'%20+%0A%20%20%20%20%20%20'font:14px/1.55%20system-ui,-apple-system,sans-serif;color:#15181e';%0A%20%20%20%20var%20h%20=%20document.createElement('div');%0A%20%20%20%20h.style.cssText%20=%20'font-weight:700;font-size:15.5px;margin-bottom:9px';%0A%20%20%20%20h.textContent%20=%20tajuk;%0A%20%20%20%20var%20b%20=%20document.createElement('div');%0A%20%20%20%20b.style.cssText%20=%20'white-space:pre-wrap';%0A%20%20%20%20b.textContent%20=%20isi;%0A%20%20%20%20var%20t%20=%20document.createElement('button');%0A%20%20%20%20t.textContent%20=%20'Tutup';%0A%20%20%20%20t.style.cssText%20=%20'margin-top:13px;background:#374151;color:#fff;border:0;'%20+%0A%20%20%20%20%20%20'border-radius:6px;padding:7px%2015px;cursor:pointer;font-size:13px';%0A%20%20%20%20t.onclick%20=%20function%20()%20{%20k.remove();%20};%0A%20%20%20%20k.appendChild(h);%20k.appendChild(b);%20k.appendChild(t);%0A%20%20%20%20document.body.appendChild(k);%0A%20%20}%0A%20%20function%20bacaSPPB()%20{%0A%20%20%20%20var%20out%20=%20[];%0A%20%20%20%20document.querySelectorAll('tr').forEach(function%20(baris)%20{%0A%20%20%20%20%20%20var%20sel%20=%20baris.querySelectorAll('td');%0A%20%20%20%20%20%20if%20(sel.length%20%3C%205)%20return;%0A%20%20%20%20%20%20var%20bil%20=%20(sel[0].textContent%20||%20'').trim();%0A%20%20%20%20%20%20if%20(!/^%5Cd+$/.test(bil))%20return;%0A%20%20%20%20%20%20var%20kotak%20=%20baris.querySelector('input[type=&quot;number&quot;]');%0A%20%20%20%20%20%20if%20(!kotak)%20return;%0A%20%20%20%20%20%20out.push({%0A%20%20%20%20%20%20%20%20bil:%20parseInt(bil,%2010),%0A%20%20%20%20%20%20%20%20nama:%20(sel[1].textContent%20||%20'').trim(),%0A%20%20%20%20%20%20%20%20kp:%20bersihKP(sel[2].textContent),%0A%20%20%20%20%20%20%20%20kotak:%20kotak%0A%20%20%20%20%20%20});%0A%20%20%20%20});%0A%20%20%20%20return%20out;%0A%20%20}%0A%20%20function%20isi(kotak,%20nilai)%20{%0A%20%20%20%20var%20d%20=%20Object.getOwnPropertyDescriptor(Object.getPrototypeOf(kotak),%20'value');%0A%20%20%20%20if%20(d%20&amp;&amp;%20d.set)%20{%20d.set.call(kotak,%20String(nilai));%20}%20else%20{%20kotak.value%20=%20String(nilai);%20}%0A%20%20%20%20kotak.dispatchEvent(new%20Event('input',%20{%20bubbles:%20true%20}));%0A%20%20%20%20kotak.dispatchEvent(new%20Event('change',%20{%20bubbles:%20true%20}));%0A%20%20%20%20kotak.dispatchEvent(new%20Event('blur',%20{%20bubbles:%20true%20}));%0A%20%20}%0A%20%20function%20mula(teks)%20{%0A%20%20%20%20var%20data;%0A%20%20%20%20try%20{%20data%20=%20JSON.parse(teks);%20}%20catch%20(e)%20{%0A%20%20%20%20%20%20papar('Data%20tidak%20dikenali',%0A%20%20%20%20%20%20%20%20'Papan%20klip%20tidak%20mengandungi%20data%20ESIS.%5Cn%5Cn'%20+%0A%20%20%20%20%20%20%20%20'Pergi%20ke%20ESIS%20%3E%20Rekod%20&amp;%20Laporan,%20klik%20&quot;Salin%20untuk%20SPPB&quot;%20dahulu.',%20'#b4232a');%0A%20%20%20%20%20%20return;%0A%20%20%20%20}%0A%20%20%20%20if%20(!data%20||%20data.jenisData%20!==%20'ESIS-SPPB-v1'%20||%20!Array.isArray(data.murid))%20{%0A%20%20%20%20%20%20papar('Data%20tidak%20dikenali',%20'Format%20tidak%20sepadan.%20Sila%20salin%20semula%20dari%20ESIS.',%20'#b4232a');%0A%20%20%20%20%20%20return;%0A%20%20%20%20}%0A%20%20%20%20var%20sppb%20=%20bacaSPPB();%0A%20%20%20%20if%20(!sppb.length)%20{%0A%20%20%20%20%20%20papar('Jadual%20tidak%20dijumpai',%0A%20%20%20%20%20%20%20%20'Tiada%20senarai%20murid%20di%20skrin%20SPPB.%5Cn%5Cn'%20+%0A%20%20%20%20%20%20%20%20'Pastikan%20anda%20di%20skrin%20Pentaksiran%20Bilik%20Darjah%20dengan%20senarai%20murid%20terpapar.',%20'#b4232a');%0A%20%20%20%20%20%20return;%0A%20%20%20%20}%0A%20%20%20%20var%20k%20=%20data.konteks%20||%20{};%0A%20%20%20%20var%20konteks%20=%20(k.darjah%20||%20'')%20+%20'%20'%20+%20(k.kelas%20||%20'')%20+%20'%20%E2%80%94%20'%20+%20(k.subjek%20||%20'');%0A%20%20%20%20var%20tiadaKP%20=%20sppb.filter(function%20(b)%20{%20return%20!b.kp;%20}).length;%0A%20%20%20%20if%20(tiadaKP%20===%20sppb.length)%20{%0A%20%20%20%20%20%20papar('Tiada%20No.%20KP%20di%20SPPB',%0A%20%20%20%20%20%20%20%20'Tiada%20apa%20diisi.%5Cn%5CnHelper%20tidak%20menemui%20lajur%20ID%20Pengenalan.%5Cn'%20+%0A%20%20%20%20%20%20%20%20'Pastikan%20jadual%20murid%20terpapar%20penuh.',%20'#b4232a');%0A%20%20%20%20%20%20return;%0A%20%20%20%20}%0A%20%20%20%20var%20peta%20=%20{};%0A%20%20%20%20data.murid.forEach(function%20(m)%20{%0A%20%20%20%20%20%20var%20kp%20=%20bersihKP(m.nokp);%0A%20%20%20%20%20%20if%20(kp)%20peta[kp]%20=%20m;%0A%20%20%20%20});%0A%20%20%20%20var%20takJumpa%20=%20[],%20pasang%20=%20[];%0A%20%20%20%20sppb.forEach(function%20(b)%20{%0A%20%20%20%20%20%20var%20m%20=%20peta[b.kp];%0A%20%20%20%20%20%20if%20(!m)%20{%20takJumpa.push(b.bil%20+%20'.%20'%20+%20b.nama);%20}%20else%20{%20pasang.push({%20s:%20b,%20e:%20m%20});%20}%0A%20%20%20%20});%0A%20%20%20%20if%20(takJumpa.length)%20{%0A%20%20%20%20%20%20papar('BERHENTI%20%E2%80%94%20No.%20KP%20tidak%20padan',%0A%20%20%20%20%20%20%20%20'Tiada%20apa%20diisi.%5Cn%5Cn'%20+%20takJumpa.length%20+%20'%20murid%20di%20SPPB%20tidak%20dijumpai%20di%20ESIS:%5Cn%5Cn'%20+%0A%20%20%20%20%20%20%20%20takJumpa.slice(0,%2012).join('%5Cn')%20+%0A%20%20%20%20%20%20%20%20(takJumpa.length%20%3E%2012%20?%20'%5Cn%E2%80%A6dan%20'%20+%20(takJumpa.length%20-%2012)%20+%20'%20lagi'%20:%20'')%20+%0A%20%20%20%20%20%20%20%20'%5Cn%5CnSemak:%20kelas%20dan%20subjek%20sama?%20Ada%20murid%20baru%20masuk?%5Cn%5CnData%20ESIS:%20'%20+%20konteks,%20'#b4232a');%0A%20%20%20%20%20%20return;%0A%20%20%20%20}%0A%20%20%20%20if%20(sppb.length%20!==%20data.murid.length)%20{%0A%20%20%20%20%20%20papar('BERHENTI%20%E2%80%94%20bilangan%20murid%20berbeza',%0A%20%20%20%20%20%20%20%20'Tiada%20apa%20diisi.%5Cn%5CnSPPB:%20'%20+%20sppb.length%20+%20'%20murid%5CnESIS:%20'%20+%20data.murid.length%20+%20'%20murid%5Cn%5Cn'%20+%0A%20%20%20%20%20%20%20%20'Semak%20kelas%20yang%20dipilih%20di%20kedua-dua%20sistem.',%20'#b4232a');%0A%20%20%20%20%20%20return;%0A%20%20%20%20}%0A%20%20%20%20var%20akanIsi%20=%20[],%20th%20=%20[],%20kosong%20=%20[];%0A%20%20%20%20pasang.forEach(function%20(p)%20{%0A%20%20%20%20%20%20if%20(p.e.th)%20{%20th.push(p.s.bil%20+%20'.%20'%20+%20p.s.nama);%20}%0A%20%20%20%20%20%20else%20if%20(p.e.markah%20===%20null%20||%20p.e.markah%20===%20undefined)%20{%20kosong.push(p.s.bil%20+%20'.%20'%20+%20p.s.nama);%20}%0A%20%20%20%20%20%20else%20{%20akanIsi.push(p);%20}%0A%20%20%20%20});%0A%20%20%20%20if%20(!akanIsi.length)%20{%0A%20%20%20%20%20%20papar('Tiada%20markah%20untuk%20diisi',%0A%20%20%20%20%20%20%20%20'Semua%20murid%20Tidak%20Hadir%20atau%20markah%20kosong%20di%20ESIS.',%20'#b45309');%0A%20%20%20%20%20%20return;%0A%20%20%20%20}%0A%20%20%20%20var%20soal%20=%20'TAMPAL%20MARKAH%20KE%20SPPB%5Cn%5Cn'%20+%0A%20%20%20%20%20%20'Dari%20ESIS:%20'%20+%20konteks%20+%20'%5Cn%5Cn'%20+%0A%20%20%20%20%20%20'Akan%20diisi:%20'%20+%20akanIsi.length%20+%20'%20murid%5Cn'%20+%0A%20%20%20%20%20%20(th.length%20?%20'Tidak%20Hadir%20(dilangkau):%20'%20+%20th.length%20+%20'%20murid%5Cn'%20:%20'')%20+%0A%20%20%20%20%20%20(kosong.length%20?%20'Markah%20kosong%20(dilangkau):%20'%20+%20kosong.length%20+%20'%20murid%5Cn'%20:%20'')%20+%0A%20%20%20%20%20%20'%5CnSemua%20No.%20KP%20padan.%5Cn%5Cn'%20+%0A%20%20%20%20%20%20'Helper%20HANYA%20isi%20kotak%20Skor.%5CnAnda%20yang%20tekan%20Simpan%20selepas%20semak.%5Cn%5CnTeruskan?';%0A%20%20%20%20if%20(!window.confirm(soal))%20return;%0A%20%20%20%20var%20n%20=%200;%0A%20%20%20%20akanIsi.forEach(function%20(p)%20{%0A%20%20%20%20%20%20try%20{%20isi(p.s.kotak,%20p.e.markah);%20n++;%20}%20catch%20(e)%20{}%0A%20%20%20%20});%0A%20%20%20%20var%20lap%20=%20n%20+%20'%20markah%20telah%20diisi.%5Cn%5Cn';%0A%20%20%20%20if%20(th.length)%20lap%20+=%20'TIDAK%20HADIR%20%E2%80%94%20sila%20guru%20isi%20sendiri:%5Cn'%20+%20th.join('%5Cn')%20+%20'%5Cn%5Cn';%0A%20%20%20%20if%20(kosong.length)%20lap%20+=%20'Markah%20kosong%20di%20ESIS:%5Cn'%20+%20kosong.join('%5Cn')%20+%20'%5Cn%5Cn';%0A%20%20%20%20lap%20+=%20'Semak%20markah%20di%20skrin,%20kemudian%20tekan%20SIMPAN%20sendiri.%5CnHelper%20tidak%20menekan%20Simpan.';%0A%20%20%20%20papar('Siap',%20lap,%20'#1a7f45');%0A%20%20}%0A%20%20if%20(navigator.clipboard%20&amp;&amp;%20navigator.clipboard.readText)%20{%0A%20%20%20%20navigator.clipboard.readText().then(mula).catch(function%20()%20{%0A%20%20%20%20%20%20var%20t%20=%20window.prompt('Tampal%20data%20ESIS%20di%20sini%20(Cmd+V%20atau%20Ctrl+V):',%20'');%0A%20%20%20%20%20%20if%20(t)%20mula(t);%0A%20%20%20%20});%0A%20%20}%20else%20{%0A%20%20%20%20var%20t%20=%20window.prompt('Tampal%20data%20ESIS%20di%20sini%20(Cmd+V%20atau%20Ctrl+V):',%20'');%0A%20%20%20%20if%20(t)%20mula(t);%0A%20%20}%0A})();">Tampal SPPB</a>
+        <div class="arah">Tahan, seret ke atas, lepas di bar penanda</div>
+      </div>
+      <p class="nota">Seret tak jadi? Guna cara <b>Salin &amp; tampal</b> di atas.</p>
+    </div>
+  </div>
+</div>
+
+<h3>Cara guna setiap kali</h3>
+
+<div class="langkah">
+  <div class="kepala"><span class="bulat">1</span><h2>Klik Salin</h2><span class="di">Di ESIS</span></div>
+  <div class="isi">
+    <p><b>Rekod &amp; Laporan</b> → pilih Darjah, Kelas, Subjek → <b>Cari</b> → scroll <b>bawah sekali</b>.</p>
+    <div class="barisan">
+      <span class="btn b1">Simpan Markah</span>
+      <span class="btn b2">🗑️ Padam</span>
+      <span class="btn b3">Eksport CSV</span>
+      <span class="btn b4">📋 Salin untuk SPPB</span>
+      <span class="btn b5">Cetak PDF</span>
+    </div>
+    <p class="tunjuk">↑ Klik butang biru tua ini</p>
+    <p class="nota sah">Keluar mesej <b>“SALINAN SIAP — 32 markah disalin”</b>? Berjaya.</p>
+  </div>
+</div>
+
+<div class="langkah">
+  <div class="kepala"><span class="bulat">2</span><h2>Buka kelas yang sama</h2><span class="di">Di SPPB</span></div>
+  <div class="isi">
+    <p>Pergi ke skrin <b>Pentaksiran Bilik Darjah</b>. Senarai murid mesti terpapar.</p>
+    <p class="nota amaran">Kelas dan subjek mesti <b>SAMA</b> dengan yang disalin. Helper tidak menyemak subjek — itu tugas anda.</p>
+  </div>
+</div>
+
+<div class="langkah">
+  <div class="kepala"><span class="bulat">3</span><h2>Klik Tampal SPPB</h2><span class="di">Bar penanda</span></div>
+  <div class="isi">
+    <p>Klik <b>Tampal SPPB</b> di bar penanda. Helper tanya dahulu:</p>
+    <p class="nota"><b>Dari ESIS: ENAM PENTIUM — PEND. JASMANI</b><br>Akan diisi: 32 murid<br>Teruskan?</p>
+    <p><b>Baca baris pertama.</b> Padan dengan tajuk di skrin SPPB? Tekan <b>OK</b>.</p>
+  </div>
+</div>
+
+<div class="langkah">
+  <div class="kepala"><span class="bulat">4</span><h2>Semak, kemudian Simpan</h2><span class="di">Anda sendiri</span></div>
+  <div class="isi">
+    <p>Markah terisi. <b>Semak murid pertama dan terakhir.</b> Puas hati? Tekan <b>Simpan</b> di SPPB.</p>
+    <p class="nota henti">Helper <b>tidak</b> tekan Simpan. Itu sengaja — markah ialah rekod rasmi murid.</p>
+  </div>
+</div>
+
+<h3>Kalau helper berhenti</h3>
+<table>
+<thead><tr><th>Mesej</th><th>Maksud &amp; tindakan</th></tr></thead>
+<tbody>
+<tr><td><b>No. KP tidak padan</b></td><td>Kelas atau subjek tersilap pilih. Semak kedua-dua sistem.</td></tr>
+<tr><td><b>Bilangan murid berbeza</b></td><td>ESIS dan SPPB bukan kelas yang sama.</td></tr>
+<tr><td><b>Data tidak dikenali</b></td><td>Klik <b>Salin untuk SPPB</b> di ESIS dahulu.</td></tr>
+<tr><td><b>Jadual tidak dijumpai</b></td><td>Senarai murid belum terpapar di SPPB.</td></tr>
+</tbody>
+</table>
+<p class="nota">Bila helper berhenti, ia <b>tidak mengisi apa-apa langsung</b> — tiada markah tersilap masuk.</p>
+
+<h3>Murid Tidak Hadir</h3>
+<p class="nota amaran">Murid bertanda <b>TH</b> di ESIS <b>dilangkau</b>. Helper senaraikan nama mereka selepas tampal — <b>guru isi sendiri di SPPB</b>.</p>
+
+<h3>Kenapa markah tak boleh tersilap murid</h3>
+<p class="nota sah">Helper padan guna <b>No. Kad Pengenalan</b> — bukan nama, bukan susunan baris. Walaupun susunan murid di SPPB berbeza daripada ESIS, markah tetap masuk kepada murid yang betul.</p>
+
+<footer>Helper ESIS ke SPPB · Tiada data dihantar ke pihak ketiga</footer>
+
+</div>
+
+<script>
+var KOD_HELPER = "javascript:(function%20()%20{%0A%20%20'use%20strict';%0A%20%20function%20bersihKP(v)%20{%0A%20%20%20%20return%20String(v%20||%20'').replace(/%5CD/g,%20'');%0A%20%20}%0A%20%20function%20papar(tajuk,%20isi,%20warna)%20{%0A%20%20%20%20var%20lama%20=%20document.getElementById('pesanSPPB');%0A%20%20%20%20if%20(lama)%20lama.remove();%0A%20%20%20%20var%20k%20=%20document.createElement('div');%0A%20%20%20%20k.id%20=%20'pesanSPPB';%0A%20%20%20%20k.style.cssText%20=%0A%20%20%20%20%20%20'position:fixed;top:18px;right:18px;z-index:2147483647;background:#fff;'%20+%0A%20%20%20%20%20%20'border-left:6px%20solid%20'%20+%20warna%20+%20';box-shadow:0%206px%2024px%20rgba(0,0,0,.28);'%20+%0A%20%20%20%20%20%20'border-radius:9px;padding:17px%2021px;max-width:430px;max-height:82vh;overflow:auto;'%20+%0A%20%20%20%20%20%20'font:14px/1.55%20system-ui,-apple-system,sans-serif;color:#15181e';%0A%20%20%20%20var%20h%20=%20document.createElement('div');%0A%20%20%20%20h.style.cssText%20=%20'font-weight:700;font-size:15.5px;margin-bottom:9px';%0A%20%20%20%20h.textContent%20=%20tajuk;%0A%20%20%20%20var%20b%20=%20document.createElement('div');%0A%20%20%20%20b.style.cssText%20=%20'white-space:pre-wrap';%0A%20%20%20%20b.textContent%20=%20isi;%0A%20%20%20%20var%20t%20=%20document.createElement('button');%0A%20%20%20%20t.textContent%20=%20'Tutup';%0A%20%20%20%20t.style.cssText%20=%20'margin-top:13px;background:#374151;color:#fff;border:0;'%20+%0A%20%20%20%20%20%20'border-radius:6px;padding:7px%2015px;cursor:pointer;font-size:13px';%0A%20%20%20%20t.onclick%20=%20function%20()%20{%20k.remove();%20};%0A%20%20%20%20k.appendChild(h);%20k.appendChild(b);%20k.appendChild(t);%0A%20%20%20%20document.body.appendChild(k);%0A%20%20}%0A%20%20function%20bacaSPPB()%20{%0A%20%20%20%20var%20out%20=%20[];%0A%20%20%20%20document.querySelectorAll('tr').forEach(function%20(baris)%20{%0A%20%20%20%20%20%20var%20sel%20=%20baris.querySelectorAll('td');%0A%20%20%20%20%20%20if%20(sel.length%20%3C%205)%20return;%0A%20%20%20%20%20%20var%20bil%20=%20(sel[0].textContent%20||%20'').trim();%0A%20%20%20%20%20%20if%20(!/^%5Cd+$/.test(bil))%20return;%0A%20%20%20%20%20%20var%20kotak%20=%20baris.querySelector('input[type=\"number\"]');%0A%20%20%20%20%20%20if%20(!kotak)%20return;%0A%20%20%20%20%20%20out.push({%0A%20%20%20%20%20%20%20%20bil:%20parseInt(bil,%2010),%0A%20%20%20%20%20%20%20%20nama:%20(sel[1].textContent%20||%20'').trim(),%0A%20%20%20%20%20%20%20%20kp:%20bersihKP(sel[2].textContent),%0A%20%20%20%20%20%20%20%20kotak:%20kotak%0A%20%20%20%20%20%20});%0A%20%20%20%20});%0A%20%20%20%20return%20out;%0A%20%20}%0A%20%20function%20isi(kotak,%20nilai)%20{%0A%20%20%20%20var%20d%20=%20Object.getOwnPropertyDescriptor(Object.getPrototypeOf(kotak),%20'value');%0A%20%20%20%20if%20(d%20&&%20d.set)%20{%20d.set.call(kotak,%20String(nilai));%20}%20else%20{%20kotak.value%20=%20String(nilai);%20}%0A%20%20%20%20kotak.dispatchEvent(new%20Event('input',%20{%20bubbles:%20true%20}));%0A%20%20%20%20kotak.dispatchEvent(new%20Event('change',%20{%20bubbles:%20true%20}));%0A%20%20%20%20kotak.dispatchEvent(new%20Event('blur',%20{%20bubbles:%20true%20}));%0A%20%20}%0A%20%20function%20mula(teks)%20{%0A%20%20%20%20var%20data;%0A%20%20%20%20try%20{%20data%20=%20JSON.parse(teks);%20}%20catch%20(e)%20{%0A%20%20%20%20%20%20papar('Data%20tidak%20dikenali',%0A%20%20%20%20%20%20%20%20'Papan%20klip%20tidak%20mengandungi%20data%20ESIS.%5Cn%5Cn'%20+%0A%20%20%20%20%20%20%20%20'Pergi%20ke%20ESIS%20%3E%20Rekod%20&%20Laporan,%20klik%20\"Salin%20untuk%20SPPB\"%20dahulu.',%20'#b4232a');%0A%20%20%20%20%20%20return;%0A%20%20%20%20}%0A%20%20%20%20if%20(!data%20||%20data.jenisData%20!==%20'ESIS-SPPB-v1'%20||%20!Array.isArray(data.murid))%20{%0A%20%20%20%20%20%20papar('Data%20tidak%20dikenali',%20'Format%20tidak%20sepadan.%20Sila%20salin%20semula%20dari%20ESIS.',%20'#b4232a');%0A%20%20%20%20%20%20return;%0A%20%20%20%20}%0A%20%20%20%20var%20sppb%20=%20bacaSPPB();%0A%20%20%20%20if%20(!sppb.length)%20{%0A%20%20%20%20%20%20papar('Jadual%20tidak%20dijumpai',%0A%20%20%20%20%20%20%20%20'Tiada%20senarai%20murid%20di%20skrin%20SPPB.%5Cn%5Cn'%20+%0A%20%20%20%20%20%20%20%20'Pastikan%20anda%20di%20skrin%20Pentaksiran%20Bilik%20Darjah%20dengan%20senarai%20murid%20terpapar.',%20'#b4232a');%0A%20%20%20%20%20%20return;%0A%20%20%20%20}%0A%20%20%20%20var%20k%20=%20data.konteks%20||%20{};%0A%20%20%20%20var%20konteks%20=%20(k.darjah%20||%20'')%20+%20'%20'%20+%20(k.kelas%20||%20'')%20+%20'%20%E2%80%94%20'%20+%20(k.subjek%20||%20'');%0A%20%20%20%20var%20tiadaKP%20=%20sppb.filter(function%20(b)%20{%20return%20!b.kp;%20}).length;%0A%20%20%20%20if%20(tiadaKP%20===%20sppb.length)%20{%0A%20%20%20%20%20%20papar('Tiada%20No.%20KP%20di%20SPPB',%0A%20%20%20%20%20%20%20%20'Tiada%20apa%20diisi.%5Cn%5CnHelper%20tidak%20menemui%20lajur%20ID%20Pengenalan.%5Cn'%20+%0A%20%20%20%20%20%20%20%20'Pastikan%20jadual%20murid%20terpapar%20penuh.',%20'#b4232a');%0A%20%20%20%20%20%20return;%0A%20%20%20%20}%0A%20%20%20%20var%20peta%20=%20{};%0A%20%20%20%20data.murid.forEach(function%20(m)%20{%0A%20%20%20%20%20%20var%20kp%20=%20bersihKP(m.nokp);%0A%20%20%20%20%20%20if%20(kp)%20peta[kp]%20=%20m;%0A%20%20%20%20});%0A%20%20%20%20var%20takJumpa%20=%20[],%20pasang%20=%20[];%0A%20%20%20%20sppb.forEach(function%20(b)%20{%0A%20%20%20%20%20%20var%20m%20=%20peta[b.kp];%0A%20%20%20%20%20%20if%20(!m)%20{%20takJumpa.push(b.bil%20+%20'.%20'%20+%20b.nama);%20}%20else%20{%20pasang.push({%20s:%20b,%20e:%20m%20});%20}%0A%20%20%20%20});%0A%20%20%20%20if%20(takJumpa.length)%20{%0A%20%20%20%20%20%20papar('BERHENTI%20%E2%80%94%20No.%20KP%20tidak%20padan',%0A%20%20%20%20%20%20%20%20'Tiada%20apa%20diisi.%5Cn%5Cn'%20+%20takJumpa.length%20+%20'%20murid%20di%20SPPB%20tidak%20dijumpai%20di%20ESIS:%5Cn%5Cn'%20+%0A%20%20%20%20%20%20%20%20takJumpa.slice(0,%2012).join('%5Cn')%20+%0A%20%20%20%20%20%20%20%20(takJumpa.length%20%3E%2012%20?%20'%5Cn%E2%80%A6dan%20'%20+%20(takJumpa.length%20-%2012)%20+%20'%20lagi'%20:%20'')%20+%0A%20%20%20%20%20%20%20%20'%5Cn%5CnSemak:%20kelas%20dan%20subjek%20sama?%20Ada%20murid%20baru%20masuk?%5Cn%5CnData%20ESIS:%20'%20+%20konteks,%20'#b4232a');%0A%20%20%20%20%20%20return;%0A%20%20%20%20}%0A%20%20%20%20if%20(sppb.length%20!==%20data.murid.length)%20{%0A%20%20%20%20%20%20papar('BERHENTI%20%E2%80%94%20bilangan%20murid%20berbeza',%0A%20%20%20%20%20%20%20%20'Tiada%20apa%20diisi.%5Cn%5CnSPPB:%20'%20+%20sppb.length%20+%20'%20murid%5CnESIS:%20'%20+%20data.murid.length%20+%20'%20murid%5Cn%5Cn'%20+%0A%20%20%20%20%20%20%20%20'Semak%20kelas%20yang%20dipilih%20di%20kedua-dua%20sistem.',%20'#b4232a');%0A%20%20%20%20%20%20return;%0A%20%20%20%20}%0A%20%20%20%20var%20akanIsi%20=%20[],%20th%20=%20[],%20kosong%20=%20[];%0A%20%20%20%20pasang.forEach(function%20(p)%20{%0A%20%20%20%20%20%20if%20(p.e.th)%20{%20th.push(p.s.bil%20+%20'.%20'%20+%20p.s.nama);%20}%0A%20%20%20%20%20%20else%20if%20(p.e.markah%20===%20null%20||%20p.e.markah%20===%20undefined)%20{%20kosong.push(p.s.bil%20+%20'.%20'%20+%20p.s.nama);%20}%0A%20%20%20%20%20%20else%20{%20akanIsi.push(p);%20}%0A%20%20%20%20});%0A%20%20%20%20if%20(!akanIsi.length)%20{%0A%20%20%20%20%20%20papar('Tiada%20markah%20untuk%20diisi',%0A%20%20%20%20%20%20%20%20'Semua%20murid%20Tidak%20Hadir%20atau%20markah%20kosong%20di%20ESIS.',%20'#b45309');%0A%20%20%20%20%20%20return;%0A%20%20%20%20}%0A%20%20%20%20var%20soal%20=%20'TAMPAL%20MARKAH%20KE%20SPPB%5Cn%5Cn'%20+%0A%20%20%20%20%20%20'Dari%20ESIS:%20'%20+%20konteks%20+%20'%5Cn%5Cn'%20+%0A%20%20%20%20%20%20'Akan%20diisi:%20'%20+%20akanIsi.length%20+%20'%20murid%5Cn'%20+%0A%20%20%20%20%20%20(th.length%20?%20'Tidak%20Hadir%20(dilangkau):%20'%20+%20th.length%20+%20'%20murid%5Cn'%20:%20'')%20+%0A%20%20%20%20%20%20(kosong.length%20?%20'Markah%20kosong%20(dilangkau):%20'%20+%20kosong.length%20+%20'%20murid%5Cn'%20:%20'')%20+%0A%20%20%20%20%20%20'%5CnSemua%20No.%20KP%20padan.%5Cn%5Cn'%20+%0A%20%20%20%20%20%20'Helper%20HANYA%20isi%20kotak%20Skor.%5CnAnda%20yang%20tekan%20Simpan%20selepas%20semak.%5Cn%5CnTeruskan?';%0A%20%20%20%20if%20(!window.confirm(soal))%20return;%0A%20%20%20%20var%20n%20=%200;%0A%20%20%20%20akanIsi.forEach(function%20(p)%20{%0A%20%20%20%20%20%20try%20{%20isi(p.s.kotak,%20p.e.markah);%20n++;%20}%20catch%20(e)%20{}%0A%20%20%20%20});%0A%20%20%20%20var%20lap%20=%20n%20+%20'%20markah%20telah%20diisi.%5Cn%5Cn';%0A%20%20%20%20if%20(th.length)%20lap%20+=%20'TIDAK%20HADIR%20%E2%80%94%20sila%20guru%20isi%20sendiri:%5Cn'%20+%20th.join('%5Cn')%20+%20'%5Cn%5Cn';%0A%20%20%20%20if%20(kosong.length)%20lap%20+=%20'Markah%20kosong%20di%20ESIS:%5Cn'%20+%20kosong.join('%5Cn')%20+%20'%5Cn%5Cn';%0A%20%20%20%20lap%20+=%20'Semak%20markah%20di%20skrin,%20kemudian%20tekan%20SIMPAN%20sendiri.%5CnHelper%20tidak%20menekan%20Simpan.';%0A%20%20%20%20papar('Siap',%20lap,%20'#1a7f45');%0A%20%20}%0A%20%20if%20(navigator.clipboard%20&&%20navigator.clipboard.readText)%20{%0A%20%20%20%20navigator.clipboard.readText().then(mula).catch(function%20()%20{%0A%20%20%20%20%20%20var%20t%20=%20window.prompt('Tampal%20data%20ESIS%20di%20sini%20(Cmd+V%20atau%20Ctrl+V):',%20'');%0A%20%20%20%20%20%20if%20(t)%20mula(t);%0A%20%20%20%20});%0A%20%20}%20else%20{%0A%20%20%20%20var%20t%20=%20window.prompt('Tampal%20data%20ESIS%20di%20sini%20(Cmd+V%20atau%20Ctrl+V):',%20'');%0A%20%20%20%20if%20(t)%20mula(t);%0A%20%20}%0A})();";
+
+function tukar(mana){
+  var aT = mana === 'tampal';
+  document.getElementById('cara-tampal').hidden = !aT;
+  document.getElementById('cara-seret').hidden  =  aT;
+  document.getElementById('tab-tampal').setAttribute('aria-selected', aT ? 'true' : 'false');
+  document.getElementById('tab-seret').setAttribute('aria-selected',  aT ? 'false' : 'true');
+}
+
+function salinKod(){
+  var btn = document.getElementById('btnSalinKod');
+  var st  = document.getElementById('statusSalin');
+  function siap(){
+    btn.textContent = '✓ Kod disalin — pergi ke langkah 2';
+    btn.classList.add('siap');
+    st.innerHTML = '<b>Kod ada dalam papan klip.</b> Sekarang buka pengurus penanda (langkah 2) dan tampal ke kotak URL.';
+  }
+  function gagal(){
+    st.innerHTML = '<b>Salin automatik disekat.</b> Guna cara <b>Seret butang</b> di tab sebelah.';
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(KOD_HELPER).then(siap).catch(function(){
+      try {
+        var t = document.createElement('textarea');
+        t.value = KOD_HELPER; t.style.position='fixed'; t.style.top='-9999px';
+        document.body.appendChild(t); t.select(); document.execCommand('copy');
+        document.body.removeChild(t); siap();
+      } catch(e){ gagal(); }
+    });
+  } else { gagal(); }
+}
+</script>
+</body>
+</html>
