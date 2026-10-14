@@ -49,7 +49,9 @@ The entire application lives in a **single file**: `public/index.html` (~10,070 
 4. **Murid Terbaik** — Student rankings
 5. **Guru Kelas** — Manage student roster
 6. **Headcount** — Target tracking (TOV/OTI/ETR/AR)
-7. **Admin Panel** (password-protected) — System configuration
+7. **Anugerah** — Award ceremony module, separate pages (`anugerah-admin.html` + peserta/hadiah/mc/tayang)
+8. **Markah ke SPPB** — Install guide for the ESIS→SPPB mark helper (`helper-sppb.html`); see its section below
+9. **Admin Panel** (password-protected) — System configuration
 
 ### Key Code Locations
 
@@ -64,6 +66,8 @@ The entire application lives in a **single file**: `public/index.html` (~10,070 
 | Save marks — edit form (`simpanEditMarkah`) | ~line 6520 |
 | Delete marks (`deleteMarkahByFilter`) | ~line 2278 |
 | Edit marks table (`renderEditTable`) | ~line 6359 |
+| Copy marks for SPPB (`salinUntukSPPB`) | search `function salinUntukSPPB` |
+| Chrome-only guard (`adalahChromeTulen`) | directly above `salinUntukSPPB` |
 | Analysis table (`renderAnalisaTable`) | ~line 6458 |
 | Read-only exam check (`isEditExamReadOnly`) | ~line 6520 |
 | Slip PDF — single student builder (`binaSlipBlobMurid`) | ~line 4524 |
@@ -287,6 +291,32 @@ Two rules this produced — do not regress:
 Symptom to recognise: console shows `❌ Cache read error: IndexedDB timeout (5s)` on every load, and the page takes ~5s longer than the Firestore queries alone explain.
 
 **General rule this uncovered:** never read Firestore docs one at a time in a loop. Per-doc reads cost ~113ms each, so 91 of them is ~10s while one filtered query returning the same data is ~0.3s — a 70× difference. See the Trend GPS ETR query above.
+
+### Helper markah ESIS → SPPB (`public/helper-sppb.html` + `helper-sppb/`)
+
+Teachers had to retype marks that already exist in ESIS into the KPM **SPPB** form (`moeissppb.moe.gov.my`, reached via idMe → Pengurusan Pentaksiran). SPPB has **no CSV import**, so filling the form is the only route — 34 pupils × 13 subjects × 6 classes per exam.
+
+Two halves, deliberately separate because a page on `sistem-esis.web.app` cannot script a page on `moeissppb.moe.gov.my`:
+
+| Half | Where | What |
+|---|---|---|
+| **Copy** | Button `#btn-salin-sppb` in `#edit-actions` (beside Eksport CSV) → `salinUntukSPPB()` | Reads the on-screen table, writes JSON to the clipboard |
+| **Paste** | Bookmarklet `helper-sppb/tampal-sppb.js` → `bookmarklet.txt` | Runs on SPPB, fills the Skor(%) boxes |
+
+**The match key is `no_kp` — never the name, never the row order.** `renderEditTable` already puts `data-nokp`, `data-nama` and `dataset.th` on every mark input, so the copy half reads straight off those attributes; SPPB's own table carries an "ID Pengenalan" column. Verified: reversing SPPB's row order still lands every mark on the right pupil, and a pupil present in SPPB but absent from ESIS halts the whole paste. Row-index matching would silently shift every mark by one when a pupil joins or leaves — that is the failure this design exists to prevent.
+
+**Safety rules — do not relax these when editing the bookmarklet:**
+- Fills the Skor(%) inputs **only**. Never clicks Simpan / Hantar / Tutup, never touches the Status dropdown, never touches the login screen. The teacher presses Simpan.
+- **TH pupils are skipped** and listed by name for the teacher to handle. TH is not a mark of 0 — writing 0 for an absent pupil corrupts an official record. Same invariant as the TH section above.
+- **One unmatched `no_kp`, or a different pupil count → stop and fill nothing.** Partial fills are worse than no fill.
+
+**Chrome only** (`adalahChromeTulen()` guards `salinUntukSPPB`). Bookmarklets and clipboard permissions differ across browsers, and Edge/Brave share Chromium but not the menu names the guide describes, so the UA check requires `Chrome/` *and* rejects `Edg/|OPR/|Brave/|SamsungBrowser/`. Tested against 7 user-agents.
+
+**Known gap: the helper matches the pupil, not the subject.** Copy Matematik, open PJK in SPPB, and it still fills — same pupils, same `no_kp`. The confirm dialog therefore prints the source context ("Dari ESIS: ENAM PENTIUM — PEND. JASMANI") for the teacher to check. A subject name map would be needed to close this; ESIS and SPPB spell subjects differently (`PEND. JASMANI DAN KESIHATAN` vs `PENDIDIKAN JASMANI DAN PENDIDIKAN KESIHATAN`).
+
+**Rebuilding the bookmarklet** after editing `tampal-sppb.js`: strip comments, URL-encode, prefix `javascript:`, write to `bookmarklet.txt`, then re-embed it in `public/helper-sppb.html` (it appears twice — the drag anchor's `href` and the `KOD_HELPER` string for the copy-paste install path). Currently ~9.2 KB.
+
+**Install friction is the real adoption risk, not the code.** Bookmarklets need the bookmarks bar visible or the drag lands in the address bar instead. The guide offers both a copy-paste install (no dragging) and a drag target, with Mac and Windows shortcuts side by side in a table — an earlier version buried the Windows keys in an "atau…" clause and a Windows teacher got stuck there. For a whole staff, installing it for them is likely faster than talking each teacher through it.
 
 ### Firebase Hosting cache
 
