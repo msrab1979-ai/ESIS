@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anugerah — Panel Admin | Sistem ESIS</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="anugerah-kongsi.css">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+/* ---------- pokok anugerah ---------- */
+.pokok{list-style:none; margin:0; padding:0}
+.pokok > li{border-bottom:1px solid var(--garis-halus)}
+.pokok > li:last-child{border-bottom:none}
+.induk{display:flex; align-items:center; gap:11px; padding:11px 16px; background:var(--kertas-2); flex-wrap:wrap}
+.induk .tajuk-a{font-family:"Fraunces",serif; font-size:15.5px; font-weight:600}
+.induk .kanan{margin-left:auto; display:flex; gap:7px; align-items:center; flex-wrap:wrap}
+.anak{list-style:none; margin:0; padding:0 0 5px; background:var(--kertas-3)}
+.anak li{
+  display:flex; align-items:center; gap:10px; padding:8px 16px 8px 40px;
+  border-top:1px solid var(--garis-halus); font-size:13.5px; flex-wrap:wrap;
+}
+.anak .nama-sub{font-weight:600}
+.anak .kanan{margin-left:auto; display:flex; gap:6px; align-items:center}
+.hint{font-size:11px; color:var(--neutral-lembut); font-style:italic}
+
+/* ---------- tiket ---------- */
+.tiket-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(248px,1fr)); gap:14px}
+.tiket{
+  border:1px solid var(--emas); border-radius:4px; overflow:hidden;
+  display:grid; grid-template-columns:1fr 60px; background:var(--kertas-2);
+}
+.tiket-kiri{padding:12px 14px; min-width:0}
+.tiket .sekolah{font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--emas); font-weight:700}
+.tiket .majlis{font-family:"Fraunces",serif; font-size:13.5px; font-weight:600; margin:3px 0 8px; line-height:1.25}
+.tiket .nama{font-weight:700; font-size:14px; line-height:1.25; word-break:break-word}
+.tiket .kelas{font-size:12px; color:var(--neutral); margin-top:1px}
+.tiket .anugerah-t{font-size:11.5px; color:var(--tinta-lembut); margin-top:7px; padding-top:7px; border-top:1px dashed var(--garis)}
+.tiket-kanan{border-left:2px dashed var(--emas); display:grid; place-content:center; text-align:center; padding:8px 4px}
+.tiket-kanan .gil-lbl{font-size:8.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--neutral); font-weight:700}
+.tiket-kanan .gil-no{font-family:"Fraunces",serif; font-size:26px; font-weight:700; color:var(--emas); line-height:1; font-variant-numeric:tabular-nums}
+
+/* ---------- seret ---------- */
+.seret{
+  display:flex; align-items:center; gap:10px; padding:9px 13px;
+  border:1px solid var(--garis-halus); border-radius:8px;
+  background:var(--kertas-2); margin-bottom:7px;
+}
+.seret.atas{border-color:var(--emas); background:var(--amaran-bg)}
+.seret .pemegang{color:var(--neutral-lembut); cursor:grab; font-size:15px; flex:none; letter-spacing:-2px}
+.seret .s-nama{font-weight:600; font-size:13.5px}
+.seret .s-bil{margin-left:auto; font-size:12px; color:var(--neutral); font-variant-numeric:tabular-nums}
+
+/* ---------- link petugas ---------- */
+.link-grid{display:grid; gap:10px}
+.link-baris{
+  display:flex; align-items:center; gap:11px; padding:11px 13px;
+  border:1px solid var(--garis-halus); border-radius:var(--r); background:var(--kertas-2); flex-wrap:wrap;
+}
+.link-baris .lb-ikon{font-size:19px; flex:none}
+.link-baris .lb-teks{min-width:180px; flex:1}
+.link-baris .lb-nama{font-weight:600; font-size:14px}
+.link-baris .lb-url{font-family:ui-monospace,Menlo,monospace; font-size:11.5px; color:var(--neutral); overflow-wrap:anywhere}
+.link-baris .lb-tulis{font-size:11px; color:var(--neutral-lembut); margin-top:2px}
+
+/* ---------- modal ---------- */
+.lapis{
+  position:fixed; inset:0; background:rgba(22,35,58,.55); z-index:200;
+  display:grid; place-items:center; padding:18px; overflow:auto;
+}
+.modal{
+  background:var(--kertas-2); border:1px solid var(--garis); border-radius:var(--r);
+  box-shadow:0 18px 50px rgba(0,0,0,.3); max-width:560px; width:100%; max-height:92vh; overflow:auto;
+}
+.modal .kad-kepala{position:sticky; top:0; background:var(--kertas-2); z-index:1}
+.b-tutup{margin-left:auto; border:none; background:none; color:var(--neutral); font-size:21px; line-height:1; padding:0 4px}
+.b-tutup:hover{color:var(--tinta)}
+
+.cek-grid{
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(176px,1fr)); gap:5px;
+  max-height:230px; overflow:auto; border:1px solid var(--garis-halus);
+  border-radius:7px; padding:9px;
+}
+.cek-grid label{display:flex; gap:7px; align-items:center; font-size:13px; cursor:pointer}
+
+/* ---------- cetak tiket: 4 sehelai A4 ---------- */
+@media print{
+  body{background:#FFF}
+  .tajuk,.nota,.kad-kepala,.badan > .kad:not(#kad-cetak),.kpi-grid,#bar-cetak{display:none!important}
+  #kad-cetak,#kad-cetak .kad-isi{border:none!important; box-shadow:none!important; padding:0!important; margin:0!important}
+  .tiket-grid{display:grid!important; grid-template-columns:1fr 1fr!important; gap:0!important}
+  .tiket{
+    border:1px dashed #8A6A1F!important; border-radius:0!important;
+    height:74mm; page-break-inside:avoid; background:transparent!important;
+  }
+  .tiket .nama,.tiket .majlis,.tiket-kanan .gil-no{color:#16233A!important}
+  .tiket-kanan .gil-no{color:#8A6A1F!important}
+  @page{size:A4; margin:8mm}
+}
+</style>
+</head>
+<body>
+
+<header class="tajuk">
+  <div class="tajuk-dlm">
+    <div class="jenama">
+      <h1>Anugerah</h1>
+      <span class="cap">Panel Admin</span>
+      <a class="balik" href="index.html">← Sistem ESIS</a>
+    </div>
+    <p class="sari" id="sari">Memuatkan…</p>
+    <nav class="tab" role="tablist" id="bar-tab" hidden>
+      <button role="tab" aria-selected="true" data-t="majlis">⚙️ Majlis</button>
+      <button role="tab" aria-selected="false" data-t="jenis">🏆 Jenis Anugerah</button>
+      <button role="tab" aria-selected="false" data-t="calon">🔍 Pilih Murid</button>
+      <button role="tab" aria-selected="false" data-t="giliran">🎟️ Giliran &amp; Tiket</button>
+      <button role="tab" aria-selected="false" data-t="petugas">🔗 Link Petugas</button>
+    </nav>
+  </div>
+</header>
+
+<main class="badan">
+
+  <!-- ============ LOGIN ============ -->
+  <section id="p-login">
+    <div class="kad login-kotak">
+      <div class="kad-kepala"><h3>Masuk Panel Anugerah</h3></div>
+      <div class="kad-isi">
+        <div class="medan" style="width:100%">
+          <label for="pw">Kata laluan admin</label>
+          <div class="pw-baris">
+            <input type="password" id="pw" autocomplete="current-password" placeholder="anugerah123">
+            <button class="b-mata" id="b-mata" aria-label="Tunjuk kata laluan" title="Tunjuk kata laluan">👁</button>
+          </div>
+        </div>
+        <button class="btn emas" style="width:100%;margin-top:12px;justify-content:center" id="b-masuk">Masuk</button>
+        <div id="login-ralat" class="nota ralat" style="margin:12px 0 0" hidden>
+          <span class="sym">✕</span><div>Kata laluan salah. Cuba lagi.</div>
+        </div>
+        <div class="pw-bantuan">
+          Kata laluan lalai <code>anugerah123</code>. Tukar dalam tab Majlis selepas majlis pertama.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TAB 1 : MAJLIS ============ -->
+  <section class="panel" id="p-majlis" hidden>
+    <div class="kad">
+      <div class="kad-kepala">
+        <span class="langkah-no">1</span><h3>Majlis</h3>
+        <span class="sub">Satu majlis satu tahun — majlis lepas kekal boleh dibuka</span>
+        <div class="kanan"><button class="btn emas kecil" id="b-majlis-baru">➕ Majlis Baharu</button></div>
+      </div>
+      <div class="kad-isi">
+        <div class="baris-input">
+          <div class="medan" style="flex:1 1 280px">
+            <label for="s-majlis">Majlis aktif</label>
+            <select id="s-majlis"></select>
+          </div>
+        </div>
+        <div id="borang-majlis" hidden>
+          <hr style="border:none;border-top:1px solid var(--garis-halus);margin:17px 0">
+          <div class="baris-input">
+            <div class="medan" style="flex:1 1 230px">
+              <label for="m-nama">Nama majlis</label>
+              <input type="text" id="m-nama" placeholder="Majlis Anugerah Kecemerlangan 2026">
+            </div>
+            <div class="medan"><label for="m-tarikh">Tarikh majlis</label><input type="text" id="m-tarikh" placeholder="20 November 2026"></div>
+            <div class="medan"><label for="m-sekolah">Nama sekolah</label><input type="text" id="m-sekolah" placeholder="SK Sultan Ismail"></div>
+          </div>
+          <p class="eyebrow" style="margin:17px 0 9px">Asas data — jadi lalai untuk semua cadangan calon</p>
+          <div class="baris-input">
+            <div class="medan"><label for="m-tahun">Tahun kalendar</label><select id="m-tahun"></select></div>
+            <div class="medan" style="flex:1 1 230px"><label for="m-pep">Jenis peperiksaan</label><select id="m-pep"></select></div>
+          </div>
+          <p class="eyebrow" style="margin:17px 0 9px">Keselamatan</p>
+          <div class="baris-input">
+            <div class="medan">
+              <label for="m-pw">Kata laluan admin</label>
+              <div class="pw-baris">
+                <input type="password" id="m-pw" placeholder="anugerah123">
+                <button class="b-mata" id="b-mata2" aria-label="Tunjuk kata laluan">👁</button>
+              </div>
+            </div>
+          </div>
+          <div class="baris-input" style="margin-top:17px">
+            <button class="btn emas" id="b-simpan-majlis">💾 Simpan Majlis</button>
+            <span id="majlis-status" class="kecil"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="nota">
+      <span class="sym">▸</span>
+      <div><strong>Koleksi ESIS dibaca sahaja.</strong> Modul ini membaca <code>students</code>,
+      <code>rekodMarkah</code>, <code>gred</code>, <code>examTypes</code> dan <code>subjek</code> —
+      tidak pernah menulis ke mana-mana satu. Hanya <code>anugerah_majlis</code> dan
+      <code>anugerah_penerima</code> ditulis.</div>
+    </div>
+  </section>
+
+  <!-- ============ TAB 2 : JENIS ANUGERAH ============ -->
+  <section class="panel" id="p-jenis" hidden>
+    <div class="nota">
+      <span class="sym">▸</span>
+      <div><strong>Dinamik sepenuhnya.</strong> Tiada senarai anugerah yang tetap dalam kod —
+      kau cipta sendiri. Anugerah akademik boleh cadang calon dari markah; anugerah seperti
+      Kehadiran atau Sahsiah tiada data dalam ESIS, jadi calonnya ditambah manual.</div>
+    </div>
+    <div class="kad">
+      <div class="kad-kepala">
+        <span class="langkah-no">2</span><h3>Jenis Anugerah</h3>
+        <span class="sub" id="jenis-ringkas"></span>
+        <div class="kanan"><button class="btn emas kecil" id="b-anugerah-baru">➕ Anugerah</button></div>
+      </div>
+      <div class="kad-isi rapat"><ul class="pokok" id="pokok-anugerah"></ul></div>
+    </div>
+  </section>
+
+  <!-- ============ TAB 3 : CALON ============ -->
+  <section class="panel" id="p-calon" hidden>
+    <div class="nota">
+      <span class="sym">▸</span>
+      <div><strong>Sistem cadang, kau yang putuskan.</strong> Markah ESIS mengisi senarai bertanda;
+      kau buang yang tak sesuai dan tambah manual yang patut. Murid manual <strong>dipilih dari
+      senarai</strong>, tidak ditaip — nama ditaip bermakna <code>no_kp</code> tak padan, dan murid
+      itu jadi dua orang berasingan dalam majlis.</div>
+    </div>
+    <div class="kad">
+      <div class="kad-kepala">
+        <span class="langkah-no">3</span><h3>Cadang Calon</h3>
+        <span class="sub" id="calon-sub"></span>
+        <div class="kanan">
+          <button class="btn sunyi kecil" id="b-tambah-manual">➕ Tambah Manual</button>
+          <button class="btn emas kecil" id="b-cadang">⚡ Cadang Calon</button>
+        </div>
+      </div>
+      <div class="kad-isi">
+        <div class="baris-input">
+          <div class="medan" style="flex:1 1 200px"><label for="c-anugerah">Anugerah</label><select id="c-anugerah"></select></div>
+          <div class="medan" style="flex:1 1 200px"><label for="c-sub">Sub-anugerah</label><select id="c-sub"></select></div>
+        </div>
+        <div id="calon-tetapan" class="kecil" style="margin-top:11px"></div>
+      </div>
+      <div id="calon-hasil"></div>
+    </div>
+
+    <div class="kad">
+      <div class="kad-kepala">
+        <h3>Semua Penerima</h3><span class="sub" id="penerima-sub"></span>
+        <div class="kanan"><button class="btn sunyi kecil" id="b-muat-penerima">🔄 Muat Semula</button></div>
+      </div>
+      <div id="penerima-isi"></div>
+    </div>
+  </section>
+
+  <!-- ============ TAB 4 : GILIRAN ============ -->
+  <section class="panel" id="p-giliran" hidden>
+    <div class="nota">
+      <span class="sym">▸</span>
+      <div><strong>Nombor giliran ialah data yang disimpan, bukan nombor yang dikira.</strong>
+      Sekali tiket dicetak dan diedar, nombor itu hidup di atas kertas dalam tangan ibu bapa —
+      sistem tidak boleh menukarnya sendiri. Hanya dua butang mengubahnya, kedua-duanya kau tekan.</div>
+    </div>
+    <div class="kpi-grid" id="giliran-kpi"></div>
+    <div class="kad">
+      <div class="kad-kepala">
+        <span class="langkah-no">4</span><h3>Susunan Naik Pentas</h3>
+        <span class="sub">Seret untuk susun · nombor berjalan merentas anugerah</span>
+        <div class="kanan">
+          <button class="btn sunyi kecil" id="b-pulih">↩️ Pulihkan</button>
+          <button class="btn sunyi kecil" id="b-jana-semula">🔁 Jana Semula</button>
+          <button class="btn emas kecil" id="b-beri-nombor">🔢 Beri Nombor</button>
+        </div>
+      </div>
+      <div class="kad-isi">
+        <p class="eyebrow">Turutan anugerah dalam majlis</p>
+        <div id="susun-anugerah"></div>
+        <div id="susun-amaran"></div>
+      </div>
+    </div>
+    <div class="kad" id="kad-cetak">
+      <div class="kad-kepala" id="bar-cetak">
+        <h3>Tiket Giliran</h3>
+        <span class="sub">Latar telus — kertas warna sekolah jadi latarnya · 4 sehelai A4</span>
+        <div class="kanan">
+          <select id="t-tapis" style="min-width:160px"></select>
+          <button class="btn sunyi kecil" id="b-cetak-tiket">🖨 Cetak</button>
+        </div>
+      </div>
+      <div class="kad-isi"><div class="tiket-grid" id="tiket-grid"></div></div>
+    </div>
+  </section>
+
+  <!-- ============ TAB 5 : PETUGAS ============ -->
+  <section class="panel" id="p-petugas" hidden>
+    <div class="nota">
+      <span class="sym">▸</span>
+      <div><strong>Kod rahsia dalam URL, bukan akaun.</strong> Setiap peranan ada kod sendiri —
+      kau boleh batalkan satu tanpa memutuskan yang lain. Kod satu peranan <em>ditolak</em> oleh
+      panel peranan lain; ia bukan sekadar disembunyikan dari menu.</div>
+    </div>
+    <div class="kad">
+      <div class="kad-kepala"><span class="langkah-no">5</span><h3>Link Petugas Majlis</h3></div>
+      <div class="kad-isi">
+        <div class="link-grid" id="link-grid"></div>
+        <hr style="border:none;border-top:1px solid var(--garis-halus);margin:19px 0">
+        <p class="eyebrow">Reset tanda — selepas majlis sebenar, ini satu-satunya rekod siapa naik pentas</p>
+        <div class="baris-input">
+          <button class="btn sunyi kecil" id="b-reset-hadir">Reset tanda kehadiran</button>
+          <button class="btn sunyi kecil" id="b-reset-mc">Reset tanda MC</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="bekas-modal"></div>
+
+<script src="anugerah-kongsi.js"></script>
+<script>
+/* ==========================================================================
+   PANEL ADMIN ANUGERAH
+   --------------------------------------------------------------------------
+   Struktur data:
+
+   anugerah_majlis/{id} = {
+     nama, tarikh, sekolah, calYear, peperiksaan, pw,
+     anugerah: [ { id, nama, sumber:'auto'|'manual', asas, subjek,
+                   urutan, sub:[ {id, nama, skopJenis, skopNilai,
+                   ambil, hadiah, asas?, subjek?, peperiksaan?} ] } ],
+     modPetugas: { kodPeserta, kodMC, kodHadiah, kodTayang },
+     modTayang: { auto:false }
+   }
+
+   anugerah_penerima/{majlisId__noKP} = {
+     majlisId, no_kp, nama, tahun, kelas,
+     anugerah: [ {anugerahId, anugerah, subId, sub, sumber, nilai, catatan} ],
+     giliran:  [ {anugerahId, anugerah, subId, sub, hadiah, no, hadir, mc} ],
+     giliranLama: [...]   // satu pusingan untuk Pulihkan
+   }
+
+   🔴 `giliran[]` dibentuk HANYA oleh agEntriGiliran() dalam
+      anugerah-kongsi.js. Jangan bina objek entri di tempat lain.
+   ========================================================================== */
+
+let MAJLIS = null;          // majlis aktif
+let SENARAI_MAJLIS = [];
+let PENERIMA = [];          // cache penerima majlis aktif
+let CALON_SEMASA = null;    // hasil agKiraCalon terakhir
+let MURID_SEMUA = [];
+let TAB = 'majlis';
+
+/* ---------- util DOM ---------- */
+const $ = id => document.getElementById(id);
+function tunjuk(el, ya) { if (el) el.hidden = !ya; }
+function memuat(bekas, teks) {
+  bekas.innerHTML = '<div class="memuat"><div class="pusing"></div>' + agEsc(teks || 'Memuatkan…') + '</div>';
+}
+function kosong(bekas, teks) {
+  bekas.innerHTML = '<div class="kosong">' + agEsc(teks) + '</div>';
+}
+
+/* ==========================================================================
+   LOGIN
+   ========================================================================== */
+function pasangMata(butangId, inputId) {
+  const b = $(butangId), i = $(inputId);
+  if (!b || !i) return;
+  b.addEventListener('click', () => {
+    const tunjukkan = i.type === 'password';
+    i.type = tunjukkan ? 'text' : 'password';
+    b.textContent = tunjukkan ? '🙈' : '👁';
+    b.setAttribute('aria-label', tunjukkan ? 'Sembunyi kata laluan' : 'Tunjuk kata laluan');
+  });
+}
+pasangMata('b-mata', 'pw');
+pasangMata('b-mata2', 'm-pw');
+
+$('b-masuk').addEventListener('click', cubaMasuk);
+$('pw').addEventListener('keydown', e => { if (e.key === 'Enter') cubaMasuk(); });
+
+async function cubaMasuk() {
+  const taip = $('pw').value.trim();
+  tunjuk($('login-ralat'), false);
+
+  /* Kata laluan disimpan pada majlis. Kalau belum ada majlis sama sekali,
+     lalai dipakai supaya majlis pertama boleh dicipta.                  */
+  let sah = false;
+  try {
+    if (!SENARAI_MAJLIS.length) await muatSenaraiMajlis();
+    const pwTersimpan = (SENARAI_MAJLIS.find(m => m.pw) || {}).pw;
+    sah = taip === (pwTersimpan || AG_PW_LALAI);
+  } catch (e) {
+    console.error('Login:', e);
+    sah = taip === AG_PW_LALAI;
+  }
+
+  if (!sah) { tunjuk($('login-ralat'), true); $('pw').focus(); return; }
+
+  sessionStorage.setItem('ag_admin', '1');
+  await mulaPanel();
+}
+
+/* ==========================================================================
+   MULA
+   ========================================================================== */
+async function mulaPanel() {
+  tunjuk($('p-login'), false);
+  tunjuk($('bar-tab'), true);
+  $('sari').textContent = 'Memuatkan data sekolah…';
+
+  try {
+    await Promise.all([agMuatGred(), agMuatMurid()]);
+    MURID_SEMUA = await agMuatMurid();
+    await muatSenaraiMajlis();
+    isiDropdownMajlis();
+    await pilihMajlis(SENARAI_MAJLIS.length ? SENARAI_MAJLIS[0].id : null);
+    tukarTab('majlis');
+  } catch (e) {
+    console.error(e);
+    $('sari').textContent = 'Gagal memuatkan data: ' + e.message;
+    agToast('Gagal memuatkan data sekolah', 'ralat');
+  }
+}
+
+$('bar-tab').addEventListener('click', e => {
+  const b = e.target.closest('button[data-t]');
+  if (b) tukarTab(b.dataset.t);
+});
+
+function tukarTab(nama) {
+  TAB = nama;
+  Array.from($('bar-tab').querySelectorAll('button')).forEach(b => {
+    const aktif = b.dataset.t === nama;
+    b.setAttribute('aria-selected', aktif ? 'true' : 'false');
+    tunjuk($('p-' + b.dataset.t), aktif);
+  });
+  window.scrollTo(0, 0);
+  if (!MAJLIS && nama !== 'majlis') {
+    agToast('Cipta majlis dahulu dalam tab Majlis');
+    return;
+  }
+  if (nama === 'jenis') lukisPokok();
+  if (nama === 'calon') { isiDropdownCalon(); lukisPenerima(); }
+  if (nama === 'giliran') lukisGiliran();
+  if (nama === 'petugas') lukisPetugas();
+}
+
+/* ==========================================================================
+   MAJLIS
+   ========================================================================== */
+async function muatSenaraiMajlis() {
+  const snap = await agDb.collection('anugerah_majlis').get();
+  SENARAI_MAJLIS = snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => String(b.calYear || '').localeCompare(String(a.calYear || '')));
+}
+
+function isiDropdownMajlis() {
+  const s = $('s-majlis');
+  s.innerHTML = SENARAI_MAJLIS.length
+    ? SENARAI_MAJLIS.map(m =>
+        '<option value="' + agEsc(m.id) + '">' + agEsc(m.nama || m.id) + '</option>').join('')
+    : '<option value="">(tiada majlis — tekan ➕ Majlis Baharu)</option>';
+}
+
+$('s-majlis').addEventListener('change', e => pilihMajlis(e.target.value));
+
+async function pilihMajlis(id) {
+  MAJLIS = SENARAI_MAJLIS.find(m => m.id === id) || null;
+  PENERIMA = [];
+
+  if (!MAJLIS) {
+    $('sari').textContent = 'Belum ada majlis. Tekan ➕ Majlis Baharu untuk mula.';
+    tunjuk($('borang-majlis'), false);
+    return;
+  }
+
+  $('s-majlis').value = MAJLIS.id;
+  await isiDropdownTahunPep();
+  isiBorangMajlis();
+  tunjuk($('borang-majlis'), true);
+  PENERIMA = await agMuatPenerima(MAJLIS.id);
+  kemasSari();
+}
+
+function kemasSari() {
+  if (!MAJLIS) return;
+  const bilGil = PENERIMA.reduce((j, p) => j + (p.giliran || []).length, 0);
+  const bilAnugerah = (MAJLIS.anugerah || []).length;
+  const bilSub = (MAJLIS.anugerah || []).reduce((j, a) => j + (a.sub || []).length, 0);
+  $('sari').textContent =
+    (MAJLIS.nama || '') + ' · ' + (MAJLIS.peperiksaan || '—') + ' ' + (MAJLIS.calYear || '') +
+    ' · ' + bilAnugerah + ' anugerah, ' + bilSub + ' sub · ' +
+    PENERIMA.length + ' murid, ' + bilGil + ' giliran';
+}
+
+async function isiDropdownTahunPep() {
+  const kini = new Date().getFullYear();
+  const tahun = [kini + 1, kini, kini - 1, kini - 2];
+  $('m-tahun').innerHTML = tahun.map(t =>
+    '<option value="' + t + '">' + t + '</option>').join('');
+  $('m-tahun').value = MAJLIS && MAJLIS.calYear ? MAJLIS.calYear : kini;
+  await isiDropdownPep();
+}
+
+$('m-tahun').addEventListener('change', isiDropdownPep);
+
+async function isiDropdownPep() {
+  const sel = $('m-pep');
+  sel.innerHTML = '<option value="">Memuatkan…</option>';
+  try {
+    const senarai = await agJenisPeperiksaan(parseInt($('m-tahun').value));
+    sel.innerHTML = senarai.length
+      ? senarai.map(e => '<option value="' + agEsc(e.nama) + '">' + agEsc(e.nama) + '</option>').join('')
+      : '<option value="">(tiada jenis peperiksaan untuk tahun ini)</option>';
+    if (MAJLIS && MAJLIS.peperiksaan) sel.value = MAJLIS.peperiksaan;
+  } catch (e) {
+    console.error(e);
+    sel.innerHTML = '<option value="">(gagal memuat)</option>';
+  }
+}
+
+function isiBorangMajlis() {
+  $('m-nama').value = MAJLIS.nama || '';
+  $('m-tarikh').value = MAJLIS.tarikh || '';
+  $('m-sekolah').value = MAJLIS.sekolah || '';
+  $('m-pw').value = MAJLIS.pw || '';
+  $('m-pw').placeholder = MAJLIS.pw ? '' : AG_PW_LALAI;
+}
+
+$('b-majlis-baru').addEventListener('click', async () => {
+  const tahun = new Date().getFullYear();
+  MAJLIS = {
+    id: 'majlis_' + tahun + '_' + Date.now().toString(36),
+    nama: 'Majlis Anugerah Kecemerlangan ' + tahun,
+    tarikh: '', sekolah: '', calYear: tahun, peperiksaan: '',
+    pw: AG_PW_LALAI, anugerah: [],
+    modPetugas: {
+      kodPeserta: agKodBaru(), kodMC: agKodBaru(),
+      kodHadiah: agKodBaru(), kodTayang: agKodBaru()
+    },
+    modTayang: { auto: false }
+  };
+  SENARAI_MAJLIS.unshift(MAJLIS);
+  isiDropdownMajlis();
+  $('s-majlis').value = MAJLIS.id;
+  await isiDropdownTahunPep();
+  isiBorangMajlis();
+  tunjuk($('borang-majlis'), true);
+  PENERIMA = [];
+  agToast('Majlis baharu disiapkan — tekan 💾 Simpan Majlis');
+});
+
+$('b-simpan-majlis').addEventListener('click', async () => {
+  if (!MAJLIS) return;
+  const nama = $('m-nama').value.trim();
+  if (!nama) { agToast('Nama majlis tidak boleh kosong', 'ralat'); $('m-nama').focus(); return; }
+
+  MAJLIS.nama = nama;
+  MAJLIS.tarikh = $('m-tarikh').value.trim();
+  MAJLIS.sekolah = $('m-sekolah').value.trim();
+  MAJLIS.calYear = parseInt($('m-tahun').value);
+  MAJLIS.peperiksaan = $('m-pep').value;
+  MAJLIS.pw = $('m-pw').value.trim() || AG_PW_LALAI;
+  MAJLIS.modPetugas = MAJLIS.modPetugas || {
+    kodPeserta: agKodBaru(), kodMC: agKodBaru(),
+    kodHadiah: agKodBaru(), kodTayang: agKodBaru()
+  };
+
+  $('majlis-status').textContent = 'Menyimpan…';
+  try {
+    await simpanMajlis();
+    $('majlis-status').textContent = '✅ Disimpan';
+    agToast('Majlis disimpan', 'ok');
+    await muatSenaraiMajlis();
+    isiDropdownMajlis();
+    $('s-majlis').value = MAJLIS.id;
+    kemasSari();
+  } catch (e) {
+    console.error(e);
+    $('majlis-status').textContent = '';
+    agToast('Gagal menyimpan: ' + e.message, 'ralat');
+  }
+  setTimeout(() => { $('majlis-status').textContent = ''; }, 2600);
+});
+
+async function simpanMajlis() {
+  const { id, ...data } = MAJLIS;
+  data.timestamp = firebase.firestore.FieldValue.serverTimestamp();
+  await agDb.collection('anugerah_majlis').doc(id).set(data, { merge: true });
+  const i = SENARAI_MAJLIS.findIndex(m => m.id === id);
+  if (i >= 0) SENARAI_MAJLIS[i] = MAJLIS;
+}
+
+/* ==========================================================================
+   JENIS ANUGERAH
+   ========================================================================== */
+const ASAS_LABEL = {
+  gps: 'GPS (gred purata)',
+  jumlah: 'Jumlah markah',
+  purata: 'Purata markah',
+  subjek: 'Markah satu subjek'
+};
+
+function lukisPokok() {
+  const bekas = $('pokok-anugerah');
+  const senarai = MAJLIS.anugerah || [];
+  const bilSub = senarai.reduce((j, a) => j + (a.sub || []).length, 0);
+  $('jenis-ringkas').textContent = senarai.length + ' anugerah · ' + bilSub + ' sub-anugerah';
+
+  if (!senarai.length) {
+    kosong(bekas, 'Belum ada jenis anugerah. Tekan ➕ Anugerah untuk mula.');
+    return;
+  }
+
+  bekas.innerHTML = senarai.map((a, i) => {
+    const sub = a.sub || [];
+    const bilMurid = PENERIMA.filter(p =>
+      (p.anugerah || []).some(x => x.anugerahId === a.id)).length;
+
+    const pilSumber = a.sumber === 'manual'
+      ? '<span class="pil tunggu">Manual</span>'
+      : '<span class="pil emas">Auto · ' + agEsc(ASAS_LABEL[a.asas] || 'GPS') + '</span>';
+
+    const barisSub = sub.length
+      ? sub.map((s, j) => {
+          const bil = PENERIMA.filter(p =>
+            (p.anugerah || []).some(x => x.subId === s.id)).length;
+          const skop = s.skopJenis === 'kelas' ? 'kelas ' + (s.skopNilai || '')
+                     : s.skopJenis === 'darjah' ? 'darjah ' + (s.skopNilai || '')
+                     : 'seluruh sekolah';
+          const asasSub = s.asas || a.asas;
+          const hint = a.sumber === 'manual'
+            ? 'manual · tiada data dalam ESIS'
+            : 'auto · top ' + (s.ambil || 1) + ' ' + (ASAS_LABEL[asasSub] || '') .toLowerCase() +
+              (asasSub === 'subjek' && (s.subjek || a.subjek) ? ' (' + agEsc(s.subjek || a.subjek) + ')' : '') +
+              ' · ' + skop;
+          return '<li>' +
+            '<span class="nama-sub">' + agEsc(s.nama) + '</span>' +
+            '<span class="hint">' + agEsc(hint) + '</span>' +
+            '<span class="kanan">' +
+              '<span class="kecil">' + bil + ' murid</span>' +
+              '<button class="btn sunyi kecil" data-sub-edit="' + i + ',' + j + '">Ubah</button>' +
+              '<button class="btn sunyi kecil" data-sub-buang="' + i + ',' + j + '">Buang</button>' +
+            '</span></li>';
+        }).join('')
+      : '<li><span class="hint">Belum ada sub-anugerah. Tekan ➕ Sub.</span></li>';
+
+    return '<li>' +
+      '<div class="induk">' +
+        '<span class="tajuk-a">' + agEsc(a.nama) + '</span>' + pilSumber +
+        '<span class="kanan">' +
+          '<span class="kecil">' + sub.length + ' sub · ' + bilMurid + ' murid</span>' +
+          '<button class="btn sunyi kecil" data-sub-baru="' + i + '">➕ Sub</button>' +
+          '<button class="btn sunyi kecil" data-an-edit="' + i + '">Ubah</button>' +
+          '<button class="btn sunyi kecil" data-an-buang="' + i + '">Buang</button>' +
+        '</span>' +
+      '</div>' +
+      '<ul class="anak">' + barisSub + '</ul></li>';
+  }).join('');
+}
+
+$('pokok-anugerah').addEventListener('click', e => {
+  const b = e.target.closest('button[data-an-edit],button[data-an-buang],button[data-sub-baru],button[data-sub-edit],button[data-sub-buang]');
+  if (!b) return;
+  const d = b.dataset;
+  if (d.anEdit !== undefined) return modalAnugerah(parseInt(d.anEdit));
+  if (d.anBuang !== undefined) return buangAnugerah(parseInt(d.anBuang));
+  if (d.subBaru !== undefined) return modalSub(parseInt(d.subBaru), -1);
+  if (d.subEdit) { const [i, j] = d.subEdit.split(',').map(Number); return modalSub(i, j); }
+  if (d.subBuang) { const [i, j] = d.subBuang.split(',').map(Number); return buangSub(i, j); }
+});
+
+$('b-anugerah-baru').addEventListener('click', () => modalAnugerah(-1));
+
+/* ---------- modal anugerah ---------- */
+function bukaModal(html) {
+  const bekas = $('bekas-modal');
+  bekas.innerHTML = '<div class="lapis" id="lapis"><div class="modal">' + html + '</div></div>';
+  const lapis = $('lapis');
+  lapis.addEventListener('click', e => { if (e.target === lapis) tutupModal(); });
+  document.addEventListener('keydown', escTutup);
+  return lapis;
+}
+function tutupModal() {
+  $('bekas-modal').innerHTML = '';
+  document.removeEventListener('keydown', escTutup);
+}
+function escTutup(e) { if (e.key === 'Escape') tutupModal(); }
+
+function modalAnugerah(idx) {
+  const baru = idx < 0;
+  const a = baru
+    ? { id: 'ag_' + Date.now().toString(36), nama: '', sumber: 'auto', asas: 'gps', subjek: '', sub: [] }
+    : JSON.parse(JSON.stringify(MAJLIS.anugerah[idx]));
+
+  bukaModal(
+    '<div class="kad-kepala"><h3>' + (baru ? 'Anugerah Baharu' : 'Ubah Anugerah') + '</h3>' +
+      '<button class="b-tutup" id="mx" aria-label="Tutup">×</button></div>' +
+    '<div class="kad-isi">' +
+      '<div class="medan" style="width:100%"><label for="a-nama">Nama anugerah</label>' +
+        '<input type="text" id="a-nama" value="' + agEsc(a.nama) + '" placeholder="Terbaik Darjah"></div>' +
+      '<div class="baris-input" style="margin-top:13px">' +
+        '<div class="medan"><label for="a-sumber">Sumber calon</label><select id="a-sumber">' +
+          '<option value="auto"' + (a.sumber !== 'manual' ? ' selected' : '') + '>Auto dari markah ESIS</option>' +
+          '<option value="manual"' + (a.sumber === 'manual' ? ' selected' : '') + '>Manual sahaja</option>' +
+        '</select></div>' +
+        '<div class="medan" id="kotak-asas"><label for="a-asas">Asas ranking</label><select id="a-asas">' +
+          Object.keys(ASAS_LABEL).map(k =>
+            '<option value="' + k + '"' + (a.asas === k ? ' selected' : '') + '>' + ASAS_LABEL[k] + '</option>').join('') +
+        '</select></div>' +
+      '</div>' +
+      '<div class="medan" id="kotak-subjek" style="margin-top:13px" hidden>' +
+        '<label for="a-subjek">Subjek</label><select id="a-subjek"><option value="">Memuatkan…</option></select></div>' +
+      '<div class="nota" style="margin:15px 0 0"><span class="sym">▸</span><div>' +
+        '<strong>Murid tidak hadir (TH) dikecualikan.</strong> Ikut peraturan ESIS — TH keluar dari ' +
+        'pengangka <em>dan</em> penyebut, jadi murid yang tak sempat duduk satu kertas tidak jatuh ' +
+        'ranking kerana markah 0 yang tak pernah wujud.</div></div>' +
+      '<div class="baris-input" style="margin-top:16px">' +
+        '<button class="btn emas" id="a-simpan">💾 Simpan</button>' +
+        '<button class="btn sunyi" id="a-batal">Batal</button></div>' +
+    '</div>');
+
+  $('mx').onclick = $('a-batal').onclick = tutupModal;
+
+  function kemasPapar() {
+    const manual = $('a-sumber').value === 'manual';
+    tunjuk($('kotak-asas'), !manual);
+    tunjuk($('kotak-subjek'), !manual && $('a-asas').value === 'subjek');
+  }
+  $('a-sumber').addEventListener('change', kemasPapar);
+  $('a-asas').addEventListener('change', kemasPapar);
+  kemasPapar();
+
+  agSenaraiSubjek().then(senarai => {
+    $('a-subjek').innerHTML =
+      '<option value="">(pilih subjek)</option>' +
+      senarai.map(s => '<option value="' + agEsc(s) + '"' +
+        (a.subjek === s ? ' selected' : '') + '>' + agEsc(s) + '</option>').join('');
+  }).catch(() => { $('a-subjek').innerHTML = '<option value="">(gagal memuat subjek)</option>'; });
+
+  $('a-simpan').onclick = async () => {
+    const nama = $('a-nama').value.trim();
+    if (!nama) { agToast('Nama anugerah tidak boleh kosong', 'ralat'); return; }
+    a.nama = nama;
+    a.sumber = $('a-sumber').value;
+    a.asas = a.sumber === 'manual' ? null : $('a-asas').value;
+    a.subjek = a.asas === 'subjek' ? $('a-subjek').value : '';
+    if (a.asas === 'subjek' && !a.subjek) { agToast('Pilih subjek dahulu', 'ralat'); return; }
+
+    MAJLIS.anugerah = MAJLIS.anugerah || [];
+    if (baru) { a.urutan = MAJLIS.anugerah.length; MAJLIS.anugerah.push(a); }
+    else MAJLIS.anugerah[idx] = a;
+
+    try { await simpanMajlis(); tutupModal(); lukisPokok(); kemasSari(); agToast('Disimpan', 'ok'); }
+    catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
+  };
+}
+
+async function buangAnugerah(idx) {
+  const a = MAJLIS.anugerah[idx];
+  const kena = PENERIMA.filter(p => (p.anugerah || []).some(x => x.anugerahId === a.id)).length;
+  if (kena) {
+    if (!confirm('"' + a.nama + '" ada ' + kena + ' murid.\n\n' +
+      'Membuang anugerah ini akan menanggalkannya dari ' + kena + ' murid itu ' +
+      '(murid yang tiada anugerah lain akan dikeluarkan dari majlis).\n\nTeruskan?')) return;
+  } else if (!confirm('Buang "' + a.nama + '"?')) return;
+
+  MAJLIS.anugerah.splice(idx, 1);
+  try {
+    await simpanMajlis();
+    if (kena) await buangAnugerahDariPenerima(x => x.anugerahId === a.id);
+    lukisPokok(); kemasSari(); agToast('Dibuang', 'ok');
+  } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
+}
+
+/* ---------- modal sub-anugerah ---------- */
+async function modalSub(iAn, jSub) {
+  const an = MAJLIS.anugerah[iAn];
+  const baru = jSub < 0;
+  const s = baru
+    ? { id: 'sub_' + Date.now().toString(36), nama: '', skopJenis: 'darjah', skopNilai: 'EMPAT', ambil: 1, hadiah: '' }
+    : JSON.parse(JSON.stringify((an.sub || [])[jSub]));
+
+  const petaKelas = await agKelasIkutDarjah();
+  const semuaKelas = Object.keys(petaKelas).sort((a, b) => agWordDarjah(a) - agWordDarjah(b))
+    .flatMap(t => petaKelas[t].map(k => ({ tahun: t, kelas: k })));
+
+  const manual = an.sumber === 'manual';
+
+  bukaModal(
+    '<div class="kad-kepala"><h3>' + (baru ? 'Sub-anugerah Baharu' : 'Ubah Sub-anugerah') + '</h3>' +
+      '<span class="sub">' + agEsc(an.nama) + '</span>' +
+      '<button class="b-tutup" id="mx" aria-label="Tutup">×</button></div>' +
+    '<div class="kad-isi">' +
+      '<div class="medan" style="width:100%"><label for="s-nama2">Nama sub-anugerah</label>' +
+        '<input type="text" id="s-nama2" value="' + agEsc(s.nama) + '" placeholder="Terbaik Darjah 4"></div>' +
+      '<div class="medan" style="width:100%;margin-top:13px"><label for="s-hadiah">Hadiah</label>' +
+        '<input type="text" id="s-hadiah" value="' + agEsc(s.hadiah || '') + '" placeholder="Trofi + sijil"></div>' +
+      (manual ? '' :
+      '<div class="baris-input" style="margin-top:13px">' +
+        '<div class="medan"><label for="s-skop">Skop</label><select id="s-skop">' +
+          '<option value="darjah"' + (s.skopJenis === 'darjah' ? ' selected' : '') + '>Satu darjah</option>' +
+          '<option value="kelas"' + (s.skopJenis === 'kelas' ? ' selected' : '') + '>Satu kelas</option>' +
+          '<option value="sekolah"' + (s.skopJenis === 'sekolah' ? ' selected' : '') + '>Seluruh sekolah</option>' +
+        '</select></div>' +
+        '<div class="medan" id="kotak-nilai"><label for="s-nilai">Pilih</label><select id="s-nilai"></select></div>' +
+        '<div class="medan"><label for="s-ambil">Ambil berapa</label>' +
+          '<input type="number" id="s-ambil" min="1" max="50" value="' + (s.ambil || 1) + '" style="min-width:92px"></div>' +
+      '</div>') +
+      '<div class="baris-input" style="margin-top:16px">' +
+        '<button class="btn emas" id="s-simpan">💾 Simpan</button>' +
+        '<button class="btn sunyi" id="s-batal">Batal</button>' +
+        (baru && !manual ? '<button class="btn sunyi" id="s-auto">⚡ Jana semua ' +
+          (s.skopJenis === 'kelas' ? 'kelas' : 'darjah') + '</button>' : '') +
+      '</div>' +
+      (baru && !manual ? '<p class="hint" style="margin:9px 0 0">⚡ menjana satu sub-anugerah untuk ' +
+        'setiap darjah atau kelas sekali gus — tidak perlu taip satu-satu.</p>' : '') +
+    '</div>');
+
+  $('mx').onclick = $('s-batal').onclick = tutupModal;
+
+  function isiNilai() {
+    const jenis = $('s-skop').value;
+    const sel = $('s-nilai');
+    tunjuk($('kotak-nilai'), jenis !== 'sekolah');
+    if (jenis === 'darjah') {
+      sel.innerHTML = AG_DARJAH_WORD.slice(1).map(w =>
+        '<option value="' + w + '"' + (s.skopNilai === w ? ' selected' : '') + '>Darjah ' + agWordDarjah(w) + ' (' + w + ')</option>').join('');
+    } else if (jenis === 'kelas') {
+      sel.innerHTML = semuaKelas.map(x =>
+        '<option value="' + agEsc(x.kelas) + '"' + (s.skopNilai === x.kelas ? ' selected' : '') + '>' +
+        agEsc(agDarjahKelas(x.tahun, x.kelas)) + '</option>').join('');
+    }
+    const bAuto = $('s-auto');
+    if (bAuto) bAuto.textContent = '⚡ Jana semua ' + (jenis === 'kelas' ? 'kelas' : 'darjah');
+  }
+  if (!manual) { $('s-skop').addEventListener('change', isiNilai); isiNilai(); }
+
+  function baca() {
+    const o = {
+      id: s.id,
+      nama: $('s-nama2').value.trim(),
+      hadiah: $('s-hadiah').value.trim()
+    };
+    if (!manual) {
+      o.skopJenis = $('s-skop').value;
+      o.skopNilai = o.skopJenis === 'sekolah' ? '' : $('s-nilai').value;
+      o.ambil = Math.max(1, parseInt($('s-ambil').value) || 1);
+    } else {
+      o.skopJenis = 'sekolah'; o.skopNilai = ''; o.ambil = 1;
+    }
+    return o;
+  }
+
+  $('s-simpan').onclick = async () => {
+    const o = baca();
+    if (!o.nama) { agToast('Nama sub-anugerah tidak boleh kosong', 'ralat'); return; }
+    an.sub = an.sub || [];
+    if (baru) an.sub.push(o); else an.sub[jSub] = o;
+    try { await simpanMajlis(); tutupModal(); lukisPokok(); kemasSari(); agToast('Disimpan', 'ok'); }
+    catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
+  };
+
+  const bAuto = $('s-auto');
+  if (bAuto) bAuto.onclick = async () => {
+    const asas = baca();
+    an.sub = an.sub || [];
+    const senarai = asas.skopJenis === 'kelas'
+      ? semuaKelas.map(x => ({ nilai: x.kelas, label: agDarjahKelas(x.tahun, x.kelas) }))
+      : AG_DARJAH_WORD.slice(1).map(w => ({ nilai: w, label: 'Darjah ' + agWordDarjah(w) }));
+
+    let tambah = 0;
+    senarai.forEach((x, i) => {
+      const nama = (an.nama || 'Terbaik') + ' ' + x.label;
+      if (an.sub.some(e => e.skopNilai === x.nilai && e.skopJenis === asas.skopJenis)) return;
+      an.sub.push({
+        id: 'sub_' + Date.now().toString(36) + '_' + i,
+        nama, hadiah: asas.hadiah,
+        skopJenis: asas.skopJenis, skopNilai: x.nilai, ambil: asas.ambil
+      });
+      tambah++;
+    });
+
+    if (!tambah) { agToast('Semua sudah ada — tiada yang ditambah'); return; }
+    try {
+      await simpanMajlis(); tutupModal(); lukisPokok(); kemasSari();
+      agToast(tambah + ' sub-anugerah dijana', 'ok');
+    } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
+  };
+}
+
+async function buangSub(iAn, jSub) {
+  const an = MAJLIS.anugerah[iAn];
+  const s = an.sub[jSub];
+  const kena = PENERIMA.filter(p => (p.anugerah || []).some(x => x.subId === s.id)).length;
+  if (!confirm('Buang "' + s.nama + '"?' + (kena ? '\n\n' + kena + ' murid akan ditanggalkan.' : ''))) return;
+
+  an.sub.splice(jSub, 1);
+  try {
+    await simpanMajlis();
+    if (kena) await buangAnugerahDariPenerima(x => x.subId === s.id);
+    lukisPokok(); kemasSari(); agToast('Dibuang', 'ok');
+  } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
+}
+
+/* 🔴 Buang satu anugerah ≠ buang murid.
+   Seorang murid boleh menang beberapa anugerah; hanya anugerah TERAKHIR
+   seorang murid yang benar-benar mengeluarkan dia dari majlis. Lompang
+   nombor giliran DIBIARKAN sampai admin menekan Jana Semula sendiri —
+   ibu bapa sudah nampak nombor anak mereka.                             */
+async function buangAnugerahDariPenerima(padan) {
+  const batch = agDb.batch();
+  let n = 0;
+  PENERIMA.forEach(p => {
+    const kekal = (p.anugerah || []).filter(x => !padan(x));
+    if (kekal.length === (p.anugerah || []).length) return;
+    const ref = agDb.collection('anugerah_penerima').doc(p.docId);
+    if (!kekal.length) { batch.delete(ref); }
+    else {
+      batch.update(ref, {
+        anugerah: kekal,
+        giliran: (p.giliran || []).filter(g => !padan(g))
+      });
+    }
+    n++;
+  });
+  if (n) await batch.commit();
+  PENERIMA = await agMuatPenerima(MAJLIS.id);
+}
+
+/* ==========================================================================
+   CALON
+   ========================================================================== */
+function isiDropdownCalon() {
+  const senarai = MAJLIS.anugerah || [];
+  $('c-anugerah').innerHTML = senarai.length
+    ? senarai.map((a, i) => '<option value="' + i + '">' + agEsc(a.nama) + '</option>').join('')
+    : '<option value="">(belum ada anugerah)</option>';
+  isiDropdownSub();
+}
+
+$('c-anugerah').addEventListener('change', isiDropdownSub);
+$('c-sub').addEventListener('change', kemasTetapanCalon);
+
+function isiDropdownSub() {
+  const an = (MAJLIS.anugerah || [])[parseInt($('c-anugerah').value)];
+  const sub = (an && an.sub) || [];
+  $('c-sub').innerHTML = sub.length
+    ? sub.map((s, j) => '<option value="' + j + '">' + agEsc(s.nama) + '</option>').join('')
+    : '<option value="">(belum ada sub-anugerah)</option>';
+  kemasTetapanCalon();
+}
+
+function subSemasa() {
+  const an = (MAJLIS.anugerah || [])[parseInt($('c-anugerah').value)];
+  if (!an) return null;
+  const s = (an.sub || [])[parseInt($('c-sub').value)];
+  if (!s) return null;
+  return { an, s };
+}
+
+function kemasTetapanCalon() {
+  const p = subSemasa();
+  const bekas = $('calon-tetapan');
+  CALON_SEMASA = null;
+  $('calon-hasil').innerHTML = '';
+
+  if (!p) { bekas.textContent = ''; $('calon-sub').textContent = ''; return; }
+
+  const { an, s } = p;
+  $('calon-sub').textContent = s.nama;
+
+  if (an.sumber === 'manual') {
+    bekas.innerHTML = '<span class="pil tunggu">Manual</span> ' +
+      'Anugerah ini tiada data dalam ESIS — tambah calon dengan ➕ Tambah Manual. ' +
+      'Hadiah: ' + (agEsc(s.hadiah) || '<em>belum ditetapkan</em>');
+    $('b-cadang').disabled = true;
+  } else {
+    const skop = s.skopJenis === 'kelas' ? 'kelas ' + agEsc(s.skopNilai)
+               : s.skopJenis === 'darjah' ? 'darjah ' + agEsc(s.skopNilai)
+               : 'seluruh sekolah';
+    bekas.innerHTML = '<span class="pil emas">Auto</span> ' +
+      'Top <strong>' + (s.ambil || 1) + '</strong> ikut <strong>' +
+      agEsc(ASAS_LABEL[s.asas || an.asas] || '') + '</strong>' +
+      (((s.asas || an.asas) === 'subjek') ? ' (' + agEsc(s.subjek || an.subjek) + ')' : '') +
+      ' dalam ' + skop + ' · ' + agEsc(MAJLIS.peperiksaan || '—') + ' ' + (MAJLIS.calYear || '') +
+      ' · Hadiah: ' + (agEsc(s.hadiah) || '<em>belum ditetapkan</em>');
+    $('b-cadang').disabled = false;
+  }
+}
+
+$('b-cadang').addEventListener('click', async () => {
+  const p = subSemasa();
+  if (!p) return;
+  if (!MAJLIS.peperiksaan) { agToast('Pilih jenis peperiksaan dalam tab Majlis dahulu', 'ralat'); return; }
+
+  const { an, s } = p;
+  memuat($('calon-hasil'), 'Mengira dari markah ESIS…');
+
+  try {
+    const hasil = await agKiraCalon({
+      calYear: MAJLIS.calYear,
+      peperiksaan: s.peperiksaan || MAJLIS.peperiksaan,
+      asas: s.asas || an.asas || 'gps',
+      subjek: s.subjek || an.subjek,
+      skopJenis: s.skopJenis, skopNilai: s.skopNilai,
+      ambil: s.ambil || 1
+    });
+    CALON_SEMASA = { ...hasil, an, s };
+    lukisCalon();
+  } catch (e) {
+    console.error(e);
+    $('calon-hasil').innerHTML =
+      '<div class="kad-isi"><div class="nota ralat"><span class="sym">✕</span><div>' +
+      '<strong>Gagal mengira.</strong> ' + agEsc(e.message) + '</div></div></div>';
+  }
+});
+
+function lukisCalon() {
+  const { senarai, jumMurid, tiadaMarkah, an, s } = CALON_SEMASA;
+  const bekas = $('calon-hasil');
+
+  if (!senarai.length) {
+    bekas.innerHTML = '<div class="kad-isi"><div class="nota amaran"><span class="sym">⚠</span><div>' +
+      '<strong>Tiada murid dengan markah.</strong> ' + jumMurid + ' murid dalam skop ini, ' +
+      'tetapi tiada seorang pun ada markah ' + agEsc(MAJLIS.peperiksaan) + '. ' +
+      'Semak dalam Rekod &amp; Laporan.</div></div></div>';
+    return;
+  }
+
+  const asas = s.asas || an.asas;
+  const sudahAda = new Set();
+  PENERIMA.forEach(p => (p.anugerah || []).forEach(x => {
+    if (x.subId === s.id) sudahAda.add(p.no_kp);
+  }));
+
+  const papar = senarai.slice(0, Math.max((s.ambil || 1) + 4, 10));
+
+  const baris = papar.map(h => {
+    const dipilih = sudahAda.has(h.no_kp);
+    const status = dipilih ? '<span class="pil hadir">Dipilih</span>'
+      : h.dalamTop ? '<span class="pil emas">Cadang</span>'
+      : '<span class="pil tunggu">Luar top ' + (s.ambil || 1) + '</span>';
+    const seri = h.seri ? ' <span class="pil amaran">Seri</span>' : '';
+    return '<tr>' +
+      '<td><input type="checkbox" data-kp="' + agEsc(h.no_kp) + '"' +
+        (dipilih || h.dalamTop ? ' checked' : '') + '></td>' +
+      '<td class="num">' + h.kedudukan + '</td>' +
+      '<td class="nama-murid lajur-teks">' + agEsc(h.nama) + '</td>' +
+      '<td>' + agEsc(agDarjahKelas(h.tahun, h.kelas)) + '</td>' +
+      '<td class="num">' + (h.nilai == null ? '—' : h.nilai) + '</td>' +
+      '<td class="num">' + h.jumlah + '</td>' +
+      '<td>' + agEsc(h.gredRingkas) + '</td>' +
+      '<td>' + status + seri + '</td></tr>';
+  }).join('');
+
+  const seriDiBatas = senarai.filter(h =>
+    h.seri && Math.abs(h.kedudukan - (s.ambil || 1)) <= 2);
+
+  bekas.innerHTML =
+    '<div class="gulung"><table><thead><tr>' +
+      '<th style="width:36px">✓</th><th style="width:44px">#</th><th>Nama</th><th>Kelas</th>' +
+      '<th class="num">' + agEsc(asas === 'gps' ? 'GPS' : asas === 'subjek' ? 'Markah' : ASAS_LABEL[asas]) + '</th>' +
+      '<th class="num">Jum.</th><th>Gred</th><th>Status</th>' +
+    '</tr></thead><tbody>' + baris + '</tbody></table></div>' +
+    '<div class="kad-isi" style="border-top:1px solid var(--garis-halus)">' +
+      (seriDiBatas.length
+        ? '<div class="nota amaran"><span class="sym">⚠</span><div><strong>Ada seri berhampiran ' +
+          'tempat terakhir.</strong> ' + seriDiBatas.map(h => agEsc(h.nama)).join(' · ') +
+          ' — nilai sama. Sistem <em>tidak</em> memilih antara mereka; kau yang tick. ' +
+          'Pemecah seri (jumlah markah? markah BM?) itu dasar sekolah, bukan keputusan kod.' +
+          '</div></div>' : '') +
+      (tiadaMarkah
+        ? '<div class="nota"><span class="sym">▸</span><div><strong>' + tiadaMarkah + ' murid ' +
+          'dalam skop ini tiada markah ' + agEsc(MAJLIS.peperiksaan) + '.</strong> ' +
+          'Mereka tidak boleh disenaraikan automatik — semak dalam Rekod &amp; Laporan, ' +
+          'atau tambah manual kalau memang layak.</div></div>' : '') +
+      '<div class="baris-input" style="margin-top:4px">' +
+        '<button class="btn emas" id="b-simpan-calon">💾 Simpan Calon Ditanda</button>' +
+        '<span class="kecil">' + jumMurid + ' murid dalam skop · ' + senarai.length + ' ada markah</span>' +
+      '</div>' +
+    '</div>';
+
+  $('b-simpan-calon').onclick = simpanCalon;
+}
+
+async function simpanCalon() {
+  const { senarai, an, s } = CALON_SEMASA;
+  const ditanda = Array.from($('calon-hasil').querySelectorAll('input[type=checkbox]'))
+    .filter(c => c.checked).map(c => c.dataset.kp);
+
+  const batch = agDb.batch();
+  let tambah = 0, buang = 0;
+
+  /* tambah / kemas yang ditanda */
+  ditanda.forEach(kp => {
+    const h = senarai.find(x => x.no_kp === kp);
+    if (!h) return;
+    const docId = agIdPenerima(MAJLIS.id, kp);
+    const ada = PENERIMA.find(p => p.docId === docId);
+    const entri = {
+      anugerahId: an.id, anugerah: an.nama,
+      subId: s.id, sub: s.nama,
+      sumber: 'auto', nilai: h.nilai, catatan: h.gredRingkas
+    };
+
+    if (!ada) {
+      batch.set(agDb.collection('anugerah_penerima').doc(docId), {
+        majlisId: MAJLIS.id, no_kp: kp, nama: h.nama,
+        tahun: h.tahun, kelas: h.kelas,
+        anugerah: [entri], giliran: [],
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      tambah++;
+    } else {
+      const lain = (ada.anugerah || []).filter(x => x.subId !== s.id);
+      batch.update(agDb.collection('anugerah_penerima').doc(docId),
+        { anugerah: lain.concat([entri]) });
+      if (lain.length === (ada.anugerah || []).length) tambah++;
+    }
+  });
+
+  /* buang yang tidak lagi ditanda untuk sub ini */
+  PENERIMA.forEach(p => {
+    const adaSub = (p.anugerah || []).some(x => x.subId === s.id);
+    if (!adaSub || ditanda.includes(p.no_kp)) return;
+    const kekal = (p.anugerah || []).filter(x => x.subId !== s.id);
+    const ref = agDb.collection('anugerah_penerima').doc(p.docId);
+    if (!kekal.length) batch.delete(ref);
+    else batch.update(ref, {
+      anugerah: kekal,
+      giliran: (p.giliran || []).filter(g => g.subId !== s.id)
+    });
+    buang++;
+  });
+
+  if (!tambah && !buang) { agToast('Tiada perubahan'); return; }
+
+  try {
+    await batch.commit();
+    PENERIMA = await agMuatPenerima(MAJLIS.id);
+    lukisPenerima(); kemasSari();
+    agToast(tambah + ' ditambah, ' + buang + ' dibuang', 'ok');
+    $('b-cadang').click();
+  } catch (e) {
+    console.error(e);
+    agToast('Gagal menyimpan: ' + e.message, 'ralat');
+  }
+}
+
+/* ---------- tambah manual ---------- */
+$('b-tambah-manual').addEventListener('click', () => {
+  const p = subSemasa();
+  if (!p) { agToast('Pilih sub-anugerah dahulu', 'ralat'); return; }
+
+  bukaModal(
+    '<div class="kad-kepala"><h3>Tambah Manual</h3><span class="sub">' + agEsc(p.s.nama) + '</span>' +
+      '<button class="b-tutup" id="mx" aria-label="Tutup">×</button></div>' +
+    '<div class="kad-isi">' +
+      '<div class="nota"><span class="sym">▸</span><div>Murid <strong>dipilih dari senarai</strong>, ' +
+        'tidak ditaip — nama ditaip bermakna <code>no_kp</code> tak padan, dan murid itu jadi dua ' +
+        'orang berasingan dalam majlis.</div></div>' +
+      '<div class="medan" style="width:100%"><label for="mm-cari">Cari nama atau kelas</label>' +
+        '<input type="text" id="mm-cari" placeholder="Taip sekurang-kurangnya 2 huruf…"></div>' +
+      '<div id="mm-hasil" style="margin-top:11px"></div>' +
+    '</div>');
+
+  $('mx').onclick = tutupModal;
+  const cari = $('mm-cari');
+  cari.focus();
+  cari.addEventListener('input', () => {
+    const q = cari.value.trim().toUpperCase();
+    const bekas = $('mm-hasil');
+    if (q.length < 2) { bekas.innerHTML = '<p class="hint">Taip untuk mencari…</p>'; return; }
+
+    const padan = MURID_SEMUA.filter(m =>
+      m.nama.toUpperCase().includes(q) ||
+      m.kelas.includes(q) ||
+      agDarjahKelas(m.tahun, m.kelas).toUpperCase().includes(q)
+    ).slice(0, 30);
+
+    bekas.innerHTML = padan.length
+      ? '<div class="gulung" style="max-height:290px;overflow:auto"><table><tbody>' +
+        padan.map(m => '<tr><td class="nama-murid lajur-teks">' + agEsc(m.nama) + '</td>' +
+          '<td>' + agEsc(agDarjahKelas(m.tahun, m.kelas)) + '</td>' +
+          '<td><button class="btn sunyi kecil" data-kp="' + agEsc(m.no_kp) + '">Tambah</button></td></tr>').join('') +
+        '</tbody></table></div>'
+      : '<p class="hint">Tiada murid padan.</p>';
+  });
+
+  $('mm-hasil').addEventListener('click', async e => {
+    const b = e.target.closest('button[data-kp]');
+    if (!b) return;
+    const m = MURID_SEMUA.find(x => x.no_kp === b.dataset.kp);
+    if (!m) return;
+    b.disabled = true; b.textContent = 'Menyimpan…';
+    try { await tambahPenerimaManual(m, p.an, p.s); b.textContent = '✅ Ditambah'; }
+    catch (err) { b.disabled = false; b.textContent = 'Tambah'; agToast('Gagal: ' + err.message, 'ralat'); }
+  });
+});
+
+async function tambahPenerimaManual(murid, an, s) {
+  const docId = agIdPenerima(MAJLIS.id, murid.no_kp);
+  const ada = PENERIMA.find(p => p.docId === docId);
+  const entri = {
+    anugerahId: an.id, anugerah: an.nama,
+    subId: s.id, sub: s.nama,
+    sumber: 'manual', nilai: null, catatan: ''
+  };
+
+  if (ada && (ada.anugerah || []).some(x => x.subId === s.id)) {
+    agToast(murid.nama + ' sudah ada dalam sub-anugerah ini');
+    return;
+  }
+
+  if (!ada) {
+    await agDb.collection('anugerah_penerima').doc(docId).set({
+      majlisId: MAJLIS.id, no_kp: murid.no_kp, nama: murid.nama,
+      tahun: murid.tahun, kelas: murid.kelas,
+      anugerah: [entri], giliran: [],
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } else {
+    await agDb.collection('anugerah_penerima').doc(docId).update({
+      anugerah: (ada.anugerah || []).concat([entri])
+    });
+  }
+
+  PENERIMA = await agMuatPenerima(MAJLIS.id);
+  lukisPenerima(); kemasSari();
+  agToast(murid.nama + ' ditambah', 'ok');
+}
+
+/* ---------- senarai penerima ---------- */
+$('b-muat-penerima').addEventListener('click', async () => {
+  PENERIMA = await agMuatPenerima(MAJLIS.id);
+  lukisPenerima(); kemasSari();
+  agToast('Dimuat semula', 'ok');
+});
+
+function lukisPenerima() {
+  const bekas = $('penerima-isi');
+  const bilGil = PENERIMA.reduce((j, p) => j + (p.giliran || []).length, 0);
+  $('penerima-sub').textContent = PENERIMA.length + ' murid · ' + bilGil + ' giliran';
+
+  if (!PENERIMA.length) { kosong(bekas, 'Belum ada penerima.'); return; }
+
+  const isih = PENERIMA.slice().sort((a, b) => a.nama.localeCompare(b.nama, 'ms'));
+
+  bekas.innerHTML =
+    '<div class="gulung"><table><thead><tr>' +
+      '<th>Nama</th><th>Kelas</th><th>Anugerah dimenangi</th>' +
+      '<th class="num">Giliran</th><th></th>' +
+    '</tr></thead><tbody>' +
+    isih.map(p => {
+      const senarai = (p.anugerah || []).map(x => agEsc(x.sub)).join(' · ');
+      const nombor = (p.giliran || []).map(g => g.no).filter(n => n != null).sort((a, b) => a - b);
+      return '<tr>' +
+        '<td class="nama-murid lajur-teks">' + agEsc(p.nama) + '</td>' +
+        '<td>' + agEsc(agDarjahKelas(p.tahun, p.kelas)) + '</td>' +
+        '<td class="kecil lajur-teks">' + senarai + '</td>' +
+        '<td class="num"><strong>' + (p.anugerah || []).length + '</strong>' +
+          (nombor.length ? '<div class="kecil">' + nombor.join(' · ') + '</div>' : '') + '</td>' +
+        '<td><button class="btn sunyi kecil" data-buang-murid="' + agEsc(p.docId) + '">Buang</button></td>' +
+      '</tr>';
+    }).join('') + '</tbody></table></div>' +
+    '<div class="kad-isi" style="border-top:1px solid var(--garis-halus)">' +
+      '<div class="nota"><span class="sym">▸</span><div><strong>Buang satu anugerah ≠ buang murid.</strong> ' +
+      'Murid yang menang beberapa anugerah kekal dalam majlis selepas satu ditanggalkan; ' +
+      'hanya anugerah <em>terakhir</em> seorang murid yang mengeluarkan dia.</div></div>' +
+    '</div>';
+}
+
+$('penerima-isi').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-buang-murid]');
+  if (!b) return;
+  const p = PENERIMA.find(x => x.docId === b.dataset.buangMurid);
+  if (!p) return;
+  if (!confirm('Buang ' + p.nama + ' dari majlis sepenuhnya?\n\n' +
+    (p.anugerah || []).length + ' anugerah akan ditanggalkan.')) return;
+  try {
+    await agDb.collection('anugerah_penerima').doc(p.docId).delete();
+    PENERIMA = await agMuatPenerima(MAJLIS.id);
+    lukisPenerima(); kemasSari();
+    agToast('Dibuang', 'ok');
+  } catch (err) { agToast('Gagal: ' + err.message, 'ralat'); }
+});
+
+/* ==========================================================================
+   GILIRAN
+   --------------------------------------------------------------------------
+   🔴 Nombor giliran ialah DATA DISIMPAN. Ia tidak pernah bergerak sendiri:
+      tiket dicetak di atas kertas dan diedar. Hanya dua butang mengubahnya.
+   ========================================================================== */
+function lukisGiliran() {
+  const bilGil = PENERIMA.reduce((j, p) => j + (p.giliran || []).length, 0);
+  const bilAnugerah = PENERIMA.reduce((j, p) => j + (p.anugerah || []).length, 0);
+  const tanpaNombor = bilAnugerah - bilGil;
+
+  $('giliran-kpi').innerHTML =
+    kad(bilGil, 'Giliran', 'bernombor') +
+    kad(PENERIMA.length, 'Murid', 'orang berbeza') +
+    kad(bilAnugerah, 'Anugerah diberi', (MAJLIS.anugerah || []).length + ' jenis') +
+    (tanpaNombor > 0
+      ? kad(tanpaNombor, 'Belum bernombor', 'tekan Beri Nombor', 'bahaya')
+      : kad(bilGil, 'Tiket siap', '4 sehelai A4', 'ok'));
+
+  /* susunan anugerah */
+  const senarai = (MAJLIS.anugerah || []).slice()
+    .sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+
+  $('susun-anugerah').innerHTML = senarai.length
+    ? senarai.map((a, i) => {
+        const gil = [];
+        PENERIMA.forEach(p => (p.giliran || []).forEach(g => {
+          if (g.anugerahId === a.id && g.no != null) gil.push(g.no);
+        }));
+        const bil = PENERIMA.reduce((j, p) =>
+          j + (p.anugerah || []).filter(x => x.anugerahId === a.id).length, 0);
+        const julat = gil.length
+          ? 'giliran ' + Math.min(...gil) + '–' + Math.max(...gil)
+          : 'belum bernombor';
+        return '<div class="seret" draggable="true" data-i="' + i + '">' +
+          '<span class="pemegang">⣿</span>' +
+          '<span class="s-nama">' + agEsc(a.nama) + '</span>' +
+          '<span class="s-bil">' + bil + ' anugerah · ' + julat + '</span>' +
+          '<button class="btn sunyi kecil" data-naik="' + i + '" title="Naik">↑</button>' +
+          '<button class="btn sunyi kecil" data-turun="' + i + '" title="Turun">↓</button>' +
+        '</div>';
+      }).join('')
+    : '<p class="hint">Belum ada anugerah.</p>';
+
+  lukisTiket();
+}
+
+function kad(angka, label, kecil, jenis) {
+  return '<div class="kpi' + (jenis ? ' ' + jenis : '') + '">' +
+    '<div class="angka">' + angka + '</div>' +
+    '<div class="label">' + agEsc(label) + '</div>' +
+    '<div class="kecil">' + agEsc(kecil) + '</div></div>';
+}
+
+$('susun-anugerah').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-naik],button[data-turun]');
+  if (!b) return;
+  const senarai = (MAJLIS.anugerah || []).slice()
+    .sort((a, b2) => (a.urutan || 0) - (b2.urutan || 0));
+  const i = parseInt(b.dataset.naik !== undefined ? b.dataset.naik : b.dataset.turun);
+  const j = b.dataset.naik !== undefined ? i - 1 : i + 1;
+  if (j < 0 || j >= senarai.length) return;
+
+  [senarai[i], senarai[j]] = [senarai[j], senarai[i]];
+  senarai.forEach((a, k) => { a.urutan = k; });
+  MAJLIS.anugerah = senarai;
+
+  try {
+    await simpanMajlis();
+    lukisGiliran();
+    /* 🔴 Menyusun semula memapar AMARAN, bukan menukar nombor. */
+    $('susun-amaran').innerHTML =
+      '<div class="nota amaran" style="margin:15px 0 0"><span class="sym">⚠</span><div>' +
+      '<strong>Susunan berubah tetapi nombor giliran KEKAL.</strong> Ini amaran, bukan tindakan. ' +
+      'Nombor hanya berubah bila kau tekan <em>Jana Semula</em> sendiri — tiket yang sudah ' +
+      'dicetak dan diedar tidak boleh ditukar oleh sistem.</div></div>';
+  } catch (err) { agToast('Gagal: ' + err.message, 'ralat'); }
+});
+
+/* ---------- beri nombor ---------- */
+/* Hierarki: ANUGERAH (ikut urutan) → SUB (ikut urutan) → MURID (abjad). */
+function binaTurutan() {
+  const senarai = (MAJLIS.anugerah || []).slice()
+    .sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+  const turutan = [];
+  senarai.forEach(a => {
+    (a.sub || []).forEach(s => {
+      const murid = PENERIMA
+        .filter(p => (p.anugerah || []).some(x => x.subId === s.id))
+        .sort((x, y) => x.nama.localeCompare(y.nama, 'ms'));
+      murid.forEach(p => turutan.push({ p, a, s }));
+    });
+  });
+  return turutan;
+}
+
+$('b-beri-nombor').addEventListener('click', () => beriNombor(false));
+$('b-jana-semula').addEventListener('click', () => {
+  if (!confirm('JANA SEMULA semua nombor giliran dari 1?\n\n' +
+    'Setiap nombor yang sudah dicetak di atas tiket akan berubah. ' +
+    'Satu pusingan disimpan — butang ↩️ Pulihkan boleh membatalkannya.')) return;
+  beriNombor(true);
+});
+
+async function beriNombor(semua) {
+  const turutan = binaTurutan();
+  if (!turutan.length) { agToast('Tiada penerima', 'ralat'); return; }
+
+  /* nombor tertinggi yang sudah dipakai */
+  let maks = 0;
+  PENERIMA.forEach(p => (p.giliran || []).forEach(g => {
+    if (typeof g.no === 'number' && g.no > maks) maks = g.no;
+  }));
+
+  const petaBaru = {};   // docId -> giliran[]
+  let n = semua ? 0 : maks;
+  let tambah = 0;
+
+  turutan.forEach(({ p, a, s }) => {
+    petaBaru[p.docId] = petaBaru[p.docId] || [];
+    const lama = (p.giliran || []).find(g => g.subId === s.id);
+
+    if (!semua && lama && lama.no != null) {
+      petaBaru[p.docId].push(lama);   // kekalkan nombor yang sudah ada
+      return;
+    }
+    n++;
+    tambah++;
+    petaBaru[p.docId].push(agEntriGiliran({
+      anugerahId: a.id, anugerah: a.nama,
+      subId: s.id, sub: s.nama, hadiah: s.hadiah || '',
+      no: n,
+      hadir: lama ? lama.hadir : null,
+      mc: lama ? lama.mc : null
+    }));
+  });
+
+  if (!tambah) { agToast('Semua giliran sudah bernombor'); return; }
+
+  const batch = agDb.batch();
+  Object.keys(petaBaru).forEach(docId => {
+    const p = PENERIMA.find(x => x.docId === docId);
+    const data = { giliran: petaBaru[docId].sort((a, b) => a.no - b.no) };
+    /* satu pusingan disimpan untuk ↩️ Pulihkan */
+    if (semua) data.giliranLama = p.giliran || [];
+    batch.update(agDb.collection('anugerah_penerima').doc(docId), data);
+  });
+
+  try {
+    await batch.commit();
+    PENERIMA = await agMuatPenerima(MAJLIS.id);
+    $('susun-amaran').innerHTML = '';
+    lukisGiliran(); kemasSari();
+    agToast(tambah + ' nombor giliran ditetapkan', 'ok');
+  } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
+}
+
+$('b-pulih').addEventListener('click', async () => {
+  const ada = PENERIMA.filter(p => (p.giliranLama || []).length);
+  if (!ada.length) { agToast('Tiada pusingan untuk dipulihkan'); return; }
+  if (!confirm('Pulihkan nombor giliran sebelum Jana Semula terakhir?\n\n' +
+    ada.length + ' murid terjejas.')) return;
+
+  const batch = agDb.batch();
+  ada.forEach(p => batch.update(agDb.collection('anugerah_penerima').doc(p.docId),
+    { giliran: p.giliranLama, giliranLama: [] }));
+  try {
+    await batch.commit();
+    PENERIMA = await agMuatPenerima(MAJLIS.id);
+    lukisGiliran(); kemasSari();
+    agToast('Dipulihkan', 'ok');
+  } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
+});
+
+/* ---------- tiket ---------- */
+function lukisTiket() {
+  const sel = $('t-tapis');
+  const senarai = (MAJLIS.anugerah || []).slice()
+    .sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+  const dipilih = sel.value;
+  sel.innerHTML = '<option value="">Semua anugerah</option>' +
+    senarai.map(a => '<option value="' + agEsc(a.id) + '">' + agEsc(a.nama) + '</option>').join('');
+  if (dipilih) sel.value = dipilih;
+
+  const semua = [];
+  PENERIMA.forEach(p => (p.giliran || []).forEach(g => {
+    if (g.no == null) return;
+    if (sel.value && g.anugerahId !== sel.value) return;
+    semua.push({ p, g });
+  }));
+  semua.sort((a, b) => a.g.no - b.g.no);
+
+  const bekas = $('tiket-grid');
+  if (!semua.length) {
+    bekas.innerHTML = '<p class="hint">Tiada tiket — beri nombor giliran dahulu.</p>';
+    return;
+  }
+
+  bekas.innerHTML = semua.map(({ p, g }) =>
+    '<div class="tiket"><div class="tiket-kiri">' +
+      '<div class="sekolah">' + agEsc(MAJLIS.sekolah || 'Sekolah') + '</div>' +
+      '<div class="majlis">' + agEsc(MAJLIS.nama || '') + '</div>' +
+      '<div class="nama">' + agEsc(agPendekNama(p.nama, 24)) + '</div>' +
+      '<div class="kelas">' + agEsc(agDarjahKelas(p.tahun, p.kelas)) + '</div>' +
+      '<div class="anugerah-t">' + agEsc(g.sub) + '</div>' +
+    '</div><div class="tiket-kanan">' +
+      '<div class="gil-lbl">Giliran</div><div class="gil-no">' + g.no + '</div>' +
+    '</div></div>').join('');
+}
+
+$('t-tapis').addEventListener('change', lukisTiket);
+$('b-cetak-tiket').addEventListener('click', () => window.print());
+
+/* ==========================================================================
+   PETUGAS
+   ========================================================================== */
+function lukisPetugas() {
+  const mod = MAJLIS.modPetugas = MAJLIS.modPetugas || {};
+  const asas = location.href.replace(/[^/]*$/, '');
+
+  const peranan = [
+    { k: 'kodPeserta', fail: 'peserta.html', ikon: '👥', nama: 'Pengurus Peserta',
+      tulis: 'Menulis: kehadiran murid di dewan' },
+    { k: 'kodMC', fail: 'mc.html', ikon: '🎤', nama: 'MC',
+      tulis: 'Menulis: tanda sudah naik pentas · Melihat: kehadiran' },
+    { k: 'kodHadiah', fail: 'hadiah.html', ikon: '🎁', nama: 'Pengurus Hadiah',
+      tulis: 'Menulis: <strong>tiada</strong> · Melihat: kedua-duanya' },
+    { k: 'kodTayang', fail: 'tayang.html', ikon: '📺', nama: 'Slaid Dewan',
+      tulis: 'Menulis: tiada · Paparan projektor sahaja' }
+  ];
+
+  $('link-grid').innerHTML = peranan.map(r => {
+    const kod = mod[r.k];
+    const url = kod ? asas + r.fail + '?kod=' + encodeURIComponent(kod) : '';
+    return '<div class="link-baris">' +
+      '<span class="lb-ikon">' + r.ikon + '</span>' +
+      '<div class="lb-teks"><div class="lb-nama">' + agEsc(r.nama) + '</div>' +
+        '<div class="lb-url">' + (kod ? agEsc(url) : '<em>kod dibatalkan</em>') + '</div>' +
+        '<div class="lb-tulis">' + r.tulis + '</div></div>' +
+      (kod
+        ? '<button class="btn sunyi kecil" data-salin="' + agEsc(url) + '">Salin</button>' +
+          '<a class="btn sunyi kecil" href="' + agEsc(url) + '" target="_blank" rel="noopener">Buka</a>' +
+          '<button class="btn sunyi kecil" data-batal="' + r.k + '">Batal</button>'
+        : '<button class="btn emas kecil" data-jana="' + r.k + '">Jana Kod</button>') +
+    '</div>';
+  }).join('');
+}
+
+$('link-grid').addEventListener('click', async e => {
+  const salin = e.target.closest('button[data-salin]');
+  if (salin) {
+    try { await navigator.clipboard.writeText(salin.dataset.salin); agToast('Link disalin', 'ok'); }
+    catch { agToast('Gagal menyalin — salin manual dari paparan', 'ralat'); }
+    return;
+  }
+  const batal = e.target.closest('button[data-batal]');
+  if (batal) {
+    if (!confirm('Batalkan kod ini?\n\nSesiapa yang sudah ada link lama tidak boleh masuk lagi. ' +
+      'Peranan lain tidak terjejas.')) return;
+    MAJLIS.modPetugas[batal.dataset.batal] = '';
+    try { await simpanMajlis(); lukisPetugas(); agToast('Kod dibatalkan', 'ok'); }
+    catch (err) { agToast('Gagal: ' + err.message, 'ralat'); }
+    return;
+  }
+  const jana = e.target.closest('button[data-jana]');
+  if (jana) {
+    MAJLIS.modPetugas[jana.dataset.jana] = agKodBaru();
+    try { await simpanMajlis(); lukisPetugas(); agToast('Kod baharu dijana', 'ok'); }
+    catch (err) { agToast('Gagal: ' + err.message, 'ralat'); }
+  }
+});
+
+/* ---------- reset tanda ----------
+   Pengesahan dengan MENAIP, bukan confirm berganda: selepas majlis sebenar
+   ini satu-satunya rekod siapa naik pentas.                              */
+$('b-reset-hadir').addEventListener('click', () => resetTanda('hadir', 'kehadiran'));
+$('b-reset-mc').addEventListener('click', () => resetTanda('mc', 'MC'));
+
+async function resetTanda(medan, label) {
+  const taip = prompt('Reset semua tanda ' + label + '?\n\n' +
+    'Selepas majlis sebenar, ini satu-satunya rekod siapa naik pentas.\n\n' +
+    'Taip RESET untuk teruskan:');
+  if (taip !== 'RESET') { if (taip !== null) agToast('Dibatalkan'); return; }
+
+  const batch = agDb.batch();
+  let n = 0;
+  PENERIMA.forEach(p => {
+    const gil = (p.giliran || []).map(g => ({ ...g, [medan]: null }));
+    if (!gil.length) return;
+    batch.update(agDb.collection('anugerah_penerima').doc(p.docId), { giliran: gil });
+    n++;
+  });
+  if (!n) { agToast('Tiada giliran'); return; }
+
+  try {
+    await batch.commit();
+    PENERIMA = await agMuatPenerima(MAJLIS.id);
+    agToast('Tanda ' + label + ' direset', 'ok');
+  } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
+}
+
+/* ---------- mula ---------- */
+if (sessionStorage.getItem('ag_admin') === '1') mulaPanel();
+else $('sari').textContent = 'Masukkan kata laluan untuk mula.';
+</script>
+</body>
+</html>

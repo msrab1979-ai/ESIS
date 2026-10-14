@@ -19,6 +19,19 @@
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
         ]
+      },
+      {
+        "//": "Modul Anugerah — sebab sama dengan index.html: satu pembetulan di tengah hari majlis tidak boleh menunggu sejam sebelum sampai ke telefon MC.",
+        "source": "/{anugerah-admin,peserta,mc,hadiah,tayang}.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+        ]
+      },
+      {
+        "source": "/anugerah-kongsi.{js,css}",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+        ]
       }
     ]
   },

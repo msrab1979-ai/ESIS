@@ -1,0 +1,425 @@
+/* ==========================================================================
+   anugerah-kongsi.js — kod yang dikongsi oleh KESEMUA panel anugerah
+   --------------------------------------------------------------------------
+   Dimuatkan oleh: anugerah-admin.html · peserta.html · mc.html ·
+                   hadiah.html · tayang.html
+
+   🔴 SATU-SATUNYA tempat Firebase config ditulis. Jangan salin-tampal
+      config ke mana-mana fail panel — kalau projek bertukar, ia kena
+      bertukar di satu tempat sahaja.
+
+   🔴 Koleksi `students` · `rekodMarkah` · `gred` · `examTypes` · `subjek`
+      adalah BACA SAHAJA dari modul anugerah. Modul ini hanya menulis
+      `anugerah_majlis` dan `anugerah_penerima`.
+   ========================================================================== */
+
+/* ---------- Firebase ---------- */
+const AG_CONFIG = {
+  apiKey: "AIzaSyA4izu2nFOByzV9YKVFHoL8Q2Q6aTnrIww",
+  authDomain: "sistem-esis.firebaseapp.com",
+  projectId: "sistem-esis",
+  storageBucket: "sistem-esis.firebasestorage.app",
+  messagingSenderId: "667946090987",
+  appId: "1:667946090987:web:22c88159abb5ae44f559ae"
+};
+
+if (!firebase.apps.length) firebase.initializeApp(AG_CONFIG);
+const agDb = firebase.firestore();
+
+/* ---------- pemalar ---------- */
+const AG_MATA_DEFAULT = { A: 6, B: 5, C: 4, D: 3, E: 2, F: 1 };
+const AG_GRED_TH = 'TH';
+const AG_PW_LALAI = 'anugerah123';
+
+const AG_DARJAH_WORD = ['', 'SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
+const AG_WORD_DARJAH = { SATU: 1, DUA: 2, TIGA: 3, EMPAT: 4, LIMA: 5, ENAM: 6 };
+
+function agDarjahWord(n) { return AG_DARJAH_WORD[Number(n)] || String(n || ''); }
+function agWordDarjah(w) { return AG_WORD_DARJAH[String(w || '').toUpperCase()] || Number(w) || 0; }
+
+/* ---------- TH ----------
+   Sama peraturan dengan ESIS: TH bukan markah dan bukan gred gagal.
+   Ia keluar dari pengangka DAN penyebut.                               */
+function agIsTH(rekod) {
+  if (rekod == null) return false;
+  if (typeof rekod === 'object') return rekod.th === true || rekod.gred === AG_GRED_TH;
+  return String(rekod) === AG_GRED_TH;
+}
+function agTanpaTH(senarai) { return (senarai || []).filter(m => !agIsTH(m)); }
+
+/* ---------- gred & GPS ---------- */
+let AG_GRED_CACHE = null;
+
+async function agMuatGred(paksa) {
+  if (AG_GRED_CACHE && !paksa) return AG_GRED_CACHE;
+  const snap = await agDb.collection('gred').get();
+  AG_GRED_CACHE = snap.docs.map(d => ({ gred: d.id, ...d.data() }));
+  return AG_GRED_CACHE;
+}
+
+function agGredDariMarkah(markah) {
+  if (agIsTH(markah)) return AG_GRED_TH;
+  const n = parseInt(markah);
+  if (isNaN(n) || n < 0 || n > 100) return 'TIDAK SAH';
+  const g = (AG_GRED_CACHE || []).find(x =>
+    n >= parseInt(x.markah_min) && n <= parseInt(x.markah_max));
+  return g ? g.gred : 'Gagal';
+}
+
+function agMataMap() {
+  const map = { ...AG_MATA_DEFAULT };
+  (AG_GRED_CACHE || []).forEach(g => {
+    const m = parseFloat(g.mata);
+    if (!isNaN(m) && map.hasOwnProperty(g.gred)) map[g.gred] = m;
+  });
+  return map;
+}
+
+/* GPS satu murid merentas subjek. TH sudah dibuang sebelum masuk sini.
+   Gred 'Gagal'/'TIDAK SAH' = 0 mata tetapi KEKAL dalam penyebut —
+   sama seperti jadual ESIS yang lain.                                  */
+function agGPS(senaraiGred) {
+  const sah = agTanpaTH(senaraiGred);
+  if (!sah.length) return null;
+  const mata = agMataMap();
+  const skor = sah.reduce((j, g) => j + (mata[String(g).toUpperCase()] || 0), 0);
+  return Math.round((skor / sah.length) * 100) / 100;
+}
+
+/* ---------- murid ---------- */
+let AG_MURID_CACHE = null;
+
+async function agMuatMurid(paksa) {
+  if (AG_MURID_CACHE && !paksa) return AG_MURID_CACHE;
+  const snap = await agDb.collection('students').get();
+  AG_MURID_CACHE = snap.docs
+    .map(d => {
+      const x = d.data();
+      return {
+        id: d.id,
+        no_kp: String(x.no_kp || '').trim(),
+        nama: String(x.nama || '').trim(),
+        tahun: String(x.tahun || '').trim().toUpperCase(),
+        kelas: String(x.kelas || '').trim().toUpperCase(),
+        jantina: String(x.jantina || '').trim().toUpperCase()
+      };
+    })
+    .filter(m => m.no_kp && m.nama);
+  return AG_MURID_CACHE;
+}
+
+/* ---------- markah satu tahun + satu peperiksaan ---------- */
+const AG_MARKAH_CACHE = {};
+
+async function agMuatMarkah(calYear, peperiksaan, paksa) {
+  const kunci = calYear + '||' + peperiksaan;
+  if (AG_MARKAH_CACHE[kunci] && !paksa) return AG_MARKAH_CACHE[kunci];
+
+  const snap = await agDb.collection('rekodMarkah')
+    .where('cal_year', '==', Number(calYear))
+    .where('JENIS PEPERIKSAAN', '==', peperiksaan)
+    .get();
+
+  AG_MARKAH_CACHE[kunci] = snap.docs.map(d => {
+    const x = d.data();
+    return {
+      id: d.id,
+      no_kp: String(x.no_kp || '').trim(),
+      nama: String(x.nama || '').trim(),
+      tahun: String(x.tahun || '').trim().toUpperCase(),
+      kelas: String(x.kelas || '').trim().toUpperCase(),
+      subjek: String(x.subjek || '').trim(),
+      markah: x.markah,
+      gred: x.gred,
+      th: x.th === true
+    };
+  });
+  return AG_MARKAH_CACHE[kunci];
+}
+
+/* ---------- jenis peperiksaan satu tahun ----------
+   Dedup ikut nama huruf besar — BACA SAHAJA, tidak memadam apa-apa
+   (sama peraturan dengan getExamTypesForYear dalam index.html).        */
+async function agJenisPeperiksaan(calYear) {
+  const snap = await agDb.collection('examTypes')
+    .where('tahunKalendar', '==', Number(calYear)).get();
+
+  let docs = snap.docs;
+  if (snap.empty) {
+    const semua = await agDb.collection('examTypes').get();
+    docs = semua.docs.filter(d => {
+      const t = d.data().tahunKalendar;
+      return t === undefined || t === null;
+    });
+  }
+
+  const nampak = new Set();
+  return docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .filter(e => {
+      const k = String(e.nama || '').trim().toUpperCase();
+      if (!k || nampak.has(k)) return false;
+      nampak.add(k);
+      return true;
+    })
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+
+/* ---------- senarai kelas ikut darjah (dari students) ---------- */
+async function agKelasIkutDarjah() {
+  const murid = await agMuatMurid();
+  const peta = {};
+  murid.forEach(m => {
+    if (!m.tahun || !m.kelas) return;
+    (peta[m.tahun] = peta[m.tahun] || new Set()).add(m.kelas);
+  });
+  Object.keys(peta).forEach(t => { peta[t] = Array.from(peta[t]).sort(); });
+  return peta;
+}
+
+/* ---------- senarai subjek ---------- */
+async function agSenaraiSubjek() {
+  const snap = await agDb.collection('subjek').get();
+  const nama = snap.docs
+    .map(d => String(d.data().nama_penuh || d.data().nama || d.id).trim())
+    .filter(Boolean);
+  return Array.from(new Set(nama)).sort();
+}
+
+/* ==========================================================================
+   KIRAAN CALON — inti modul ini
+   --------------------------------------------------------------------------
+   Satu fungsi, empat asas ranking. Dipakai oleh admin (cadang calon) sahaja;
+   panel petugas tidak pernah mengira.
+   ========================================================================== */
+
+/**
+ * @param {object} o
+ *   calYear      tahun kalendar
+ *   peperiksaan  nama jenis peperiksaan
+ *   asas         'gps' | 'jumlah' | 'purata' | 'subjek'
+ *   subjek       nama subjek (wajib bila asas==='subjek')
+ *   skopJenis    'darjah' | 'kelas' | 'sekolah'
+ *   skopNilai    darjah word (EMPAT) atau kelas (4 INTEL) ikut skopJenis
+ *   ambil        berapa orang teratas
+ * @returns {Promise<{senarai:Array, jumMurid:number, tiadaMarkah:number}>}
+ */
+async function agKiraCalon(o) {
+  await agMuatGred();
+  const murid = await agMuatMurid();
+  const markah = await agMuatMarkah(o.calYear, o.peperiksaan);
+
+  /* --- tapis skop --- */
+  let kolam = murid;
+  if (o.skopJenis === 'darjah') {
+    kolam = murid.filter(m => m.tahun === String(o.skopNilai || '').toUpperCase());
+  } else if (o.skopJenis === 'kelas') {
+    kolam = murid.filter(m => m.kelas === String(o.skopNilai || '').toUpperCase());
+  }
+
+  /* --- kumpul markah ikut no_kp (BUKAN nama — nama berubah bila ejaan
+         dibetulkan, no_kp stabil) --- */
+  const ikutKP = {};
+  markah.forEach(r => {
+    if (!r.no_kp) return;
+    (ikutKP[r.no_kp] = ikutKP[r.no_kp] || []).push(r);
+  });
+
+  const hasil = [];
+  let tiadaMarkah = 0;
+
+  kolam.forEach(m => {
+    const rekod = ikutKP[m.no_kp] || [];
+
+    if (o.asas === 'subjek') {
+      const nama = String(o.subjek || '').trim().toUpperCase();
+      const r = rekod.find(x => String(x.subjek).toUpperCase() === nama);
+      if (!r || agIsTH(r)) { tiadaMarkah++; return; }
+      const n = parseInt(r.markah);
+      if (isNaN(n)) { tiadaMarkah++; return; }
+      hasil.push({
+        no_kp: m.no_kp, nama: m.nama, tahun: m.tahun, kelas: m.kelas,
+        nilai: n, gps: null, jumlah: n, bilSubjek: 1,
+        gredRingkas: agGredDariMarkah(n),
+        bilA: agGredDariMarkah(n) === 'A' ? 1 : 0
+      });
+      return;
+    }
+
+    /* asas gps / jumlah / purata — TH dibuang dahulu, bukan dikira 0 */
+    const sah = rekod.filter(r => !agIsTH(r) && !isNaN(parseInt(r.markah)));
+    if (!sah.length) { tiadaMarkah++; return; }
+
+    const gredList = sah.map(r => r.gred || agGredDariMarkah(r.markah));
+    const jumlah = sah.reduce((j, r) => j + parseInt(r.markah), 0);
+    const gps = agGPS(gredList);
+    const bilA = gredList.filter(g => String(g).toUpperCase() === 'A').length;
+
+    let nilai;
+    if (o.asas === 'jumlah') nilai = jumlah;
+    else if (o.asas === 'purata') nilai = Math.round((jumlah / sah.length) * 100) / 100;
+    else nilai = gps;
+
+    hasil.push({
+      no_kp: m.no_kp, nama: m.nama, tahun: m.tahun, kelas: m.kelas,
+      nilai, gps, jumlah, bilSubjek: sah.length,
+      gredRingkas: agRingkasGred(gredList), bilA
+    });
+  });
+
+  /* --- isih: nilai turun, kemudian cadangan pemecah seri ---
+     🔴 Pemecah seri DIPAPAR, tidak memutuskan. Isihan ini hanya
+        meletakkan calon yang seri bersebelahan supaya admin nampak;
+        `seri:true` ditanda dan admin yang tick. Memilih antara dua
+        murid GPS sama itu dasar sekolah, bukan keputusan kod.        */
+  hasil.sort((a, b) =>
+    (b.nilai - a.nilai) ||
+    (b.jumlah - a.jumlah) ||
+    (b.bilA - a.bilA) ||
+    a.nama.localeCompare(b.nama, 'ms')
+  );
+
+  /* tanda seri pada nilai utama sahaja */
+  hasil.forEach((h, i) => {
+    const sebelum = hasil[i - 1], selepas = hasil[i + 1];
+    h.seri = !!((sebelum && sebelum.nilai === h.nilai) ||
+                (selepas && selepas.nilai === h.nilai));
+  });
+
+  const ambil = Math.max(0, parseInt(o.ambil) || 0);
+  hasil.forEach((h, i) => { h.kedudukan = i + 1; h.dalamTop = i < ambil; });
+
+  return { senarai: hasil, jumMurid: kolam.length, tiadaMarkah };
+}
+
+/* "6A 1B" dari senarai gred */
+function agRingkasGred(gredList) {
+  const kira = {};
+  (gredList || []).forEach(g => {
+    const k = String(g || '').toUpperCase();
+    if (!/^[A-F]$/.test(k)) return;
+    kira[k] = (kira[k] || 0) + 1;
+  });
+  return ['A', 'B', 'C', 'D', 'E', 'F']
+    .filter(g => kira[g]).map(g => kira[g] + g).join(' ') || '—';
+}
+
+/* ==========================================================================
+   AKSES PETUGAS — kod rahsia dalam URL, bukan akaun
+   --------------------------------------------------------------------------
+   🔴 Setiap peranan ada kod SENDIRI. Satu kod tidak boleh membuka panel
+      peranan lain — dan ini dikuatkuasakan dengan menyemak kod terhadap
+      medan yang BETUL, bukan sekadar menyembunyikan menu.
+   ========================================================================== */
+const AG_PERANAN_MEDAN = {
+  peserta: 'kodPeserta',
+  mc: 'kodMC',
+  hadiah: 'kodHadiah',
+  tayang: 'kodTayang'
+};
+
+function agKodDariURL() {
+  return new URLSearchParams(location.search).get('kod') || '';
+}
+
+/**
+ * Cari majlis yang kodnya padan dengan peranan ini.
+ * @returns {Promise<{majlis:object}|null>}
+ */
+async function agBukaDenganKod(peranan) {
+  const kod = agKodDariURL().trim();
+  const medan = AG_PERANAN_MEDAN[peranan];
+  if (!kod || !medan) return null;
+
+  const snap = await agDb.collection('anugerah_majlis')
+    .where('modPetugas.' + medan, '==', kod).get();
+
+  if (snap.empty) return null;
+  return { majlis: { id: snap.docs[0].id, ...snap.docs[0].data() } };
+}
+
+function agKodBaru(n) {
+  const huruf = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let s = '';
+  for (let i = 0; i < (n || 6); i++) s += huruf[Math.floor(Math.random() * huruf.length)];
+  return s;
+}
+
+/* ==========================================================================
+   PENERIMA
+   ========================================================================== */
+
+/* Doc id penerima = majlisId__noKP. Satu doc satu murid; semua anugerah
+   yang dia menang duduk dalam `anugerah[]`, dan setiap satu dapat satu
+   entri dalam `giliran[]`.                                              */
+function agIdPenerima(majlisId, noKP) {
+  return majlisId + '__' + String(noKP).replace(/[^\w-]/g, '');
+}
+
+async function agMuatPenerima(majlisId) {
+  const snap = await agDb.collection('anugerah_penerima')
+    .where('majlisId', '==', majlisId).get();
+  return snap.docs.map(d => ({ docId: d.id, ...d.data() }));
+}
+
+/* ---------- ikatan giliran ----------
+   🔴 Satu-satunya tempat entri giliran[] dibentuk. Kedua-dua laluan tulis
+      (beri nombor baharu · jana semula) memanggil fungsi ini, supaya medan
+      yang ditambah kemudian tidak gugur senyap di salah satu laluan.   */
+function agEntriGiliran(o) {
+  return {
+    anugerahId: o.anugerahId,
+    anugerah: o.anugerah,
+    subId: o.subId,
+    sub: o.sub,
+    hadiah: o.hadiah || '',
+    no: o.no,
+    hadir: o.hadir === undefined ? null : o.hadir,
+    mc: o.mc === undefined ? null : o.mc
+  };
+}
+
+/* ---------- papar ---------- */
+function agEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* 🔴 Cetakan papar DARJAH + KELAS, bukan kelas sahaja — "5 CELERON" dan
+      "6 CELERON" dua kelas berbeza. */
+function agDarjahKelas(tahun, kelas) {
+  const d = agWordDarjah(tahun);
+  const k = String(kelas || '').trim();
+  if (!k) return d ? String(d) : '';
+  if (!d) return k;
+  return new RegExp('^' + d + '\\b').test(k) ? k : d + ' ' + k;
+}
+
+/* Had nama ditentukan oleh TIKET (4 sehelai A4 ≈ 93mm ≈ 24 aksara),
+   bukan oleh slaid yang boleh terima ~59. Ukur ruang paling SEMPIT. */
+function agPendekNama(nama, had) {
+  const n = String(nama || '').trim();
+  const h = had || 24;
+  return n.length <= h ? n : n.slice(0, h - 1).trimEnd() + '…';
+}
+
+function agToast(mesej, jenis) {
+  let bekas = document.getElementById('ag-toast');
+  if (!bekas) {
+    bekas = document.createElement('div');
+    bekas.id = 'ag-toast';
+    bekas.style.cssText =
+      'position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:9999;' +
+      'display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none';
+    document.body.appendChild(bekas);
+  }
+  const t = document.createElement('div');
+  const warna = jenis === 'ralat' ? '#9B2C2C' : (jenis === 'ok' ? '#2F6B4F' : '#16233A');
+  t.style.cssText =
+    'background:' + warna + ';color:#F7F4ED;padding:10px 17px;border-radius:9px;' +
+    'font:600 13.5px/1.4 "Public Sans",system-ui,sans-serif;box-shadow:0 6px 22px rgba(0,0,0,.25);' +
+    'max-width:min(520px,90vw);text-align:center';
+  t.textContent = mesej;
+  bekas.appendChild(t);
+  setTimeout(() => t.remove(), 3600);
+}

@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pengurus Peserta — Anugerah</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="anugerah-kongsi.css">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+.tapis-bar{
+  display:flex; gap:9px; flex-wrap:wrap; align-items:center;
+  padding:11px 16px; border-bottom:1px solid var(--garis-halus); background:var(--kertas-2);
+  position:sticky; top:0; z-index:5;
+}
+.tapis-bar input[type=text]{min-width:170px; flex:1 1 170px}
+.lencana-gil{
+  display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700;
+  background:var(--amaran-bg); color:var(--emas); padding:1px 7px; border-radius:20px;
+}
+.gil-no-kecil{font-variant-numeric:tabular-nums; color:var(--neutral)}
+</style>
+</head>
+<body>
+
+<header class="tajuk tanpa-tab">
+  <div class="tajuk-dlm">
+    <div class="jenama">
+      <h1>Pengurus Peserta</h1>
+      <span class="cap">Pintu Dewan</span>
+    </div>
+    <p class="sari" id="sari">Memuatkan…</p>
+  </div>
+</header>
+
+<main class="badan">
+  <div id="p-ralat" hidden>
+    <div class="kad login-kotak">
+      <div class="kad-kepala"><h3>Link tidak sah</h3></div>
+      <div class="kad-isi">
+        <div class="nota ralat" style="margin:0">
+          <span class="sym">✕</span>
+          <div id="ralat-teks">Kod dalam link ini tidak dikenali.</div>
+        </div>
+        <p class="kecil" style="margin:13px 0 0">
+          Minta link baharu dari admin: Panel Anugerah → <strong>🔗 Link Petugas</strong>.
+          Kod setiap peranan berbeza — kod MC atau meja hadiah tidak boleh membuka panel ini.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div id="p-isi" hidden>
+    <div class="nota">
+      <span class="sym">▸</span>
+      <div><strong>Kau menanda MURID, bukan giliran.</strong> Seorang murid boleh menang beberapa
+      anugerah — satu tekan menggugurkan semua giliran dia sekali. Lencana
+      <span class="lencana-gil">4 giliran</span> menunjukkan kesannya sebelum kau tekan.</div>
+    </div>
+
+    <div class="kpi-grid" id="kpi"></div>
+
+    <div class="kad">
+      <div class="kad-kepala">
+        <h3>Senarai Murid</h3>
+        <span class="sub" id="senarai-sub"></span>
+        <div class="kanan">
+          <button class="btn sunyi kecil" id="b-muat">🔄 Muat Semula</button>
+        </div>
+      </div>
+      <div class="tapis-bar">
+        <input type="text" id="t-cari" placeholder="Cari nama atau kelas…">
+        <select id="t-darjah" style="min-width:140px"></select>
+        <select id="t-status" style="min-width:150px">
+          <option value="">Semua status</option>
+          <option value="belum">Belum ditanda</option>
+          <option value="hadir">Hadir</option>
+          <option value="absen">Tidak hadir</option>
+        </select>
+        <span class="kecil" id="tapis-kira"></span>
+      </div>
+      <div class="kad-isi rapat" id="senarai"></div>
+    </div>
+  </div>
+</main>
+
+<script src="anugerah-kongsi.js"></script>
+<script>
+/* ==========================================================================
+   PENGURUS PESERTA — menanda sama ada murid BERADA DI DEWAN
+   --------------------------------------------------------------------------
+   🔴 Menulis `giliran[].hadir` SAHAJA. Tidak pernah menyentuh `giliran[].mc`
+      — MC yang tersilap tekan tidak boleh membatalkan semakan di pintu dewan,
+      dan sebaliknya.
+
+   🔴 Seorang murid = SATU tanda = SEMUA giliran dia. Ditulis dalam satu
+      transaksi supaya tidak separuh jalan.
+
+   🔴 Kegagalan muat semula TIDAK mengosongkan paparan — orang sedang membaca
+      senarai ini di tengah majlis.
+   ========================================================================== */
+
+let MAJLIS = null;
+let MURID = [];            // [{docId, nama, tahun, kelas, giliran[], status}]
+const MENUNGGU = [];       // baris gilir luar talian
+
+const $ = id => document.getElementById(id);
+function memuat(el, teks) {
+  el.innerHTML = '<div class="memuat"><div class="pusing"></div>' + agEsc(teks || 'Memuatkan…') + '</div>';
+}
+
+/* ---------- mula ---------- */
+(async function mula() {
+  memuat($('senarai') || document.body, 'Menyemak kod…');
+  try {
+    const hasil = await agBukaDenganKod('peserta');
+    if (!hasil) {
+      $('sari').textContent = 'Kod tidak sah.';
+      $('p-ralat').hidden = false;
+      return;
+    }
+    MAJLIS = hasil.majlis;
+    $('p-isi').hidden = false;
+    await muat(true);
+    /* 🔴 Muat berkala 25s × 3 panel × berjam-jam majlis = puluhan ribu
+       bacaan Firestore dan kuota harian boleh habis DI TENGAH MAJLIS
+       (disahkan berlaku semasa ujian: 'resource-exhausted Quota exceeded',
+       semua tulisan ditolak senyap). 90s sudah cukup pantas untuk dewan —
+       tanda sendiri tetap muncul serta-merta melalui tulisan optimistik,
+       yang disegarkan di sini hanyalah tanda petugas LAIN. */
+    setInterval(() => muat(false), 90000);   // segar sendiri semasa majlis
+    setInterval(cubaHantarSemula, 20000);
+  } catch (e) {
+    console.error(e);
+    $('sari').textContent = 'Gagal: ' + e.message;
+    $('ralat-teks').textContent = 'Gagal menyambung: ' + e.message;
+    $('p-ralat').hidden = false;
+  }
+})();
+
+/* ---------- muat ---------- */
+async function muat(pertama) {
+  if (pertama) memuat($('senarai'), 'Memuatkan senarai murid…');
+  try {
+    const penerima = await agMuatPenerima(MAJLIS.id);
+
+    MURID = penerima.map(p => {
+      const gil = p.giliran || [];
+      /* status murid = status pada giliran pertama yang ada tanda.
+         Semua giliran murid ditanda serentak, jadi mana-mana mewakili. */
+      const bertanda = gil.find(g => g.hadir === true || g.hadir === false);
+      const status = !bertanda ? 'belum' : (bertanda.hadir ? 'hadir' : 'absen');
+      return {
+        docId: p.docId, no_kp: p.no_kp, nama: p.nama,
+        tahun: p.tahun, kelas: p.kelas,
+        giliran: gil, anugerah: p.anugerah || [], status
+      };
+    }).sort((a, b) => a.nama.localeCompare(b.nama, 'ms'));
+
+    /* 🔴 Muat berkala MESTI menghormati baris gilir luar talian — lihat
+       nota sama dalam mc.html. Tanda yang belum sampai ke DB disapu balik
+       ke atas data segar, kalau tidak ia hilang dari skrin 25 saat selepas
+       guru menekan. */
+    MENUNGGU.forEach(t => {
+      const m = MURID.find(x => x.docId === t.docId);
+      if (m) {
+        m.status = t.nilai === null ? 'belum' : (t.nilai ? 'hadir' : 'absen');
+        m.giliran = m.giliran.map(g => ({ ...g, hadir: t.nilai }));
+      }
+    });
+
+    isiDropdownDarjah();
+    lukis();
+    kemasSari();
+  } catch (e) {
+    console.error('Muat:', e);
+    /* 🔴 JANGAN kosongkan paparan — toast sahaja. */
+    if (!MURID.length) {
+      $('senarai').innerHTML = '<div class="kosong">Gagal memuat: ' + agEsc(e.message) +
+        '<br><br><button class="btn sunyi kecil" id="b-cuba-lagi">Cuba lagi</button></div>';
+    } else {
+      agToast('Gagal muat semula — senarai di skrin masih yang terakhir', 'ralat');
+    }
+  }
+}
+
+$('b-muat').addEventListener('click', () => muat(true));
+document.addEventListener('click', e => {
+  if (e.target.closest('#b-cuba-lagi')) muat(true);
+});
+
+function kemasSari() {
+  const hadir = MURID.filter(m => m.status === 'hadir').length;
+  $('sari').textContent = (MAJLIS.nama || '') +
+    (MAJLIS.tarikh ? ' · ' + MAJLIS.tarikh : '') +
+    ' · ' + hadir + ' dari ' + MURID.length + ' murid sudah hadir';
+}
+
+function isiDropdownDarjah() {
+  const sel = $('t-darjah');
+  const ada = Array.from(new Set(MURID.map(m => m.tahun).filter(Boolean)))
+    .sort((a, b) => agWordDarjah(a) - agWordDarjah(b));
+  const dipilih = sel.value;
+  sel.innerHTML = '<option value="">Semua darjah</option>' +
+    ada.map(t => '<option value="' + agEsc(t) + '">Darjah ' + agWordDarjah(t) + '</option>').join('');
+  if (dipilih) sel.value = dipilih;
+}
+
+/* ---------- lukis ---------- */
+['t-cari', 't-darjah', 't-status'].forEach(id =>
+  $(id).addEventListener('input', lukis));
+
+function lukis() {
+  const hadir = MURID.filter(m => m.status === 'hadir').length;
+  const absen = MURID.filter(m => m.status === 'absen').length;
+  const belum = MURID.filter(m => m.status === 'belum').length;
+  const gilAbsen = MURID.filter(m => m.status === 'absen')
+    .reduce((j, m) => j + m.giliran.length, 0);
+  const peratus = MURID.length ? Math.round(hadir / MURID.length * 100) : 0;
+
+  $('kpi').innerHTML =
+    kad(hadir, 'Sudah hadir', 'dari ' + MURID.length + ' murid', 'ok') +
+    kad(belum, 'Belum sampai', 'belum ditanda') +
+    kad(absen, 'Tidak hadir', gilAbsen + ' giliran terjejas', absen ? 'bahaya' : '') +
+    kad(peratus + '%', 'Kehadiran', 'segar setiap 25s');
+
+  const q = $('t-cari').value.trim().toUpperCase();
+  const darjah = $('t-darjah').value;
+  const status = $('t-status').value;
+
+  const tapis = MURID.filter(m => {
+    if (darjah && m.tahun !== darjah) return false;
+    if (status && m.status !== status) return false;
+    if (q && !(m.nama.toUpperCase().includes(q) ||
+               agDarjahKelas(m.tahun, m.kelas).toUpperCase().includes(q))) return false;
+    return true;
+  });
+
+  $('senarai-sub').textContent = MURID.length + ' murid · ' +
+    MURID.reduce((j, m) => j + m.giliran.length, 0) + ' giliran';
+  $('tapis-kira').textContent = tapis.length === MURID.length
+    ? '' : 'papar ' + tapis.length + ' dari ' + MURID.length;
+
+  if (!MURID.length) {
+    $('senarai').innerHTML = '<div class="kosong">Belum ada penerima dalam majlis ini.</div>';
+    return;
+  }
+  if (!tapis.length) {
+    $('senarai').innerHTML = '<div class="kosong">Tiada murid padan dengan tapisan ini.</div>';
+    return;
+  }
+
+  /* 🔴 Kumpul ikut ANUGERAH murid itu, bukan giliran[0].
+     Murid yang menang beberapa anugerah muncul di bawah SETIAP anugerah
+     yang dia menang — kalau tidak, guru yang membuka "Terbaik Kelas"
+     akan nampak 2 dari 24 orang dan sangka senarai rosak.              */
+  const grup = {};
+  tapis.forEach(m => {
+    const senarai = m.anugerah.length ? m.anugerah : [{ anugerah: '(tiada anugerah)' }];
+    senarai.forEach(x => {
+      const k = x.anugerah || '(tiada anugerah)';
+      (grup[k] = grup[k] || []).push(m);
+    });
+  });
+
+  $('senarai').innerHTML = Object.keys(grup).sort().map(nama => {
+    const senarai = grup[nama];
+    const unik = Array.from(new Set(senarai.map(m => m.docId)))
+      .map(id => senarai.find(m => m.docId === id));
+    const bilHadir = unik.filter(m => m.status === 'hadir').length;
+    return '<div class="grup-kepala">' + agEsc(nama) +
+      '<span class="bil-kep">' + unik.length + ' murid · ' + bilHadir + ' hadir</span></div>' +
+      '<ul class="senarai">' + unik.map(baris).join('') + '</ul>';
+  }).join('');
+}
+
+function kad(angka, label, kecil, jenis) {
+  return '<div class="kpi' + (jenis ? ' ' + jenis : '') + '">' +
+    '<div class="angka">' + angka + '</div>' +
+    '<div class="label">' + agEsc(label) + '</div>' +
+    '<div class="kecil">' + agEsc(kecil) + '</div></div>';
+}
+
+function baris(m) {
+  const nombor = m.giliran.map(g => g.no).filter(n => n != null).sort((a, b) => a - b);
+  const bil = m.giliran.length;
+  const lencana = bil
+    ? '<span class="lencana-gil">' + bil + ' giliran</span> ' +
+      '<span class="gil-no-kecil">' + nombor.join(' · ') + '</span>'
+    : '<span class="pil tunggu">belum bernombor</span>';
+
+  const kelas = m.status === 'hadir' ? ' sudah' : (m.status === 'absen' ? ' absen' : '');
+  const catatan = m.status === 'absen'
+    ? ' · <span class="pil absen">Tidak hadir</span>' : '';
+
+  return '<li class="baris' + kelas + '" data-doc="' + agEsc(m.docId) + '">' +
+    '<div class="baris-info">' +
+      '<div class="n">' + agEsc(m.nama) + '</div>' +
+      '<div class="k">' + agEsc(agDarjahKelas(m.tahun, m.kelas)) + ' · ' + lencana + catatan + '</div>' +
+    '</div>' +
+    '<div class="baris-butang">' +
+      '<button class="b-tanda" data-tanda="hadir" title="Hadir">✓</button>' +
+      '<button class="b-tanda x" data-tanda="absen" title="Tidak hadir">✕</button>' +
+    '</div></li>';
+}
+
+/* ---------- tanda ---------- */
+$('senarai').addEventListener('click', e => {
+  const b = e.target.closest('button[data-tanda]');
+  if (!b) return;
+  const li = b.closest('.baris');
+  const m = MURID.find(x => x.docId === li.dataset.doc);
+  if (!m) return;
+
+  const mahu = b.dataset.tanda;
+  /* tekan butang yang sama lagi = buang tanda */
+  const baru = m.status === mahu ? null : (mahu === 'hadir');
+
+  /* ---- tulis optimistik: paparan berubah serta-merta ---- */
+  m.status = baru === null ? 'belum' : (baru ? 'hadir' : 'absen');
+  m.giliran = m.giliran.map(g => ({ ...g, hadir: baru }));
+  lukis();
+  /* 🔴 kemasSari() mesti dipanggil DI SINI juga, bukan hanya dalam muat().
+     Tanpa ini baris ringkasan di kepala kekal angka lama sampai muat
+     berkala berikutnya (25s) — guru nampak "0 dari 6 hadir" sedangkan
+     KPI sudah kata 1. Dua angka bercanggah di skrin yang sama. */
+  kemasSari();
+
+  hantarTanda(m, baru);
+});
+
+async function hantarTanda(m, nilai) {
+  try {
+    await agDb.runTransaction(async tx => {
+      const ref = agDb.collection('anugerah_penerima').doc(m.docId);
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('Rekod murid tiada');
+      const gil = (snap.data().giliran || []).map(g => ({ ...g, hadir: nilai }));
+      tx.update(ref, { giliran: gil });
+    });
+  } catch (e) {
+    console.error('Tanda gagal:', e.code, e.message);
+    /* 🔴 Paparan TIDAK dipulihkan — tanda yang melompat balik di tengah
+       majlis lebih mengelirukan daripada tanda yang belum sampai.
+       Masuk baris gilir dan dicuba semula.                             */
+    MENUNGGU.push({ docId: m.docId, nilai, nama: m.nama });
+    agToast('Rangkaian bermasalah — ' + agEsc(m.nama) + ' dalam baris gilir', 'ralat');
+  }
+}
+
+async function cubaHantarSemula() {
+  if (!MENUNGGU.length) return;
+  const senarai = MENUNGGU.splice(0, MENUNGGU.length);
+  for (const t of senarai) {
+    try {
+      await agDb.runTransaction(async tx => {
+        const ref = agDb.collection('anugerah_penerima').doc(t.docId);
+        const snap = await tx.get(ref);
+        if (!snap.exists) return;
+        const gil = (snap.data().giliran || []).map(g => ({ ...g, hadir: t.nilai }));
+        tx.update(ref, { giliran: gil });
+      });
+    } catch (e) {
+      MENUNGGU.push(t);   // kekal dalam baris gilir
+    }
+  }
+  if (!MENUNGGU.length && senarai.length) agToast('Tanda tertunggak berjaya dihantar', 'ok');
+}
+</script>
+</body>
+</html>

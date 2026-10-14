@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pengurus Hadiah — Anugerah</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="anugerah-kongsi.css">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+.tapis-bar{
+  display:flex; gap:9px; flex-wrap:wrap; align-items:center;
+  padding:11px 16px; border-bottom:1px solid var(--garis-halus); background:var(--kertas-2);
+}
+.tapis-bar input[type=text]{min-width:160px; flex:1 1 160px}
+.dicoret{color:var(--neutral-lembut); text-decoration:line-through}
+</style>
+</head>
+<body>
+
+<header class="tajuk tanpa-tab">
+  <div class="tajuk-dlm">
+    <div class="jenama">
+      <h1>Pengurus Hadiah</h1>
+      <span class="cap">Baca Sahaja</span>
+    </div>
+    <p class="sari" id="sari">Memuatkan…</p>
+  </div>
+</header>
+
+<main class="badan">
+  <div id="p-ralat" hidden>
+    <div class="kad login-kotak">
+      <div class="kad-kepala"><h3>Link tidak sah</h3></div>
+      <div class="kad-isi">
+        <div class="nota ralat" style="margin:0">
+          <span class="sym">✕</span><div id="ralat-teks">Kod dalam link ini tidak dikenali.</div>
+        </div>
+        <p class="kecil" style="margin:13px 0 0">
+          Minta link baharu dari admin: Panel Anugerah → <strong>🔗 Link Petugas</strong>.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div id="p-isi" hidden>
+    <div class="nota">
+      <span class="sym">▸</span>
+      <div><strong>Panel ini tiada butang tanda — sengaja.</strong> Memberi meja hadiah laluan
+      tulis bermakna satu lagi tangan boleh menukar rekod siapa naik pentas di tengah majlis.
+      Apa yang panel ini jawab ialah satu soalan: <em>berapa hadiah sebenar perlu dibawa
+      ke pentas</em>, selepas menolak murid yang tidak hadir.</div>
+    </div>
+
+    <div class="kpi-grid" id="kpi"></div>
+
+    <div class="kad">
+      <div class="kad-kepala">
+        <h3>Stok Hadiah</h3>
+        <span class="sub">Dikira per sub-anugerah · <strong>Perlu</strong> sudah menolak yang tidak hadir</span>
+        <div class="kanan"><button class="btn sunyi kecil" id="b-muat">🔄 Muat Semula</button></div>
+      </div>
+      <div id="stok"></div>
+    </div>
+
+    <div class="kad">
+      <div class="kad-kepala">
+        <h3>Giliran Seterusnya</h3>
+        <span class="sub">Susun hadiah ikut turutan ini</span>
+      </div>
+      <div class="tapis-bar">
+        <input type="text" id="t-cari" placeholder="Cari nama atau nombor giliran…">
+        <select id="t-anugerah" style="min-width:160px"></select>
+        <select id="t-status" style="min-width:160px">
+          <option value="">Semua</option>
+          <option value="sedia">Sedia (belum diserah)</option>
+          <option value="serah">Sudah diserah</option>
+          <option value="absen">Simpan balik</option>
+        </select>
+        <span class="kecil" id="tapis-kira"></span>
+      </div>
+      <div id="senarai"></div>
+    </div>
+  </div>
+</main>
+
+<script src="anugerah-kongsi.js"></script>
+<script>
+/* ==========================================================================
+   PENGURUS HADIAH — BACA SAHAJA
+   --------------------------------------------------------------------------
+   🔴 TIADA laluan tulis. Tiada `tandaHadiah`, tiada butang. Panel ini
+      membaca kedua-dua `hadir` (pengurus peserta) dan `mc` (MC), dan
+      tidak boleh mengubah mana-mana satu.
+
+   🔴 `perlu` ≠ `dicetak`. Stok menolak yang ditanda tidak hadir — itulah
+      bilangan hadiah sebenar yang dibawa ke tepi pentas, berbeza dari
+      yang tertulis dalam senarai asal. Inilah sebab panel ini wujud.
+
+   🔴 Panel ini ikut GILIRAN, bukan murid. Murid yang menang 4 anugerah
+      adalah 4 hadiah berasingan di meja — bukan satu bungkus.
+
+   🔴 Kegagalan muat semula TIDAK mengosongkan paparan.
+   ========================================================================== */
+
+let MAJLIS = null;
+let BARIS = [];
+
+const $ = id => document.getElementById(id);
+function memuat(el, teks) {
+  el.innerHTML = '<div class="memuat"><div class="pusing"></div>' + agEsc(teks || 'Memuatkan…') + '</div>';
+}
+
+(async function mula() {
+  try {
+    const hasil = await agBukaDenganKod('hadiah');
+    if (!hasil) {
+      $('sari').textContent = 'Kod tidak sah.';
+      $('p-ralat').hidden = false;
+      return;
+    }
+    MAJLIS = hasil.majlis;
+    $('p-isi').hidden = false;
+    await muat(true);
+    /* 🔴 Muat berkala 25s × 3 panel × berjam-jam majlis = puluhan ribu
+       bacaan Firestore dan kuota harian boleh habis DI TENGAH MAJLIS
+       (disahkan berlaku semasa ujian: 'resource-exhausted Quota exceeded',
+       semua tulisan ditolak senyap). 90s sudah cukup pantas untuk dewan —
+       tanda sendiri tetap muncul serta-merta melalui tulisan optimistik,
+       yang disegarkan di sini hanyalah tanda petugas LAIN. */
+    setInterval(() => muat(false), 90000);
+  } catch (e) {
+    console.error(e);
+    $('sari').textContent = 'Gagal: ' + e.message;
+    $('ralat-teks').textContent = 'Gagal menyambung: ' + e.message;
+    $('p-ralat').hidden = false;
+  }
+})();
+
+async function muat(pertama) {
+  if (pertama) { memuat($('stok'), 'Memuatkan…'); memuat($('senarai'), 'Memuatkan…'); }
+  try {
+    const penerima = await agMuatPenerima(MAJLIS.id);
+    const senarai = [];
+    penerima.forEach(p => {
+      (p.giliran || []).forEach(g => {
+        if (g.no == null) return;
+        senarai.push({
+          no: g.no, nama: p.nama, tahun: p.tahun, kelas: p.kelas,
+          anugerah: g.anugerah, sub: g.sub, subId: g.subId,
+          hadiah: g.hadiah || '', hadir: g.hadir, mc: g.mc
+        });
+      });
+    });
+    senarai.sort((a, b) => a.no - b.no);
+    BARIS = senarai;
+
+    isiDropdownAnugerah();
+    lukis();
+    kemasSari();
+  } catch (e) {
+    console.error('Muat:', e);
+    if (!BARIS.length) {
+      $('stok').innerHTML = '<div class="kosong">Gagal memuat: ' + agEsc(e.message) +
+        '<br><br><button class="btn sunyi kecil" id="b-cuba-lagi">Cuba lagi</button></div>';
+      $('senarai').innerHTML = '';
+    } else {
+      agToast('Gagal muat semula — paparan masih yang terakhir', 'ralat');
+    }
+  }
+}
+
+$('b-muat').addEventListener('click', () => muat(true));
+document.addEventListener('click', e => {
+  if (e.target.closest('#b-cuba-lagi')) muat(true);
+});
+
+function status(b) {
+  if (b.hadir === false) return 'absen';
+  return b.mc === true ? 'serah' : 'sedia';
+}
+
+function kemasSari() {
+  const perlu = BARIS.filter(b => status(b) !== 'absen').length;
+  $('sari').textContent = (MAJLIS.nama || '') +
+    (MAJLIS.tarikh ? ' · ' + MAJLIS.tarikh : '') +
+    ' · ' + perlu + ' hadiah perlu dibawa ke pentas';
+}
+
+function isiDropdownAnugerah() {
+  const sel = $('t-anugerah');
+  const ada = [];
+  BARIS.forEach(b => { if (!ada.includes(b.anugerah)) ada.push(b.anugerah); });
+  const dipilih = sel.value;
+  sel.innerHTML = '<option value="">Semua anugerah</option>' +
+    ada.map(a => '<option value="' + agEsc(a) + '">' + agEsc(a) + '</option>').join('');
+  if (dipilih) sel.value = dipilih;
+}
+
+['t-cari', 't-anugerah', 't-status'].forEach(id => $(id).addEventListener('input', lukisSenarai));
+
+function lukis() { lukisKPI(); lukisStok(); lukisSenarai(); }
+
+function lukisKPI() {
+  const dicetak = BARIS.length;
+  const absen = BARIS.filter(b => status(b) === 'absen').length;
+  const serah = BARIS.filter(b => status(b) === 'serah').length;
+  const perlu = dicetak - absen;
+
+  $('kpi').innerHTML =
+    kad(dicetak, 'Hadiah dicetak', 'ikut senarai asal') +
+    kad(perlu, 'Perlu dibawa', absen ? absen + ' ditolak' : 'semua hadir', 'ok') +
+    kad(serah, 'Sudah diserah', 'ditanda MC') +
+    kad(absen, 'Simpan balik', 'murid tidak hadir', absen ? 'bahaya' : '');
+}
+
+function lukisStok() {
+  /* dikumpul per SUB-anugerah: satu baris satu hadiah sebenar.
+     Hadiah berbeza ikut kedudukan (johan trofi / naib pingat) duduk
+     pada sub-anugerah berasingan, jadi tiada struktur tambahan perlu. */
+  const grup = {};
+  BARIS.forEach(b => {
+    const k = b.subId || b.sub;
+    grup[k] = grup[k] || {
+      anugerah: b.anugerah, sub: b.sub, hadiah: b.hadiah,
+      dicetak: 0, perlu: 0, serah: 0
+    };
+    grup[k].dicetak++;
+    if (status(b) !== 'absen') grup[k].perlu++;
+    if (status(b) === 'serah') grup[k].serah++;
+  });
+
+  const senarai = Object.keys(grup).map(k => grup[k]);
+  if (!senarai.length) {
+    $('stok').innerHTML = '<div class="kosong">Belum ada giliran bernombor.</div>';
+    return;
+  }
+
+  const jum = senarai.reduce((a, g) => ({
+    dicetak: a.dicetak + g.dicetak, perlu: a.perlu + g.perlu, serah: a.serah + g.serah
+  }), { dicetak: 0, perlu: 0, serah: 0 });
+
+  $('stok').innerHTML =
+    '<div class="gulung"><table><thead><tr>' +
+      '<th>Anugerah</th><th>Sub-anugerah</th><th>Hadiah</th>' +
+      '<th class="num">Dicetak</th><th class="num">Perlu</th>' +
+      '<th class="num">Diserah</th><th>Status</th>' +
+    '</tr></thead><tbody>' +
+    senarai.map(g => {
+      const baki = g.perlu - g.serah;
+      const pil = baki === 0
+        ? '<span class="pil hadir">Selesai</span>'
+        : (g.serah === 0 ? '<span class="pil amaran">Belum mula</span>'
+                         : '<span class="pil tunggu">' + baki + ' lagi</span>');
+      const ditolak = g.dicetak - g.perlu;
+      return '<tr>' +
+        '<td class="kecil">' + agEsc(g.anugerah) + '</td>' +
+        '<td class="nama-murid lajur-teks">' + agEsc(g.sub) + '</td>' +
+        '<td class="kecil lajur-teks">' + (agEsc(g.hadiah) || '<em>—</em>') + '</td>' +
+        '<td class="num' + (ditolak ? ' dicoret' : '') + '">' + g.dicetak + '</td>' +
+        '<td class="num"><strong>' + g.perlu + '</strong></td>' +
+        '<td class="num">' + g.serah + '</td>' +
+        '<td>' + pil + '</td></tr>';
+    }).join('') +
+    '<tr style="background:var(--kertas-3);font-weight:700">' +
+      '<td colspan="3">JUMLAH</td>' +
+      '<td class="num' + (jum.dicetak !== jum.perlu ? ' dicoret' : '') + '">' + jum.dicetak + '</td>' +
+      '<td class="num">' + jum.perlu + '</td>' +
+      '<td class="num">' + jum.serah + '</td><td></td>' +
+    '</tr>' +
+    '</tbody></table></div>' +
+    (jum.dicetak !== jum.perlu
+      ? '<div class="kad-isi" style="border-top:1px solid var(--garis-halus)">' +
+        '<div class="nota" style="margin:0"><span class="sym">▸</span><div>' +
+        '<strong>"Perlu" bukan "Dicetak".</strong> ' + (jum.dicetak - jum.perlu) +
+        ' murid ditanda tidak hadir di pintu dewan. Angka dicoret itu yang tertulis dalam ' +
+        'senarai asal; angka tebal itu yang kau bawa ke tepi pentas.</div></div></div>'
+      : '');
+}
+
+function lukisSenarai() {
+  const q = $('t-cari').value.trim().toUpperCase();
+  const anugerah = $('t-anugerah').value;
+  const st = $('t-status').value;
+
+  const tapis = BARIS.filter(b => {
+    if (anugerah && b.anugerah !== anugerah) return false;
+    if (st && status(b) !== st) return false;
+    if (q && !(b.nama.toUpperCase().includes(q) || String(b.no) === q ||
+               agDarjahKelas(b.tahun, b.kelas).toUpperCase().includes(q))) return false;
+    return true;
+  });
+
+  $('tapis-kira').textContent = tapis.length === BARIS.length
+    ? '' : 'papar ' + tapis.length + ' dari ' + BARIS.length;
+
+  if (!BARIS.length) {
+    $('senarai').innerHTML = '<div class="kosong">Belum ada giliran bernombor. ' +
+      'Admin perlu menekan <strong>Beri Nombor</strong> dahulu.</div>';
+    return;
+  }
+  if (!tapis.length) {
+    $('senarai').innerHTML = '<div class="kosong">Tiada giliran padan dengan tapisan ini.</div>';
+    return;
+  }
+
+  $('senarai').innerHTML =
+    '<div class="gulung"><table><thead><tr>' +
+      '<th class="num" style="width:56px">Gil.</th><th>Nama</th><th>Kelas</th>' +
+      '<th>Sub-anugerah</th><th>Hadiah</th><th>Status</th>' +
+    '</tr></thead><tbody>' +
+    tapis.map(b => {
+      const s = status(b);
+      const pil = s === 'absen' ? '<span class="pil absen">Simpan balik</span>'
+        : s === 'serah' ? '<span class="pil hadir">Sudah diserah</span>'
+        : '<span class="pil tunggu">Sedia</span>';
+      return '<tr' + (s === 'absen' ? ' style="opacity:.58"' : '') + '>' +
+        '<td class="num">' + b.no + '</td>' +
+        '<td class="nama-murid lajur-teks">' +
+          (s === 'absen' ? '<s>' + agEsc(b.nama) + '</s>' : agEsc(b.nama)) + '</td>' +
+        '<td>' + agEsc(agDarjahKelas(b.tahun, b.kelas)) + '</td>' +
+        '<td class="kecil lajur-teks">' + agEsc(b.sub) + '</td>' +
+        '<td class="kecil lajur-teks">' + (agEsc(b.hadiah) || '<em>—</em>') + '</td>' +
+        '<td>' + pil + '</td></tr>';
+    }).join('') + '</tbody></table></div>' +
+    '<div class="kad-isi" style="border-top:1px solid var(--garis-halus)">' +
+      '<div class="nota" style="margin:0"><span class="sym">▸</span><div>' +
+      '<strong>Panel ini ikut giliran, bukan murid.</strong> Murid yang menang beberapa ' +
+      'anugerah adalah beberapa hadiah berasingan di meja — bukan satu bungkus.' +
+      '</div></div></div>';
+}
+
+function kad(angka, label, kecil, jenis) {
+  return '<div class="kpi' + (jenis ? ' ' + jenis : '') + '">' +
+    '<div class="angka">' + angka + '</div>' +
+    '<div class="label">' + agEsc(label) + '</div>' +
+    '<div class="kecil">' + agEsc(kecil) + '</div></div>';
+}
+</script>
+</body>
+</html>

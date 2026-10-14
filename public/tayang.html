@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slaid Dewan — Anugerah</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="anugerah-kongsi.css">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+/* ---------- pentas ---------- */
+.pentas{
+  background:var(--pentas-bg); color:var(--pentas-teks);
+  border-radius:var(--r); border:1px solid var(--garis-halus);
+  padding:clamp(30px,5vw,58px) clamp(20px,4vw,40px); text-align:center;
+  display:grid; align-content:center; min-height:min(66vh,520px);
+}
+.pentas .t-eyebrow{
+  font-size:clamp(10px,1.1vw,13px); letter-spacing:.24em; text-transform:uppercase;
+  color:var(--emas-cerah); font-weight:700;
+}
+.pentas .t-anugerah{
+  font-family:"Fraunces",serif; font-size:clamp(19px,3vw,32px); font-weight:600;
+  margin:10px 0 2px; text-wrap:balance;
+}
+.pentas .t-sub{font-size:clamp(12px,1.3vw,15px); opacity:.72; letter-spacing:.03em}
+.pentas .t-rule{height:1px; background:var(--emas-cerah); opacity:.45; margin:clamp(18px,3vw,30px) auto; max-width:200px}
+.pentas .t-nama{
+  font-family:"Fraunces",serif; font-size:clamp(24px,5.4vw,56px); font-weight:700;
+  line-height:1.1; text-wrap:balance;
+}
+.pentas .t-kelas{font-size:clamp(13px,1.6vw,18px); opacity:.76; margin-top:9px; letter-spacing:.07em}
+.pentas .t-gil{
+  display:inline-block; margin-top:clamp(18px,3vw,30px); border:1px solid var(--emas-cerah);
+  color:var(--emas-cerah); border-radius:30px; padding:5px 18px;
+  font-size:clamp(10px,1.1vw,13px); letter-spacing:.1em; text-transform:uppercase; font-weight:700;
+}
+.pentas .t-ramai{
+  display:grid; gap:clamp(7px,1.4vw,14px); margin-top:4px;
+  grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));
+}
+.pentas .t-ramai .org{padding:4px 0}
+.pentas .t-ramai .org .nm{
+  font-family:"Fraunces",serif; font-weight:700; line-height:1.15;
+  font-size:clamp(17px,2.5vw,30px);
+}
+.pentas .t-ramai .org .kl{font-size:clamp(11px,1.2vw,14px); opacity:.72; letter-spacing:.05em}
+.pentas .t-tamat{font-family:"Fraunces",serif; font-size:clamp(20px,3.4vw,34px); font-weight:600}
+
+/* penuh skrin */
+body.penuh .tajuk,body.penuh #kawalan,body.penuh .nota{display:none!important}
+body.penuh .badan{max-width:none; padding:0}
+body.penuh .pentas{
+  border:none; border-radius:0; min-height:100vh;
+  padding:clamp(30px,6vw,80px) clamp(20px,6vw,80px);
+}
+
+#kawalan{margin-top:17px}
+.kira-bar{
+  display:flex; align-items:center; gap:11px; flex-wrap:wrap;
+  font-size:12.5px; color:var(--neutral); margin-top:11px;
+}
+.jalur{
+  flex:1 1 170px; height:6px; background:var(--kertas-3);
+  border-radius:4px; overflow:hidden; min-width:120px;
+}
+.jalur span{display:block; height:100%; background:var(--emas); width:0}
+</style>
+</head>
+<body>
+
+<header class="tajuk tanpa-tab">
+  <div class="tajuk-dlm">
+    <div class="jenama">
+      <h1>Slaid Dewan</h1>
+      <span class="cap">Projektor</span>
+    </div>
+    <p class="sari" id="sari">Memuatkan…</p>
+  </div>
+</header>
+
+<main class="badan">
+  <div id="p-ralat" hidden>
+    <div class="kad login-kotak">
+      <div class="kad-kepala"><h3>Link tidak sah</h3></div>
+      <div class="kad-isi">
+        <div class="nota ralat" style="margin:0">
+          <span class="sym">✕</span><div id="ralat-teks">Kod dalam link ini tidak dikenali.</div>
+        </div>
+        <p class="kecil" style="margin:13px 0 0">
+          Minta link baharu dari admin: Panel Anugerah → <strong>🔗 Link Petugas</strong>.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div id="p-isi" hidden>
+    <div class="pentas" id="pentas"></div>
+
+    <div class="kad" id="kawalan">
+      <div class="kad-kepala">
+        <h3>Kawalan Slaid</h3>
+        <span class="sub">Anak panah ← → juga berfungsi · F untuk penuh skrin</span>
+        <div class="kanan">
+          <button class="btn sunyi kecil" id="b-penuh">⛶ Penuh Skrin</button>
+          <button class="btn sunyi kecil" id="b-muat">🔄 Muat</button>
+        </div>
+      </div>
+      <div class="kad-isi">
+        <div class="baris-input">
+          <button class="btn sunyi" id="b-sebelum">← Sebelum</button>
+          <button class="btn emas" id="b-seterus">Seterusnya →</button>
+          <div class="medan">
+            <label for="s-mod">Mod</label>
+            <select id="s-mod">
+              <option value="manual">Manual (disyorkan)</option>
+              <option value="auto">Ikut tanda MC</option>
+            </select>
+          </div>
+          <div class="medan">
+            <label for="s-lompat">Lompat ke slaid</label>
+            <select id="s-lompat" style="min-width:210px"></select>
+          </div>
+        </div>
+        <div class="kira-bar">
+          <span id="kira-teks"></span>
+          <div class="jalur"><span id="jalur-isi"></span></div>
+        </div>
+        <div class="nota" style="margin:15px 0 0">
+          <span class="sym">▸</span>
+          <div><strong>Lalai ialah manual.</strong> Mod "ikut tanda MC" memajukan slaid bila MC
+          menanda — tetapi kalau MC terlepas satu tanda atau jauh di hadapan, slaid akan tersasar
+          di depan hadirin. Manual meletakkan guru projektor sebagai yang memutuskan.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="anugerah-kongsi.js"></script>
+<script>
+/* ==========================================================================
+   SLAID DEWAN — paparan projektor, BACA SAHAJA
+   --------------------------------------------------------------------------
+   🔴 SATU slaid satu SUB-ANUGERAH, walaupun beberapa murid naik bersama.
+      Kalau slaid dipecah ikut murid seperti senarai petugas, hadirin akan
+      nampak slaid yang hampir serupa berkali-kali.
+
+   🔴 Tiada maklumat peribadi di skrin besar — nama, kelas, nombor giliran
+      sahaja. Tiada no_kp.
+
+   🔴 Mod lalai MANUAL. Auto memajukan ikut tanda MC, tetapi MC yang
+      terlepas satu tanda akan menyasarkan slaid di depan hadirin.
+   ========================================================================== */
+
+let MAJLIS = null;
+let SLAID = [];          // [{anugerah, sub, orang:[{nama,tahun,kelas,no,mc,hadir}]}]
+let IDX = 0;
+let MOD = 'manual';
+let pemantau = null;
+
+const $ = id => document.getElementById(id);
+
+(async function mula() {
+  try {
+    const hasil = await agBukaDenganKod('tayang');
+    if (!hasil) {
+      $('sari').textContent = 'Kod tidak sah.';
+      $('p-ralat').hidden = false;
+      return;
+    }
+    MAJLIS = hasil.majlis;
+    MOD = (MAJLIS.modTayang && MAJLIS.modTayang.auto) ? 'auto' : 'manual';
+    $('s-mod').value = MOD;
+    $('p-isi').hidden = false;
+    await muat(true);
+    pasangMod();
+  } catch (e) {
+    console.error(e);
+    $('sari').textContent = 'Gagal: ' + e.message;
+    $('ralat-teks').textContent = 'Gagal menyambung: ' + e.message;
+    $('p-ralat').hidden = false;
+  }
+})();
+
+/* ---------- muat ---------- */
+async function muat(pertama) {
+  if (pertama) {
+    $('pentas').innerHTML = '<div class="t-eyebrow">Memuatkan</div>' +
+      '<div class="t-anugerah">Menyiapkan slaid…</div>';
+  }
+  try {
+    const penerima = await agMuatPenerima(MAJLIS.id);
+    bina(penerima);
+    isiLompat();
+    lukis();
+    kemasSari();
+  } catch (e) {
+    console.error('Muat:', e);
+    /* jangan kosongkan slaid yang sedang dipaparkan di dewan */
+    if (!SLAID.length) {
+      $('pentas').innerHTML = '<div class="t-eyebrow">Ralat</div>' +
+        '<div class="t-anugerah">Gagal memuat</div>' +
+        '<div class="t-sub">' + agEsc(e.message) + '</div>';
+    } else {
+      agToast('Gagal muat semula — slaid di skrin masih yang terakhir', 'ralat');
+    }
+  }
+}
+
+$('b-muat').addEventListener('click', () => muat(true));
+
+/* satu slaid satu sub-anugerah, disusun ikut nombor giliran terkecil */
+function bina(penerima) {
+  const peta = {};
+  penerima.forEach(p => {
+    (p.giliran || []).forEach(g => {
+      if (g.no == null) return;
+      const k = g.subId || g.sub;
+      peta[k] = peta[k] || { anugerah: g.anugerah, sub: g.sub, orang: [] };
+      peta[k].orang.push({
+        nama: p.nama, tahun: p.tahun, kelas: p.kelas,
+        no: g.no, mc: g.mc, hadir: g.hadir
+      });
+    });
+  });
+
+  SLAID = Object.keys(peta).map(k => {
+    const s = peta[k];
+    s.orang.sort((a, b) => a.no - b.no);
+    s.noMin = Math.min(...s.orang.map(o => o.no));
+    return s;
+  }).sort((a, b) => a.noMin - b.noMin);
+
+  if (IDX >= SLAID.length) IDX = Math.max(0, SLAID.length - 1);
+}
+
+function kemasSari() {
+  $('sari').textContent = (MAJLIS.nama || '') +
+    (MAJLIS.tarikh ? ' · ' + MAJLIS.tarikh : '') +
+    ' · ' + SLAID.length + ' slaid';
+}
+
+function isiLompat() {
+  $('s-lompat').innerHTML = SLAID.map((s, i) =>
+    '<option value="' + i + '">' + (i + 1) + '. ' + agEsc(s.sub) + '</option>').join('');
+  $('s-lompat').value = IDX;
+}
+
+/* ---------- lukis ---------- */
+function lukis() {
+  const pentas = $('pentas');
+
+  if (!SLAID.length) {
+    pentas.innerHTML = '<div class="t-eyebrow">' + agEsc(MAJLIS.nama || '') + '</div>' +
+      '<div class="t-anugerah">Belum ada slaid</div>' +
+      '<div class="t-sub">Admin perlu memberi nombor giliran dahulu.</div>';
+    $('kira-teks').textContent = '';
+    $('jalur-isi').style.width = '0';
+    return;
+  }
+
+  const s = SLAID[IDX];
+  /* murid yang ditanda tidak hadir tidak dipapar di skrin besar —
+     tiada guna menyebut nama orang yang tiada di dewan */
+  const papar = s.orang.filter(o => o.hadir !== false);
+  const absen = s.orang.length - papar.length;
+
+  let isi;
+  if (!papar.length) {
+    isi = '<div class="t-tamat">Tiada penerima hadir</div>' +
+          '<div class="t-sub" style="margin-top:9px">' + s.orang.length + ' penerima tidak hadir</div>';
+  } else if (papar.length === 1) {
+    const o = papar[0];
+    isi = '<div class="t-nama">' + agEsc(o.nama) + '</div>' +
+          '<div class="t-kelas">' + agEsc(agDarjahKelas(o.tahun, o.kelas)) + '</div>' +
+          '<div class="t-gil">Giliran ' + o.no + '</div>';
+  } else {
+    isi = '<div class="t-ramai">' + papar.map(o =>
+      '<div class="org"><div class="nm">' + agEsc(o.nama) + '</div>' +
+      '<div class="kl">' + agEsc(agDarjahKelas(o.tahun, o.kelas)) + ' · giliran ' + o.no + '</div>' +
+      '</div>').join('') + '</div>';
+  }
+
+  pentas.innerHTML =
+    '<div class="t-eyebrow">' + agEsc(MAJLIS.nama || '') + '</div>' +
+    '<div class="t-anugerah">' + agEsc(s.sub) + '</div>' +
+    '<div class="t-sub">' + agEsc(MAJLIS.sekolah || '') +
+      (MAJLIS.tarikh ? ' · ' + agEsc(MAJLIS.tarikh) : '') + '</div>' +
+    '<div class="t-rule"></div>' + isi;
+
+  $('s-lompat').value = IDX;
+  $('b-sebelum').disabled = IDX === 0;
+  $('b-seterus').disabled = IDX >= SLAID.length - 1;
+
+  const sudah = SLAID[IDX].orang.filter(o => o.mc === true).length;
+  $('kira-teks').textContent =
+    'Slaid ' + (IDX + 1) + ' dari ' + SLAID.length +
+    ' · ' + sudah + ' dari ' + papar.length + ' sudah naik' +
+    (absen ? ' · ' + absen + ' tidak hadir (tidak dipapar)' : '');
+  $('jalur-isi').style.width = Math.round((IDX + 1) / SLAID.length * 100) + '%';
+}
+
+/* ---------- navigasi ---------- */
+function ke(i) {
+  IDX = Math.max(0, Math.min(SLAID.length - 1, i));
+  lukis();
+}
+$('b-sebelum').addEventListener('click', () => ke(IDX - 1));
+$('b-seterus').addEventListener('click', () => ke(IDX + 1));
+$('s-lompat').addEventListener('change', e => ke(parseInt(e.target.value)));
+
+document.addEventListener('keydown', e => {
+  if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); ke(IDX + 1); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); ke(IDX - 1); }
+  else if (e.key === 'f' || e.key === 'F') togglePenuh();
+  else if (e.key === 'Escape' && document.body.classList.contains('penuh')) togglePenuh();
+});
+
+/* ---------- penuh skrin ---------- */
+$('b-penuh').addEventListener('click', togglePenuh);
+function togglePenuh() {
+  const masuk = !document.body.classList.contains('penuh');
+  document.body.classList.toggle('penuh', masuk);
+  if (masuk && document.documentElement.requestFullscreen) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else if (!masuk && document.fullscreenElement && document.exitFullscreen) {
+    document.exitFullscreen().catch(() => {});
+  }
+}
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement) document.body.classList.remove('penuh');
+});
+
+/* ---------- mod ---------- */
+$('s-mod').addEventListener('change', async e => {
+  MOD = e.target.value;
+  pasangMod();
+  /* simpan pilihan supaya sesi berikutnya ingat — kod tayang dibenarkan
+     menulis SATU medan ini sahaja, bukan mana-mana tanda petugas */
+  try {
+    await agDb.collection('anugerah_majlis').doc(MAJLIS.id)
+      .set({ modTayang: { auto: MOD === 'auto' } }, { merge: true });
+  } catch (err) { console.warn('Simpan mod:', err.message); }
+  agToast(MOD === 'auto' ? 'Mod: ikut tanda MC' : 'Mod: manual', 'ok');
+});
+
+function pasangMod() {
+  if (pemantau) { pemantau(); pemantau = null; }
+  if (MOD !== 'auto') { muatBerkala(true); return; }
+  muatBerkala(false);
+
+  /* 🔴 Pemantau Firestore langsung — supaya slaid maju bila MC menanda,
+     tanpa menunggu 25 saat.                                            */
+  pemantau = agDb.collection('anugerah_penerima')
+    .where('majlisId', '==', MAJLIS.id)
+    .onSnapshot(snap => {
+      bina(snap.docs.map(d => ({ docId: d.id, ...d.data() })));
+      majuAuto();
+      lukis();
+    }, err => {
+      console.error('Pemantau:', err.message);
+      agToast('Pemantauan terputus — tukar ke manual kalau berterusan', 'ralat');
+    });
+}
+
+let jamBerkala = null;
+function muatBerkala(hidup) {
+  if (jamBerkala) { clearInterval(jamBerkala); jamBerkala = null; }
+  if (hidup) jamBerkala = setInterval(() => muat(false), 90000);
+}
+
+/* maju ke slaid pertama yang belum selesai ditanda MC */
+function majuAuto() {
+  const i = SLAID.findIndex(s =>
+    s.orang.some(o => o.hadir !== false && o.mc !== true));
+  if (i >= 0 && i !== IDX) IDX = i;
+}
+</script>
+</body>
+</html>
