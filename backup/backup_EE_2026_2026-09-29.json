@@ -1,0 +1,149 @@
+[
+  {
+    "id": "140207060487_BAHASA ARAB_ENAM_EE_2026",
+    "data": {
+      "JENIS PEPERIKSAAN": "EE",
+      "kelas": "BYTECH",
+      "tahun": "ENAM",
+      "markah": null,
+      "cal_year": 2026,
+      "nama": "AMMAR SYAUQIE BIN HISHAM",
+      "no_kp": "140207060487",
+      "jantina": "L",
+      "th": true,
+      "gred": "TH",
+      "subjek": "BAHASA ARAB",
+      "agama": "ISLAM",
+      "timestamp": {
+        "_seconds": 1788833095,
+        "_nanoseconds": 21000000
+      }
+    }
+  },
+  {
+    "id": "140226110283_BAHASA ARAB_ENAM_EE_2026",
+    "data": {
+      "agama": "ISLAM",
+      "JENIS PEPERIKSAAN": "EE",
+      "markah": null,
+      "gred": "TH",
+      "th": true,
+      "no_kp": "140226110283",
+      "jantina": "L",
+      "nama": "AHMAD SALAHUDDEEN ARYAN BIN AHMAD NAZRI",
+      "cal_year": 2026,
+      "subjek": "BAHASA ARAB",
+      "kelas": "BYTECH",
+      "tahun": "ENAM",
+      "timestamp": {
+        "_seconds": 1788833095,
+        "_nanoseconds": 21000000
+      }
+    }
+  },
+  {
+    "id": "140706110135_BAHASA ARAB_ENAM_EE_2026",
+    "data": {
+      "nama": "AFIQ AIMAN BIN ASROL",
+      "kelas": "BYTECH",
+      "tahun": "ENAM",
+      "markah": 90,
+      "JENIS PEPERIKSAAN": "EE",
+      "no_kp": "140706110135",
+      "th": false,
+      "jantina": "L",
+      "cal_year": 2026,
+      "gred": "A",
+      "subjek": "BAHASA ARAB",
+      "agama": "ISLAM",
+      "timestamp": {
+        "_seconds": 1788833095,
+        "_nanoseconds": 21000000
+      }
+    }
+  },
+  {
+    "id": "140830110423_BAHASA ARAB_ENAM_EE_2026",
+    "data": {
+      "agama": "ISLAM",
+      "gred": "TH",
+      "subjek": "BAHASA ARAB",
+      "cal_year": 2026,
+      "th": true,
+      "JENIS PEPERIKSAAN": "EE",
+      "no_kp": "140830110423",
+      "markah": null,
+      "kelas": "BYTECH",
+      "tahun": "ENAM",
+      "jantina": "L",
+      "nama": "AHMAD FAIQ ARSYAD BIN MOHD MUSLIM",
+      "timestamp": {
+        "_seconds": 1788833095,
+        "_nanoseconds": 21000000
+      }
+    }
+  },
+  {
+    "id": "140905060433_BAHASA ARAB_ENAM_EE_2026",
+    "data": {
+      "nama": "IMRAN HUSAIN BIN MOHD FAZRUL",
+      "cal_year": 2026,
+      "kelas": "BYTECH",
+      "tahun": "ENAM",
+      "no_kp": "140905060433",
+      "subjek": "BAHASA ARAB",
+      "JENIS PEPERIKSAAN": "EE",
+      "markah": null,
+      "th": true,
+      "jantina": "L",
+      "gred": "TH",
+      "agama": "ISLAM",
+      "timestamp": {
+        "_seconds": 1788833095,
+        "_nanoseconds": 21000000
+      }
+    }
+  },
+  {
+    "id": "141115110509_BAHASA ARAB_ENAM_EE_2026",
+    "data": {
+      "markah": 80,
+      "no_kp": "141115110509",
+      "gred": "B",
+      "th": false,
+      "kelas": "BYTECH",
+      "tahun": "ENAM",
+      "cal_year": 2026,
+      "JENIS PEPERIKSAAN": "EE",
+      "nama": "AHMAD AMMAR ZUHDI BIN MOHD YUSMADI",
+      "agama": "ISLAM",
+      "jantina": "L",
+      "subjek": "BAHASA ARAB",
+      "timestamp": {
+        "_seconds": 1788833095,
+        "_nanoseconds": 21000000
+      }
+    }
+  },
+  {
+    "id": "141210110101_BAHASA ARAB_ENAM_EE_2026",
+    "data": {
+      "th": true,
+      "subjek": "BAHASA ARAB",
+      "nama": "AHMAD MUSLIM BIN MOHD BAKRI",
+      "cal_year": 2026,
+      "jantina": "L",
+      "agama": "ISLAM",
+      "kelas": "BYTECH",
+      "tahun": "ENAM",
+      "no_kp": "141210110101",
+      "JENIS PEPERIKSAAN": "EE",
+      "gred": "TH",
+      "markah": null,
+      "timestamp": {
+        "_seconds": 1788833095,
+        "_nanoseconds": 21000000
+      }
+    }
+  }
+]
