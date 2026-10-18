@@ -1480,6 +1480,7 @@
                 <button id="tab-add" onclick="toggleGuruKelasTab('add')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-blue-500 text-gray-700">Tambah Murid Baru</button>
                 <button id="tab-view" onclick="toggleGuruKelasTab('view')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-blue-500 text-gray-700">Lihat / Edit Murid</button>
                 <button id="tab-status" onclick="toggleGuruKelasTab('status')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-green-500 text-gray-700">Status Pengisian Markah</button>
+                <button id="tab-markah" onclick="toggleGuruKelasTab('markah')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-purple-500 text-gray-700">Markah Kelas</button>
             </div>
             
             <!-- TAB 1: TAMBAH MURID BARU -->
@@ -1555,6 +1556,21 @@
                         <button onclick="cariMuridUntukEdit()" class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition font-semibold">Cari Murid</button>
                     </div>
                 </div>
+
+                <!-- Carian pantas: nama atau No. KP, merentas semua darjah & kelas -->
+                <div class="no-print bg-amber-50 border border-amber-200 rounded-md p-4">
+                    <label for="cari-murid-teks" class="block text-sm font-medium text-gray-700 mb-1">
+                        🔍 Cari Murid (nama atau No. KP) — semua darjah &amp; kelas
+                    </label>
+                    <div class="flex gap-2">
+                        <input type="text" id="cari-murid-teks" placeholder="Contoh: AHMAD  atau  051231101234"
+                            class="flex-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                            oninput="cariMuridGlobal()" onkeydown="if(event.key==='Enter'){event.preventDefault();cariMuridGlobal();}">
+                        <button type="button" onclick="kosongkanCarianMurid()"
+                            class="bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition font-semibold whitespace-nowrap">Kosongkan</button>
+                    </div>
+                    <p class="mt-1 text-xs text-gray-600">Taip sekurang-kurangnya 2 aksara. Murid dari mana-mana kelas akan dipaparkan dan boleh terus disunting.</p>
+                </div>
                 
                 <!-- Jadual Edit Murid -->
                 <div id="murid-edit-container" class="mt-4 hidden">
@@ -1623,6 +1639,48 @@
                 </div>
                 
                 <p id="status-pengisian-message" class="mt-2 text-sm font-medium text-center text-gray-500">Sila pilih Jenis Peperiksaan untuk melihat status pengisian markah.</p>
+            </div>
+
+            <!-- ───────── TAB: MARKAH KELAS ───────── -->
+            <div id="guru-kelas-markah" class="hidden space-y-6">
+                <h3 class="text-xl font-bold text-gray-800">Markah Semua Murid Dalam Kelas</h3>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 no-print">
+                    <div>
+                        <label for="gkm-tahun-kal" class="block text-sm font-medium text-gray-700">Tahun</label>
+                        <select id="gkm-tahun-kal" onchange="gkmIsiPeperiksaan()" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-md"></select>
+                    </div>
+                    <div>
+                        <label for="gkm-peperiksaan" class="block text-sm font-medium text-gray-700">Jenis Peperiksaan</label>
+                        <select id="gkm-peperiksaan" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-md">
+                            <option value="">-- Pilih --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="gkm-darjah" class="block text-sm font-medium text-gray-700">Darjah</label>
+                        <select id="gkm-darjah" onchange="gkmIsiKelas()" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-md">
+                            <option value="">-- Pilih Darjah --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="gkm-kelas" class="block text-sm font-medium text-gray-700">Kelas</label>
+                        <select id="gkm-kelas" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 rounded-md" disabled>
+                            <option value="">-- Pilih Kelas --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 no-print">
+                    <button onclick="gkmPapar()" class="flex-1 bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition font-semibold">Papar Markah</button>
+                    <button onclick="gkmCetak()" class="bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition font-semibold whitespace-nowrap">🖨️ Cetak</button>
+                </div>
+
+                <div id="gkm-container" class="hidden">
+                    <div id="gkm-tajuk" class="mb-3"></div>
+                    <div id="gkm-table" class="jadual-gulung"></div>
+                </div>
+
+                <p id="gkm-message" class="mt-2 text-sm font-medium text-center text-gray-500">Pilih Tahun, Peperiksaan, Darjah dan Kelas, kemudian klik Papar Markah.</p>
             </div>
         </div>
 
@@ -3712,6 +3770,13 @@
             const btnAdd = document.getElementById('tab-add');
             const btnView = document.getElementById('tab-view');
             const btnStatus = document.getElementById('tab-status');
+            const markahTab = document.getElementById('guru-kelas-markah');
+            const btnMarkah = document.getElementById('tab-markah');
+
+            // Sembunyikan tab Markah Kelas pada setiap pertukaran; cabang di
+            // bawah akan menunjukkannya semula apabila dipilih.
+            if (markahTab) markahTab.classList.add('hidden');
+            if (btnMarkah) btnMarkah.classList.remove('border-purple-500');
             
             if (tab === 'add') {
                 addTab.classList.remove('hidden');
@@ -3751,6 +3816,16 @@
                     // Isi dropdown jenis peperiksaan untuk tahun semasa
                     await _populateStatusPerikDropdown(currentYear);
                 }
+            } else if (tab === 'markah') {
+                addTab.classList.add('hidden');
+                viewTab.classList.add('hidden');
+                statusTab.classList.add('hidden');
+                if (markahTab) markahTab.classList.remove('hidden');
+                btnAdd.classList.remove('border-blue-500');
+                btnView.classList.remove('border-blue-500');
+                btnStatus.classList.remove('border-green-500');
+                if (btnMarkah) btnMarkah.classList.add('border-purple-500');
+                await gkmInit();
             }
         }
 
@@ -4092,7 +4167,16 @@
                 // 3. Reset Borang & Muat Semula Data Global
                 document.getElementById('tambah-nokp').value = '';
                 document.getElementById('tambah-nama').value = '';
-                await bacaInitialData();
+
+                // KRITIKAL — sebab sama dengan padamMuridRow: bacaInitialData()
+                // TANPA forceRefresh membaca balik cache IndexedDB, yang masih
+                // memegang senarai lama. Murid yang baru ditambah tidak muncul
+                // sehingga cache luput (24 jam) atau guru menekan 🔄 Segar Semula.
+                // clearAllCache() + bacaInitialData(true) memaksa baca Firestore.
+                await clearAllCache();
+                await bacaInitialData(true);
+                // Segarkan paparan senarai kelas supaya murid baharu terus kelihatan
+                segarkanPaparanMurid();
 
             } catch (error) {
                 console.error("Error adding student:", error);
@@ -4140,6 +4224,290 @@
             document.getElementById('edit-murid-status').textContent = 'Sedia untuk disunting.';
         }
         
+        // ══════════════════════════════════════════════════════════
+        // MARKAH KELAS (tab Guru Kelas) — prefix gkm*
+        //
+        // Paparan ringkas untuk guru kelas: satu baris = satu murid,
+        // satu lajur = satu subjek, isi = markah + gred.
+        //
+        // SENGAJA TIADA: ranking, jumlah markah, purata, peratus.
+        // Guru kelas mahu melihat markah mentah mengikut susunan nama,
+        // bukan menilai kedudukan murid — itu kerja panel Murid Terbaik
+        // dan Analisa. Jangan tambah lajur tersebut di sini.
+        //
+        // Susunan murid ikut NAMA sahaja (A-Z) dan tidak boleh disort
+        // oleh pengguna, supaya senarai kekal sama setiap kali dibuka
+        // dan guru boleh membandingkannya dengan senarai kelas mereka.
+        // ══════════════════════════════════════════════════════════
+        async function gkmInit() {
+            populatePanelYearDropdown('gkm-tahun-kal', new Date().getFullYear().toString());
+
+            const darjahEl = document.getElementById('gkm-darjah');
+            if (darjahEl && darjahEl.options.length <= 1) {
+                const urutan = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
+                urutan.forEach(d => {
+                    if (GLOBAL_DATA.allClasses && GLOBAL_DATA.allClasses[d]) {
+                        const opt = document.createElement('option');
+                        opt.value = d; opt.textContent = d;
+                        darjahEl.appendChild(opt);
+                    }
+                });
+            }
+            await gkmIsiPeperiksaan();
+        }
+
+        async function gkmIsiPeperiksaan() {
+            const tahunKal = parseInt(document.getElementById('gkm-tahun-kal').value);
+            const pepEl = document.getElementById('gkm-peperiksaan');
+            if (!pepEl) return;
+            pepEl.innerHTML = '<option value="">-- Pilih --</option>';
+            try {
+                const senarai = await getExamTypesForYear(tahunKal);
+                senarai.forEach(e => {
+                    const nama = (e.nama || '').toUpperCase();
+                    if (!nama) return;
+                    const opt = document.createElement('option');
+                    opt.value = nama; opt.textContent = nama;
+                    pepEl.appendChild(opt);
+                });
+            } catch (err) {
+                console.error('gkmIsiPeperiksaan', err);
+            }
+        }
+
+        function gkmIsiKelas() {
+            const tahun = document.getElementById('gkm-darjah').value;
+            const kelasEl = document.getElementById('gkm-kelas');
+            kelasEl.innerHTML = '<option value="">-- Pilih Kelas --</option>';
+            if (!tahun || !GLOBAL_DATA.allClasses || !GLOBAL_DATA.allClasses[tahun]) {
+                kelasEl.disabled = true;
+                return;
+            }
+            GLOBAL_DATA.allClasses[tahun].forEach(k => {
+                const opt = document.createElement('option');
+                opt.value = k; opt.textContent = k;
+                kelasEl.appendChild(opt);
+            });
+            kelasEl.disabled = false;
+        }
+
+        async function gkmPapar() {
+            const tahunKal = parseInt(document.getElementById('gkm-tahun-kal').value);
+            const peperiksaan = document.getElementById('gkm-peperiksaan').value;
+            const tahun = document.getElementById('gkm-darjah').value;
+            const kelas = document.getElementById('gkm-kelas').value;
+            const msg = document.getElementById('gkm-message');
+            const box = document.getElementById('gkm-container');
+
+            if (!peperiksaan || !tahun || !kelas) {
+                msg.textContent = 'Sila pilih Jenis Peperiksaan, Darjah dan Kelas.';
+                msg.classList.remove('hidden');
+                box.classList.add('hidden');
+                return;
+            }
+
+            msg.textContent = 'Memuatkan markah...';
+            msg.classList.remove('hidden');
+            box.classList.add('hidden');
+
+            // Markah tahun lain dimuat atas permintaan — tanpa ini, memilih
+            // tahun selain tahun semasa memulangkan senarai kosong.
+            await ensureMarksLoaded(tahunKal);
+
+            const murid = (GLOBAL_DATA.students || [])
+                .filter(st => st.tahun === tahun && st.kelas === kelas)
+                .sort((a, b) => (a.nama || '').localeCompare(b.nama || ''));
+
+            if (!murid.length) {
+                msg.textContent = `Tiada murid dalam Darjah ${tahun}, Kelas ${kelas}.`;
+                box.classList.add('hidden');
+                return;
+            }
+
+            const rekod = getMarksByYear(tahunKal).filter(m =>
+                m.tahun === tahun &&
+                m.kelas === kelas &&
+                m["JENIS PEPERIKSAAN"] === peperiksaan
+            );
+
+            if (!rekod.length) {
+                msg.textContent = `Tiada markah direkodkan untuk ${peperiksaan} — ${tahun} ${kelas}.`;
+                box.classList.add('hidden');
+                return;
+            }
+
+            // Lajur subjek = subjek yang BENAR-BENAR ada markah, ikut susunan
+            // rasmi GLOBAL_DATA.allSubjects supaya kekal sama antara kelas.
+            const adaSubjek = new Set(rekod.map(m => m.subjek).filter(Boolean));
+            const susunanRasmi = (GLOBAL_DATA.allSubjects || []).map(x => x.nama_penuh || x);
+            const subjek = susunanRasmi.filter(nm => adaSubjek.has(nm));
+            susunanRasmi.length && adaSubjek.forEach(nm => {
+                if (!subjek.includes(nm)) subjek.push(nm);
+            });
+            if (!subjek.length) subjek.push(...adaSubjek);
+
+            // Peta cepat: no_kp -> subjek -> rekod
+            const peta = {};
+            rekod.forEach(m => {
+                if (!m.no_kp) return;
+                (peta[m.no_kp] = peta[m.no_kp] || {})[m.subjek] = m;
+            });
+
+            gkmRender(murid, subjek, peta, { tahunKal, peperiksaan, tahun, kelas });
+            msg.textContent = '';
+            msg.classList.add('hidden');
+            box.classList.remove('hidden');
+        }
+
+        function gkmRender(murid, subjek, peta, ctx) {
+            document.getElementById('gkm-tajuk').innerHTML =
+                `<h4 class="text-lg font-semibold text-gray-800">${ctx.peperiksaan}</h4>
+                 <p class="text-sm text-gray-600">Darjah ${ctx.tahun} — Kelas ${ctx.kelas} · Tahun ${ctx.tahunKal} · ${murid.length} murid</p>`;
+
+            let head = '<th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Bil</th>' +
+                       '<th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase lajur-teks">Nama</th>';
+            subjek.forEach(nm => {
+                head += `<th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase lajur-tajuk-ujian" title="${nm}">${nm}</th>`;
+            });
+
+            let body = '';
+            murid.forEach((st, i) => {
+                const sel = peta[st.no_kp] || {};
+                let sel_html = '';
+                subjek.forEach(nm => {
+                    const r = sel[nm];
+                    if (!r) {
+                        sel_html += '<td class="px-3 py-2 text-center text-gray-300">—</td>';
+                    } else if (isTH(r)) {
+                        // TH bukan markah dan bukan gred gagal — papar sebagai TH,
+                        // jangan sekali-kali tunjukkan 0.
+                        sel_html += '<td class="px-3 py-2 text-center"><span class="text-amber-700 font-semibold">TH</span></td>';
+                    } else {
+                        const mk = (r.markah === 0 || r.markah) ? r.markah : '';
+                        const gd = r.gred || getGredFromMarkah(r.markah) || '';
+                        sel_html += `<td class="px-3 py-2 text-center"><span class="font-semibold">${mk}</span> <span class="text-xs text-gray-500">${gd}</span></td>`;
+                    }
+                });
+                body += `<tr class="${i % 2 ? 'bg-gray-50' : 'bg-white'}">
+                    <td class="px-3 py-2 text-sm text-gray-600">${i + 1}</td>
+                    <td class="px-3 py-2 text-sm lajur-teks">${(st.nama || '').replace(/</g, '&lt;')}</td>
+                    ${sel_html}</tr>`;
+            });
+
+            document.getElementById('gkm-table').innerHTML = `
+                <table class="min-w-full divide-y divide-gray-200 shadow-sm">
+                    <thead class="bg-gray-50"><tr>${head}</tr></thead>
+                    <tbody class="divide-y divide-gray-200">${body}</tbody>
+                </table>`;
+        }
+
+        function gkmCetak() {
+            const box = document.getElementById('gkm-container');
+            if (!box || box.classList.contains('hidden')) {
+                showNotification('TIADA PAPARAN', 'Sila klik "Papar Markah" dahulu.', true);
+                return;
+            }
+            const w = window.open('', '_blank');
+            w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+                <title>Markah Kelas</title>
+                <style>
+                  body{font:12px system-ui,sans-serif;padding:18px}
+                  table{width:100%;border-collapse:collapse}
+                  th,td{border:1px solid #999;padding:5px;font-size:11px}
+                  th{background:#eee;text-align:center}
+                  h4{margin:0 0 4px}p{margin:0 0 12px;color:#555}
+                </style></head><body>
+                ${document.getElementById('gkm-tajuk').innerHTML}
+                ${document.getElementById('gkm-table').innerHTML}
+                </body></html>`);
+            w.document.close();
+            w.focus();
+            setTimeout(() => w.print(), 300);
+        }
+
+        // Carian pantas murid ikut nama ATAU No. KP, merentas semua darjah/kelas.
+        // Berbeza daripada cariMuridUntukEdit() yang WAJIB pilih darjah+kelas dahulu —
+        // guru selalunya tahu nama murid tetapi bukan kelasnya (contoh: murid pindah
+        // kelas, atau mencari No. KP yang diberi ibu bapa).
+        //
+        // Padanan No. KP mengabaikan sengkang: "051231-10-1234" dan "051231101234"
+        // kedua-duanya menemui murid yang sama.
+        function cariMuridGlobal() {
+            const inputEl = document.getElementById('cari-murid-teks');
+            const container = document.getElementById('murid-edit-container');
+            const statusDiv = document.getElementById('view-murid-status');
+            const tajukEl = container ? container.querySelector('h4') : null;
+            if (!inputEl) return;
+
+            const mentah = (inputEl.value || '').trim();
+
+            // Kosong — kembali kepada paparan ikut darjah/kelas
+            if (!mentah) {
+                if (tajukEl) tajukEl.textContent = 'Senarai Murid Dalam Kelas';
+                cariMuridUntukEdit();
+                return;
+            }
+
+            if (mentah.length < 2) {
+                statusDiv.textContent = 'Taip sekurang-kurangnya 2 aksara untuk mencari.';
+                statusDiv.classList.remove('hidden');
+                container.classList.add('hidden');
+                return;
+            }
+
+            const cariNama = mentah.toUpperCase();
+            const cariKP = mentah.replace(/\D/g, '');
+
+            const jumpa = (GLOBAL_DATA.students || []).filter(st => {
+                const nama = (st.nama || '').toUpperCase();
+                if (nama.includes(cariNama)) return true;
+                if (cariKP.length >= 2) {
+                    const kp = String(st.no_kp || '').replace(/\D/g, '');
+                    if (kp.includes(cariKP)) return true;
+                }
+                return false;
+            }).sort((a, b) =>
+                (a.tahun || '').localeCompare(b.tahun || '') ||
+                (a.kelas || '').localeCompare(b.kelas || '') ||
+                (a.nama || '').localeCompare(b.nama || '')
+            );
+
+            if (!jumpa.length) {
+                statusDiv.textContent = `Tiada murid sepadan dengan "${mentah}".`;
+                statusDiv.classList.remove('hidden');
+                container.classList.add('hidden');
+                return;
+            }
+
+            renderMuridEditTable(jumpa);
+            if (tajukEl) {
+                tajukEl.textContent = `Hasil Carian "${mentah}" — ${jumpa.length} murid`;
+            }
+            statusDiv.classList.add('hidden');
+            container.classList.remove('hidden');
+            document.getElementById('edit-murid-status').textContent =
+                'Sedia untuk disunting. Murid mungkin dari kelas berbeza — semak lajur Tahun & Kelas.';
+        }
+
+        // Selepas tambah/edit/padam, paparan mesti disegarkan — tetapi jika guru
+        // sedang melihat hasil carian, jangan lompat balik ke paparan darjah/kelas:
+        // mereka akan hilang jejak murid yang baru disunting.
+        function segarkanPaparanMurid() {
+            const inputEl = document.getElementById('cari-murid-teks');
+            const teks = inputEl ? (inputEl.value || '').trim() : '';
+            if (teks.length >= 2) { cariMuridGlobal(); return; }
+            cariMuridUntukEdit();
+        }
+
+        function kosongkanCarianMurid() {
+            const inputEl = document.getElementById('cari-murid-teks');
+            if (inputEl) inputEl.value = '';
+            const container = document.getElementById('murid-edit-container');
+            const tajukEl = container ? container.querySelector('h4') : null;
+            if (tajukEl) tajukEl.textContent = 'Senarai Murid Dalam Kelas';
+            cariMuridUntukEdit();
+        }
+
         function renderMuridEditTable(students) {
             const tableDiv = document.getElementById('murid-edit-data-table');
             
@@ -4320,7 +4688,7 @@
                     
                     // Muatkan semula data global dari Firestore (bukan cache) supaya perubahan agama/kelas segera berkesan
                     await bacaInitialData(true);
-                    cariMuridUntukEdit();
+                    segarkanPaparanMurid();
                 } catch (error) {
                     showNotification("RALAT SIMPAN", `Gagal menyimpan murid yang diedit. Ralat: ${error.message}`, true);
                     statusDiv.textContent = 'RALAT: Gagal menyimpan murid.';
@@ -4332,10 +4700,23 @@
         }
         
         async function padamMuridRow(nokp, nama) {
-            // Confirm dengan user
-            const confirmMsg = `Anda pasti mahu PADAM murid ini?\n\nNo. KP: ${nokp}\nNama: ${nama}\n\nTindakan ini KEKAL dan tidak boleh dibatalkan!`;
-            
-            if (!confirm(confirmMsg)) {
+            // Pengesahan taip "PADAM", bukan confirm() biasa.
+            // Memadam murid lebih berat daripada memadam markah: rekod induk
+            // hilang bersama kaitan markahnya, dan ia tidak boleh dibatalkan.
+            // confirm() lepas hanya dengan satu tekanan Enter — terlalu mudah
+            // tersilap pada butang yang duduk di hujung setiap baris jadual.
+            // Corak ini sama dengan padamSiaran() dan padam markah.
+            const jawab = prompt(
+                `PADAM MURID — KEKAL\n\n` +
+                `No. KP: ${nokp}\n` +
+                `Nama: ${nama}\n\n` +
+                `Murid ini akan hilang dari sistem dan tidak boleh dikembalikan.\n\n` +
+                `Taip PADAM untuk mengesahkan:`
+            );
+            if (jawab !== 'PADAM') {
+                if (jawab !== null) {
+                    showNotification("DIBATALKAN", "Teks pengesahan salah. Murid TIDAK dipadam.", true);
+                }
                 return;
             }
             
@@ -4344,16 +4725,54 @@
             statusDiv.className = 'mt-2 text-sm font-medium text-blue-600';
 
             try {
-                // Padam dari Firestore
-                await db.collection("students").doc(nokp).delete();
+                // Padam IKUT ID DOKUMEN SEBENAR, bukan andaian doc id == no_kp.
+                // Firestore tidak mengadu bila kita padam dokumen yang tidak ada, jadi
+                // .doc(nokp).delete() pada id yang salah akan "berjaya" tanpa memadam apa-apa.
+                // Kutip juga SEMUA dokumen dengan no_kp sama (murid duplikat) — kalau tidak,
+                // padam satu dan satu lagi masih kekal dalam senarai.
+                const idUntukPadam = new Set();
+                GLOBAL_DATA.students.forEach(s => {
+                    if (s.no_kp === nokp && s.id) idUntukPadam.add(s.id);
+                });
+                // Sapu Firestore juga, untuk dokumen yang tiada dalam cache memori
+                const snap = await db.collection("students").where("no_kp", "==", nokp).get();
+                snap.docs.forEach(d => idUntukPadam.add(d.id));
+                // Jaring keselamatan: doc id == no_kp (rekod lama tanpa field no_kp)
+                const docLangsung = await db.collection("students").doc(nokp).get();
+                if (docLangsung.exists) idUntukPadam.add(nokp);
+
+                if (idUntukPadam.size === 0) {
+                    showNotification("TIADA REKOD", `Tiada rekod murid ${nama} (${nokp}) dijumpai dalam pangkalan data. Mungkin ia sudah dipadam.`, true);
+                    statusDiv.textContent = '⚠️ Tiada rekod untuk dipadam.';
+                    statusDiv.className = 'mt-2 text-sm font-medium text-orange-600';
+                    await clearAllCache();
+                    await bacaInitialData(true);
+                    segarkanPaparanMurid();
+                    return;
+                }
+
+                const batch = db.batch();
+                idUntukPadam.forEach(id => batch.delete(db.collection("students").doc(id)));
+                await batch.commit();
+
+                // Sahkan benar-benar hilang sebelum lapor BERJAYA
+                const semak = await db.collection("students").where("no_kp", "==", nokp).get();
+                if (!semak.empty) {
+                    throw new Error(`${semak.size} rekod dengan No. KP ini masih ada selepas padam.`);
+                }
+
+                // KRITIKAL: cache IndexedDB masih pegang murid ini. Tanpa clearAllCache() +
+                // bacaInitialData(true), bacaInitialData() akan baca balik cache lama dan
+                // murid yang dipadam "hidup semula" sampai cache luput (24 jam).
+                await clearAllCache();
 
                 showNotification("BERJAYA PADAM", `Murid ${nama} (${nokp}) berjaya dipadam dari sistem.`, false);
                 statusDiv.textContent = `✅ ${nama} berjaya dipadam!`;
                 statusDiv.className = 'mt-2 text-sm font-medium text-green-600';
                 
-                // Muatkan semula data global dan jadual
-                await bacaInitialData();
-                cariMuridUntukEdit(); 
+                // Muatkan semula data global dan jadual (force refresh — JANGAN guna cache)
+                await bacaInitialData(true);
+                segarkanPaparanMurid(); 
                 
             } catch (error) {
                 showNotification("RALAT PADAM", `Gagal memadam murid. Ralat: ${error.message}`, true);

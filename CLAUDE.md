@@ -47,7 +47,7 @@ The entire application lives in a **single file**: `public/index.html` (~10,070 
 2. **Analisa Keseluruhan** — Grade analysis across all subjects
 3. **Analisa Subjek** — Grade trends for a single subject
 4. **Murid Terbaik** — Student rankings
-5. **Guru Kelas** — Manage student roster
+5. **Guru Kelas** — Manage student roster (4 tabs: Tambah / Lihat-Edit / Status Pengisian / **Markah Kelas**)
 6. **Headcount** — Target tracking (TOV/OTI/ETR/AR)
 7. **Anugerah** — Award ceremony module, separate pages (`anugerah-admin.html` + peserta/hadiah/mc/tayang)
 8. **Markah ke SPPB** — Install guide for the ESIS→SPPB mark helper (`helper-sppb.html`); see its section below
@@ -294,29 +294,64 @@ Symptom to recognise: console shows `❌ Cache read error: IndexedDB timeout (5s
 
 ### Helper markah ESIS → SPPB (`public/helper-sppb.html` + `helper-sppb/`)
 
-Teachers had to retype marks that already exist in ESIS into the KPM **SPPB** form (`moeissppb.moe.gov.my`, reached via idMe → Pengurusan Pentaksiran). SPPB has **no CSV import**, so filling the form is the only route — 34 pupils × 13 subjects × 6 classes per exam.
-
-Two halves, deliberately separate because a page on `sistem-esis.web.app` cannot script a page on `moeissppb.moe.gov.my`:
+Teachers had to retype marks that already exist in ESIS into the KPM **SPPB** form (`moeissppb.moe.gov.my`, reached via idMe → Pengurusan Pentaksiran). SPPB has **no CSV import**.
 
 | Half | Where | What |
 |---|---|---|
-| **Copy** | Button `#btn-salin-sppb` in `#edit-actions` (beside Eksport CSV) → `salinUntukSPPB()` | Reads the on-screen table, writes JSON to the clipboard |
-| **Paste** | Bookmarklet `helper-sppb/tampal-sppb.js` → `bookmarklet.txt` | Runs on SPPB, fills the Skor(%) boxes |
+| **Copy** | Button `#btn-salin-sppb` in `#edit-actions` → `salinUntukSPPB()` | Reads the on-screen table, writes JSON to the clipboard |
+| **Paste** | Bookmarklet `helper-sppb/tampal-sppb.js` → `bookmarklet.txt`, named **ESIS Helper** | Runs on SPPB, **POSTs marks directly to the server** |
 
-**The match key is `no_kp` — never the name, never the row order.** `renderEditTable` already puts `data-nokp`, `data-nama` and `dataset.th` on every mark input, so the copy half reads straight off those attributes; SPPB's own table carries an "ID Pengenalan" column. Verified: reversing SPPB's row order still lands every mark on the right pupil, and a pupil present in SPPB but absent from ESIS halts the whole paste. Row-index matching would silently shift every mark by one when a pupil joins or leaves — that is the failure this design exists to prevent.
+**The bookmarklet does NOT fill the Skor(%) boxes. It POSTs to SPPB's own endpoint.** This is the single most important fact about this file — the obvious approach does not work, and six separate attempts at it failed.
 
-**Safety rules — do not relax these when editing the bookmarklet:**
-- Fills the Skor(%) inputs **only**. Never clicks Simpan / Hantar / Tutup, never touches the Status dropdown, never touches the login screen. The teacher presses Simpan.
-- **TH pupils are skipped** and listed by name for the teacher to handle. TH is not a mark of 0 — writing 0 for an absent pupil corrupts an official record. Same invariant as the TH section above.
-- **One unmatched `no_kp`, or a different pupil count → stop and fill nothing.** Partial fills are worse than no fill.
+#### Why filling the boxes cannot work (audited 18 Oct 2026, live)
 
-**Chrome only** (`adalahChromeTulen()` guards `salinUntukSPPB`). Bookmarklets and clipboard permissions differ across browsers, and Edge/Brave share Chromium but not the menu names the guide describes, so the UA check requires `Chrome/` *and* rejects `Edg/|OPR/|Brave/|SamsungBrowser/`. Tested against 7 user-agents.
+SPPB is **Vue 3 + Inertia.js + Laravel**. Its save handler (`Show.vue` `simpan()`) filters rows before sending:
 
-**Known gap: the helper matches the pupil, not the subject.** Copy Matematik, open PJK in SPPB, and it still fills — same pupils, same `no_kp`. The confirm dialog therefore prints the source context ("Dari ESIS: ENAM PENTIUM — PEND. JASMANI") for the teacher to check. A subject name map would be needed to close this; ESIS and SPPB spell subjects differently (`PEND. JASMANI DAN KESIHATAN` vs `PENDIDIKAN JASMANI DAN PENDIDIKAN KESIHATAN`).
+```js
+if (pbd_mp.items[i].simpan == 1) { item_form.push({...}) }
+```
 
-**Rebuilding the bookmarklet** after editing `tampal-sppb.js`: strip comments, URL-encode, prefix `javascript:`, write to `bookmarklet.txt`, then re-embed it in `public/helper-sppb.html` (it appears twice — the drag anchor's `href` and the `KOD_HELPER` string for the copy-paste install path). Currently ~9.2 KB.
+Only rows flagged `simpan == 1` are sent. That flag is set by `inputMarkah()`, which is **`_.debounce(..., 1000)`** — so when a script fills 32 boxes quickly, the debounce cancels the first 31 and only the last row survives. Every mechanism tried gave the same "only the last row" pattern: `dispatchEvent`, full keydown simulation, `execCommand` (browser-generated events), calling the Vue handler directly, `setTimeout` pacing, and separate task runs. Only a real human keyboard worked.
 
-**Install friction is the real adoption risk, not the code.** Bookmarklets need the bookmarks bar visible or the drag lands in the address bar instead. The guide offers both a copy-paste install (no dragging) and a drag target, with Mac and Windows shortcuts side by side in a table — an earlier version buried the Windows keys in an "atau…" clause and a Windows teacher got stuck there. For a whole staff, installing it for them is likely faster than talking each teacher through it.
+Symptom when it fails: marks and grades appear on screen, Status stays **"Belum Ditaksir"**, and pressing Simpan posts `items: []` — the page re-renders **blank**.
+
+#### What the helper sends
+
+Format copied exactly from `Show.vue` `simpan()`:
+
+```js
+{ id, aksi, status_id, ltt_skor_pbd_mp_status_id,
+  tindakan: {e:{}, errorsCount:0}, max_skor,
+  items: [{ id, ltt_pbd_mp_id, markah, ulasan_gmp, intervensi_gmp,
+            ltt_pbd_usaha_id, status_taksir: 2, kemahiran, kategori }] }
+```
+
+- **Data source is `props.skors.data.items`**, not `pbd_mp.tbt_skor_pbd`. Only the former carries `no_id` (the pupil's KP) and matches the shape the form posts back.
+- **`status_taksir: 2`** is what makes SPPB keep the row. `1` = Belum Ditaksir and is silently dropped.
+- **`ltt_pbd_mp_id` is the grade-range id**, derived from the mark via `props.skor` (A 82–100 = 2779, B 66–81 = 4087, C 50–65 = 5390, D 35–49 = 6817, E 20–34 = 7992, F 0–19 = 9294). Those ids are read from the page, never hardcoded.
+- **`status_id` is required.** An early version omitted it and the request was ignored.
+
+#### Two traps that produced false "success"
+
+1. **Inertia headers.** Without `X-Inertia`, Laravel treats the POST as a browser visit, **discards the data, and returns the full HTML page with status 200**. `res.ok` is therefore `true` and the helper reported "BERJAYA" while nothing saved. The helper now sends `X-Inertia`, `X-Inertia-Version`, `X-XSRF-TOKEN` and **rejects any reply that is HTML without an `x-inertia` header**. Never trust `res.ok` alone here.
+2. **`localStorage` shadows the server.** `Show.vue` `getStorage()` prefers its cached copy: `if (data) { table.items = storage }`. So after a successful save the screen still shows the old empty table, and marks only appear after the teacher presses Simpan (which clears the cache). The helper clears `localStorage` **before and after** the POST and then **reloads the page itself** — clearing alone is not enough because the live Vue instance rewrites it.
+
+**Safety rules — do not relax:**
+- Match key is **`no_kp`**, never name or row order.
+- One unmatched `no_kp`, or a differing pupil count → **stop, send nothing**.
+- **TH pupils are skipped entirely** — writing 0 for an absent pupil corrupts an official record.
+- Marks outside `0..max_skor` → stop.
+- Never touches **Hantar** (submission to PPD). That stays the teacher's decision.
+
+**No "test mode".** An earlier build asked "OK = 3 pupils / Batal = all", and a teacher pressed OK (the natural answer to "continue"), got 3 rows, and reasonably concluded the helper was broken. It now always sends every eligible pupil.
+
+**Chrome only** (`adalahChromeTulen()` guards `salinUntukSPPB`).
+
+**Known gap: the helper matches the pupil, not the subject.** The confirm dialog prints both sides — `Dari ESIS: LIMA HIGEN — SAINS` against `Ke SPPB: — SAINS` (read from `pbd_mp.ltt_mata_pelajaran.keterangan`) — for the teacher to compare, but it cannot refuse on its own.
+
+**Rebuilding the bookmarklet** after editing `tampal-sppb.js`: strip comments, URL-encode, prefix `javascript:`, write to `bookmarklet.txt`, then re-embed in `public/helper-sppb.html` **twice** — the drag anchor's `href` (HTML-escaped) and the `KOD_HELPER` string (JS-escaped). Verify both decode to identical, parseable JS before deploying.
+
+**`helper-sppb.html` is in the `no-cache` list in `firebase.json`** — it carries the bookmarklet source inline, so with the default `max-age=3600` a teacher installing after a fix copies the **old** code for up to an hour, with a confusing symptom: the helper runs but fails with a message that should no longer exist.
 
 ### Firebase Hosting cache
 
@@ -338,9 +373,31 @@ Order matters in `normalizeAgama`: `'BUKAN ISLAM'` contains `'ISLAM'`, so the ne
 
 All agama filters use `isIslam = (agama === 'ISLAM')` and `!isIslam` for "Tidak" (5 sites), so preserved religions fall into "bukan Islam" correctly with no other change.
 
+### Guru Kelas — carian murid & Markah Kelas
+
+**Everything in this panel is open to every teacher.** No password, no `markahEnabled` gate — deliberately. Only Admin Panel requires `ADMIN_PASSWORD`. Do not add auth checks to `tambahMuridBaru` / `simpanEditMurid` / `padamMuridRow`.
+
+**Carian murid** (`cariMuridGlobal`, tab Lihat/Edit) — free-text box matching **name OR no_kp across every darjah and kelas**, unlike `cariMuridUntukEdit()` which requires darjah+kelas first. Teachers usually know the name but not the current class. KP matching strips non-digits, so `060405-07-0888` and `060405070888` both hit. Needs ≥2 characters; results are editable in place and show Tahun/Kelas columns so the teacher sees where each pupil sits.
+
+`segarkanPaparanMurid()` is the shared post-write refresh: if a search is active it re-runs the search, otherwise it falls back to the class view. All four write paths call it — without this, saving an edit from a search result jumps back to the darjah/kelas table and the teacher loses the pupil they were working on.
+
+**Markah Kelas** (`hcTukarTab`-style tab, functions `gkm*`, DOM ids `gkm-`) — one row per pupil, one column per subject, cell = mark + grade. Filters: calendar year → exam type → darjah → kelas.
+
+**Deliberately has no ranking, total, average or percentage columns.** Class teachers want to read raw marks against their own class list; judging position is what Murid Terbaik and Analisa are for. Pupils are sorted by name only and the order is not user-sortable, so the list reads the same every time. Do not add those columns.
+
+Subject columns are the subjects that actually have marks, ordered by `GLOBAL_DATA.allSubjects` so the layout stays identical between classes. Missing mark renders `—`; **TH renders `TH` in amber, never 0** (same invariant as the TH section above). Calls `ensureMarksLoaded(year)` first — without it, picking a non-current year returns an empty list.
+
+### Cache invalidation after writing students (do not regress)
+
+`bacaInitialData()` **without** `forceRefresh` reads the IndexedDB cache. So any write to `students` must be followed by `clearAllCache()` + `bacaInitialData(true)`, or the change is invisible to the user who just made it until the cache expires (24h) or they hit 🔄 Segar Semula.
+
+All three paths now do this: `tambahMuridBaru`, `simpanEditMurid`, `padamMuridRow`. Tambah was the straggler — it called bare `bacaInitialData()`, so a newly added pupil did not appear.
+
+**What this does NOT fix:** the cache lives in each teacher's own browser. Another teacher still sees the stale roster until their cache expires or they refresh manually. Closing that properly needs Firestore `onSnapshot` listeners, which is a change to how all data loads — not a patch.
+
 ### Deletion Safety
 
-Delete confirmations require typing `"PADAM"` to confirm. Deleted Firestore documents are replaced with placeholder documents to preserve collection structure.
+Delete confirmations require typing `"PADAM"` to confirm. This includes **padamMuridRow** (Guru Kelas) as of 18 Oct 2026 — it previously used a plain `confirm()`, which a stray Enter could accept, even though deleting a pupil is heavier than deleting marks: the master record goes, along with the link to their marks. Deleted Firestore documents are replaced with placeholder documents to preserve collection structure.
 
 ### Libraries (all loaded via CDN)
 
