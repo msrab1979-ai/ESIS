@@ -28,6 +28,13 @@
         ]
       },
       {
+        "//": "helper-sppb.html membawa kod bookmarklet TERBENAM di dalamnya. Dengan max-age=3600 lalai, guru yang memasang penanda selepas satu pembetulan masih menyalin kod LAMA sampai sejam — dan gejalanya mengelirukan: helper berjalan tetapi gagal dengan mesej yang sudah tidak sepatutnya wujud. Disahkan 18 Okt 2026.",
+        "source": "/helper-sppb.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+        ]
+      },
+      {
         "source": "/anugerah-kongsi.{js,css}",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
