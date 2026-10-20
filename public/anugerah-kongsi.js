@@ -29,6 +29,9 @@ const agDb = firebase.firestore();
 /* ---------- pemalar ---------- */
 const AG_MATA_DEFAULT = { A: 6, B: 5, C: 4, D: 3, E: 2, F: 1 };
 const AG_GRED_TH = 'TH';
+/* Kata laluan lalai. JANGAN tunjuk nilai ini dalam placeholder atau nota
+   pada halaman — admin & rakan yang diberitahu sahaja patut tahu.
+   (Nota: fail ini masih boleh dibaca melalui View Source.) */
 const AG_PW_LALAI = 'anugerah123';
 
 const AG_DARJAH_WORD = ['', 'SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
@@ -165,6 +168,25 @@ async function agJenisPeperiksaan(calYear) {
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 
+/* ---------- muat turun CSV ----------
+   BOM UTF-8 di hadapan: tanpanya Excel di Windows memaparkan nama
+   Melayu bertanda diakritik sebagai sampah, dan guru menyangka fail
+   itu rosak.                                                        */
+function agMuatTurunCSV(baris, namaFail) {
+  const teks = baris.map(r => r.map(sel => {
+    const t = sel == null ? '' : String(sel);
+    return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  }).join(',')).join('\r\n');
+
+  const blob = new Blob(['﻿' + teks], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = namaFail || 'data.csv';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 /* ---------- senarai kelas ikut darjah (dari students) ---------- */
 async function agKelasIkutDarjah() {
   const murid = await agMuatMurid();
@@ -184,6 +206,92 @@ async function agSenaraiSubjek() {
     .map(d => String(d.data().nama_penuh || d.data().nama || d.id).trim())
     .filter(Boolean);
   return Array.from(new Set(nama)).sort();
+}
+
+/* ==========================================================================
+   SUBJEK TERAS — tetapan admin, per darjah
+   --------------------------------------------------------------------------
+   settings/anugerahSubjek = { SATU:[nama_penuh...], DUA:[...], ... }
+
+   🔴 Senarai KOSONG atau tiada = SEMUA subjek dikira. Majlis yang dibina
+      sebelum tetapan ini wujud kekal berkelakuan sama — jangan tukar
+      makna "kosong" kepada "tiada subjek".
+
+   🔴 Berasingan dari settings/subjekUtama milik Headcount/Murid Terbaik
+      dalam index.html. Dua tujuan berbeza: menukar subjek untuk majlis
+      anugerah tidak patut mengalih sasaran Headcount tanpa admin sedar.
+   ========================================================================== */
+let AG_TERAS_CACHE = null;
+
+async function agMuatSubjekTeras(paksa) {
+  if (AG_TERAS_CACHE && !paksa) return AG_TERAS_CACHE;
+  let data = {};
+  try {
+    const d = await agDb.collection('settings').doc('anugerahSubjek').get();
+    if (d.exists) data = d.data() || {};
+  } catch (e) { /* tiada tetapan = semua subjek; bukan ralat */ }
+
+  const peta = {};
+  AG_DARJAH_WORD.slice(1).forEach(w => {
+    const senarai = Array.isArray(data[w]) ? data[w] : [];
+    peta[w] = senarai.map(x => String(x).trim().toUpperCase()).filter(Boolean);
+  });
+  AG_TERAS_CACHE = peta;
+  return peta;
+}
+
+async function agSimpanSubjekTeras(peta) {
+  const bersih = {};
+  AG_DARJAH_WORD.slice(1).forEach(w => {
+    const senarai = Array.isArray(peta[w]) ? peta[w] : [];
+    bersih[w] = senarai.map(x => String(x).trim()).filter(Boolean);
+  });
+  /* 🔴 BUKAN merge. Senarai kosong bermakna "semua subjek", dan dengan
+     merge:true Firestore mengabaikan medan array kosong — pilihan lama
+     kekal secara senyap, jadi admin yang menanggalkan setiap tanda dan
+     menekan Simpan melihat tetapannya tidak berubah. Dokumen ini kecil
+     dan sentiasa ditulis penuh (keenam-enam darjah), jadi menulis
+     ganti adalah selamat. */
+  await agDb.collection('settings').doc('anugerahSubjek').set(bersih);
+  AG_TERAS_CACHE = null;
+  return bersih;
+}
+
+/* subjek dalam examTypes bagi satu darjah — sumber checklist Tetapan.
+   examTypes.darjah menyimpan NOMBOR ([4,5,6]), bukan perkataan. */
+async function agSubjekUntukDarjah(calYear, peperiksaan) {
+  let senarai = await agJenisPeperiksaan(calYear);
+  if (peperiksaan) {
+    const mahu = String(peperiksaan).trim().toUpperCase();
+    senarai = senarai.filter(e => String(e.nama || '').trim().toUpperCase() === mahu);
+  }
+  const peta = {};
+  AG_DARJAH_WORD.slice(1).forEach(w => { peta[w] = new Set(); });
+
+  let adaSekatan = false;
+  senarai.forEach(e => {
+    const subjek = Array.isArray(e.subjek) ? e.subjek.filter(Boolean) : [];
+    if (!subjek.length) return;              // [] = semua subjek
+    const darjah = Array.isArray(e.darjah) ? e.darjah : [];
+    const word = darjah.length
+      ? darjah.map(d => agDarjahWord(d) || String(d).toUpperCase())
+      : AG_DARJAH_WORD.slice(1);
+    word.forEach(w => {
+      if (!peta[w]) return;
+      adaSekatan = true;
+      subjek.forEach(n => peta[w].add(String(n).trim()));
+    });
+  });
+
+  /* Darjah tanpa sekatan (atau examTypes tidak menetapkan subjek sama
+     sekali) jatuh balik ke senarai subjek penuh — lebih baik checklist
+     panjang daripada checklist kosong yang nampak rosak. */
+  const penuh = await agSenaraiSubjek();
+  const hasil = {};
+  AG_DARJAH_WORD.slice(1).forEach(w => {
+    hasil[w] = peta[w].size ? Array.from(peta[w]).sort() : penuh.slice();
+  });
+  return { peta: hasil, adaSekatan };
 }
 
 /* ==========================================================================
@@ -207,14 +315,40 @@ async function agSenaraiSubjek() {
 async function agKiraCalon(o) {
   await agMuatGred();
   const murid = await agMuatMurid();
-  const markah = await agMuatMarkah(o.calYear, o.peperiksaan);
+  /* `peperiksaan` boleh jadi satu nama ATAU beberapa nama (anugerah
+     terbaik subjek yang memuratakan UASA + UPSA). Setiap rekod ditanda
+     dengan peperiksaan asalnya supaya lajur per-peperiksaan boleh
+     dipaparkan — purata yang tidak boleh disemak tidak berguna. */
+  const senaraiPep = Array.isArray(o.peperiksaan) ? o.peperiksaan.filter(Boolean)
+                                                  : [o.peperiksaan];
+  const markah = [];
+  for (const nama of senaraiPep) {
+    /* `paksa` melangkau cache ingatan — guru masih memasukkan markah,
+       jadi admin perlu jalan untuk menarik yang terbaru tanpa memuat
+       semula seluruh halaman. */
+    const satu = await agMuatMarkah(o.calYear, nama, o.paksa);
+    satu.forEach(r => markah.push(Object.assign({}, r, { _pep: nama })));
+  }
+  const teras = await agMuatSubjekTeras();
 
   /* --- tapis skop --- */
   let kolam = murid;
   if (o.skopJenis === 'darjah') {
     kolam = murid.filter(m => m.tahun === String(o.skopNilai || '').toUpperCase());
   } else if (o.skopJenis === 'kelas') {
-    kolam = murid.filter(m => m.kelas === String(o.skopNilai || '').toUpperCase());
+    /* 🔴 Nama kelas BERULANG merentas darjah — sekolah ini mempunyai
+       "INTEL" di keenam-enam darjah, 187 murid semuanya. Memadankan
+       nama kelas sahaja menjadikan "terbaik dalam kelas" satu ranking
+       enam darjah. `skopDarjah` menyempitkannya; tanpa ia, perangai
+       lama dikekalkan supaya dokumen lama tidak berubah makna. */
+    const nk = String(o.skopNilai || '').toUpperCase();
+    const nd = String(o.skopDarjah || '').toUpperCase();
+    kolam = murid.filter(m => m.kelas === nk && (!nd || m.tahun === nd));
+  } else if (o.skopJenis === 'tahap') {
+    /* Tahap 1 = darjah 1–3, Tahap 2 = darjah 4–6. Satu senarai merentas
+       ketiga-tiga darjah, bukan tiga senarai berasingan. */
+    const t = Number(o.skopNilai) === 2 ? [4, 5, 6] : [1, 2, 3];
+    kolam = murid.filter(m => t.includes(agWordDarjah(m.tahun)));
   }
 
   /* --- kumpul markah ikut no_kp (BUKAN nama — nama berubah bila ejaan
@@ -227,21 +361,62 @@ async function agKiraCalon(o) {
 
   const hasil = [];
   let tiadaMarkah = 0;
+  let tiadaTeras = 0;          // ada markah, tetapi tiada satu pun subjek teras
+  let takLengkap = 0;          // kurang daripada senarai teras darjah itu
+  const terasDipakai = new Set();
 
   kolam.forEach(m => {
-    const rekod = ikutKP[m.no_kp] || [];
+    let rekod = ikutKP[m.no_kp] || [];
+
+    /* --- tapis ikut subjek teras darjah murid ---
+       Senarai kosong = semua subjek (tetapan belum dibuat). Tapisan ini
+       digunakan untuk asas gps/jumlah/purata sahaja; asas 'subjek'
+       mencari satu subjek yang dinamakan, jadi ia dibiarkan utuh. */
+    const senarai = (teras[String(m.tahun || '').toUpperCase()] || []);
+    if (senarai.length && o.asas !== 'subjek') {
+      senarai.forEach(x => terasDipakai.add(x));
+      const sebelum = rekod.length;
+      rekod = rekod.filter(r => senarai.includes(String(r.subjek || '').trim().toUpperCase()));
+      if (sebelum && !rekod.length) { tiadaTeras++; return; }
+    }
 
     if (o.asas === 'subjek') {
-      const nama = String(o.subjek || '').trim().toUpperCase();
-      const r = rekod.find(x => String(x.subjek).toUpperCase() === nama);
-      if (!r || agIsTH(r)) { tiadaMarkah++; return; }
-      const n = parseInt(r.markah);
-      if (isNaN(n)) { tiadaMarkah++; return; }
+      /* Nama subjek boleh BEBERAPA — "Pendidikan Islam dan Moral" ialah
+         satu anugerah di mana murid Islam dinilai atas Pendidikan Islam
+         dan murid bukan Islam atas Moral, bersaing dalam ranking yang
+         sama. Murid mengambil salah satu, tidak pernah kedua-duanya. */
+      const mahu = (Array.isArray(o.subjek) ? o.subjek : [o.subjek])
+        .map(x => String(x || '').trim().toUpperCase()).filter(Boolean);
+      const padan = rekod.filter(x => mahu.includes(String(x.subjek).toUpperCase()));
+
+      /* Satu markah bagi setiap peperiksaan; purata merentasinya.
+         Purata MARKAH, bukan purata gred — dua murid gred A boleh
+         berbeza enam markah, dan itulah yang memisahkan mereka. */
+      const ikutPep = {};
+      padan.forEach(r => {
+        if (agIsTH(r)) return;
+        const v = parseInt(r.markah);
+        if (isNaN(v)) return;
+        const kunci = r._pep || senaraiPep[0];
+        if (ikutPep[kunci] == null) ikutPep[kunci] = v;
+      });
+
+      const adaPep = senaraiPep.filter(x => ikutPep[x] != null);
+      if (!adaPep.length) { tiadaMarkah++; return; }
+
+      const jum = adaPep.reduce((a, x) => a + ikutPep[x], 0);
+      const purata = Math.round((jum / adaPep.length) * 100) / 100;
+      const kurangPep = adaPep.length < senaraiPep.length;
+      if (kurangPep) takLengkap++;
+
       hasil.push({
         no_kp: m.no_kp, nama: m.nama, tahun: m.tahun, kelas: m.kelas,
-        nilai: n, gps: null, jumlah: n, bilSubjek: 1,
-        gredRingkas: agGredDariMarkah(n),
-        bilA: agGredDariMarkah(n) === 'A' ? 1 : 0
+        nilai: purata, gps: null, jumlah: jum, bilSubjek: adaPep.length,
+        perluSubjek: 0,
+        markahPep: ikutPep,                 // lajur per-peperiksaan
+        perluPep: senaraiPep.length, adaPep: adaPep.length, kurang: kurangPep,
+        gredRingkas: agGredDariMarkah(purata),
+        bilA: agGredDariMarkah(purata) === 'A' ? 1 : 0
       });
       return;
     }
@@ -249,6 +424,13 @@ async function agKiraCalon(o) {
     /* asas gps / jumlah / purata — TH dibuang dahulu, bukan dikira 0 */
     const sah = rekod.filter(r => !agIsTH(r) && !isNaN(parseInt(r.markah)));
     if (!sah.length) { tiadaMarkah++; return; }
+
+    /* Murid yang kurang satu subjek teras TETAP dikira — keputusan
+       sekolah, bukan kod. Ia ditanda supaya admin nampak 3/4 sebelum
+       menandakan calon. */
+    const perluSubjek = (o.asas === 'subjek') ? 0 : (senarai.length || 0);
+    const kurang = perluSubjek && sah.length < perluSubjek;
+    if (kurang) takLengkap++;
 
     const gredList = sah.map(r => r.gred || agGredDariMarkah(r.markah));
     const jumlah = sah.reduce((j, r) => j + parseInt(r.markah), 0);
@@ -263,6 +445,7 @@ async function agKiraCalon(o) {
     hasil.push({
       no_kp: m.no_kp, nama: m.nama, tahun: m.tahun, kelas: m.kelas,
       nilai, gps, jumlah, bilSubjek: sah.length,
+      perluSubjek, kurang,
       gredRingkas: agRingkasGred(gredList), bilA
     });
   });
@@ -289,7 +472,22 @@ async function agKiraCalon(o) {
   const ambil = Math.max(0, parseInt(o.ambil) || 0);
   hasil.forEach((h, i) => { h.kedudukan = i + 1; h.dalamTop = i < ambil; });
 
-  return { senarai: hasil, jumMurid: kolam.length, tiadaMarkah };
+  return {
+    senarai: hasil, jumMurid: kolam.length, tiadaMarkah,
+    tiadaTeras, takLengkap,
+    senaraiPep,
+    subjekTeras: Array.from(terasDipakai).sort()
+  };
+}
+
+/* Nama peperiksaan penuh ("UJIAN AKHIR SEMESTER (UASA)") memecahkan
+   lebar jadual bila ia menjadi tajuk lajur. Guna singkatan dalam
+   kurungan bila ada, kerana itulah yang guru sebut. */
+function agSingkatPep(nama) {
+  const t = String(nama || '').trim();
+  const m = t.match(/\(([^)]{2,12})\)\s*$/);
+  if (m) return m[1].toUpperCase();
+  return t.length > 14 ? t.slice(0, 13).trim() + '…' : t;
 }
 
 /* "6A 1B" dari senarai gred */
@@ -343,6 +541,75 @@ function agKodBaru(n) {
   let s = '';
   for (let i = 0; i < (n || 6); i++) s += huruf[Math.floor(Math.random() * huruf.length)];
   return s;
+}
+
+
+/* ==========================================================================
+   BORANG SERAHAN GURU
+   --------------------------------------------------------------------------
+   MAJLIS.borangGuru = { <anugerahId>: {kod, pw, nama, dibuka, masa} }
+
+   🔴 Dua lapisan: kod dalam URL menentukan anugerah MANA, kata laluan
+      membuktikan siapa. Pautan boleh tersebar dalam grup WhatsApp —
+      kata laluan ialah lapisan yang masih berdiri selepas itu.
+   ========================================================================== */
+async function agBukaBorangGuru(kod) {
+  const k = String(kod || '').trim();
+  if (!k) return null;
+
+  /* Firestore tidak boleh menanya kunci peta yang tidak diketahui, jadi
+     padanan dibuat di sini. Bilangan majlis kecil (satu setahun). */
+  const snap = await agDb.collection('anugerah_majlis').get();
+  for (const d of snap.docs) {
+    const m = { id: d.id, ...d.data() };
+    const peta = m.borangGuru || {};
+    const anugerahId = Object.keys(peta).find(id => peta[id] && peta[id].kod === k);
+    if (!anugerahId) continue;
+    const anugerah = (m.anugerah || []).find(a => a.id === anugerahId);
+    if (!anugerah) continue;          // anugerah dibuang, borang yatim
+    return { majlis: m, anugerah, borang: peta[anugerahId] };
+  }
+  return null;
+}
+
+/* Tanda borang sudah dibuka — admin perlu tahu sama ada guru sudah
+   menyentuhnya. Sebelum majlis, itulah perbezaan antara menunggu
+   dengan tenang dan mengejar seseorang. */
+/* Guru menandakan kerjanya SIAP. Murid sudah berada dalam majlis sejak
+   dia menekan Simpan — ini menandakan senarai itu muktamad, supaya admin
+   tahu perbezaan antara "belum siap" dan "sudah siap, jangan tunggu". */
+async function agHantarBorang(majlisId, anugerahId, bil) {
+  const masa = new Date().toLocaleString('ms-MY', {
+    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+  });
+  await agDb.collection('anugerah_majlis').doc(majlisId).update({
+    ['borangGuru.' + anugerahId + '.dihantar']: true,
+    ['borangGuru.' + anugerahId + '.masaHantar']: masa,
+    ['borangGuru.' + anugerahId + '.bilHantar']: Number(bil) || 0
+  });
+  return masa;
+}
+
+/* Guru membuka semula borang yang sudah dihantar untuk pembetulan.
+   Status kembali "sedang diisi" supaya admin tidak menyangka senarai
+   itu masih muktamad sedangkan ia sedang diubah. */
+async function agBukaSemulaBorang(majlisId, anugerahId) {
+  await agDb.collection('anugerah_majlis').doc(majlisId).update({
+    ['borangGuru.' + anugerahId + '.dihantar']: false,
+    ['borangGuru.' + anugerahId + '.dibukaSemula']: true
+  });
+}
+
+async function agTandaBorangDibuka(majlisId, anugerahId) {
+  try {
+    const masa = new Date().toLocaleString('ms-MY', {
+      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+    });
+    await agDb.collection('anugerah_majlis').doc(majlisId).update({
+      ['borangGuru.' + anugerahId + '.dibuka']: true,
+      ['borangGuru.' + anugerahId + '.masa']: masa
+    });
+  } catch (e) { /* bukan sebab untuk menghalang guru bekerja */ }
 }
 
 /* ==========================================================================

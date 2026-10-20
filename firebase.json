@@ -22,7 +22,7 @@
       },
       {
         "//": "Modul Anugerah — sebab sama dengan index.html: satu pembetulan di tengah hari majlis tidak boleh menunggu sejam sebelum sampai ke telefon MC.",
-        "source": "/{anugerah-admin,peserta,mc,hadiah,tayang}.html",
+        "source": "/{anugerah-admin,peserta,mc,hadiah,tayang,guru}.html",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
         ]

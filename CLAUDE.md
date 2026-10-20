@@ -292,6 +292,145 @@ Symptom to recognise: console shows `❌ Cache read error: IndexedDB timeout (5s
 
 **General rule this uncovered:** never read Firestore docs one at a time in a loop. Per-doc reads cost ~113ms each, so 91 of them is ~10s while one filtered query returning the same data is ~0.3s — a 70× difference. See the Trend GPS ETR query above.
 
+### Modul Anugerah — tetapan subjek murid terbaik
+
+Admin memilih **subjek mana dikira** untuk anugerah murid terbaik, **per darjah** — `settings/anugerahSubjek` = `{SATU:[nama_penuh...], ..., ENAM:[...]}`. Tandaan dibuat dalam tab `📚 Tetapan` (`initTetapan`/`lukisTetapan`, ids `tetapan-*`, satu accordion per darjah), disimpan dengan butang 💾 (bukan auto — admin majlis ramai dan sebahagiannya kurang biasa dengan komputer; toast "Disimpan" ialah pengesahan yang mereka cari).
+
+**Senarai kosong `[]` / tiada = SEMUA subjek.** Ini lalai dan menjadikan setiap majlis sedia ada berkelakuan sama seperti sebelum ciri ini wujud. Jangan sekali-kali tukar maknanya kepada "tiada subjek". Menandakan *semua* kotak juga disimpan sebagai `[]`, supaya subjek baharu yang ditambah kemudian tidak terlepas secara senyap.
+
+**Berasingan daripada `settings/subjekUtama`** milik Headcount/Murid Terbaik dalam `index.html` — dua tujuan berbeza, dan menukar subjek untuk satu majlis tidak boleh mengalihkan sasaran Headcount tanpa admin sedar. Butang "📥 Salin dari ESIS" menyalin `subjekUtama` masuk (baca sahaja, perlu tekan Simpan untuk mengesahkan).
+
+**Tapisan berlaku di satu tempat sahaja** — dalam `agKiraCalon`, sebelum cabang `asas`:
+- Terpakai kepada `gps` / `jumlah` / `purata`. **`asas:'subjek'` tidak ditapis** — ia mencari satu subjek yang dinamakan, termasuk subjek bukan teras (contoh anugerah "Terbaik Jawi").
+- Murid yang **tiada satu pun** subjek teras **dikeluarkan** dari senarai dan dikira sebagai `tiadaTeras` — sekali sahaja, bukan juga `tiadaMarkah` (ujian mutasi menangkap pendua ini).
+- Murid yang **kurang** subjek teras **tetap dikira** atas subjek yang ada — keputusan sekolah, bukan kod. Ia ditanda `kurang:true`, dipaparkan sebagai lajur **Subjek** `3/5` berwarna amber, dan dirumuskan oleh amaran.
+
+**Amaran dikira atas baris yang DIPAPAR, bukan seluruh skop.** Jadual hanya menunjukkan `ambil+4` (minimum 10) baris. Versi pertama melaporkan "150 calon tidak lengkap" sedangkan kesemua 10 baris di skrin adalah `4/4` — amaran yang tidak boleh ditindak oleh sesiapa. Kini `kurangDipapar` memandu mesej, dengan jumlah skop penuh disebut secara berasingan, dan nota biru berasingan bila tiada seorang pun daripada mereka berada dalam senarai.
+
+**Nama kelas berulang merentas darjah** (sekolah ini mempunyai "INTEL" di keenam-enam darjah, 187 murid). `skopJenis:'kelas'` memadankan `kelas` sahaja, jadi ia merangkumi semua darjah — `agDarjahDariKelas` mencari darjah daripada `students` untuk baris konteks, kerana nama kelas bebas ("4 INTEL", "LIMA HIGEN") dan tidak boleh dihurai daripada teks.
+
+Disahkan 20 Okt 2026 pada data sebenar (UASA 2026, darjah ENAM 184 calon): GPS tiga murid dibandingkan dengan kiraan tangan — padan tepat; susunan calon berubah apabila tetapan dipasang. Ujian oracle 11 kes + 6 mutasi dalam `agKiraCalon`, semua ditangkap.
+
+#### Satu anugerah, satu skrin (modal Pilih Murid)
+
+Butang **👤 Pilih Murid** pada setiap sub-anugerah dalam pokok Jenis Anugerah membuka `modalPilihMurid(iAn, jSub)` — cadang calon, tambah manual, dan buang penerima semuanya dalam modal itu. Tab 🔍 Pilih Murid yang berasingan **kekal berfungsi** dan tidak dibuang; ia cuma bukan lagi satu-satunya jalan.
+
+Sebabnya: tab berasingan memerlukan admin menukar tab, kemudian mencari sub-anugerah yang sama sekali lagi dalam dropdown — dua tempat dan satu nama untuk diingati. Majlis diuruskan oleh beberapa orang admin, sebahagiannya tidak biasa dengan komputer.
+
+State dalam `PM = {an, s, hasil, tanda:Set, tandaM:Set}`. Modal guna kelas `.luas` (`max-width:1000px`) kerana jadual sembilan lajur menatal mendatar dalam 560px lalai. Bahagian manual mula pada darjah sub-anugerah itu, bukan darjah pertama.
+
+#### Tambah manual berkelompok
+
+`tambahPenerimaManualRamai` menulis semua murid dalam **satu `db.batch()`**. Versi lama menambah seorang setiap kali melalui carian taip — untuk Kehadiran Penuh yang boleh melibatkan satu kelas penuh, itu tiga puluh kali menaip dan tiga puluh penulisan berasingan yang boleh gagal separuh jalan. Dropdown darjah → kelas, "Tanda semua", satu simpanan. Murid yang sudah ada dalam sub-anugerah itu ditanda hijau, kotaknya `disabled`, dan tidak pernah ditulis dua kali.
+
+#### Anugerah terbaik subjek — purata beberapa peperiksaan
+
+`agKiraCalon` menerima `peperiksaan` sebagai **string atau array**. Bila array, setiap rekod ditanda `_pep` dan `markahPep{}` membawa markah setiap peperiksaan supaya jadual boleh memaparkan satu lajur bagi setiap satu — **purata yang tidak boleh disemak tidak berguna**.
+
+- **Purata MARKAH, bukan purata gred.** 88 dan 82 memberi 85.0; purata gred memberi 6.00 kepada murid itu *dan* kepada murid dengan 82+82, menyembunyikan enam markah.
+- Murid yang menduduki **sebahagian** peperiksaan **kekal** dengan purata atas yang diduduki, ditanda `kurang:true` dan dipapar `1/2` amber — keputusan sekolah, sama seperti layanan subjek tidak lengkap.
+- `asas:'subjek'` juga menerima **array subjek**: "Pendidikan Islam dan Moral" ialah satu anugerah di mana murid Islam dinilai atas PI dan murid bukan Islam atas Moral, bersaing dalam ranking yang sama. Murid mengambil salah satu, tidak pernah kedua-duanya.
+- Rekod pendua dalam peperiksaan yang sama: **yang pertama menang** (`if (ikutPep[kunci] == null)`), bukan yang terakhir.
+
+#### Skop `tahap`
+
+`skopJenis:'tahap'` dengan `skopNilai` 1 atau 2 — Tahap 1 = darjah 1, 2, 3; Tahap 2 = darjah 4, 5, 6. **Satu senarai merentas ketiga-tiga darjah**, bukan tiga senarai berasingan. Butang "⚡ Jana semua" menjana **2** sub untuk skop ini, bukan 6.
+
+#### Tab 📋 Semak Penerima
+
+Setiap penerima majlis dalam satu jadual (`initSemak`/`lukisSemak`, ids `sk-`), ditapis ikut anugerah/darjah/kelas/nama, dengan CSV dan PDF. KPI **"N dapat lebih satu"** dikira atas **seluruh majlis, bukan tapisan** — itu fakta tentang majlis dan tidak patut berubah kerana admin menapis kepada satu kelas. Soalan "siapa naik pentas lebih sekali?" tidak boleh dijawab di tab Pilih Murid yang menunjukkan satu sub pada satu masa.
+
+Butang buang membuka **modal dengan satu butang bagi setiap anugerah**, bukan `prompt()` yang meminta admin menaip nombor baris — nombor yang hanya wujud dalam teks dialog itu sendiri. Ia menggunakan `onclick` pada elemen `#lapis` (yang dibuang setiap kali modal ditutup), **bukan** `addEventListener` pada `#bekas-modal` yang kekal — pendengar di sana berhimpun dan satu klik menjalankan pembuangan beberapa kali.
+
+`agMuatTurunCSV` menulis **BOM UTF-8**; tanpanya Excel di Windows memaparkan nama bertanda diakritik sebagai sampah dan guru menyangka fail itu rosak.
+
+Disahkan 20 Okt 2026 pada data live: modal dibuka dari pokok, 25 baris dipapar untuk `ambil:20` dengan 20 ditanda automatik, 3 calon disimpan ke Firestore dan dibuang semula melalui modal. 20 ujian oracle + 12 ujian mutasi dalam `agKiraCalon`.
+
+#### Tiada calon ditanda secara automatik (jangan regres)
+
+Jadual calon — dalam modal Pilih Murid **dan** tab 🔍 Pilih Murid — membuka dengan **kotak kosong**. Hanya murid yang **sudah disimpan** bertanda. Versi awal menandakan top-N secara automatik; kotak yang sudah bertanda sebelum admin membacanya menjadikan "Simpan" satu gerakan tanpa fikir, dan senarai yang terhasil kelihatan seperti pilihan sedangkan tiada siapa memilihnya.
+
+Sistem masih mengira dan menyusun: lajur **Status** menunjukkan "Cadang" bagi top-N, dan butang **"Tanda N cadangan"** menandakannya sekali tekan bagi admin yang bersetuju. Butang Simpan `disabled` sehingga ada sekurang-kurangnya seorang murid **baharu** ditanda.
+
+Dua skrin itu tidak boleh berbeza dasar — kalau satu menanda automatik dan satu tidak, admin yang berpindah antara keduanya tidak akan tahu yang mana dipercayai.
+
+#### `settings/anugerahSubjek` ditulis TANPA merge
+
+`agSimpanSubjekTeras` menggunakan `.set(bersih)`, **bukan** `{merge:true}`. Dengan merge, Firestore mengabaikan medan array kosong — jadi admin yang menanggalkan setiap tanda dan menekan Simpan mendapati pilihan lamanya masih hidup, dan tiada apa di skrin yang menjelaskan sebabnya. Dokumen ini kecil dan sentiasa ditulis penuh (keenam-enam darjah), jadi menulis ganti selamat.
+
+Gejala yang didedahkan oleh pepijat ini: menetapkan "kecuali JAWI" untuk satu darjah, kemudian cuba mengosongkannya, meninggalkan **keenam-enam** darjah terikat pada senarai 12 subjek itu.
+
+#### Tandaan subjek tidak melukis semula senarai
+
+Pengendali `change` dalam tab Tetapan mengemas label dan nota **di tempat**. Versi yang memanggil `lukisTetapan()` memusnahkan kotak-kotak yang baru sahaja dirujuk oleh gelung pemanggil, jadi menanda dua belas subjek berturut-turut hanya mendaftarkan **satu**.
+
+#### Subjek hidup pada SUB, bukan anugerah
+
+Anugerah terbaik mata pelajaran ialah **dua** anugerah — `ANUGERAH TERBAIK MATA PELAJARAN — TAHAP 1` dan `— TAHAP 2` — masing-masing dengan **12 subjek sebagai sub-anugerah**. Versi pertama membina 12 anugerah berasingan (satu per subjek, dua sub setiap satu); pokok menjadi 24 tajuk berselerak dan admin menatal mencari satu baris.
+
+`agKiraCalon` dipanggil dengan `s.subjek || an.subjek`, jadi sub boleh menimpa induk — modal Ubah Sub-anugerah kini membawa dropdown **Subjek** bila induknya `asas:'subjek'`. Kosong bermakna ikut induk.
+
+Sub `PENDIDIKAN ISLAM & MORAL` menyimpan `subjek: ['PENDIDIKAN ISLAM','MORAL']` — array, bukan string.
+
+#### Pokok anugerah ialah accordion
+
+Setiap tajuk anugerah buka/tutup (`POKOK_BUKA[a.id]`, kelas `.buka` pada `<li>`), dengan butang **Buka semua** / **Tutup semua**. Lima puluh lima sub yang sentiasa terbuka lebih panjang daripada skrin. Pendengar klik memadankan `.induk[data-togol]` **bersama** butang-butang sedia ada dalam satu `closest()` — butang di dalam `.induk` dipadankan dahulu kerana ia lebih dalam, jadi "Ubah" tidak mencetuskan togol.
+
+**Sub yang tiada penerima adalah normal dan tidak perlu dibuang.** Sekolah yang hanya memberi anugerah untuk empat subjek meninggalkan lapan yang lain pada 0 murid — ia tidak muncul dalam Giliran, tiket, MC, peserta, hadiah atau tayangan, dan sedia untuk tahun berikutnya.
+
+#### Skop kelas mesti membawa `skopDarjah` (jangan regres)
+
+Nama kelas **berulang merentas darjah** — sekolah ini mempunyai "INTEL" di keenam-enam darjah, 187 murid semuanya, dan "BYTECH" di lima. `agKiraCalon` dengan `skopJenis:'kelas'` kini memadankan `kelas` **dan** `skopDarjah`; tanpa `skopDarjah` ia jatuh kembali kepada padanan nama sahaja supaya dokumen lama tidak berubah makna.
+
+Kesannya nyata: 6 INTEL memulangkan **34** murid dengan `skopDarjah`, **187** tanpanya.
+
+Tiga tempat perlu konsisten, dan dua daripadanya pernah rosak:
+
+1. **Dropdown kelas** (`isiNilai`) — `value` mesti `DARJAH|KELAS`, bukan nama kelas. Enam option berkongsi nilai "BYTECH" bermakna pelayar memilih yang **terakhir**: sub bernama "1 BYTECH" terbuka menunjukkan "6 BYTECH", dan menekan Simpan benar-benar menukarnya kepada darjah 6.
+2. **`baca()` dalam modal sub** membina objek **baharu** — setiap medan yang tiada kawalan dalam borang (`skopDarjah`, `paparSemua`, `peperiksaan`, `asas`) mesti disalin secara eksplisit, atau menekan Simpan memadamkannya secara senyap.
+3. **Jana semua** mengesan pendua mengikut darjah **dan** kelas; memadankan nama kelas sahaja melangkau lima daripada enam "BYTECH".
+
+#### `paparSemua` — ranking penuh, bukan calon teratas
+
+Sub-anugerah dengan `paparSemua:true` memaparkan **setiap** murid dalam skop mengikut kedudukan, bukan `ambil+5`. Dipakai oleh Terbaik Dalam Kelas: guru kelas melihat kesemua tiga puluh murid yang dia kenal dan menandakan sendiri. Ranking dan lajur Status masih dikira — yang berubah hanyalah panjang senarai.
+
+#### Terbaik Dalam Kelas = enam anugerah, satu per darjah
+
+Pokok hanya dua aras, jadi tiga aras (anugerah › darjah › kelas) dibuat sebagai **enam anugerah** — `ANUGERAH TERBAIK DALAM KELAS — DARJAH 1` hingga `6` — masing-masing dengan kelas darjah itu sebagai sub. Nama sub ialah `1 INTEL`, `2 INTEL` dan seterusnya: nombor darjah menjadikannya unik, jadi tiada pengulangan dalam senarai.
+
+### Borang serahan guru (`public/guru.html`)
+
+Sebahagian anugerah bukan milik admin: Tokoh NILAM diketahui oleh guru pusat sumber, Sahsiah Terpuji oleh guru disiplin. Admin menyerahkan anugerah itu dengan butang hijau **📝 Bina Borang** dalam pokok Jenis Anugerah; guru mendapat borangnya sendiri dan tidak pernah melihat majlis selebihnya.
+
+`MAJLIS.borangGuru = { <anugerahId>: {kod, pw, nama, dibuka, masa, dihantar, masaHantar, bilHantar, dibukaSemula} }`
+
+**Dua lapisan, bukan satu.** Kod dalam URL menentukan anugerah MANA; kata laluan (ditaip admin, bukan dijana) membuktikan siapa. Pautan boleh tersebar dalam grup WhatsApp — kata laluan ialah lapisan yang masih berdiri selepas itu. Kod **kekal** apabila kata laluan ditukar, supaya pautan yang sudah dihantar tidak mati.
+
+**Tiada penyegerakan data.** Borang guru menulis terus ke `anugerah_penerima` — koleksi yang **sama** digunakan panel admin, ditanda `sumber:'guru'` dengan nama guru dalam `catatan`. Dua senarai bermakna dua kebenaran, dan pada hari majlis seseorang terpaksa menyatukannya dengan tangan. Murid guru muncul dalam Semak Penerima dan Giliran tanpa langkah import.
+
+**Guru membuang HANYA `sumber:'guru'`.** Murid yang ditambah admin dipaparkan dengan 🔒 supaya guru tahu siapa sudah ada, tetapi tidak boleh membuangnya — menyerahkan satu anugerah tidak bermakna menyerahkan kuasa membatalkan keputusan orang lain. Disemak dua kali: butang disembunyikan dalam paparan **dan** `entri.sumber !== 'guru'` disemak sebelum menulis; kawalan yang hanya wujud dalam paparan bukan kawalan.
+
+#### Hantar = tanda siap, bukan pemindahan data
+
+Murid sudah berada dalam majlis sejak guru menekan **Simpan**. Butang **📤 Hantar kepada Admin** menandakan senarai itu **muktamad** — ia memberi admin perbezaan antara "guru masih memilih" dan "guru sudah siap, jangan tunggu lagi". Tiada kelulusan, tiada barisan menunggu, tiada salinan kedua.
+
+Tiga status, dipapar dalam pokok anugerah dan tab Link Petugas:
+- `Diserah · belum dibuka` — guru belum menyentuh pautan
+- `Sedang diisi · N murid` — dibuka, belum dihantar
+- `✓ Dihantar · N murid` — siap, dengan masa
+
+Borang yang dihantar menjadi **baca-sahaja**, tetapi guru boleh **membukanya semula sendiri**. Guru yang tersilap seorang murid tidak sepatutnya terpaksa mencari admin — dan status bertukar kembali kepada "sedang diisi", jadi tiada apa yang tersembunyi daripada admin. Kawalan **dimatikan, bukan disembunyikan**, supaya guru nampak apa yang ada dan faham ia terkunci buat sementara.
+
+`guru.html` ada dalam senarai `no-cache` dalam `firebase.json` — sebab yang sama dengan panel lain.
+
+#### Tab 🔍 Pilih Murid dibuang (Okt 2026)
+
+Setiap kerjanya kini dibuat dari **🏆 Jenis Anugerah → 👤 Pilih Murid**, jadi tab berasingan itu hanyalah pintu kedua kepada bilik yang sama. Enam tab tinggal: Majlis · Tetapan · Jenis Anugerah · Semak Penerima · Giliran & Tiket · Link Petugas.
+
+**Membuang panel mematikan seluruh skrip kalau pendengarnya ditinggalkan.** `$('b-tambah-manual').addEventListener(...)` di aras atas melontar `TypeError` pada `null` apabila butang itu tiada lagi — dan kerana ia berjalan semasa skrip dimuat, **setiap `let` selepasnya tidak pernah wujud**. Gejalanya menipu: fungsi di sekeliling wujud dan sintaks lulus, tetapi tab Semak Penerima terbuka kosong dengan `Cannot access 'SK_BARIS' before initialization`.
+
+Selepas membuang mana-mana panel, imbas dua perkara: pendengar aras-atas yang merujuk id yang sudah tiada, dan fungsi yang kehilangan semua pemanggilnya. `tambahPenerimaManualRamai` dan `agDarjahDariKelas` tinggal di dalam blok yang dibuang — kedua-duanya masih dipakai oleh modal baharu dan `guru.html`, jadi ia dipindahkan keluar, bukan dipadam bersama.
+
 ### Helper markah ESIS → SPPB (`public/helper-sppb.html` + `helper-sppb/`)
 
 Teachers had to retype marks that already exist in ESIS into the KPM **SPPB** form (`moeissppb.moe.gov.my`, reached via idMe → Pengurusan Pentaksiran). SPPB has **no CSV import**.
