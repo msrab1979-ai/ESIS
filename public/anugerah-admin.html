@@ -238,8 +238,12 @@
   .tiket .anugerah-t .baris-an + .baris-an{margin-top:6px!important}
   .tiket .nama,.tiket .majlis,.tiket-kanan .gil-no{color:#16233A!important}
   .tiket-kanan .gil-no{color:#8A6A1F!important}
-  /* Kad jemputan: 2 sehelai A4, sama tinggi dgn tiket supaya guna
-     pemotong yang sama. 2 x 136 = 272mm dalam 281mm ruang. */
+  /* Kad jemputan: 4 sehelai A4 (2 lajur x 2 baris), sama tinggi dengan
+     tiket supaya guna pemotong yang sama. 2 x 136 = 272mm dalam 281mm
+     ruang cetak, lega 9mm.
+     JANGAN naikkan ke 140mm: 2 x 140 = 280mm meninggalkan 1mm sahaja,
+     dan pembundaran pemandu pencetak menolak baris kedua ke halaman
+     baharu — gejalanya 2 kad sehelai, bukan 4. */
   .kad-grid{display:grid!important; grid-template-columns:1fr 1fr!important; gap:0!important}
   .kj{
     border:1px dashed #8A6A1F!important; border-radius:0!important;
@@ -570,7 +574,7 @@
     <div class="kad" id="kad-cetak-kj">
       <div class="kad-kepala" id="bar-cetak-kj">
         <h3>Kad Jemputan</h3>
-        <span class="sub">Latar telus · 2 sehelai A4</span>
+        <span class="sub">Latar telus — kertas warna sekolah jadi latarnya · 4 sehelai A4</span>
         <div class="kanan">
           <button class="btn sunyi kecil" id="b-cetak-kad">🖨 Cetak</button>
         </div>
