@@ -383,7 +383,7 @@
           <div class="medan"><label for="sk-kelas">Kelas</label>
             <select id="sk-kelas"></select></div>
           <div class="medan" style="flex:1 1 150px"><label for="sk-cari">Cari nama</label>
-            <input type="text" id="sk-cari" placeholder="Taip sebahagian nama…"></div>
+            <input type="text" id="sk-cari" placeholder="Nama atau no. KP…"></div>
         </div>
       </div>
       <div id="sk-kpi"></div>
@@ -2264,7 +2264,7 @@ async function pmLukisManual() {
           '>Darjah ' + agWordDarjah(w) + '</option>').join('') + '</select></div>' +
       '<div class="medan"><label for="pm-kelas">Kelas</label><select id="pm-kelas"></select></div>' +
       '<div class="medan" style="flex:2 1 150px"><label for="pm-cari">Tapis nama</label>' +
-        '<input type="text" id="pm-cari" placeholder="Taip sebahagian nama…"></div>' +
+        '<input type="text" id="pm-cari" placeholder="Nama atau no. KP…"></div>' +
     '</div>' +
     '<div class="baris-input" style="margin-top:11px; align-items:center">' +
       '<button class="btn sunyi kecil" id="pm-semua">Tanda semua</button>' +
@@ -2286,11 +2286,11 @@ async function pmLukisManual() {
 
   function senaraiMurid() {
     const w = $('pm-darjah').value, k = $('pm-kelas').value;
-    const q = $('pm-cari').value.trim().toUpperCase();
+    const c = agPecahCarian($('pm-cari').value);
     return MURID_SEMUA
       .filter(m => String(m.tahun || '').toUpperCase() === w)
       .filter(m => !k || String(m.kelas || '').toUpperCase() === k.toUpperCase())
-      .filter(m => !q || String(m.nama || '').toUpperCase().includes(q))
+      .filter(m => agPadanCarian(c, m.nama, m.no_kp))
       .sort((a, b) => String(a.nama).localeCompare(String(b.nama), 'ms'));
   }
 
@@ -2714,12 +2714,12 @@ function lukisSemak() {
   const subId = $('sk-anugerah').value;
   const w = $('sk-darjah').value;
   const k = $('sk-kelas').value;
-  const q = $('sk-cari').value.trim().toUpperCase();
+  const c = agPecahCarian($('sk-cari').value);
 
   SK_BARIS = PENERIMA
     .filter(p => !w || p.tahun === w)
     .filter(p => !k || p.kelas === k)
-    .filter(p => !q || String(p.nama || '').toUpperCase().includes(q))
+    .filter(p => agPadanCarian(c, p.nama, p.no_kp))
     .filter(p => !subId || (p.anugerah || []).some(x => x.subId === subId))
     .sort((a, b) => String(a.nama).localeCompare(String(b.nama), 'ms'));
 

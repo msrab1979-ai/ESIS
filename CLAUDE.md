@@ -477,6 +477,20 @@ Sebabnya: `ANUGERAH TERBAIK DALAM KELAS` ada 38 sub (satu per kelas). Satu boran
 
 Borang aras-sub mengunci dropdown Sub-anugerah (`disabled`, bukan disembunyikan — kawalan yang hilang menimbulkan soalan, kawalan yang mati menjawabnya), dan tajuk memapar nama **sub**, bukan nama anugerah.
 
+#### Carian nama — token, bukan substring
+
+`agPecahCarian(q)` + `agPadanCarian(c, nama, noKP)` dalam `anugerah-kongsi.js`. Ketiga-tiga kotak carian modul ini memakainya: **Semak Penerima** (`sk-cari`), **modal Pilih Murid** (`pm-cari`), dan **borang guru** (`f-cari`).
+
+**Nama Melayu panjang memecahkan padanan substring.** `MUHAMMAD DANIAL ASYRAF BIN MOHD KHAIRUNIZAM` — guru mengingati nama pertama dan nama bapa, jarang urutan tepat dengan BIN/BINTI di tengah. Disahkan pada 1,134 murid sebenar: `danial khairunizam` memulangkan **0** sebelum ini, begitu juga `sophia zaki` dan mana-mana urutan terbalik.
+
+Peraturannya: **setiap token mesti hadir, urutan tidak penting.** Taip lebih banyak perkataan = lebih sempit, yang memang apa yang orang jangka. Ruang berlebihan, tab dan baris baharu dinormalkan (`split(/\s+/)`), jadi `aaira  amani` tidak lagi memulangkan sifar.
+
+**Digit dicari pada `no_kp`, bukan pada nama,** dengan ambang **4 digit** — tanpa ambang, menaip `99` dalam nama akan menarik masuk setiap KP yang mengandunginya. Tanda sempang dilucutkan pada kedua-dua belah, jadi `140102-11-0011` dan `140102110011` sama-sama padan.
+
+`agPecahCarian` dipanggil **sekali** oleh pemanggil, bukan sekali bagi setiap murid dalam gelung penapis. Diukur 0.44ms bagi 1,134 murid.
+
+Disahkan 21 Okt 2026: oracle 2,022 kes (termasuk 2,000 rentetan rawak — tiada hempas pada nilai null/pelik), dan melalui UI sebenar: `layth saleh`, `saleh layth`, KP penuh dan KP bertanda semuanya 0 → 1.
+
 #### Borang aras-DARJAH (kumpulan kelas)
 
 Kunci `borangGuru` ada **tiga** bentuk, semuanya dalam satu peta:

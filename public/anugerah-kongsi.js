@@ -701,6 +701,41 @@ function agEntriGiliran(o) {
   };
 }
 
+/* ==========================================================================
+   CARIAN NAMA
+   --------------------------------------------------------------------------
+   🔴 Nama Melayu panjang: "MUHAMMAD DANIAL ASYRAF BIN MOHD KHAIRUNIZAM".
+      Guru mengingati nama pertama dan nama bapa, jarang urutan tepat dengan
+      BIN/BINTI di tengah. Padanan substring mentah memulangkan SIFAR untuk
+      "danial khairunizam" — disahkan pada 1,134 murid sebenar.
+
+   Peraturan: setiap token mesti hadir, urutan tidak penting. Taip lebih
+   banyak perkataan = lebih sempit, yang merupakan apa yang orang jangka.
+
+   🔴 Digit dicari pada no_kp, BUKAN pada nama. Ambang 4 digit supaya
+      nama yang mengandungi nombor tidak menarik masuk seluruh sekolah.
+      Kedua-dua '140102-11-0011' dan '140102110011' padan.
+   ========================================================================== */
+function agPecahCarian(q) {
+  const mentah = String(q == null ? '' : q).trim();
+  const digit = mentah.replace(/\D/g, '');
+  return {
+    kosong: !mentah,
+    token: mentah.toUpperCase().split(/\s+/).filter(Boolean),
+    digit: digit.length >= 4 ? digit : ''
+  };
+}
+
+/* Padanan satu rekod. `c` daripada agPecahCarian — dihurai SEKALI oleh
+   pemanggil, bukan sekali bagi setiap seribu murid dalam gelung. */
+function agPadanCarian(c, nama, noKP) {
+  if (c.kosong) return true;
+  if (c.digit && String(noKP || '').replace(/\D/g, '').includes(c.digit)) return true;
+  if (!c.token.length) return false;
+  const n = String(nama || '').toUpperCase();
+  return c.token.every(t => n.includes(t));
+}
+
 /* ---------- papar ---------- */
 function agEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g,
