@@ -736,6 +736,22 @@ function agPadanCarian(c, nama, noKP) {
   return c.token.every(t => n.includes(t));
 }
 
+/* Butang \ud83d\udc41 pada medan kata laluan. CSS (.pw-baris/.b-mata) sudah
+   berada dalam anugerah-kongsi.css \u2014 fungsi ini menyusulnya ke sini supaya
+   panel admin dan borang guru berkongsi satu salinan, bukan dua yang
+   boleh menyimpang. */
+function pasangMata(butangId, inputId) {
+  const b = document.getElementById(butangId), i = document.getElementById(inputId);
+  if (!b || !i) return;
+  b.addEventListener('click', () => {
+    const tunjukkan = i.type === 'password';
+    i.type = tunjukkan ? 'text' : 'password';
+    b.textContent = tunjukkan ? '\ud83d\ude48' : '\ud83d\udc41';
+    b.setAttribute('aria-label', tunjukkan ? 'Sembunyi kata laluan' : 'Tunjuk kata laluan');
+    i.focus();
+  });
+}
+
 /* ---------- papar ---------- */
 function agEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g,

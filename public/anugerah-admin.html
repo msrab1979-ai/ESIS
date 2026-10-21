@@ -546,16 +546,6 @@ function kosong(bekas, teks) {
 /* ==========================================================================
    LOGIN
    ========================================================================== */
-function pasangMata(butangId, inputId) {
-  const b = $(butangId), i = $(inputId);
-  if (!b || !i) return;
-  b.addEventListener('click', () => {
-    const tunjukkan = i.type === 'password';
-    i.type = tunjukkan ? 'text' : 'password';
-    b.textContent = tunjukkan ? '🙈' : '👁';
-    b.setAttribute('aria-label', tunjukkan ? 'Sembunyi kata laluan' : 'Tunjuk kata laluan');
-  });
-}
 pasangMata('b-mata', 'pw');
 pasangMata('b-mata2', 'm-pw');
 

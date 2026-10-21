@@ -57,7 +57,11 @@
         <p class="hint" style="margin:0 0 13px" id="login-sari"></p>
         <div class="medan" style="width:100%">
           <label for="pw">Kata laluan</label>
-          <input type="password" id="pw" autocomplete="current-password">
+          <div class="pw-baris">
+            <input type="password" id="pw" autocomplete="current-password">
+            <button type="button" class="b-mata" id="b-mata"
+              aria-label="Tunjuk kata laluan" title="Tunjuk kata laluan">👁</button>
+          </div>
         </div>
         <div class="nota ralat" id="login-ralat" style="margin:11px 0 0" hidden>
           <span class="sym">✕</span><div></div>
@@ -162,6 +166,8 @@ let KONTEKS = null;      // {majlis, anugerah, borang}
 let MURID = [];
 let PENERIMA = [];
 let TANDA = new Set();
+
+pasangMata('b-mata', 'pw');
 
 /* ---------- mula ---------- */
 (async function mula() {
