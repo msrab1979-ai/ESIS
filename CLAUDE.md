@@ -398,6 +398,28 @@ Sub-anugerah dengan `paparSemua:true` memaparkan **setiap** murid dalam skop men
 
 Pokok hanya dua aras, jadi tiga aras (anugerah › darjah › kelas) dibuat sebagai **enam anugerah** — `ANUGERAH TERBAIK DALAM KELAS — DARJAH 1` hingga `6` — masing-masing dengan kelas darjah itu sebagai sub. Nama sub ialah `1 INTEL`, `2 INTEL` dan seterusnya: nombor darjah menjadikannya unik, jadi tiada pengulangan dalam senarai.
 
+#### Susunan naik pentas — sub boleh diseret, bukan hanya anugerah
+
+Tab **Giliran & Tiket** → "Susunan Naik Pentas" ialah **accordion dua aras**: tekan nama anugerah, sub-anugerahnya terbuka di bawah dan boleh diseret sendiri. Sebelum ini hanya anugerah boleh disusun, jadi susunan dalam `ANUGERAH TERBAIK DALAM KELAS` (38 kelas, 1 BYTECH → 6 PIXEL) terkunci pada susunan ia dijana.
+
+**`draggable="true"` sahaja tidak membuat apa-apa.** Baris anugerah sudah membawanya, tetapi tiada pendengar `dragstart`/`dragover`/`drop` pernah ditulis — hanya butang ↑↓ yang berfungsi, dan tooltip "Seret untuk susun" berbohong. Pendengar itu kini wujud untuk kedua-dua aras.
+
+**Sub TIADA medan `urutan`.** `binaTurutan()` membaca `(a.sub || []).forEach` — susunan sub ialah **susunan array `a.sub`** itu sendiri. Jadi `pindahSub` menyusun semula array dan menyimpan; menambah medan `urutan` pada sub akan memecahkan `binaTurutan` secara senyap.
+
+**Pindah = `splice`, bukan tukar tempat.** Seret dari baris 1 ke baris 6 mesti **menyelit** di situ, bukan bertukar dengan baris 6 dan meninggalkan lima yang lain tidak berganjak. Butang ↑↓ ialah kes khas `splice` yang sama (jarak 1), jadi satu laluan kod sahaja.
+
+**Aras dikunci semasa seret.** Satu sub tidak boleh dilepaskan sebagai anugerah, dan sub hanya bergerak dalam induknya sendiri — `dragover` tidak memanggil `preventDefault()` bila aras tidak sepadan, jadi drop tidak pernah dicetuskan. Tanpa ini, menyeret "1 INTEL" ke atas senarai akan menjadikannya anugerah peringkat atas.
+
+**Butang disemak dahulu dalam pendengar klik.** `closest('button[...]')` dipanggil sebelum `closest('.sgil-induk')` — butang berada *di dalam* baris induk, jadi menekan ↑ juga akan menogol accordion kalau urutan semakan terbalik. (Perangkap yang sama seperti pokok Jenis Anugerah.)
+
+**↑↓ dikekalkan di samping seret**, dan butang hujung di-`disabled`. Admin majlis ramai dan sebahagiannya kurang biasa dengan komputer — seret tetikus pada senarai 38 baris yang menatal bukan satu-satunya jalan yang patut ada.
+
+`SGIL_BUKA[anugerahId]` menyimpan blok mana terbuka supaya `lukisGiliran()` selepas setiap simpanan tidak menutup semula apa yang admin sedang kerjakan; `pindahSub` memaksanya terbuka.
+
+**Nombor giliran KEKAL** — menyusun semula sub memapar amaran yang sama seperti menyusun anugerah (`amaranSusun()`), tidak pernah menulis nombor. Hanya 🔢 Beri Nombor / 🔁 Jana Semula mengubahnya.
+
+Disahkan 21 Okt 2026 pada majlis sebenar (15 anugerah, 92 sub): accordion buka 38 kelas, ↓ dan seret-jauh kedua-duanya ditulis ke Firestore dan dipulihkan selepas ujian; seret sub→anugerah dan sub silang-induk kedua-duanya ditolak tanpa mengubah susunan. Oracle 280 kes `splice` (termasuk indeks di luar julat), 0 beza.
+
 ### Borang serahan guru (`public/guru.html`)
 
 Sebahagian anugerah bukan milik admin: Tokoh NILAM diketahui oleh guru pusat sumber, Sahsiah Terpuji oleh guru disiplin. Admin menyerahkan anugerah itu dengan butang hijau **📝 Bina Borang** dalam pokok Jenis Anugerah; guru mendapat borangnya sendiri dan tidak pernah melihat majlis selebihnya.

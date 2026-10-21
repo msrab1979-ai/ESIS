@@ -78,9 +78,26 @@
   background:var(--kertas-2); margin-bottom:7px;
 }
 .seret.atas{border-color:var(--emas); background:var(--amaran-bg)}
+.seret.angkat{opacity:.4}
 .seret .pemegang{color:var(--neutral-lembut); cursor:grab; font-size:15px; flex:none; letter-spacing:-2px}
 .seret .s-nama{font-weight:600; font-size:13.5px}
 .seret .s-bil{margin-left:auto; font-size:12px; color:var(--neutral); font-variant-numeric:tabular-nums}
+
+/* ---------- susunan: anugerah (induk) + sub ---------- */
+.sgil-blok{margin-bottom:7px}
+.seret.sgil-induk{margin-bottom:0; cursor:pointer}
+.seret.sgil-induk .anak-panah{color:var(--neutral-lembut); font-size:11px; flex:none; transition:transform .15s}
+.sgil-blok.buka .seret.sgil-induk .anak-panah{transform:rotate(90deg)}
+.sgil-blok.buka .seret.sgil-induk{border-bottom-left-radius:0; border-bottom-right-radius:0}
+.sgil-sub{display:none; border:1px solid var(--garis-halus); border-top:0;
+  border-bottom-left-radius:8px; border-bottom-right-radius:8px; padding:7px 9px 9px 28px;
+  background:var(--kertas)}
+.sgil-blok.buka .sgil-sub{display:block}
+.seret.sgil-baris{padding:6px 11px; margin-bottom:5px; background:var(--kertas-2)}
+.seret.sgil-baris:last-child{margin-bottom:0}
+.seret.sgil-baris .s-nama{font-weight:500; font-size:12.5px}
+.seret.sgil-baris .s-bil{font-size:11.5px}
+.sgil-sub .hint{margin:0; font-size:12px}
 
 /* ---------- link petugas ---------- */
 .link-grid{display:grid; gap:10px}
@@ -370,6 +387,8 @@
       </div>
       <div class="kad-isi">
         <p class="eyebrow">Turutan anugerah dalam majlis</p>
+        <p class="hint" style="margin:-4px 0 10px">Tekan nama anugerah untuk membuka
+          sub-anugerahnya &mdash; sub juga boleh diseret untuk menukar susunan naik pentas.</p>
         <div id="susun-anugerah"></div>
         <div id="susun-amaran"></div>
       </div>
@@ -2725,32 +2744,81 @@ function lukisGiliran() {
       ? kad(tanpaNombor, 'Belum bernombor', 'tekan Beri Nombor', 'bahaya')
       : kad(bilGil, 'Tiket siap', '4 sehelai A4', 'ok'));
 
-  /* susunan anugerah */
-  const senarai = (MAJLIS.anugerah || []).slice()
-    .sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+  /* susunan anugerah + sub */
+  const senarai = susunanAnugerah();
 
   $('susun-anugerah').innerHTML = senarai.length
-    ? senarai.map((a, i) => {
-        const gil = [];
-        PENERIMA.forEach(p => (p.giliran || []).forEach(g => {
-          if (g.anugerahId === a.id && g.no != null) gil.push(g.no);
-        }));
-        const bil = PENERIMA.reduce((j, p) =>
-          j + (p.anugerah || []).filter(x => x.anugerahId === a.id).length, 0);
-        const julat = gil.length
-          ? 'giliran ' + Math.min(...gil) + '–' + Math.max(...gil)
-          : 'belum bernombor';
-        return '<div class="seret" draggable="true" data-i="' + i + '">' +
-          '<span class="pemegang">⣿</span>' +
-          '<span class="s-nama">' + agEsc(a.nama) + '</span>' +
-          '<span class="s-bil">' + bil + ' anugerah · ' + julat + '</span>' +
-          '<button class="btn sunyi kecil" data-naik="' + i + '" title="Naik">↑</button>' +
-          '<button class="btn sunyi kecil" data-turun="' + i + '" title="Turun">↓</button>' +
-        '</div>';
-      }).join('')
+    ? senarai.map((a, i) => barisSusunAnugerah(a, i, senarai.length)).join('')
     : '<p class="hint">Belum ada anugerah.</p>';
 
   lukisTiket();
+}
+
+/* Satu sumber kebenaran untuk susunan anugerah — dipakai oleh render,
+   handler susun, dan binaTurutan(). */
+function susunanAnugerah() {
+  return (MAJLIS.anugerah || []).slice()
+    .sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+}
+
+/* Julat giliran + bilangan murid bagi satu anugerah atau satu sub.
+   Guna subId bila s diberi, jika tidak anugerahId. */
+function ringkasGiliran(a, s) {
+  const gil = [];
+  let bil = 0;
+  PENERIMA.forEach(p => {
+    (p.giliran || []).forEach(g => {
+      const padan = s ? g.subId === s.id : g.anugerahId === a.id;
+      if (padan && g.no != null) gil.push(g.no);
+    });
+    bil += (p.anugerah || []).filter(x =>
+      s ? x.subId === s.id : x.anugerahId === a.id).length;
+  });
+  return {
+    bil: bil,
+    julat: gil.length
+      ? 'giliran ' + Math.min.apply(null, gil) + '–' + Math.max.apply(null, gil)
+      : 'belum bernombor'
+  };
+}
+
+function barisSusunAnugerah(a, i, jum) {
+  const r = ringkasGiliran(a, null);
+  const sub = a.sub || [];
+  const buka = SGIL_BUKA[a.id] ? ' buka' : '';
+
+  /* 🔴 Susunan sub ialah susunan ARRAY a.sub — binaTurutan membacanya
+     dengan .forEach dan sub TIADA medan urutan. Jadi indeks di sini ialah
+     indeks sebenar dalam array, dan menyusun bermakna menyusun array itu. */
+  const barisSub = sub.length
+    ? sub.map((s, j) => {
+        const rs = ringkasGiliran(a, s);
+        return '<div class="seret sgil-baris" draggable="true" ' +
+            'data-sub-a="' + i + '" data-sub-j="' + j + '">' +
+          '<span class="pemegang">⣿</span>' +
+          '<span class="s-nama">' + agEsc(s.nama || '(tanpa nama)') + '</span>' +
+          '<span class="s-bil">' + rs.bil + ' murid · ' + rs.julat + '</span>' +
+          '<button class="btn sunyi kecil" data-snaik="' + i + '_' + j + '" ' +
+            'title="Naik"' + (j === 0 ? ' disabled' : '') + '>↑</button>' +
+          '<button class="btn sunyi kecil" data-sturun="' + i + '_' + j + '" ' +
+            'title="Turun"' + (j === sub.length - 1 ? ' disabled' : '') + '>↓</button>' +
+        '</div>';
+      }).join('')
+    : '<p class="hint">Tiada sub-anugerah.</p>';
+
+  return '<div class="sgil-blok' + buka + '" data-blok="' + agEsc(a.id) + '">' +
+    '<div class="seret sgil-induk" draggable="true" data-i="' + i + '" data-togol="' + agEsc(a.id) + '">' +
+      '<span class="pemegang">⣿</span>' +
+      '<span class="anak-panah">▶</span>' +
+      '<span class="s-nama">' + agEsc(a.nama) + '</span>' +
+      '<span class="s-bil">' + sub.length + ' sub · ' + r.bil + ' anugerah · ' + r.julat + '</span>' +
+      '<button class="btn sunyi kecil" data-naik="' + i + '" title="Naik"' +
+        (i === 0 ? ' disabled' : '') + '>↑</button>' +
+      '<button class="btn sunyi kecil" data-turun="' + i + '" title="Turun"' +
+        (i === jum - 1 ? ' disabled' : '') + '>↓</button>' +
+    '</div>' +
+    '<div class="sgil-sub">' + barisSub + '</div>' +
+  '</div>';
 }
 
 function kad(angka, label, kecil, jenis) {
@@ -2760,36 +2828,143 @@ function kad(angka, label, kecil, jenis) {
     '<div class="kecil">' + agEsc(kecil) + '</div></div>';
 }
 
-$('susun-anugerah').addEventListener('click', async e => {
-  const b = e.target.closest('button[data-naik],button[data-turun]');
-  if (!b) return;
-  const senarai = (MAJLIS.anugerah || []).slice()
-    .sort((a, b2) => (a.urutan || 0) - (b2.urutan || 0));
-  const i = parseInt(b.dataset.naik !== undefined ? b.dataset.naik : b.dataset.turun);
-  const j = b.dataset.naik !== undefined ? i - 1 : i + 1;
-  if (j < 0 || j >= senarai.length) return;
+/* Blok mana yang terbuka — bertahan merentas lukisGiliran(). */
+const SGIL_BUKA = {};
 
-  [senarai[i], senarai[j]] = [senarai[j], senarai[i]];
+/* 🔴 Menyusun semula memapar AMARAN, bukan menukar nombor. */
+function amaranSusun() {
+  $('susun-amaran').innerHTML =
+    '<div class="nota amaran" style="margin:15px 0 0"><span class="sym">⚠</span><div>' +
+    '<strong>Susunan berubah tetapi nombor giliran KEKAL.</strong> Ini amaran, bukan tindakan. ' +
+    'Nombor hanya berubah bila kau tekan <em>Jana Semula</em> sendiri — tiket yang sudah ' +
+    'dicetak dan diedar tidak boleh ditukar oleh sistem.</div></div>';
+}
+
+/* Pindah anugerah ke-i ke kedudukan ke-j. Susun semula (splice), bukan tukar
+   tempat — seret jauh mesti menyelit, bukan bertukar dengan baris yang dilepasi. */
+async function pindahAnugerah(i, j) {
+  const senarai = susunanAnugerah();
+  if (i === j || i < 0 || j < 0 || i >= senarai.length || j >= senarai.length) return;
+  const item = senarai.splice(i, 1)[0];
+  senarai.splice(j, 0, item);
   senarai.forEach((a, k) => { a.urutan = k; });
   MAJLIS.anugerah = senarai;
-
   try {
     await simpanMajlis();
     lukisGiliran();
-    /* 🔴 Menyusun semula memapar AMARAN, bukan menukar nombor. */
-    $('susun-amaran').innerHTML =
-      '<div class="nota amaran" style="margin:15px 0 0"><span class="sym">⚠</span><div>' +
-      '<strong>Susunan berubah tetapi nombor giliran KEKAL.</strong> Ini amaran, bukan tindakan. ' +
-      'Nombor hanya berubah bila kau tekan <em>Jana Semula</em> sendiri — tiket yang sudah ' +
-      'dicetak dan diedar tidak boleh ditukar oleh sistem.</div></div>';
+    amaranSusun();
   } catch (err) { agToast('Gagal: ' + err.message, 'ralat'); }
+}
+
+/* Pindah sub ke-j dalam anugerah ke-iA (indeks susunan) ke kedudukan ke-k. */
+async function pindahSub(iA, j, k) {
+  const senarai = susunanAnugerah();
+  const a = senarai[iA];
+  if (!a) return;
+  const sub = (a.sub || []).slice();
+  if (j === k || j < 0 || k < 0 || j >= sub.length || k >= sub.length) return;
+  const item = sub.splice(j, 1)[0];
+  sub.splice(k, 0, item);
+  a.sub = sub;
+  MAJLIS.anugerah = senarai;
+  SGIL_BUKA[a.id] = true;   /* kekal terbuka supaya admin nampak hasilnya */
+  try {
+    await simpanMajlis();
+    lukisGiliran();
+    amaranSusun();
+  } catch (err) { agToast('Gagal: ' + err.message, 'ralat'); }
+}
+
+$('susun-anugerah').addEventListener('click', e => {
+  /* Butang disemak DAHULU: ia lebih dalam daripada .sgil-induk, jadi
+     menekan ↑ tidak boleh mencetuskan togol accordion. */
+  const b = e.target.closest('button[data-naik],button[data-turun],button[data-snaik],button[data-sturun]');
+  if (b) {
+    if (b.disabled) return;
+    const d = b.dataset;
+    if (d.naik !== undefined)  { pindahAnugerah(+d.naik, +d.naik - 1); return; }
+    if (d.turun !== undefined) { pindahAnugerah(+d.turun, +d.turun + 1); return; }
+    const naik = d.snaik !== undefined;
+    const bhg = (naik ? d.snaik : d.sturun).split('_');
+    pindahSub(+bhg[0], +bhg[1], +bhg[1] + (naik ? -1 : 1));
+    return;
+  }
+
+  const induk = e.target.closest('.sgil-induk[data-togol]');
+  if (!induk) return;
+  const id = induk.dataset.togol;
+  SGIL_BUKA[id] = !SGIL_BUKA[id];
+  const blok = induk.closest('.sgil-blok');
+  if (blok) blok.classList.toggle('buka', !!SGIL_BUKA[id]);
+});
+
+/* ---------- seret (tetikus) ----------
+   Satu set pendengar untuk kedua-dua aras. Aras dikunci: satu sub tidak
+   boleh dilepaskan sebagai anugerah, dan sub hanya boleh bergerak dalam
+   anugerah induknya sendiri. */
+let SERET = null;   /* {el, jenis:'anugerah'|'sub', i, j} */
+
+function barisSeret(t) {
+  if (!t || !t.closest) return null;
+  const sub = t.closest('.seret.sgil-baris');
+  if (sub) return { el: sub, jenis: 'sub', i: +sub.dataset.subA, j: +sub.dataset.subJ };
+  const ind = t.closest('.seret.sgil-induk');
+  if (ind) return { el: ind, jenis: 'anugerah', i: +ind.dataset.i, j: -1 };
+  return null;
+}
+
+function serasi(b) {
+  if (!SERET || !b || b.jenis !== SERET.jenis) return false;
+  return SERET.jenis !== 'sub' || b.i === SERET.i;
+}
+
+function buangTanda() {
+  $('susun-anugerah').querySelectorAll('.atas').forEach(el => el.classList.remove('atas'));
+}
+
+$('susun-anugerah').addEventListener('dragstart', e => {
+  const b = barisSeret(e.target);
+  if (!b) return;
+  SERET = b;
+  e.dataTransfer.effectAllowed = 'move';
+  /* Firefox memerlukan data ditetapkan, jika tidak drop tidak dicetuskan. */
+  try { e.dataTransfer.setData('text/plain', b.jenis); } catch (_) {}
+  b.el.classList.add('angkat');
+});
+
+$('susun-anugerah').addEventListener('dragend', () => {
+  SERET = null;
+  buangTanda();
+  $('susun-anugerah').querySelectorAll('.angkat').forEach(el => el.classList.remove('angkat'));
+});
+
+$('susun-anugerah').addEventListener('dragover', e => {
+  const b = barisSeret(e.target);
+  if (!serasi(b)) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  buangTanda();
+  if (b.el !== SERET.el) b.el.classList.add('atas');
+});
+
+$('susun-anugerah').addEventListener('drop', e => {
+  const b = barisSeret(e.target);
+  if (!serasi(b)) return;
+  e.preventDefault();
+  const asal = SERET;
+  SERET = null;
+  buangTanda();
+  if (asal.jenis === 'anugerah') {
+    if (b.i !== asal.i) pindahAnugerah(asal.i, b.i);
+  } else if (b.j !== asal.j) {
+    pindahSub(asal.i, asal.j, b.j);
+  }
 });
 
 /* ---------- beri nombor ---------- */
 /* Hierarki: ANUGERAH (ikut urutan) → SUB (ikut urutan) → MURID (abjad). */
 function binaTurutan() {
-  const senarai = (MAJLIS.anugerah || []).slice()
-    .sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+  const senarai = susunanAnugerah();
   const turutan = [];
   senarai.forEach(a => {
     (a.sub || []).forEach(s => {
@@ -2883,8 +3058,7 @@ $('b-pulih').addEventListener('click', async () => {
 /* ---------- tiket ---------- */
 function lukisTiket() {
   const sel = $('t-tapis');
-  const senarai = (MAJLIS.anugerah || []).slice()
-    .sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+  const senarai = susunanAnugerah();
   const dipilih = sel.value;
   sel.innerHTML = '<option value="">Semua anugerah</option>' +
     senarai.map(a => '<option value="' + agEsc(a.id) + '">' + agEsc(a.nama) + '</option>').join('');
