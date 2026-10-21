@@ -487,6 +487,17 @@ function bilDipilihGuru() {
       dalamSkopBorang(x) && x.sumber === 'guru').length, 0);
 }
 
+/* 🔴 Hantar bermaksud "senarai ini MUKTAMAD", bukan "aku yang pilih
+   semua ini". Murid yang admin sudah masukkan dikira juga — kalau tidak,
+   guru yang hanya perlu MENGESAHKAN senarai admin melihat butang Hantar
+   mati dan tiada apa di skrin yang memberitahunya sebabnya.
+   Disahkan 21 Okt 2026: KECEMERLANGAN UPKK, satu murid sumber 'manual'
+   ditambah dari panel admin, butang Hantar kekal mati. */
+function bilDalamBorang() {
+  return PENERIMA.reduce((n, p) =>
+    n + (p.anugerah || []).filter(dalamSkopBorang).length, 0);
+}
+
 function sudahHantar() {
   return !!(KONTEKS.borang && KONTEKS.borang.dihantar);
 }
@@ -495,7 +506,8 @@ function lukisHantar() {
   const bekas = $('kotak-hantar');
   const banner = $('banner-hantar');
   if (!bekas) return;
-  const bil = bilDipilihGuru();
+  const bil = bilDalamBorang();          // semua dalam skop borang ini
+  const bilGuru = bilDipilihGuru();      // yang guru ini sendiri pilih
   const b = KONTEKS.borang || {};
 
   if (sudahHantar()) {
@@ -527,7 +539,10 @@ function lukisHantar() {
         '📤 Hantar kepada Admin</button>' +
       '<span class="kecil" style="margin-left:auto">' +
         (bil
-          ? 'Semak senarai di atas, kemudian hantar. <strong>' + bil + ' murid</strong> dipilih.'
+          ? 'Semak senarai di atas, kemudian hantar. <strong>' + bil + ' murid</strong>' +
+            (bilGuru < bil
+              ? ' (' + (bil - bilGuru) + ' ditambah oleh admin)'
+              : '') + '.'
           : 'Pilih sekurang-kurangnya seorang murid dahulu.') +
       '</span>' +
     '</div>';
@@ -535,8 +550,9 @@ function lukisHantar() {
   if (bil) $('b-hantar').onclick = async () => {
     const senarai = [];
     PENERIMA.forEach(p => (p.anugerah || []).forEach(x => {
-      if (dalamSkopBorang(x) && x.sumber === 'guru') {
-        senarai.push(p.nama + ' (' + agDarjahKelas(p.tahun, p.kelas) + ') — ' + x.sub);
+      if (dalamSkopBorang(x)) {
+        senarai.push(p.nama + ' (' + agDarjahKelas(p.tahun, p.kelas) + ') \u2014 ' + x.sub +
+          (x.sumber === 'guru' ? '' : ' [admin]'));
       }
     }));
     senarai.sort((a, b) => a.localeCompare(b, 'ms'));
