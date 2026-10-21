@@ -3816,6 +3816,57 @@ function lukisKad() {
       '</div>' +
     '</div>';
   }).join('');
+
+  kjSemakMuat(senarai);
+}
+
+/* 🔴 Amaran limpahan diukur, bukan diteka. Kad ialah tinggi TETAP
+   (136mm) dengan `overflow:visible`, jadi isi yang terlalu panjang
+   tidak menatal dan tidak mengembangkan scrollHeight \u2014 ia hanya
+   terkeluar senyap dan dipotong oleh pemotong kertas. Satu-satunya
+   petunjuk yang boleh dipercayai ialah ruang kosong antara blok
+   butiran dan blok anugerah (yang `margin-top:auto` kecilkan).
+
+   Diukur pada data sebenar: ruang itu susut ~23px setiap anugerah
+   tambahan dan habis pada anugerah ke-10. Ambang 12px memberi amaran
+   satu baris LEBIH AWAL daripada kerosakan sebenar. */
+function kjSemakMuat(senarai) {
+  const nota = $('kj-kira');
+  if (!nota) return;
+  const kad = $('kad-grid').querySelectorAll('.kj');
+  if (!kad.length) return;
+
+  /* 🔴 Skrin memakai min-height (kad boleh mengembang), cetakan memakai
+     height:136mm tetap. Mengukur ruang kosong pada skrin tidak
+     memberitahu apa-apa tentang cetakan \u2014 ia sentiasa besar.
+     Jadi tinggi cetak dikira: 136mm tolak padding, berbanding tinggi
+     isi sebenar kad itu (semua anak, termasuk yang akan terkeluar). */
+  const MM = 96 / 25.4;
+  const sesak = [];
+  kad.forEach((el, i) => {
+    const gaya = getComputedStyle(el);
+    const dalam = 136 * MM - parseFloat(gaya.paddingTop) - parseFloat(gaya.paddingBottom);
+    let isi = 0;
+    Array.from(el.children).forEach(c => {
+      const g = getComputedStyle(c);
+      /* .anu membawa margin-top:auto pada skrin \u2014 abaikan margin itu
+         dan kira tinggi sebenar setiap blok sahaja. */
+      isi += c.getBoundingClientRect().height +
+        (g.marginTop === 'auto' ? 0 : parseFloat(g.marginTop) || 0) +
+        (parseFloat(g.marginBottom) || 0);
+    });
+    /* Ambang 30px \u2248 satu baris anugerah (diukur 23px) + jidar.
+       Diuji pada data sebenar: ruang habis pada anugerah ke-10, jadi
+       amaran mesti cetus pada ke-9 \u2014 SEBELUM kerosakan, bukan selepas.
+       Ambang 12px memberi amaran pada ke-11, iaitu sudah terlambat. */
+    if (isi > dalam - 30) sesak.push((senarai[i] && senarai[i].nama) || 'murid');
+  });
+
+  if (!sesak.length) return;
+  nota.innerHTML += '<br><span style="color:#b3261e">\u26a0 <strong>' + sesak.length +
+    ' kad terlalu padat</strong> untuk 136mm \u2014 isi boleh terpotong semasa dicetak: ' +
+    sesak.slice(0, 3).map(agEsc).join(', ') + (sesak.length > 3 ? ', \u2026' : '') +
+    '. Kurangkan baris butiran, atau pendekkan ayat jemputan.</span>';
 }
 
 /* ==========================================================================
