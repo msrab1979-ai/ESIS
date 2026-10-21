@@ -1636,7 +1636,8 @@ function modalAnugerah(idx) {
         'dalam darjah yang sama.</p></div>' +
       '<div id="kotak-pep" style="margin-top:15px" hidden>' +
         '<label class="eyebrow" style="display:block;margin-bottom:6px">Peperiksaan dikira ' +
-          '<span class="sub">tahun ' + ((MAJLIS && MAJLIS.calYear) || '') + '</span></label>' +
+          '<span class="sub">tahun kalendar ' + ((MAJLIS && MAJLIS.calYear) || '') +
+          ', ikut tetapan majlis</span></label>' +
         '<div class="baris-input">' +
           '<div class="medan"><label for="a-pmod">Cara kiraan</label><select id="a-pmod">' +
             '<option value="majlis">Ikut peperiksaan majlis</option>' +
@@ -1705,9 +1706,32 @@ function modalAnugerah(idx) {
     tunjuk($('a-pk2'), mod === 'gabung');
 
     const el = $('a-pnota');
+
+    /* 🔴 Keutamaan sebenar ialah SUB > ANUGERAH > MAJLIS (lihat
+       `s.peperiksaan || an.peperiksaan || MAJLIS.peperiksaan`). Modal ini
+       hanya menetapkan aras ANUGERAH, jadi ia mesti menyebut dua aras
+       lain — kalau tidak admin membaca "UASA" di sini dan menyangka
+       itulah yang dikira, sedangkan satu sub boleh menimpanya dan tiada
+       apa di skrin yang menunjukkannya. */
+    const subTimpa = (a.sub || []).filter(x => x.peperiksaan);
+    const amaranSub = subTimpa.length
+      ? '<br><span style="color:#8A6A1F">⚠ ' + subTimpa.length +
+        ' sub-anugerah menetapkan peperiksaannya sendiri dan <strong>mengatasi</strong> ' +
+        'tetapan ini: ' + subTimpa.slice(0, 3).map(x => agEsc(x.nama)).join(', ') +
+        (subTimpa.length > 3 ? ', …' : '') + '. Ubah dalam modal sub.</span>'
+      : '';
+
     if (mod === 'majlis') {
-      el.innerHTML = 'Menggunakan peperiksaan majlis: <strong>' +
-        agEsc((MAJLIS && MAJLIS.peperiksaan) || '—') + '</strong>.';
+      const pm = (MAJLIS && MAJLIS.peperiksaan) || '';
+      el.innerHTML = (pm
+        ? 'Mengira markah <strong>' + agEsc(pm) + '</strong> tahun <strong>' +
+          agEsc((MAJLIS && MAJLIS.calYear) || '') + '</strong>, ditetapkan dalam tab ' +
+          '<strong>⚙️ Majlis</strong> → Jenis peperiksaan. Menukarnya di sana menukar ' +
+          'setiap anugerah yang ikut majlis.'
+        : '<span style="color:#b3261e">⚠ Majlis belum ada jenis peperiksaan. ' +
+          'Tetapkannya dalam tab ⚙️ Majlis, atau pilih "Tunggal" di sini — tanpa ' +
+          'salah satu, cadangan calon akan gagal.</span>'
+      ) + amaranSub;
       return;
     }
     const pp = bacaPepAnugerah();
@@ -1721,6 +1745,7 @@ function modalAnugerah(idx) {
       : '<strong>Purata markah</strong> antara ' + agEsc(agSingkatPep(pp[0])) + ' dan ' +
         agEsc(agSingkatPep(pp[1])) + '. Setiap peperiksaan mendapat lajurnya sendiri ' +
         'dalam jadual calon — murid yang hanya menduduki satu ditanda <strong>1/2</strong>.';
+    el.innerHTML += amaranSub;
   }
 
   /* 🔴 Pemuatan ini ASINKRON dan menulis semula kedua-dua dropdown.
