@@ -432,6 +432,22 @@ Sebahagian anugerah bukan milik admin: Tokoh NILAM diketahui oleh guru pusat sum
 
 **Guru membuang HANYA `sumber:'guru'`.** Murid yang ditambah admin dipaparkan dengan 🔒 supaya guru tahu siapa sudah ada, tetapi tidak boleh membuangnya — menyerahkan satu anugerah tidak bermakna menyerahkan kuasa membatalkan keputusan orang lain. Disemak dua kali: butang disembunyikan dalam paparan **dan** `entri.sumber !== 'guru'` disemak sebelum menulis; kawalan yang hanya wujud dalam paparan bukan kawalan.
 
+#### Reset Data Majlis (tab Majlis) — buang data ujian
+
+Kad **🧹 Reset Data Majlis** membuang **penerima sahaja**, empat skop: satu sub · satu anugerah (semua subnya) · semua penerima majlis · nombor giliran sahaja. Jenis anugerah, sub, tetapan subjek dan pautan borang guru **tidak disentuh** — selepas membersihkan data ujian admin mahu majlis yang sama, bukan membina semula lima puluh lima sub.
+
+**Penerima ialah satu doc per MURID dengan array `anugerah[]`.** Membuang satu sub bermakna **menapis array itu**, bukan memadam doc — murid yang sama mungkin memegang anugerah lain. Doc dipadam hanya apabila `anugerah[]` jadi kosong. `giliran[]` ditapis dengan predikat yang **sama**, jika tidak nombor giliran yatim kekal menunjuk kepada anugerah yang sudah tiada. `resetOps(padan)` ialah satu-satunya tempat logik ini hidup; ketiga-tiga skop memanggilnya.
+
+**Firestore menghadkan 500 operasi satu batch** dan majlis ini melebihi seribu murid. `resetTulisPukal` memecah pada `RESET_CHUNK = 400`. Tiada tempat lain dalam fail ini yang chunk — kalau satu tulisan pukal baharu ditambah, ia perlukan ini juga.
+
+**Borang yang penerimanya dibuang DIBUKA SEMULA automatik** (`resetBukaBorangTerjejas`). Senarai yang guru hantar sudah tiada, jadi "✓ Dihantar" menjadi pembohongan yang admin sendiri cipta — dan guru tidak boleh membukanya sendiri.
+
+Pengesahan menaip **"PADAM"**, bukan `confirm()` — satu Enter tersasar tidak boleh mengosongkan senarai penerima satu majlis. Kiraan dipapar sebelum menekan (`Sub ini: N · Seluruh anugerah: N`) supaya admin nampak saiz kerosakan dahulu.
+
+**Kosongkan nombor giliran** menyimpan `giliranLama`, jadi butang ↩️ Pulihkan masih berfungsi. Ia berbeza daripada 🔁 Jana Semula: Jana Semula memberi nombor **baharu**, ini mengosongkan terus.
+
+Disahkan 21 Okt 2026: oracle 3,000 kes rawak (murid memegang 1–4 anugerah merentas 3 anugerah × 4 sub, ketiga-tiga mod skop) terhadap pelaksana bebas — 0 beza, termasuk sifat "murid yang pegang anugerah lain tidak dipadam". Kiraan disahkan pada majlis sebenar (5 penerima) tanpa menulis apa-apa.
+
 #### Borang boleh dibina pada aras SUB, bukan hanya anugerah
 
 `MAJLIS.borangGuru` dikunci oleh **`anugerahId`** (aras anugerah) atau **`anugerahId::subId`** (aras sub) — **satu peta untuk kedua-duanya**, bukan dua struktur selari, supaya status/hantar/batal hanya ada satu laluan kod. Format kunci itu diketahui oleh `agKunciBorang()` / `agPecahKunci()` sahaja; jangan cantum `'id::id'` dengan tangan di tempat lain.

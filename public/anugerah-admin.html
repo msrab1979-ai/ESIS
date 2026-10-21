@@ -268,6 +268,42 @@
         </div>
       </div>
     </div>
+    <div class="kad" id="kad-reset">
+      <div class="kad-kepala">
+        <h3>🧹 Reset Data Majlis</h3>
+        <span class="sub">Untuk membersihkan data ujian · jenis anugerah &amp; tetapan tidak disentuh</span>
+      </div>
+      <div class="kad-isi">
+        <div class="nota amaran"><span class="sym">⚠</span>
+          <div><strong>Tiada undo.</strong> Murid yang dibuang perlu dipilih semula.
+          Yang <em>tidak</em> disentuh: jenis anugerah, sub-anugerah, tetapan subjek,
+          dan pautan borang guru (pautan kekal hidup).</div></div>
+
+        <div class="baris-input" style="margin-top:14px">
+          <div class="medan" style="flex:1 1 260px">
+            <label for="rs-anugerah">Anugerah</label>
+            <select id="rs-anugerah"></select>
+          </div>
+          <div class="medan" style="flex:1 1 260px">
+            <label for="rs-sub">Sub-anugerah</label>
+            <select id="rs-sub"></select>
+          </div>
+        </div>
+        <div class="baris-input" style="margin-top:11px">
+          <button class="btn sunyi" id="b-rs-sub">Buang penerima sub ini</button>
+          <button class="btn sunyi" id="b-rs-anugerah">Buang penerima anugerah ini</button>
+        </div>
+        <div id="rs-kira" class="kecil" style="margin-top:9px"></div>
+
+        <hr style="border:none;border-top:1px solid var(--garis-halus);margin:17px 0">
+        <div class="baris-input">
+          <button class="btn sunyi" id="b-rs-giliran">Kosongkan semua nombor giliran</button>
+          <button class="btn" id="b-rs-semua" style="background:var(--bahaya,#b3261e);color:#fff">
+            Buang SEMUA penerima majlis</button>
+        </div>
+      </div>
+    </div>
+
     <div class="nota">
       <span class="sym">▸</span>
       <div><strong>Koleksi ESIS dibaca sahaja.</strong> Modul ini membaca <code>students</code>,
@@ -860,6 +896,7 @@ async function pilihMajlis(id) {
   if (!MAJLIS) {
     $('sari').textContent = 'Belum ada majlis. Tekan ➕ Majlis Baharu untuk mula.';
     tunjuk($('borang-majlis'), false);
+    tunjuk($('kad-reset'), false);
     return;
   }
 
@@ -867,7 +904,9 @@ async function pilihMajlis(id) {
   await isiDropdownTahunPep();
   isiBorangMajlis();
   tunjuk($('borang-majlis'), true);
+  tunjuk($('kad-reset'), true);
   PENERIMA = await agMuatPenerima(MAJLIS.id);
+  lukisReset();
   kemasSari();
 }
 
@@ -3234,6 +3273,171 @@ $('link-grid').addEventListener('click', async e => {
 /* ---------- reset tanda ----------
    Pengesahan dengan MENAIP, bukan confirm berganda: selepas majlis sebenar
    ini satu-satunya rekod siapa naik pentas.                              */
+/* ==========================================================================
+   RESET DATA MAJLIS
+   --------------------------------------------------------------------------
+   🔴 Membuang PENERIMA sahaja. Jenis anugerah, sub, tetapan subjek dan
+      pautan borang guru tidak disentuh \u2014 selepas membersihkan data ujian,
+      admin mahu majlis yang sama, bukan membina semula lima puluh lima sub.
+
+   🔴 Penerima ialah satu doc per MURID dengan array anugerah[]. Membuang
+      satu sub bermakna MENAPIS array itu, bukan memadam doc \u2014 murid yang
+      sama mungkin memegang anugerah lain. Doc dipadam hanya bila kosong.
+
+   🔴 Firestore menghadkan 500 operasi satu batch dan majlis ini boleh
+      melebihi seribu murid. Setiap tulisan pukal di sini dipecah pada 400.
+   ========================================================================== */
+const RESET_CHUNK = 400;
+
+async function resetTulisPukal(ops) {
+  for (let i = 0; i < ops.length; i += RESET_CHUNK) {
+    const batch = agDb.batch();
+    ops.slice(i, i + RESET_CHUNK).forEach(o => {
+      if (o.padam) batch.delete(o.ref); else batch.update(o.ref, o.data);
+    });
+    await batch.commit();
+  }
+}
+
+/* Bina senarai operasi untuk membuang entri yang dipadankan oleh `padan`.
+   Dikongsi oleh ketiga-tiga skop supaya penapisan giliran[] tidak boleh
+   terlepas di salah satu laluan. */
+function resetOps(padan) {
+  const ops = [];
+  let bilEntri = 0;
+  PENERIMA.forEach(p => {
+    const semua = p.anugerah || [];
+    const baki = semua.filter(x => !padan(x));
+    if (baki.length === semua.length) return;      // tiada perubahan
+    bilEntri += semua.length - baki.length;
+    const ref = agDb.collection('anugerah_penerima').doc(p.docId);
+    if (!baki.length) ops.push({ ref, padam: true });
+    else ops.push({ ref, data: {
+      anugerah: baki,
+      giliran: (p.giliran || []).filter(g => !padan(g))
+    }});
+  });
+  return { ops, bilEntri, bilMurid: ops.length };
+}
+
+/* 🔴 Borang yang penerimanya dibuang DIBUKA SEMULA. Senarai yang guru
+   hantar sudah tiada, jadi "\u2713 Dihantar" menjadi pembohongan yang admin
+   sendiri cipta \u2014 dan guru tidak boleh membukanya sendiri. */
+async function resetBukaBorangTerjejas(padanKunci) {
+  const peta = MAJLIS.borangGuru || {};
+  const kena = Object.keys(peta).filter(k => peta[k] && peta[k].dihantar && padanKunci(k));
+  for (const k of kena) {
+    await agResetBorang(MAJLIS.id, k);
+    peta[k].dihantar = false;
+    peta[k].dibukaSemula = true;
+  }
+  return kena.length;
+}
+
+function resetPilihan() {
+  const a = (MAJLIS.anugerah || [])[parseInt($('rs-anugerah').value)];
+  const sub = a ? (a.sub || [])[parseInt($('rs-sub').value)] : null;
+  return { a, sub };
+}
+
+function lukisReset() {
+  const selA = $('rs-anugerah');
+  if (!selA) return;
+  const senarai = MAJLIS.anugerah || [];
+  const simpanA = selA.value;
+  selA.innerHTML = senarai.length
+    ? senarai.map((a, i) => '<option value="' + i + '">' + agEsc(a.nama) + '</option>').join('')
+    : '<option value="">(tiada anugerah)</option>';
+  if (simpanA && senarai[parseInt(simpanA)]) selA.value = simpanA;
+  lukisResetSub();
+}
+
+function lukisResetSub() {
+  const a = (MAJLIS.anugerah || [])[parseInt($('rs-anugerah').value)];
+  const sub = (a && a.sub) || [];
+  $('rs-sub').innerHTML = sub.length
+    ? sub.map((x, j) => '<option value="' + j + '">' + agEsc(x.nama) + '</option>').join('')
+    : '<option value="">(tiada sub)</option>';
+  lukisResetKira();
+}
+
+function lukisResetKira() {
+  const el = $('rs-kira');
+  if (!el) return;
+  const { a, sub } = resetPilihan();
+  if (!a) { el.textContent = ''; return; }
+  const bilA = resetOps(x => x.anugerahId === a.id).bilEntri;
+  const bilS = sub ? resetOps(x => x.subId === sub.id).bilEntri : 0;
+  el.innerHTML = 'Sub ini: <strong>' + bilS + '</strong> penerima \u00b7 ' +
+    'Seluruh anugerah: <strong>' + bilA + '</strong> penerima';
+}
+
+$('rs-anugerah').addEventListener('change', lukisResetSub);
+$('rs-sub').addEventListener('change', lukisResetKira);
+
+/* 🔴 Pengesahan menaip "PADAM", bukan confirm() \u2014 satu Enter yang
+   tersasar tidak boleh mengosongkan senarai penerima satu majlis. */
+async function resetJalan(label, padan, padanKunci) {
+  const { ops, bilEntri, bilMurid } = resetOps(padan);
+  if (!bilEntri) { agToast('Tiada penerima untuk ' + label, 'ralat'); return; }
+
+  const taip = prompt('Buang ' + bilEntri + ' penerima (' + bilMurid + ' murid) daripada ' +
+    label + '?\n\nTIADA UNDO. Taip PADAM untuk mengesahkan.');
+  if (taip !== 'PADAM') { if (taip !== null) agToast('Dibatalkan', 'ralat'); return; }
+
+  try {
+    await resetTulisPukal(ops);
+    const bukaBorang = padanKunci ? await resetBukaBorangTerjejas(padanKunci) : 0;
+    PENERIMA = await agMuatPenerima(MAJLIS.id);
+    lukisPokok(); lukisSemak(); lukisGiliran(); lukisPetugas(); lukisReset(); kemasSari();
+    agToast(bilEntri + ' penerima dibuang' +
+      (bukaBorang ? ' \u00b7 ' + bukaBorang + ' borang dibuka semula' : ''), 'ok');
+  } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
+}
+
+$('b-rs-sub').addEventListener('click', () => {
+  const { a, sub } = resetPilihan();
+  if (!a || !sub) { agToast('Pilih sub-anugerah dahulu', 'ralat'); return; }
+  resetJalan('"' + sub.nama + '"',
+    x => x.subId === sub.id,
+    k => k === agKunciBorang(a.id, sub.id));
+});
+
+$('b-rs-anugerah').addEventListener('click', () => {
+  const { a } = resetPilihan();
+  if (!a) { agToast('Pilih anugerah dahulu', 'ralat'); return; }
+  resetJalan('"' + a.nama + '" (semua sub)',
+    x => x.anugerahId === a.id,
+    k => agPecahKunci(k).anugerahId === a.id);
+});
+
+$('b-rs-semua').addEventListener('click', () => {
+  resetJalan('SEMUA anugerah dalam majlis ini', () => true, () => true);
+});
+
+/* Nombor giliran sahaja \u2014 murid kekal dalam majlis. Berbeza daripada
+   Jana Semula, yang memberi nombor baharu; ini mengosongkannya. */
+$('b-rs-giliran').addEventListener('click', async () => {
+  const ada = PENERIMA.filter(p => (p.giliran || []).length);
+  const bil = ada.reduce((n, p) => n + p.giliran.length, 0);
+  if (!bil) { agToast('Tiada nombor giliran', 'ralat'); return; }
+
+  const taip = prompt('Kosongkan ' + bil + ' nombor giliran?\n\n' +
+    'Murid KEKAL dalam majlis \u2014 hanya nombor dibuang. ' +
+    'Tiket yang sudah dicetak tidak lagi sepadan.\n\nTaip PADAM untuk mengesahkan.');
+  if (taip !== 'PADAM') { if (taip !== null) agToast('Dibatalkan', 'ralat'); return; }
+
+  try {
+    await resetTulisPukal(ada.map(p => ({
+      ref: agDb.collection('anugerah_penerima').doc(p.docId),
+      data: { giliran: [], giliranLama: p.giliran || [] }
+    })));
+    PENERIMA = await agMuatPenerima(MAJLIS.id);
+    lukisGiliran(); lukisSemak(); kemasSari();
+    agToast(bil + ' nombor giliran dikosongkan \u00b7 \u21a9\ufe0f Pulihkan masih boleh', 'ok');
+  } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
+});
+
 $('b-reset-hadir').addEventListener('click', () => resetTanda('hadir', 'kehadiran'));
 $('b-reset-mc').addEventListener('click', () => resetTanda('mc', 'MC'));
 
