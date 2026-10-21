@@ -432,6 +432,32 @@ Sebahagian anugerah bukan milik admin: Tokoh NILAM diketahui oleh guru pusat sum
 
 **Guru membuang HANYA `sumber:'guru'`.** Murid yang ditambah admin dipaparkan dengan 🔒 supaya guru tahu siapa sudah ada, tetapi tidak boleh membuangnya — menyerahkan satu anugerah tidak bermakna menyerahkan kuasa membatalkan keputusan orang lain. Disemak dua kali: butang disembunyikan dalam paparan **dan** `entri.sumber !== 'guru'` disemak sebelum menulis; kawalan yang hanya wujud dalam paparan bukan kawalan.
 
+#### Borang boleh dibina pada aras SUB, bukan hanya anugerah
+
+`MAJLIS.borangGuru` dikunci oleh **`anugerahId`** (aras anugerah) atau **`anugerahId::subId`** (aras sub) — **satu peta untuk kedua-duanya**, bukan dua struktur selari, supaya status/hantar/batal hanya ada satu laluan kod. Format kunci itu diketahui oleh `agKunciBorang()` / `agPecahKunci()` sahaja; jangan cantum `'id::id'` dengan tangan di tempat lain.
+
+Sebabnya: `ANUGERAH TERBAIK DALAM KELAS` ada 38 sub (satu per kelas). Satu borang aras-anugerah memberi setiap guru kelas pandangan ke atas 37 kelas orang lain, dan dia perlu menatal mencari kelasnya sendiri.
+
+**SUB MENANG apabila bertindih.** Kalau sub ada borangnya sendiri, guru borang **induk** tidak melihat sub itu langsung — `subUntukBorangIni()` dalam `guru.html` menapisnya keluar. Tanpa peraturan ini dua guru menulis ke sub yang sama dan boleh saling memadam senarai masing-masing.
+
+**Satu ujian keahlian untuk semua tempat: `dalamSkopBorang(x)`.** Kiraan (`bilDipilihGuru`), senarai pengesahan hantar, dan jadual paparan (`lukisPilih`) semuanya memanggilnya. Kalau ketiga-tiganya tidak berkongsi satu fungsi, guru boleh menghantar murid yang skrinnya tidak pernah tunjukkan.
+
+Borang aras-sub mengunci dropdown Sub-anugerah (`disabled`, bukan disembunyikan — kawalan yang hilang menimbulkan soalan, kawalan yang mati menjawabnya), dan tajuk memapar nama **sub**, bukan nama anugerah.
+
+#### Hantar = TERKUNCI; hanya admin boleh buka semula
+
+Guru **tidak** boleh membuka semula borangnya sendiri. Butang 🔓 dalam `guru.html` dibuang; `agBukaSemulaBorang` menjadi **`agResetBorang`** dan dipanggil hanya dari modal admin.
+
+Sebabnya: sebaik borang dihantar, admin mula menyusun giliran dan **mencetak tiket** atas dasar senarai itu. Senarai yang boleh berubah diam-diam selepas itu bermakna tiket yang sudah dicetak tidak lagi sepadan — dan tiada siapa tahu bila ia berlaku. Guru yang tersilap menghubungi admin; admin menekan **🔓 Buka Semula untuk Guru**.
+
+`masaReset` dirakam, dan `bilHantar` **dikekalkan** (ia merekodkan berapa yang dihantar dahulu). Menukar kata laluan juga mengekalkan semua medan status — menukar kata laluan bukan sebab untuk menghapus rekod bahawa guru sudah menghantar.
+
+Tab **Link Petugas** memapar kedua-dua aras dalam **satu jadual** (`Anugerah — Sub`): admin bertanya "siapa memegang pautan apa", dan jawapan yang berselerak antara dua jadual bukan jawapan. Kiraan murid per baris mengikut **skop borang itu**, bukan skop anugerah — borang sub yang melaporkan kiraan seluruh anugerah memberitahu admin bahawa guru menghantar 38 kelas sedangkan dia hantar satu.
+
+**Anugerah baharu yang diisi guru (contoh Kecemerlangan KAFA) tidak perlu kod baharu** — cipta anugerah, tambah sub, tekan 📝 Bina Borang. Tiada templat dikodkan untuk Kehadiran Penuh pun; `sumber:'guru'` datang daripada penerima, bukan daripada tetapan anugerah. Sync automatik: borang guru menulis terus ke `anugerah_penerima`, koleksi yang sama dibaca panel admin.
+
+Disahkan 21 Okt 2026: oracle 123 kes (pusing-balik kunci termasuk subId yang mengandungi `::`, dan matriks skop induk/sub × peta borang × sub asing), 0 beza; tindihan induk+sub menghasilkan tepat satu borang per sub.
+
 #### Hantar = tanda siap, bukan pemindahan data
 
 Murid sudah berada dalam majlis sejak guru menekan **Simpan**. Butang **📤 Hantar kepada Admin** menandakan senarai itu **muktamad** — ia memberi admin perbezaan antara "guru masih memilih" dan "guru sudah siap, jangan tunggu lagi". Tiada kelulusan, tiada barisan menunggu, tiada salinan kedua.

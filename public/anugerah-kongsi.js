@@ -553,6 +553,22 @@ function agKodBaru(n) {
       membuktikan siapa. Pautan boleh tersebar dalam grup WhatsApp —
       kata laluan ialah lapisan yang masih berdiri selepas itu.
    ========================================================================== */
+/* 🔴 Kunci borang ialah `anugerahId` ATAU `anugerahId::subId`.
+   Satu peta `borangGuru` untuk kedua-dua aras — bukan dua struktur
+   selari, supaya status/hantar/buang hanya ada satu laluan kod.
+   agKunciBorang/agPecahKunci ialah satu-satunya tempat format itu
+   diketahui; jangan bina kunci itu dengan tangan di tempat lain. */
+function agKunciBorang(anugerahId, subId) {
+  return subId ? anugerahId + '::' + subId : anugerahId;
+}
+
+function agPecahKunci(kunci) {
+  const i = String(kunci || '').indexOf('::');
+  return i < 0
+    ? { anugerahId: kunci, subId: null }
+    : { anugerahId: kunci.slice(0, i), subId: kunci.slice(i + 2) };
+}
+
 async function agBukaBorangGuru(kod) {
   const k = String(kod || '').trim();
   if (!k) return null;
@@ -563,11 +579,21 @@ async function agBukaBorangGuru(kod) {
   for (const d of snap.docs) {
     const m = { id: d.id, ...d.data() };
     const peta = m.borangGuru || {};
-    const anugerahId = Object.keys(peta).find(id => peta[id] && peta[id].kod === k);
-    if (!anugerahId) continue;
+    const kunci = Object.keys(peta).find(x => peta[x] && peta[x].kod === k);
+    if (!kunci) continue;
+    const { anugerahId, subId } = agPecahKunci(kunci);
     const anugerah = (m.anugerah || []).find(a => a.id === anugerahId);
     if (!anugerah) continue;          // anugerah dibuang, borang yatim
-    return { majlis: m, anugerah, borang: peta[anugerahId] };
+
+    /* Borang aras-sub: sub mesti masih wujud, jika tidak borang itu
+       yatim juga — lebih baik guru nampak "pautan tidak sah" daripada
+       satu borang kosong yang dia isi untuk sub yang sudah dibuang. */
+    let sub = null;
+    if (subId) {
+      sub = (anugerah.sub || []).find(x => x.id === subId);
+      if (!sub) continue;
+    }
+    return { majlis: m, anugerah, sub, kunci, borang: peta[kunci] };
   }
   return null;
 }
@@ -578,36 +604,41 @@ async function agBukaBorangGuru(kod) {
 /* Guru menandakan kerjanya SIAP. Murid sudah berada dalam majlis sejak
    dia menekan Simpan — ini menandakan senarai itu muktamad, supaya admin
    tahu perbezaan antara "belum siap" dan "sudah siap, jangan tunggu". */
-async function agHantarBorang(majlisId, anugerahId, bil) {
+async function agHantarBorang(majlisId, kunci, bil) {
   const masa = new Date().toLocaleString('ms-MY', {
     day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
   });
   await agDb.collection('anugerah_majlis').doc(majlisId).update({
-    ['borangGuru.' + anugerahId + '.dihantar']: true,
-    ['borangGuru.' + anugerahId + '.masaHantar']: masa,
-    ['borangGuru.' + anugerahId + '.bilHantar']: Number(bil) || 0
+    ['borangGuru.' + kunci + '.dihantar']: true,
+    ['borangGuru.' + kunci + '.masaHantar']: masa,
+    ['borangGuru.' + kunci + '.bilHantar']: Number(bil) || 0
   });
   return masa;
 }
 
-/* Guru membuka semula borang yang sudah dihantar untuk pembetulan.
-   Status kembali "sedang diisi" supaya admin tidak menyangka senarai
-   itu masih muktamad sedangkan ia sedang diubah. */
-async function agBukaSemulaBorang(majlisId, anugerahId) {
+/* 🔴 ADMIN SAHAJA. Borang yang dihantar ialah senarai MUKTAMAD —
+   guru tidak boleh membukanya semula sendiri. Admin menekan ini apabila
+   guru memintanya, supaya tiada senarai berubah diam-diam selepas admin
+   menganggapnya siap dan mula menyusun giliran.
+   `bilHantar` dikekalkan: ia merekodkan berapa yang dihantar dahulu. */
+async function agResetBorang(majlisId, kunci) {
   await agDb.collection('anugerah_majlis').doc(majlisId).update({
-    ['borangGuru.' + anugerahId + '.dihantar']: false,
-    ['borangGuru.' + anugerahId + '.dibukaSemula']: true
+    ['borangGuru.' + kunci + '.dihantar']: false,
+    ['borangGuru.' + kunci + '.dibukaSemula']: true,
+    ['borangGuru.' + kunci + '.masaReset']: new Date().toLocaleString('ms-MY', {
+      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+    })
   });
 }
 
-async function agTandaBorangDibuka(majlisId, anugerahId) {
+async function agTandaBorangDibuka(majlisId, kunci) {
   try {
     const masa = new Date().toLocaleString('ms-MY', {
       day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
     });
     await agDb.collection('anugerah_majlis').doc(majlisId).update({
-      ['borangGuru.' + anugerahId + '.dibuka']: true,
-      ['borangGuru.' + anugerahId + '.masa']: masa
+      ['borangGuru.' + kunci + '.dibuka']: true,
+      ['borangGuru.' + kunci + '.masa']: masa
     });
   } catch (e) { /* bukan sebab untuk menghalang guru bekerja */ }
 }

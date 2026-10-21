@@ -172,11 +172,15 @@ let TANDA = new Set();
   }
   if (!KONTEKS) return gagal('Kod dalam link ini tidak dikenali, atau borangnya sudah dibatalkan.');
 
-  const { majlis, anugerah, borang } = KONTEKS;
-  document.title = anugerah.nama + ' — Borang Guru';
-  $('tajuk-anugerah').textContent = anugerah.nama;
+  const { majlis, anugerah, sub, borang } = KONTEKS;
+  /* 🔴 Borang aras-sub: guru melihat NAMA SUB, bukan nama anugerah.
+     Guru kelas 1 INTEL tidak peduli anugerah induknya dipanggil apa —
+     dia perlu tahu dia sedang mengisi untuk kelasnya sendiri. */
+  const tajuk = sub ? anugerah.nama + ' — ' + sub.nama : anugerah.nama;
+  document.title = tajuk + ' — Borang Guru';
+  $('tajuk-anugerah').textContent = tajuk;
   $('sari').textContent = (majlis.nama || '') + ' · ' + (majlis.calYear || '');
-  $('login-tajuk').textContent = anugerah.nama;
+  $('login-tajuk').textContent = tajuk;
   $('login-sari').innerHTML = agEsc(majlis.nama || '') +
     (borang.nama ? ' · untuk <strong>' + agEsc(borang.nama) + '</strong>' : '');
 
@@ -208,7 +212,7 @@ async function masuk() {
 
   /* Beritahu admin bahawa borang ini sudah disentuh — sebelum majlis,
      itulah perbezaan antara menunggu dan mengejar. */
-  agTandaBorangDibuka(KONTEKS.majlis.id, KONTEKS.anugerah.id);
+  agTandaBorangDibuka(KONTEKS.majlis.id, KONTEKS.kunci);
 
   await muatSemua();
 }
@@ -242,16 +246,41 @@ $('b-segar').addEventListener('click', async () => {
 });
 
 /* ---------- dropdown ---------- */
+/* 🔴 SUB MENANG. Borang INDUK melangkau setiap sub yang sudah ada
+   borangnya sendiri — guru itu sudah bertanggungjawab ke atasnya. Tanpa
+   ini, dua guru menulis ke sub yang sama dan boleh saling memadam. */
+function subUntukBorangIni() {
+  const a = KONTEKS.anugerah;
+  const semua = a.sub || [];
+  if (KONTEKS.sub) return semua;                 // borang aras-sub: isiSub tapis sendiri
+  const peta = (KONTEKS.majlis || {}).borangGuru || {};
+  return semua.filter(x => !peta[agKunciBorang(a.id, x.id)]);
+}
+
 function isiSub() {
-  const sub = KONTEKS.anugerah.sub || [];
+  const sub = subUntukBorangIni();
+  /* 🔴 Borang aras-sub hanya membenarkan SATU sub. Dropdown dikunci
+     (bukan disembunyikan) supaya guru nampak dia sedang mengisi untuk
+     apa — kawalan yang hilang menimbulkan soalan, kawalan yang mati
+     menjawabnya. Penapisan ini juga dikuatkuasakan dalam simpan(). */
+  if (KONTEKS.sub) {
+    const i = sub.findIndex(x => x.id === KONTEKS.sub.id);
+    $('f-sub').innerHTML =
+      '<option value="' + i + '">' + agEsc(KONTEKS.sub.nama) + '</option>';
+    $('f-sub').disabled = true;
+    return;
+  }
   $('f-sub').innerHTML = sub.length
     ? sub.map((s, i) => '<option value="' + i + '">' + agEsc(s.nama) + '</option>').join('')
     : '<option value="">(tiada sub-anugerah)</option>';
 }
 
 function subSemasa() {
+  if (KONTEKS.sub) return KONTEKS.sub;
+  /* 🔴 Indeks merujuk senarai DITAPIS (subUntukBorangIni), bukan
+     a.sub penuh — isiSub membinanya daripada senarai yang sama. */
   const i = parseInt($('f-sub').value);
-  return (KONTEKS.anugerah.sub || [])[i] || null;
+  return subUntukBorangIni()[i] || null;
 }
 
 function isiDarjah() {
@@ -432,16 +461,30 @@ $('b-simpan').addEventListener('click', async () => {
    MUKTAMAD, supaya admin tahu perbezaan antara "guru masih memilih" dan
    "guru sudah siap, jangan tunggu lagi".
 
-   🔴 Borang yang dihantar menjadi BACA-SAHAJA, tetapi guru boleh
-      membukanya semula sendiri. Guru yang tersilap seorang murid tidak
-      sepatutnya terpaksa mencari admin — dan admin melihat status
-      bertukar kembali kepada "sedang diisi", jadi tiada apa yang
-      tersembunyi.
+   🔴 Borang yang dihantar menjadi BACA-SAHAJA dan KEKAL begitu.
+      Guru TIDAK boleh membukanya semula sendiri — hanya admin boleh.
+      Sebabnya: sebaik borang dihantar, admin mula menyusun giliran dan
+      mencetak tiket atas dasar senarai itu. Senarai yang boleh berubah
+      diam-diam selepas itu bermakna tiket yang sudah dicetak tidak lagi
+      sepadan, dan tiada siapa tahu bila ia berlaku.
+      Guru yang tersilap menghubungi admin; admin menekan Reset.
    ========================================================================== */
+/* 🔴 Dikira untuk SUB ini sahaja apabila borang ialah borang aras-sub.
+   Tanpa penapis subId, guru 1 INTEL akan melihat kiraan semua 38 kelas
+   dan menghantar senarai yang bukan miliknya. */
+/* 🔴 Satu ujian keahlian untuk SEMUA tempat: kiraan, senarai hantar,
+   dan paparan. Kalau ketiga-tiganya tidak berkongsi fungsi ini, guru
+   boleh menghantar murid yang skrinnya tidak pernah tunjukkan. */
+function dalamSkopBorang(x) {
+  if (x.anugerahId !== KONTEKS.anugerah.id) return false;
+  if (KONTEKS.sub) return x.subId === KONTEKS.sub.id;
+  return subUntukBorangIni().some(sx => sx.id === x.subId);
+}
+
 function bilDipilihGuru() {
   return PENERIMA.reduce((n, p) =>
     n + (p.anugerah || []).filter(x =>
-      x.anugerahId === KONTEKS.anugerah.id && x.sumber === 'guru').length, 0);
+      dalamSkopBorang(x) && x.sumber === 'guru').length, 0);
 }
 
 function sudahHantar() {
@@ -459,33 +502,16 @@ function lukisHantar() {
     banner.innerHTML = '<div class="nota ok"><span class="sym">✓</span><div>' +
       '<strong>Senarai sudah dihantar kepada admin.</strong>' +
       (b.masaHantar ? ' Dihantar ' + agEsc(b.masaHantar) + '.' : '') +
-      ' Borang ini kini baca-sahaja — tekan <strong>Buka semula</strong> di bawah ' +
-      'kalau ada pembetulan.</div></div>';
+      ' Borang ini kini <strong>terkunci</strong> — admin sedang menyusun giliran ' +
+      'dan mencetak tiket berdasarkan senarai ini. Kalau ada pembetulan, ' +
+      '<strong>hubungi admin majlis</strong> untuk membukanya semula.</div></div>';
 
     bekas.innerHTML =
       '<div class="baris-input" style="align-items:center">' +
-        '<button class="btn sunyi" id="b-buka-semula">🔓 Buka semula untuk ubah</button>' +
-        '<span class="kecil" style="margin-left:auto"><strong>' + bil + ' murid</strong> ' +
-        'dihantar · senarai muktamad</span>' +
+        '<span class="kecil"><strong>' + bil + ' murid</strong> dihantar · ' +
+        'senarai muktamad</span>' +
       '</div>';
 
-    $('b-buka-semula').onclick = async () => {
-      if (!confirm('Buka semula borang ini untuk pembetulan?\n\n' +
-        'Admin akan nampak status bertukar kepada "sedang diisi".')) return;
-      const btn = $('b-buka-semula');
-      btn.disabled = true; btn.textContent = 'Membuka…';
-      try {
-        await agBukaSemulaBorang(KONTEKS.majlis.id, KONTEKS.anugerah.id);
-        KONTEKS.borang.dihantar = false;
-        KONTEKS.borang.dibukaSemula = true;
-        kemasModBaca();
-        lukisPilih();
-        agToast('Borang dibuka semula — kau boleh mengubah sekarang', 'ok');
-      } catch (e) {
-        btn.disabled = false; btn.textContent = '🔓 Buka semula untuk ubah';
-        agToast('Gagal: ' + e.message, 'ralat');
-      }
-    };
     kemasModBaca();
     return;
   }
@@ -509,7 +535,7 @@ function lukisHantar() {
   if (bil) $('b-hantar').onclick = async () => {
     const senarai = [];
     PENERIMA.forEach(p => (p.anugerah || []).forEach(x => {
-      if (x.anugerahId === KONTEKS.anugerah.id && x.sumber === 'guru') {
+      if (dalamSkopBorang(x) && x.sumber === 'guru') {
         senarai.push(p.nama + ' (' + agDarjahKelas(p.tahun, p.kelas) + ') — ' + x.sub);
       }
     }));
@@ -518,13 +544,13 @@ function lukisHantar() {
     const papar = senarai.slice(0, 15).join('\n');
     const lagi = senarai.length > 15 ? '\n… dan ' + (senarai.length - 15) + ' lagi' : '';
     if (!confirm('Hantar ' + senarai.length + ' murid kepada admin?\n\n' +
-      papar + lagi + '\n\nSelepas ini borang menjadi baca-sahaja ' +
-      '(boleh dibuka semula kalau ada pembetulan).')) return;
+      papar + lagi + '\n\nSelepas ini borang TERKUNCI. Kau tidak boleh ' +
+      'mengubahnya sendiri \u2014 hanya admin boleh membukanya semula.')) return;
 
     const btn = $('b-hantar');
     btn.disabled = true; btn.textContent = 'Menghantar…';
     try {
-      const masa = await agHantarBorang(KONTEKS.majlis.id, KONTEKS.anugerah.id, senarai.length);
+      const masa = await agHantarBorang(KONTEKS.majlis.id, KONTEKS.kunci, senarai.length);
       KONTEKS.borang.dihantar = true;
       KONTEKS.borang.masaHantar = masa;
       KONTEKS.borang.dibukaSemula = false;
@@ -552,18 +578,22 @@ function kemasModBaca() {
   });
   document.querySelectorAll('#senarai-pilih button[data-buang]').forEach(b => {
     b.disabled = baca;
-    b.title = baca ? 'Buka semula borang untuk mengubah' : '';
+    b.title = baca ? 'Borang sudah dihantar \u2014 hubungi admin untuk membukanya semula' : '';
   });
 }
 
 /* ---------- senarai murid dipilih ---------- */
 function lukisPilih() {
   const bekas = $('senarai-pilih');
-  const anugerahId = KONTEKS.anugerah.id;
-
+  /* 🔴 Borang aras-sub menunjukkan SUB ITU SAHAJA — termasuk murid
+     yang ditambah admin. Guru 1 INTEL tidak sepatutnya melihat senarai
+     37 kelas lain, dan tidak perlu menatalnya untuk mencari kelasnya. */
+  /* Borang induk: sub yang diserahkan kepada guru lain disembunyikan di
+     sini juga, supaya senarai yang dipapar sepadan dengan apa yang guru
+     ini sebenarnya boleh ubah. */
   const baris = [];
   PENERIMA.forEach(p => (p.anugerah || []).forEach(x => {
-    if (x.anugerahId === anugerahId) baris.push({ p, x });
+    if (dalamSkopBorang(x)) baris.push({ p, x });
   }));
   baris.sort((a, b) =>
     String(a.x.sub).localeCompare(String(b.x.sub), 'ms') ||
