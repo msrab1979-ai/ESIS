@@ -64,7 +64,7 @@
 .tiket-kiri{padding:12px 14px; min-width:0}
 .tiket .sekolah{font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--emas); font-weight:700}
 .tiket .majlis{font-family:"Fraunces",serif; font-size:13.5px; font-weight:600; margin:3px 0 8px; line-height:1.25}
-.tiket .nama{font-weight:700; font-size:14px; line-height:1.25; word-break:break-word}
+.tiket .nama{font-weight:700; font-size:14px; line-height:1.25; overflow-wrap:break-word}
 .tiket .kelas{font-size:12px; color:var(--neutral); margin-top:1px}
 .tiket .anugerah-t{font-size:11.5px; color:var(--tinta-lembut); margin-top:7px; padding-top:7px; border-top:1px dashed var(--garis)}
 .tiket-kanan{border-left:2px dashed var(--emas); display:grid; place-content:center; text-align:center; padding:8px 4px}
@@ -162,16 +162,38 @@
 .darjah-blok:not(.buka) .darjah-isi{display:none}
 .pil-kira{font-size:11.5px; color:var(--neutral); font-variant-numeric:tabular-nums}
 
-/* ---------- cetak tiket: 4 sehelai A4 ---------- */
+/* ---------- cetak tiket: 4 sehelai A4 (2x2, 136mm) ---------- */
 @media print{
   body{background:#FFF}
   .tajuk,.nota,.kad-kepala,.badan > .kad:not(#kad-cetak),.kpi-grid,#bar-cetak{display:none!important}
   #kad-cetak,#kad-cetak .kad-isi{border:none!important; box-shadow:none!important; padding:0!important; margin:0!important}
   .tiket-grid{display:grid!important; grid-template-columns:1fr 1fr!important; gap:0!important}
+  /* 🔴 4 sehelai = 2 baris. A4 ialah 297mm tolak margin 8mm atas+bawah
+     = 281mm ruang. 2 x 136mm = 272mm, lega 9mm.
+     JANGAN naikkan ke 140mm: 2 x 140 = 280mm meninggalkan 1mm sahaja,
+     dan pembundaran pemandu pencetak menolak baris kedua ke halaman
+     baharu — gejalanya 2 tiket sehelai, bukan 4.
+     Nilai lama 74mm memberi 6 sehelai sedangkan UI menjanjikan 4. */
   .tiket{
     border:1px dashed #8A6A1F!important; border-radius:0!important;
-    height:74mm; page-break-inside:avoid; background:transparent!important;
+    height:136mm; page-break-inside:avoid; background:transparent!important;
+    grid-template-columns:1fr 92px!important;
   }
+  /* 🔴 Nama murid ialah sebab tiket ini wujud — ia mendapat ruang
+     tengah dan saiz terbesar. Kepala (sekolah + majlis) di atas, nama
+     di tengah dengan margin auto dua belah, anugerah di bawah. */
+  .tiket-kiri{padding:12mm 16px!important; display:flex!important;
+    flex-direction:column!important}
+  .tiket .nama{margin-top:auto!important}
+  .tiket .kelas{margin-bottom:auto!important}
+  .tiket .sekolah{font-size:11px!important; letter-spacing:.15em!important}
+  .tiket .majlis{font-size:17px!important; margin:5px 0 14px!important}
+  .tiket .nama{font-size:24px!important; line-height:1.22!important;
+    word-break:normal!important; overflow-wrap:break-word!important}
+  .tiket .kelas{font-size:16px!important; margin-top:5px!important}
+  .tiket .anugerah-t{font-size:14px!important; margin-top:0!important; padding-top:12px!important}
+  .tiket-kanan .gil-lbl{font-size:10px!important}
+  .tiket-kanan .gil-no{font-size:54px!important}
   .tiket .nama,.tiket .majlis,.tiket-kanan .gil-no{color:#16233A!important}
   .tiket-kanan .gil-no{color:#8A6A1F!important}
   @page{size:A4; margin:8mm}
@@ -3253,7 +3275,10 @@ function lukisTiket() {
     '<div class="tiket"><div class="tiket-kiri">' +
       '<div class="sekolah">' + agEsc(MAJLIS.sekolah || 'Sekolah') + '</div>' +
       '<div class="majlis">' + agEsc(MAJLIS.nama || '') + '</div>' +
-      '<div class="nama">' + agEsc(agPendekNama(p.nama, 24)) + '</div>' +
+      /* 🔴 Nama PENUH. Potongan 24 aksara wujud ketika tiket 74mm;
+         pada 136mm ia memotong "AHMAD ILMAN AL FATEH BIN..." tanpa sebab.
+         Tiket ialah benda yang ibu bapa simpan \u2014 nama patut lengkap. */
+      '<div class="nama">' + agEsc(p.nama || '') + '</div>' +
       '<div class="kelas">' + agEsc(agDarjahKelas(p.tahun, p.kelas)) + '</div>' +
       '<div class="anugerah-t">' + agEsc(g.sub) + '</div>' +
     '</div><div class="tiket-kanan">' +
