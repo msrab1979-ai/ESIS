@@ -76,6 +76,30 @@
 .tiket-kanan .gil-lbl{font-size:8.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--neutral); font-weight:700}
 .tiket-kanan .gil-no{font-family:"Fraunces",serif; font-size:26px; font-weight:700; color:var(--emas); line-height:1; font-variant-numeric:tabular-nums}
 
+/* ---------- kad jemputan ---------- */
+.kad-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px}
+.kj{
+  border:1px solid var(--emas); border-radius:4px; background:var(--kertas-2);
+  padding:16px 18px; display:flex; flex-direction:column; min-height:300px;
+}
+.kj .sek{font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--emas); font-weight:700}
+.kj .tajuk{font-family:"Fraunces",serif; font-size:16px; font-weight:600; line-height:1.22; margin:4px 0 0}
+.kj .garis{border:0; border-top:1px solid var(--garis-halus); margin:10px 0}
+.kj .ajak{font-size:11.5px; color:var(--tinta-lembut); line-height:1.5}
+.kj .nama{font-size:18px; font-weight:700; line-height:1.2; margin:6px 0 2px; overflow-wrap:break-word}
+.kj .kelas{font-size:12.5px; color:var(--neutral)}
+.kj .but{display:grid; grid-template-columns:auto 1fr; gap:3px 10px; font-size:11.5px; margin-top:10px; color:var(--tinta-lembut)}
+.kj .but b{color:var(--tinta); font-weight:600}
+.kj .anu{margin-top:auto; border-top:1px dashed var(--garis); padding-top:9px}
+.kj .anu-baris{display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:12px; margin-bottom:4px}
+.kj .anu-baris .no{color:var(--emas); font-weight:700; font-variant-numeric:tabular-nums; flex:none}
+.kj .kaki{font-size:10px; color:var(--neutral); margin-top:8px; font-style:italic; line-height:1.45}
+.kj .pil-kali{display:inline-block; background:var(--amaran-bg,#FBF6E8); border:1px solid var(--emas);
+  color:var(--emas); font-size:9.5px; font-weight:700; padding:2px 7px; border-radius:99px; letter-spacing:.05em; margin-left:6px}
+.kj-baris{display:flex; gap:8px; align-items:center; margin-bottom:7px}
+.kj-baris input{flex:1; min-width:0}
+.kj-baris .lbl-in{flex:0 0 150px}
+
 /* ---------- seret ---------- */
 .seret{
   display:flex; align-items:center; gap:10px; padding:9px 13px;
@@ -170,8 +194,14 @@
 /* ---------- cetak tiket: 4 sehelai A4 (2x2, 136mm) ---------- */
 @media print{
   body{background:#FFF}
-  .tajuk,.nota,.kad-kepala,.badan > .kad:not(#kad-cetak),.kpi-grid,#bar-cetak,
-  #tiket-tapis{display:none!important}
+  .tajuk,.nota,.kad-kepala,.kpi-grid,#bar-cetak,
+  #tiket-tapis,#kj-tapis{display:none!important}
+  /* Hanya kad yang sedang dicetak kekal: Giliran mencetak #kad-cetak,
+     Kad Jemputan mencetak #kad-cetak-kj. Panel yang tersembunyi tidak
+     mencetak apa-apa, jadi memadai menapis pada aras kad. */
+  .badan > .kad:not(#kad-cetak):not(#kad-cetak-kj){display:none!important}
+  #kad-cetak-kj,#kad-cetak-kj .kad-isi{border:none!important; box-shadow:none!important;
+    padding:0!important; margin:0!important}
   #kad-cetak,#kad-cetak .kad-isi{border:none!important; box-shadow:none!important; padding:0!important; margin:0!important}
   .tiket-grid{display:grid!important; grid-template-columns:1fr 1fr!important; gap:0!important}
   /* 🔴 4 sehelai = 2 baris. A4 ialah 297mm tolak margin 8mm atas+bawah
@@ -208,6 +238,21 @@
   .tiket .anugerah-t .baris-an + .baris-an{margin-top:6px!important}
   .tiket .nama,.tiket .majlis,.tiket-kanan .gil-no{color:#16233A!important}
   .tiket-kanan .gil-no{color:#8A6A1F!important}
+  /* Kad jemputan: 2 sehelai A4, sama tinggi dgn tiket supaya guna
+     pemotong yang sama. 2 x 136 = 272mm dalam 281mm ruang. */
+  .kad-grid{display:grid!important; grid-template-columns:1fr 1fr!important; gap:0!important}
+  .kj{
+    border:1px dashed #8A6A1F!important; border-radius:0!important;
+    height:136mm!important; page-break-inside:avoid; background:transparent!important;
+    padding:11mm 12mm!important;
+  }
+  .kj .tajuk{font-size:19px!important}
+  .kj .nama{font-size:21px!important}
+  .kj .kelas{font-size:13.5px!important}
+  .kj .ajak,.kj .but{font-size:12px!important}
+  .kj .anu-baris{font-size:12.5px!important}
+  .kj .nama,.kj .tajuk,.kj .but b{color:#16233A!important}
+  .kj .anu-baris .no,.kj .sek{color:#8A6A1F!important}
   @page{size:A4; margin:8mm}
 }
 </style>
@@ -228,6 +273,7 @@
       <button role="tab" aria-selected="false" data-t="jenis">🏆 Jenis Anugerah</button>
       <button role="tab" aria-selected="false" data-t="semak">📋 Semak Penerima</button>
       <button role="tab" aria-selected="false" data-t="giliran">🎟️ Giliran &amp; Tiket</button>
+      <button role="tab" aria-selected="false" data-t="kad">💌 Kad Jemputan</button>
       <button role="tab" aria-selected="false" data-t="petugas">🔗 Link Petugas</button>
     </nav>
   </div>
@@ -486,6 +532,66 @@
     </div>
   </section>
 
+  <!-- ============ TAB 7 : KAD JEMPUTAN ============ -->
+  <section class="panel" id="p-kad" hidden>
+    <div class="nota">
+      <span class="sym">▸</span>
+      <div><strong>Kad untuk ibu bapa, bukan tiket untuk pentas.</strong> Tiket membawa nombor
+      giliran untuk petugas; kad ini membawa butiran majlis supaya keluarga tahu bila, di mana
+      dan anak mereka naik berapa kali. Murid yang menang beberapa anugerah mendapat
+      <strong>satu kad</strong> dengan semua gilirannya.</div>
+    </div>
+
+    <div class="kad">
+      <div class="kad-kepala">
+        <h3>Butiran pada kad</h3>
+        <span class="sub">Baris yang kau tambah di sini muncul pada setiap kad</span>
+        <div class="kanan">
+          <button class="btn sunyi kecil" id="b-kj-baris">➕ Tambah baris</button>
+          <button class="btn emas kecil" id="b-kj-simpan">💾 Simpan</button>
+        </div>
+      </div>
+      <div class="kad-isi">
+        <div id="kj-baris-senarai"></div>
+        <p class="hint" style="margin:9px 0 0">Label kosong = baris itu dibuang semasa simpan.
+        Nilai kosong = baris tidak dicetak. Seret tidak perlu — susunan ikut turutan di sini.</p>
+        <hr style="border:none;border-top:1px solid var(--garis-halus);margin:15px 0">
+        <div class="medan" style="width:100%">
+          <label for="kj-ajak">Ayat jemputan</label>
+          <input type="text" id="kj-ajak" placeholder="Dengan hormatnya mempelawa ibu bapa / penjaga kepada">
+        </div>
+        <div class="medan" style="width:100%;margin-top:11px">
+          <label for="kj-kaki">Nota kaki</label>
+          <input type="text" id="kj-kaki" placeholder="Sila hadir 15 minit awal. Tunjukkan kad ini di meja pendaftaran.">
+        </div>
+      </div>
+    </div>
+
+    <div class="kad" id="kad-cetak-kj">
+      <div class="kad-kepala" id="bar-cetak-kj">
+        <h3>Kad Jemputan</h3>
+        <span class="sub">Latar telus · 2 sehelai A4</span>
+        <div class="kanan">
+          <button class="btn sunyi kecil" id="b-cetak-kad">🖨 Cetak</button>
+        </div>
+      </div>
+      <div class="kad-isi" id="kj-tapis" style="padding-bottom:4px">
+        <div class="baris-input">
+          <div class="medan"><label for="kj-darjah">Darjah</label>
+            <select id="kj-darjah"></select></div>
+          <div class="medan"><label for="kj-kelas">Kelas</label>
+            <select id="kj-kelas"></select></div>
+          <div class="medan" style="flex:1 1 190px"><label for="kj-cari">Cari murid</label>
+            <input type="text" id="kj-cari" placeholder="Nama atau no. KP…"></div>
+          <div class="medan" style="flex:none;align-self:flex-end">
+            <button class="btn sunyi kecil" id="b-kj-kosong">Buang tapisan</button></div>
+        </div>
+        <p class="hint" style="margin:7px 0 0" id="kj-kira"></p>
+      </div>
+      <div class="kad-isi"><div class="kad-grid" id="kad-grid"></div></div>
+    </div>
+  </section>
+
   <!-- ============ TAB 7 : PETUGAS ============ -->
   <section class="panel" id="p-petugas" hidden>
     <div class="nota">
@@ -641,6 +747,7 @@ function tukarTab(nama) {
   if (nama === 'jenis') lukisPokok();
   if (nama === 'semak') initSemak();
   if (nama === 'giliran') lukisGiliran();
+  if (nama === 'kad') initKad();
   if (nama === 'petugas') lukisPetugas();
 }
 
@@ -3505,6 +3612,207 @@ $('b-t-kosong').addEventListener('click', () => {
   lukisTiket();
 });
 $('b-cetak-tiket').addEventListener('click', () => window.print());
+
+/* ==========================================================================
+   KAD JEMPUTAN
+   --------------------------------------------------------------------------
+   🔴 Butiran kad ialah BARIS DINAMIK (`MAJLIS.kadBaris`), bukan medan
+      tetap. Setiap sekolah mahu perkara berbeza pada kad — pakaian, masa
+      tiba, nombor untuk dihubungi — dan menambah medan baharu ke dalam
+      kod setiap kali bukan cara ia patut berkembang.
+
+   🔴 Tarikh ialah satu-satunya baris yang disalin daripada medan majlis
+      sedia ada (`MAJLIS.tarikh`) sebagai nilai permulaan. Selepas admin
+      menyimpan, `kadBaris` berdiri sendiri \u2014 menukar tarikh majlis
+      tidak lagi mengubahnya secara senyap.
+   ========================================================================== */
+const KJ_LALAI = [
+  { label: 'Tarikh', nilai: '' },
+  { label: 'Masa', nilai: '' },
+  { label: 'Tempat', nilai: '' }
+];
+const KJ_AJAK_LALAI = 'Dengan hormatnya mempelawa ibu bapa / penjaga kepada';
+const KJ_KAKI_LALAI = 'Sila hadir 15 minit awal. Tunjukkan kad ini di meja pendaftaran.';
+
+function kjBaris() {
+  if (!MAJLIS) return [];
+  if (Array.isArray(MAJLIS.kadBaris) && MAJLIS.kadBaris.length) return MAJLIS.kadBaris;
+  /* Pertama kali: tarikh majlis dijadikan nilai permulaan supaya admin
+     tidak menaipnya dua kali. */
+  return KJ_LALAI.map(x => x.label === 'Tarikh'
+    ? { label: 'Tarikh', nilai: MAJLIS.tarikh || '' } : Object.assign({}, x));
+}
+
+function initKad() {
+  if (!MAJLIS) return;
+  MAJLIS.kadBaris = kjBaris();
+  $('kj-ajak').value = MAJLIS.kadAjak || '';
+  $('kj-kaki').value = MAJLIS.kadKaki || '';
+  lukisKjBaris();
+  isiTapisKad();
+  lukisKad();
+}
+
+function lukisKjBaris() {
+  $('kj-baris-senarai').innerHTML = (MAJLIS.kadBaris || []).map((b, i) =>
+    '<div class="kj-baris">' +
+      '<input class="lbl-in" type="text" data-kj="label" data-i="' + i + '" ' +
+        'value="' + agEsc(b.label || '') + '" placeholder="Label (cth: Pakaian)">' +
+      '<input type="text" data-kj="nilai" data-i="' + i + '" ' +
+        'value="' + agEsc(b.nilai || '') + '" placeholder="Nilai (cth: Baju Melayu / Kurung)">' +
+      '<button class="btn sunyi kecil" data-kj-buang="' + i + '" title="Buang baris">\u2715</button>' +
+    '</div>').join('') || '<p class="hint">Tiada baris. Tekan \u2795 Tambah baris.</p>';
+}
+
+/* 🔴 Pendengar pada BEKAS, bukan setiap input \u2014 baris dilukis semula
+   dan pendengar per-elemen akan berhimpun. */
+$('kj-baris-senarai').addEventListener('input', e => {
+  const el = e.target.closest('input[data-kj]');
+  if (!el || !MAJLIS) return;
+  const b = (MAJLIS.kadBaris || [])[Number(el.dataset.i)];
+  if (b) { b[el.dataset.kj] = el.value; lukisKad(); }
+});
+
+$('kj-baris-senarai').addEventListener('click', e => {
+  const b = e.target.closest('button[data-kj-buang]');
+  if (!b || !MAJLIS) return;
+  MAJLIS.kadBaris.splice(Number(b.dataset.kjBuang), 1);
+  lukisKjBaris(); lukisKad();
+});
+
+$('b-kj-baris').addEventListener('click', () => {
+  if (!MAJLIS) return;
+  MAJLIS.kadBaris = MAJLIS.kadBaris || [];
+  MAJLIS.kadBaris.push({ label: '', nilai: '' });
+  lukisKjBaris();
+});
+
+$('kj-ajak').addEventListener('input', () => { MAJLIS.kadAjak = $('kj-ajak').value; lukisKad(); });
+$('kj-kaki').addEventListener('input', () => { MAJLIS.kadKaki = $('kj-kaki').value; lukisKad(); });
+
+$('b-kj-simpan').addEventListener('click', async () => {
+  if (!MAJLIS) return;
+  /* Baris tanpa label dibuang \u2014 label kosong tidak boleh dicetak dan
+     hanya menjadi baris hantu yang admin tidak faham kemudian. */
+  MAJLIS.kadBaris = (MAJLIS.kadBaris || []).filter(b => String(b.label || '').trim());
+  MAJLIS.kadAjak = $('kj-ajak').value.trim();
+  MAJLIS.kadKaki = $('kj-kaki').value.trim();
+  const btn = $('b-kj-simpan');
+  btn.disabled = true; btn.textContent = 'Menyimpan\u2026';
+  try {
+    await simpanMajlis();
+    lukisKjBaris(); lukisKad();
+    agToast('Butiran kad disimpan', 'ok');
+  } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
+  finally { btn.disabled = false; btn.textContent = '\ud83d\udcbe Simpan'; }
+});
+
+/* ---------- tapisan (corak sama seperti tiket) ---------- */
+function isiTapisKad() {
+  const ada = PENERIMA.filter(p => (p.anugerah || []).length);
+  const simpanD = $('kj-darjah').value, simpanK = $('kj-kelas').value;
+  const darjahAda = Array.from(new Set(ada.map(p => p.tahun).filter(Boolean)))
+    .sort((a, b) => agWordDarjah(a) - agWordDarjah(b));
+  $('kj-darjah').innerHTML = '<option value="">\u2014 semua darjah \u2014</option>' +
+    darjahAda.map(w => '<option value="' + agEsc(String(w).toUpperCase()) + '">Darjah ' +
+      agWordDarjah(w) + '</option>').join('');
+  if (simpanD) $('kj-darjah').value = simpanD;
+  isiKelasKad(ada);
+  if (simpanK) $('kj-kelas').value = simpanK;
+}
+
+function isiKelasKad(ada) {
+  const senarai = ada || PENERIMA.filter(p => (p.anugerah || []).length);
+  const w = $('kj-darjah').value;
+  const kelasAda = Array.from(new Set(senarai
+    .filter(p => !w || String(p.tahun || '').toUpperCase() === w)
+    .map(p => p.kelas).filter(Boolean))).sort();
+  $('kj-kelas').innerHTML = '<option value="">\u2014 semua kelas \u2014</option>' +
+    kelasAda.map(k => '<option value="' + agEsc(String(k).toUpperCase()) + '">' +
+      agEsc(k) + '</option>').join('');
+}
+
+$('kj-darjah').addEventListener('change', () => { isiKelasKad(); lukisKad(); });
+$('kj-kelas').addEventListener('change', lukisKad);
+$('kj-cari').addEventListener('input', lukisKad);
+$('b-kj-kosong').addEventListener('click', () => {
+  $('kj-darjah').value = ''; isiKelasKad(); $('kj-kelas').value = '';
+  $('kj-cari').value = ''; lukisKad();
+});
+$('b-cetak-kad').addEventListener('click', () => window.print());
+
+/* ---------- lukis kad ---------- */
+function lukisKad() {
+  const bekas = $('kad-grid');
+  if (!bekas || !MAJLIS) return;
+  const cD = $('kj-darjah').value, cK = $('kj-kelas').value;
+  const cC = agPecahCarian($('kj-cari').value);
+
+  /* 🔴 SATU KAD SEORANG MURID. Kad disusun ikut NAMA, bukan nombor
+     giliran \u2014 ia diedar oleh guru kelas mengikut senarai kelas, bukan
+     dipanggil mengikut turutan pentas seperti tiket. */
+  const senarai = PENERIMA
+    .filter(p => (p.anugerah || []).length)
+    .filter(p => !cD || String(p.tahun || '').toUpperCase() === cD)
+    .filter(p => !cK || String(p.kelas || '').toUpperCase() === cK)
+    .filter(p => agPadanCarian(cC, p.nama, p.no_kp))
+    .sort((a, b) => String(a.nama).localeCompare(String(b.nama), 'ms'));
+
+  const jumSemua = PENERIMA.filter(p => (p.anugerah || []).length).length;
+  const adaTapis = !!(cD || cK || !cC.kosong);
+  $('kj-kira').innerHTML = !jumSemua ? ''
+    : '<strong>' + senarai.length + '</strong> kad dipapar' +
+      (adaTapis ? ' daripada ' + jumSemua + ' penerima' : '') +
+      ' \u00b7 cetakan mengikut tapisan ini';
+
+  if (!senarai.length) {
+    bekas.innerHTML = '<p class="hint">' + (!jumSemua
+      ? 'Tiada penerima lagi \u2014 pilih murid dalam tab \ud83c\udfc6 Jenis Anugerah dahulu.'
+      : 'Tiada kad padan dengan tapisan ini.') + '</p>';
+    return;
+  }
+
+  const baris = (MAJLIS.kadBaris || []).filter(b =>
+    String(b.label || '').trim() && String(b.nilai || '').trim());
+  const ajak = MAJLIS.kadAjak || KJ_AJAK_LALAI;
+  const kaki = MAJLIS.kadKaki || KJ_KAKI_LALAI;
+
+  bekas.innerHTML = senarai.map(p => {
+    const an = p.anugerah || [];
+    /* Nombor giliran dipadankan mengikut subId; kad boleh dicetak
+       sebelum nombor diberi, jadi ketiadaannya normal. */
+    const gilUtk = x => {
+      const g = (p.giliran || []).find(y => y.subId === x.subId && y.no != null);
+      return g ? g.no : null;
+    };
+    const banyak = an.length > 1;
+    return '<div class="kj">' +
+      '<div class="sek">' + agEsc(MAJLIS.sekolah || '') + '</div>' +
+      '<div class="tajuk">' + agEsc(MAJLIS.nama || '') + '</div>' +
+      '<hr class="garis">' +
+      '<div class="ajak">' + agEsc(ajak) + '</div>' +
+      '<div class="nama">' + agEsc(p.nama || '') + '</div>' +
+      '<div class="kelas">' + agEsc(agDarjahKelas(p.tahun, p.kelas)) +
+        (banyak ? '<span class="pil-kali">NAIK PENTAS ' + an.length + ' KALI</span>' : '') +
+      '</div>' +
+      (baris.length
+        ? '<div class="but">' + baris.map(b =>
+            '<span>' + agEsc(b.label) + '</span><b>' + agEsc(b.nilai) + '</b>').join('') + '</div>'
+        : '') +
+      '<div class="anu">' +
+        an.map(x => {
+          const no = gilUtk(x);
+          return '<div class="anu-baris"><span>' + agEsc(x.sub || x.anugerah) + '</span>' +
+            '<span class="no">' + (no != null ? 'Giliran ' + no : '\u2014') + '</span></div>';
+        }).join('') +
+        '<div class="kaki">' + (banyak
+          ? 'Anak anda dipanggil <strong>' + an.length + ' kali</strong> \u2014 sila kekal ' +
+            'di dewan sehingga giliran terakhir selesai.'
+          : agEsc(kaki)) + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
 
 /* ==========================================================================
    PETUGAS
