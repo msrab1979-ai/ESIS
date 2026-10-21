@@ -500,6 +500,7 @@
           <button class="btn sunyi kecil" id="b-pulih">↩️ Pulihkan</button>
           <button class="btn sunyi kecil" id="b-jana-semula">🔁 Jana Semula</button>
           <button class="btn emas kecil" id="b-beri-nombor">🔢 Beri Nombor</button>
+          <button class="btn sunyi kecil" id="b-pptx">📽 Muat Turun Slaid (PPTX)</button>
         </div>
       </div>
       <div class="kad-isi">
@@ -625,6 +626,7 @@
 <div id="bekas-modal"></div>
 
 <script src="anugerah-kongsi.js"></script>
+<script src="anugerah-pptx.js"></script>
 <script>
 /* ==========================================================================
    PANEL ADMIN ANUGERAH
@@ -3616,6 +3618,51 @@ $('b-t-kosong').addEventListener('click', () => {
   lukisTiket();
 });
 $('b-cetak-tiket').addEventListener('click', () => window.print());
+
+/* ==========================================================================
+   SLAID PPTX
+   --------------------------------------------------------------------------
+   🔴 Struktur slaid IDENTIK dengan tayang.html: satu slaid satu
+      SUB-ANUGERAH, disusun mengikut nombor giliran terkecil. Memecah
+      ikut murid memberi hadirin slaid yang hampir serupa berkali-kali.
+
+   🔴 Hanya murid BERNOMBOR dimasukkan \u2014 slaid mengikut turutan pentas,
+      dan murid tanpa nombor tiada tempat dalam turutan itu.
+   ========================================================================== */
+function binaSlaidPPTX() {
+  const peta = {};
+  PENERIMA.forEach(p => (p.giliran || []).forEach(g => {
+    if (g.no == null) return;
+    const k = g.subId || g.anugerahId;
+    (peta[k] = peta[k] || { anugerah: g.anugerah, sub: g.sub, orang: [] })
+      .orang.push({ nama: p.nama, tahun: p.tahun, kelas: p.kelas, no: g.no });
+  }));
+  return Object.keys(peta).map(k => {
+    const s = peta[k];
+    s.orang.sort((a, b) => a.no - b.no);
+    s.noMin = Math.min.apply(null, s.orang.map(o => o.no));
+    return s;
+  }).sort((a, b) => a.noMin - b.noMin);
+}
+
+$('b-pptx').addEventListener('click', async () => {
+  if (!MAJLIS) return;
+  const slaid = binaSlaidPPTX();
+  if (!slaid.length) {
+    agToast('Tiada slaid \u2014 beri nombor giliran dahulu', 'ralat'); return;
+  }
+  const btn = $('b-pptx');
+  btn.disabled = true; btn.textContent = 'Menjana\u2026';
+  try {
+    const n = await agMuatTurunPPTX(MAJLIS, slaid,
+      (MAJLIS.nama || 'slaid-majlis').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-'));
+    agToast(n + ' slaid dimuat turun', 'ok');
+  } catch (e) {
+    agToast('Gagal: ' + e.message, 'ralat');
+  } finally {
+    btn.disabled = false; btn.textContent = '\ud83d\udcfd Muat Turun Slaid (PPTX)';
+  }
+});
 
 /* ==========================================================================
    KAD JEMPUTAN
