@@ -170,7 +170,8 @@
 /* ---------- cetak tiket: 4 sehelai A4 (2x2, 136mm) ---------- */
 @media print{
   body{background:#FFF}
-  .tajuk,.nota,.kad-kepala,.badan > .kad:not(#kad-cetak),.kpi-grid,#bar-cetak{display:none!important}
+  .tajuk,.nota,.kad-kepala,.badan > .kad:not(#kad-cetak),.kpi-grid,#bar-cetak,
+  #tiket-tapis{display:none!important}
   #kad-cetak,#kad-cetak .kad-isi{border:none!important; box-shadow:none!important; padding:0!important; margin:0!important}
   .tiket-grid{display:grid!important; grid-template-columns:1fr 1fr!important; gap:0!important}
   /* 🔴 4 sehelai = 2 baris. A4 ialah 297mm tolak margin 8mm atas+bawah
@@ -467,6 +468,19 @@
           <select id="t-tapis" style="min-width:160px"></select>
           <button class="btn sunyi kecil" id="b-cetak-tiket">🖨 Cetak</button>
         </div>
+      </div>
+      <div class="kad-isi" id="tiket-tapis" style="padding-bottom:4px">
+        <div class="baris-input">
+          <div class="medan"><label for="t-darjah">Darjah</label>
+            <select id="t-darjah"></select></div>
+          <div class="medan"><label for="t-kelas">Kelas</label>
+            <select id="t-kelas"></select></div>
+          <div class="medan" style="flex:1 1 190px"><label for="t-cari">Cari murid</label>
+            <input type="text" id="t-cari" placeholder="Nama atau no. KP…"></div>
+          <div class="medan" style="flex:none;align-self:flex-end">
+            <button class="btn sunyi kecil" id="b-t-kosong">Buang tapisan</button></div>
+        </div>
+        <p class="hint" style="margin:7px 0 0" id="t-kira"></p>
       </div>
       <div class="kad-isi"><div class="tiket-grid" id="tiket-grid"></div></div>
     </div>
@@ -3056,6 +3070,10 @@ function lukisGiliran() {
     ? senarai.map((a, i) => barisSusunAnugerah(a, i, senarai.length)).join('')
     : '<p class="hint">Belum ada anugerah.</p>';
 
+  /* 🔴 Dropdown diisi di sini, bukan dalam lukisTiket \u2014 lukisTiket
+     berjalan pada setiap ketukan kekunci dalam kotak carian, dan menulis
+     semula dua <select> setiap kali ialah kerja yang tidak perlu. */
+  isiTapisTiket();
   lukisTiket();
 }
 
@@ -3375,12 +3393,25 @@ function lukisTiket() {
      semua anugerah dan semua nombor gilirannya.
      Dikumpul ikut docId; disusun ikut nombor giliran TERKECIL supaya
      tiket keluar mengikut urutan dia mula-mula naik pentas. */
+  /* 🔴 Tapisan murid (darjah/kelas/carian) menapis SIAPA, manakala
+     tapisan anugerah menapis giliran MANA pada tiket itu. Kedua-duanya
+     perlu: hari majlis admin mencari tiket seorang murid, bukan
+     mengimbas dua ratus keping mengikut nombor. */
+  const cDarjah = $('t-darjah') ? $('t-darjah').value : '';
+  const cKelas = $('t-kelas') ? $('t-kelas').value : '';
+  const cCari = agPecahCarian($('t-cari') ? $('t-cari').value : '');
+
   const ikutMurid = {};
-  PENERIMA.forEach(p => (p.giliran || []).forEach(g => {
-    if (g.no == null) return;
-    if (sel.value && g.anugerahId !== sel.value) return;
-    (ikutMurid[p.docId] = ikutMurid[p.docId] || { p, gil: [] }).gil.push(g);
-  }));
+  PENERIMA.forEach(p => {
+    if (cDarjah && String(p.tahun || '').toUpperCase() !== cDarjah) return;
+    if (cKelas && String(p.kelas || '').toUpperCase() !== cKelas) return;
+    if (!agPadanCarian(cCari, p.nama, p.no_kp)) return;
+    (p.giliran || []).forEach(g => {
+      if (g.no == null) return;
+      if (sel.value && g.anugerahId !== sel.value) return;
+      (ikutMurid[p.docId] = ikutMurid[p.docId] || { p, gil: [] }).gil.push(g);
+    });
+  });
   const semua = Object.keys(ikutMurid).map(k => {
     const x = ikutMurid[k];
     x.gil.sort((a, b) => a.no - b.no);
@@ -3389,8 +3420,25 @@ function lukisTiket() {
   semua.sort((a, b) => a.gil[0].no - b.gil[0].no);
 
   const bekas = $('tiket-grid');
+  const jumSemua = PENERIMA.reduce((n, p) => n + (p.giliran || []).filter(g => g.no != null).length, 0);
+  const adaTapis = !!(sel.value || cDarjah || cKelas || !cCari.kosong);
+
+  if ($('t-kira')) {
+    $('t-kira').innerHTML = !jumSemua ? ''
+      : '<strong>' + semua.length + '</strong> tiket dipapar' +
+        (adaTapis ? ' daripada ' + Object.keys(PENERIMA.reduce((o, p) =>
+            ((p.giliran || []).some(g => g.no != null) ? (o[p.docId] = 1, o) : o), {})).length +
+          ' murid bernombor' : '') +
+        ' \u00b7 cetakan mengikut tapisan ini';
+  }
+
   if (!semua.length) {
-    bekas.innerHTML = '<p class="hint">Tiada tiket — beri nombor giliran dahulu.</p>';
+    /* Bezakan "belum bernombor" daripada "tapisan tidak sepadan" \u2014
+       dua masalah berbeza dengan dua penyelesaian berbeza. */
+    bekas.innerHTML = '<p class="hint">' + (!jumSemua
+      ? 'Tiada tiket \u2014 beri nombor giliran dahulu.'
+      : 'Tiada tiket padan dengan tapisan ini. Tekan <strong>Buang tapisan</strong> ' +
+        'untuk melihat kesemua ' + jumSemua + ' tiket.') + '</p>';
     return;
   }
 
@@ -3418,7 +3466,44 @@ function lukisTiket() {
     '</div></div>').join('');
 }
 
+/* Dropdown darjah/kelas tiket \u2014 hanya murid yang BERNOMBOR, kerana
+   tiket hanya wujud untuk mereka. Memapar kelas tanpa tiket memberi
+   admin tapisan yang sentiasa memulangkan kosong. */
+function isiTapisTiket() {
+  const adaNombor = PENERIMA.filter(p => (p.giliran || []).some(g => g.no != null));
+  const simpanD = $('t-darjah').value, simpanK = $('t-kelas').value;
+
+  const darjahAda = Array.from(new Set(adaNombor.map(p => p.tahun).filter(Boolean)))
+    .sort((a, b) => agWordDarjah(a) - agWordDarjah(b));
+  $('t-darjah').innerHTML = '<option value="">\u2014 semua darjah \u2014</option>' +
+    darjahAda.map(w => '<option value="' + agEsc(String(w).toUpperCase()) + '">Darjah ' +
+      agWordDarjah(w) + '</option>').join('');
+  if (simpanD) $('t-darjah').value = simpanD;
+
+  isiKelasTiket(adaNombor);
+  if (simpanK) $('t-kelas').value = simpanK;
+}
+
+function isiKelasTiket(adaNombor) {
+  const senarai = adaNombor || PENERIMA.filter(p => (p.giliran || []).some(g => g.no != null));
+  const w = $('t-darjah').value;
+  const kelasAda = Array.from(new Set(senarai
+    .filter(p => !w || String(p.tahun || '').toUpperCase() === w)
+    .map(p => p.kelas).filter(Boolean))).sort();
+  $('t-kelas').innerHTML = '<option value="">\u2014 semua kelas \u2014</option>' +
+    kelasAda.map(k => '<option value="' + agEsc(String(k).toUpperCase()) + '">' +
+      agEsc(k) + '</option>').join('');
+}
+
 $('t-tapis').addEventListener('change', lukisTiket);
+$('t-darjah').addEventListener('change', () => { isiKelasTiket(); lukisTiket(); });
+$('t-kelas').addEventListener('change', lukisTiket);
+$('t-cari').addEventListener('input', lukisTiket);
+$('b-t-kosong').addEventListener('click', () => {
+  $('t-tapis').value = ''; $('t-darjah').value = '';
+  isiKelasTiket(); $('t-kelas').value = ''; $('t-cari').value = '';
+  lukisTiket();
+});
 $('b-cetak-tiket').addEventListener('click', () => window.print());
 
 /* ==========================================================================
