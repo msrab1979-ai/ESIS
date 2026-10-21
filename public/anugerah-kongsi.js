@@ -553,20 +553,34 @@ function agKodBaru(n) {
       membuktikan siapa. Pautan boleh tersebar dalam grup WhatsApp —
       kata laluan ialah lapisan yang masih berdiri selepas itu.
    ========================================================================== */
-/* 🔴 Kunci borang ialah `anugerahId` ATAU `anugerahId::subId`.
-   Satu peta `borangGuru` untuk kedua-dua aras — bukan dua struktur
-   selari, supaya status/hantar/buang hanya ada satu laluan kod.
-   agKunciBorang/agPecahKunci ialah satu-satunya tempat format itu
-   diketahui; jangan bina kunci itu dengan tangan di tempat lain. */
+/* 🔴 Kunci borang ada TIGA bentuk, semuanya dalam SATU peta
+   `borangGuru` — bukan struktur selari, supaya status/hantar/buang
+   hanya ada satu laluan kod:
+
+     anugerahId              — seluruh anugerah
+     anugerahId::subId       — satu sub
+     anugerahId::@DARJAH     — semua sub berskop kelas dalam darjah itu
+
+   🔴 Awalan `@` membezakan darjah daripada sub. Id sub dijana sebagai
+   `sub_<base36>` dan tidak pernah bermula dengan `@`, jadi tiada
+   pertembungan. agKunciBorang/agKunciDarjah/agPecahKunci ialah
+   satu-satunya tempat format ini diketahui; jangan bina kunci dengan
+   tangan di tempat lain. */
 function agKunciBorang(anugerahId, subId) {
   return subId ? anugerahId + '::' + subId : anugerahId;
 }
 
+function agKunciDarjah(anugerahId, darjah) {
+  return anugerahId + '::@' + String(darjah || '').toUpperCase();
+}
+
 function agPecahKunci(kunci) {
   const i = String(kunci || '').indexOf('::');
-  return i < 0
-    ? { anugerahId: kunci, subId: null }
-    : { anugerahId: kunci.slice(0, i), subId: kunci.slice(i + 2) };
+  if (i < 0) return { anugerahId: kunci, subId: null, darjah: null };
+  const ekor = kunci.slice(i + 2);
+  return ekor.charAt(0) === '@'
+    ? { anugerahId: kunci.slice(0, i), subId: null, darjah: ekor.slice(1) }
+    : { anugerahId: kunci.slice(0, i), subId: ekor, darjah: null };
 }
 
 async function agBukaBorangGuru(kod) {
@@ -581,7 +595,7 @@ async function agBukaBorangGuru(kod) {
     const peta = m.borangGuru || {};
     const kunci = Object.keys(peta).find(x => peta[x] && peta[x].kod === k);
     if (!kunci) continue;
-    const { anugerahId, subId } = agPecahKunci(kunci);
+    const { anugerahId, subId, darjah } = agPecahKunci(kunci);
     const anugerah = (m.anugerah || []).find(a => a.id === anugerahId);
     if (!anugerah) continue;          // anugerah dibuang, borang yatim
 
@@ -593,7 +607,17 @@ async function agBukaBorangGuru(kod) {
       sub = (anugerah.sub || []).find(x => x.id === subId);
       if (!sub) continue;
     }
-    return { majlis: m, anugerah, sub, kunci, borang: peta[kunci] };
+
+    /* Borang aras-darjah: satu borang meliputi setiap sub berskop kelas
+       dalam darjah itu. Sama seperti sub, ia yatim bila tiada satu pun
+       sub tinggal. */
+    let subDarjah = null;
+    if (darjah) {
+      subDarjah = (anugerah.sub || []).filter(x =>
+        String(x.skopDarjah || '').toUpperCase() === darjah);
+      if (!subDarjah.length) continue;
+    }
+    return { majlis: m, anugerah, sub, darjah, subDarjah, kunci, borang: peta[kunci] };
   }
   return null;
 }

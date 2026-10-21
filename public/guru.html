@@ -176,7 +176,9 @@ let TANDA = new Set();
   /* 🔴 Borang aras-sub: guru melihat NAMA SUB, bukan nama anugerah.
      Guru kelas 1 INTEL tidak peduli anugerah induknya dipanggil apa —
      dia perlu tahu dia sedang mengisi untuk kelasnya sendiri. */
-  const tajuk = sub ? anugerah.nama + ' — ' + sub.nama : anugerah.nama;
+  const tajuk = sub ? anugerah.nama + ' — ' + sub.nama
+    : KONTEKS.darjah ? anugerah.nama + ' — Darjah ' + agWordDarjah(KONTEKS.darjah)
+    : anugerah.nama;
   document.title = tajuk + ' — Borang Guru';
   $('tajuk-anugerah').textContent = tajuk;
   $('sari').textContent = (majlis.nama || '') + ' · ' + (majlis.calYear || '');
@@ -254,7 +256,19 @@ function subUntukBorangIni() {
   const semua = a.sub || [];
   if (KONTEKS.sub) return semua;                 // borang aras-sub: isiSub tapis sendiri
   const peta = (KONTEKS.majlis || {}).borangGuru || {};
-  return semua.filter(x => !peta[agKunciBorang(a.id, x.id)]);
+
+  /* 🔴 Borang aras-darjah: hanya sub darjah itu, dan sub yang sudah
+     diserahkan secara individu tetap dilangkau — sub menang ke atas
+     darjah, sama seperti ia menang ke atas anugerah. */
+  if (KONTEKS.darjah) {
+    return (KONTEKS.subDarjah || []).filter(x => !peta[agKunciBorang(a.id, x.id)]);
+  }
+
+  /* Borang aras-anugerah melangkau sub yang diserahkan secara individu
+     DAN sub yang darjahnya diserahkan sebagai satu kumpulan. */
+  return semua.filter(x =>
+    !peta[agKunciBorang(a.id, x.id)] &&
+    !(x.skopDarjah && peta[agKunciDarjah(a.id, x.skopDarjah)]));
 }
 
 function isiSub() {

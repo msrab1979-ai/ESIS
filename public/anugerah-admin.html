@@ -1088,10 +1088,20 @@ function pilStatusBorang(b) {
              (ditapis dalam guru.html). Tanpa peraturan itu, dua guru boleh
              saling memadam senarai masing-masing pada sub yang sama. */
           const bSub = (MAJLIS.borangGuru || {})[agKunciBorang(a.id, s.id)];
-          const butangBorang =
-            '<button class="btn ' + (bSub ? 'sunyi' : 'hijau') + ' kecil" ' +
-            'data-sub-borang="' + i + ',' + j + '">' +
-            (bSub ? '\ud83d\udd17 Borang' : '\ud83d\udcdd Bina Borang') + '</button>';
+          /* 🔴 Keutamaan: SUB > DARJAH > ANUGERAH. Bila darjah sub ini
+             sudah diserahkan sebagai satu kumpulan, butangnya menjadi
+             sunyi dan bertanda supaya admin nampak ia sudah diliputi \u2014
+             membinanya lagi di sini akan merampas sub itu daripada guru
+             darjah tadi (sub menang), yang jarang apa yang dimaksudkan. */
+          const bDj = s.skopDarjah
+            ? (MAJLIS.borangGuru || {})[agKunciDarjah(a.id, s.skopDarjah)] : null;
+          const butangBorang = (bSub || !bDj)
+            ? '<button class="btn ' + (bSub ? 'sunyi' : 'hijau') + ' kecil" ' +
+              'data-sub-borang="' + i + ',' + j + '">' +
+              (bSub ? '\ud83d\udd17 Borang' : '\ud83d\udcdd Bina Borang') + '</button>'
+            : '<button class="btn sunyi kecil" data-sub-borang="' + i + ',' + j + '" ' +
+              'title="Diliputi oleh borang Darjah ' + agWordDarjah(s.skopDarjah) +
+              '">\u21b3 ikut darjah</button>';
           return '<li>' +
             '<span class="nama-sub">' + agEsc(s.nama) + '</span>' +
             '<span class="hint">' + agEsc(hint) + '</span>' +
@@ -1130,13 +1140,26 @@ function pilStatusBorang(b) {
           const kunci = a.id + '|' + w;
           const bilMuridD = senarai.reduce((n, [sb]) =>
             n + PENERIMA.filter(p => (p.anugerah || []).some(x => x.subId === sb.id)).length, 0);
+          /* 🔴 Borang aras-darjah: satu pautan untuk seluruh darjah,
+             bukan satu per kelas. GPK darjah memegang enam kelas; tanpa
+             ini admin perlu mengurus enam pautan dan enam kata laluan
+             untuk satu orang. Butang pada baris kelas tetap kekal. */
+          const bDarjah = (MAJLIS.borangGuru || {})[agKunciDarjah(a.id, w)];
           return '<li class="kump' + (POKOK_BUKA[kunci] ? ' buka' : '') +
               '" data-kump="' + agEsc(kunci) + '">' +
             '<div class="kump-kepala" data-togol-kump="' + agEsc(kunci) + '">' +
               '<span class="anak-panah">▶</span>' +
               '<span class="nama-sub">Darjah ' + agWordDarjah(w) + '</span>' +
-              '<span class="kanan"><span class="kecil">' + senarai.length + ' kelas · ' +
-                bilMuridD + ' murid</span></span>' +
+              '<span class="kanan">' +
+                pilStatusBorang(bDarjah) +
+                '<span class="kecil">' + senarai.length + ' kelas · ' +
+                  bilMuridD + ' murid</span>' +
+                '<button class="btn ' + (bDarjah ? 'sunyi' : 'hijau') + ' kecil" ' +
+                  'data-dj-borang="' + i + ',' + agEsc(w) + '">' +
+                  (bDarjah ? '\ud83d\udd17 Borang' : '\ud83d\udcdd Bina Borang') + '</button>' +
+                (bilMuridD ? '<button class="btn sunyi kecil" data-dj-reset="' + i + ',' +
+                  agEsc(w) + '" title="Buang semua penerima darjah ini">\ud83e\uddf9</button>' : '') +
+              '</span>' +
             '</div>' +
             '<ul class="kump-isi">' + senarai.map(([sb, j]) => lukisSatuSub(sb, j)).join('') +
             '</ul></li>';
@@ -1167,6 +1190,7 @@ $('pokok-anugerah').addEventListener('click', e => {
   const b = e.target.closest('button[data-an-edit],button[data-an-buang],button[data-sub-baru],' +
     'button[data-sub-edit],button[data-sub-buang],button[data-sub-pilih],' +
     'button[data-sub-borang],button[data-sub-reset],button[data-an-reset],' +
+    'button[data-dj-borang],button[data-dj-reset],' +
     'button[data-borang],.induk[data-togol],.kump-kepala[data-togol-kump]');
   if (!b) return;
   const d = b.dataset;
@@ -1175,6 +1199,8 @@ $('pokok-anugerah').addEventListener('click', e => {
   if (d.subBorang) { const [i, j] = d.subBorang.split(',').map(Number); return modalBorangGuru(i, j); }
   if (d.subReset) { const [i, j] = d.subReset.split(',').map(Number); return resetSub(i, j); }
   if (d.anReset !== undefined) return resetAnugerah(parseInt(d.anReset));
+  if (d.djBorang) { const [i, w] = pecahDj(d.djBorang); return modalBorangGuru(i, null, w); }
+  if (d.djReset) { const [i, w] = pecahDj(d.djReset); return resetDarjah(i, w); }
   if (d.togolKump) {                   // kumpulan darjah ditekan
     POKOK_BUKA[d.togolKump] = !POKOK_BUKA[d.togolKump];
     const li = $('pokok-anugerah').querySelector('li[data-kump="' +
@@ -1235,16 +1261,25 @@ $('b-tutup-semua').addEventListener('click', () => {
 /* 🔴 Satu fungsi untuk KEDUA-DUA aras. `jSub` null = borang anugerah;
    nombor = borang untuk sub itu sahaja. Kunci peta dibina oleh
    agKunciBorang() — jangan cantum 'id::id' dengan tangan di sini. */
-function modalBorangGuru(iAn, jSub) {
+function modalBorangGuru(iAn, jSub, darjah) {
   const a = MAJLIS.anugerah[iAn];
   if (!a) return;
   const sub = (jSub == null) ? null : (a.sub || [])[jSub];
   if (jSub != null && !sub) return;
 
+  /* Sub yang diliputi borang darjah, dikira di sini supaya modal boleh
+     memberitahu admin berapa kelas diserahkan sekali gus. */
+  const subDj = darjah
+    ? (a.sub || []).filter(x => String(x.skopDarjah || '').toUpperCase() ===
+        String(darjah).toUpperCase())
+    : null;
+
   MAJLIS.borangGuru = MAJLIS.borangGuru || {};
-  const kunci = agKunciBorang(a.id, sub && sub.id);
+  const kunci = darjah ? agKunciDarjah(a.id, darjah) : agKunciBorang(a.id, sub && sub.id);
   const b = MAJLIS.borangGuru[kunci];
-  const label = sub ? a.nama + ' \u2014 ' + sub.nama : a.nama;
+  const label = sub ? a.nama + ' \u2014 ' + sub.nama
+    : darjah ? a.nama + ' \u2014 Darjah ' + agWordDarjah(darjah)
+    : a.nama;
   const asas = location.href.replace(/[^/]*$/, '');
   const url = b ? asas + 'guru.html?kod=' + encodeURIComponent(b.kod) : '';
 
@@ -1271,6 +1306,9 @@ function modalBorangGuru(iAn, jSub) {
           (sub
             ? '<strong>' + agEsc(sub.nama) + ' sahaja</strong>. Dia tidak melihat ' +
               'sub-anugerah lain dalam ' + agEsc(a.nama) + '.'
+            : darjah
+            ? '<strong>Darjah ' + agWordDarjah(darjah) + ' sahaja</strong> \u2014 ' +
+              (subDj || []).length + ' kelas dalam satu borang. Dia tidak melihat darjah lain.'
             : '<strong>anugerah ini sahaja</strong>, termasuk semua ' +
               (a.sub || []).length + ' sub-anugerahnya.') +
           ' Dia boleh menambah, menukar dan membuang murid yang dia pilih — tetapi ' +
@@ -1337,6 +1375,7 @@ function modalBorangGuru(iAn, jSub) {
         nama: $('bg-nama').value.trim(),
         subId: (sub && sub.id) || null,
         sub: (sub && sub.nama) || '',
+        darjah: darjah || null,
         dibuka: !!(lama && lama.dibuka),
         masa: (lama && lama.masa) || '',
         dihantar: !!(lama && lama.dihantar),
@@ -1424,6 +1463,19 @@ function lukisBorangGuru() {
   const baris = [];
   (MAJLIS.anugerah || []).forEach((a, i) => {
     if (peta[a.id]) baris.push({ a, i, j: null, label: a.nama, b: peta[a.id] });
+
+    /* Borang aras-darjah: satu baris per darjah yang diserahkan. */
+    const darjahAda = [];
+    (a.sub || []).forEach(sb => {
+      const w = String(sb.skopDarjah || '').toUpperCase();
+      if (w && darjahAda.indexOf(w) < 0) darjahAda.push(w);
+    });
+    darjahAda.sort((x, y) => agWordDarjah(x) - agWordDarjah(y)).forEach(w => {
+      const b = peta[agKunciDarjah(a.id, w)];
+      if (b) baris.push({ a, i, j: null, darjah: w,
+        label: a.nama + ' \u2014 Darjah ' + agWordDarjah(w), b });
+    });
+
     (a.sub || []).forEach((sb, j) => {
       const b = peta[agKunciBorang(a.id, sb.id)];
       if (b) baris.push({ a, i, j, sub: sb, label: a.nama + ' \u2014 ' + sb.nama, b });
@@ -1440,14 +1492,17 @@ function lukisBorangGuru() {
   bekas.innerHTML = '<div class="gulung"><table><thead><tr>' +
       '<th>Anugerah</th><th>Guru</th><th>Pautan</th><th>Status</th><th></th>' +
     '</tr></thead><tbody>' +
-    baris.map(({ a, i, j, sub, label, b }) => {
+    baris.map(({ a, i, j, sub, darjah, label, b }) => {
       const url = asas + 'guru.html?kod=' + encodeURIComponent(b.kod);
       /* Kiraan mesti sepadan dengan skop borang itu, bukan skop anugerah:
          borang sub yang melaporkan kiraan seluruh anugerah memberitahu
          admin bahawa guru menghantar 38 kelas sedangkan dia hantar satu. */
+      const idDj = darjah ? new Set((a.sub || [])
+        .filter(x => String(x.skopDarjah || '').toUpperCase() === darjah)
+        .map(x => x.id)) : null;
       const bil = PENERIMA.filter(p =>
         (p.anugerah || []).some(x => x.anugerahId === a.id && x.sumber === 'guru' &&
-          (!sub || x.subId === sub.id))).length;
+          (sub ? x.subId === sub.id : idDj ? idDj.has(x.subId) : true))).length;
       return '<tr>' +
         '<td class="nama-murid lajur-teks">' + agEsc(label) + '</td>' +
         '<td>' + (agEsc(b.nama) || '<em class="kecil">tiada nama</em>') + '</td>' +
@@ -1461,17 +1516,22 @@ function lukisBorangGuru() {
                 : b.masa ? '<div class="kecil">' + agEsc(b.masa) + '</div>' : '')
             : '<span class="pil tunggu">Belum dibuka</span>') + '</td>' +
         '<td><button class="btn sunyi kecil" data-pg-urus="' + i +
-          (j == null ? '' : ',' + j) + '">Urus</button></td>' +
+          (darjah ? ',@' + agEsc(darjah) : j == null ? '' : ',' + j) +
+          '">Urus</button></td>' +
       '</tr>';
     }).join('') + '</tbody></table></div>';
 }
 
 $('borang-grid').addEventListener('click', e => {
   const b = e.target.closest('button[data-pg-urus]');
-  if (b) {
-    const [i, j] = b.dataset.pgUrus.split(',').map(Number);
-    modalBorangGuru(i, isNaN(j) ? null : j);
-  }
+  if (!b) return;
+  const [iTeks, ekor] = (() => {
+    const v = b.dataset.pgUrus, k = v.indexOf(',');
+    return k < 0 ? [v, ''] : [v.slice(0, k), v.slice(k + 1)];
+  })();
+  const i = parseInt(iTeks);
+  if (ekor.charAt(0) === '@') modalBorangGuru(i, null, ekor.slice(1));
+  else modalBorangGuru(i, ekor === '' ? null : parseInt(ekor));
 });
 
 /* ---------- modal anugerah ---------- */
@@ -3394,6 +3454,26 @@ function resetSub(iAn, jSub) {
   resetJalan('"' + sub.nama + '"',
     x => x.subId === sub.id,
     k => k === agKunciBorang(a.id, sub.id));
+}
+
+/* `data-dj-*` membawa "indeks,DARJAH" dan darjah ialah PERKATAAN
+   (SATU..ENAM), jadi ia tidak boleh dihurai dengan .split(',').map(Number)
+   seperti pasangan indeks yang lain. */
+function pecahDj(nilai) {
+  const i = String(nilai).indexOf(',');
+  return [parseInt(nilai.slice(0, i)), nilai.slice(i + 1)];
+}
+
+function resetDarjah(iAn, w) {
+  const a = (MAJLIS.anugerah || [])[iAn];
+  if (!a) return;
+  const ids = new Set((a.sub || [])
+    .filter(x => String(x.skopDarjah || '').toUpperCase() === String(w).toUpperCase())
+    .map(x => x.id));
+  if (!ids.size) return;
+  resetJalan('"' + a.nama + '" \u2014 Darjah ' + agWordDarjah(w) +
+      ' (' + ids.size + ' kelas)',
+    x => ids.has(x.subId), null);
 }
 
 function resetAnugerah(iAn) {

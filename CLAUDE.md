@@ -477,6 +477,28 @@ Sebabnya: `ANUGERAH TERBAIK DALAM KELAS` ada 38 sub (satu per kelas). Satu boran
 
 Borang aras-sub mengunci dropdown Sub-anugerah (`disabled`, bukan disembunyikan — kawalan yang hilang menimbulkan soalan, kawalan yang mati menjawabnya), dan tajuk memapar nama **sub**, bukan nama anugerah.
 
+#### Borang aras-DARJAH (kumpulan kelas)
+
+Kunci `borangGuru` ada **tiga** bentuk, semuanya dalam satu peta:
+
+| Kunci | Liputan |
+|---|---|
+| `anugerahId` | seluruh anugerah |
+| `anugerahId::subId` | satu sub |
+| `anugerahId::@DARJAH` | semua sub berskop kelas dalam darjah itu |
+
+**Awalan `@` membezakan darjah daripada sub.** Id sub dijana sebagai `sub_<base36>` dan tidak pernah bermula dengan `@`, jadi tiada pertembungan. `agKunciBorang` / `agKunciDarjah` / `agPecahKunci` ialah satu-satunya tempat format ini diketahui.
+
+Sebabnya: `ANUGERAH TERBAIK DALAM KELAS` ada 38 kelas dikumpul kepada 6 darjah. GPK darjah memegang satu darjah penuh — tanpa aras ini admin mengurus enam pautan dan enam kata laluan untuk satu orang.
+
+**Keutamaan: SUB > DARJAH > ANUGERAH.** Borang darjah melangkau sub yang sudah diserahkan individu; borang anugerah melangkau kedua-duanya. Satu sub tepat satu borang, sentiasa. Dalam pokok, butang sub yang diliputi borang darjah bertukar menjadi **"↳ ikut darjah"** (sunyi, tetapi masih boleh ditekan — menekannya membina borang sub yang kemudian menang, yang jarang apa yang dimaksudkan, jadi ia bertanda dan bukan hijau).
+
+**`data-dj-*` membawa `"indeks,DARJAH"` dan darjah ialah PERKATAAN** (SATU..ENAM) — ia tidak boleh dihurai dengan `.split(',').map(Number)` seperti pasangan indeks lain dalam fail ini. `pecahDj()` memisahkan pada koma pertama sahaja. Butang Urus dalam Link Petugas menggunakan awalan `@` pada ekornya atas sebab yang sama.
+
+Kumpulan darjah ialah pengumpulan **paparan** (`ikutDarjah` dalam `lukisPokok`), bukan entiti bersimpan — tiada id untuk dirujuk, jadi kunci dibina daripada `skopDarjah` sub itu sendiri.
+
+Disahkan 21 Okt 2026 pada majlis sebenar (38 kelas): enam kumpulan darjah masing-masing dengan butangnya; menyerahkan Darjah 1 menukar keenam-enam kelasnya kepada "↳ ikut darjah", borang darjah melihat 6 kelas, borang anugerah turun 38 → 32 tanpa satu pun kelas darjah 1. Oracle 37 kes (pusing-balik tiga bentuk + matriks keutamaan termasuk sub individu di dalam darjah yang diserah), 0 beza.
+
 #### Hantar = TERKUNCI; hanya admin boleh buka semula
 
 Guru **tidak** boleh membuka semula borangnya sendiri. Butang 🔓 dalam `guru.html` dibuang; `agBukaSemulaBorang` menjadi **`agResetBorang`** dan dipanggil hanya dari modal admin.
