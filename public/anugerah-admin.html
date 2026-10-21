@@ -271,7 +271,7 @@
     <div class="kad" id="kad-reset">
       <div class="kad-kepala">
         <h3>🧹 Reset Data Majlis</h3>
-        <span class="sub">Untuk membersihkan data ujian · jenis anugerah &amp; tetapan tidak disentuh</span>
+        <span class="sub">Tindakan seluruh majlis · jenis anugerah &amp; tetapan tidak disentuh</span>
       </div>
       <div class="kad-isi">
         <div class="nota amaran"><span class="sym">⚠</span>
@@ -279,24 +279,12 @@
           Yang <em>tidak</em> disentuh: jenis anugerah, sub-anugerah, tetapan subjek,
           dan pautan borang guru (pautan kekal hidup).</div></div>
 
-        <div class="baris-input" style="margin-top:14px">
-          <div class="medan" style="flex:1 1 260px">
-            <label for="rs-anugerah">Anugerah</label>
-            <select id="rs-anugerah"></select>
-          </div>
-          <div class="medan" style="flex:1 1 260px">
-            <label for="rs-sub">Sub-anugerah</label>
-            <select id="rs-sub"></select>
-          </div>
-        </div>
-        <div class="baris-input" style="margin-top:11px">
-          <button class="btn sunyi" id="b-rs-sub">Buang penerima sub ini</button>
-          <button class="btn sunyi" id="b-rs-anugerah">Buang penerima anugerah ini</button>
-        </div>
-        <div id="rs-kira" class="kecil" style="margin-top:9px"></div>
+        <p class="hint" style="margin:12px 0 0">Untuk membuang satu anugerah atau satu
+          sub sahaja, gunakan butang 🧹 dalam <strong>🏆 Jenis Anugerah</strong>, atau
+          buang mengikut tapisan dalam <strong>📋 Semak Penerima</strong>. Dua tindakan
+          di bawah ini mengenai <strong>seluruh majlis</strong>, jadi ia tinggal di sini.</p>
 
-        <hr style="border:none;border-top:1px solid var(--garis-halus);margin:17px 0">
-        <div class="baris-input">
+        <div class="baris-input" style="margin-top:14px">
           <button class="btn sunyi" id="b-rs-giliran">Kosongkan semua nombor giliran</button>
           <button class="btn" id="b-rs-semua" style="background:var(--bahaya,#b3261e);color:#fff">
             Buang SEMUA penerima majlis</button>
@@ -383,6 +371,7 @@
         <div class="kanan">
           <button class="btn sunyi kecil" id="sk-csv">⬇️ Excel (CSV)</button>
           <button class="btn sunyi kecil" id="sk-pdf">🖨️ PDF</button>
+          <button class="btn sunyi kecil" id="sk-buang">🧹 Buang yang dipapar</button>
         </div>
       </div>
       <div class="kad-isi">
@@ -1111,6 +1100,8 @@ function pilStatusBorang(b) {
               '<span class="kecil">' + bil + ' murid</span>' +
               '<button class="btn emas kecil" data-sub-pilih="' + i + ',' + j + '">👤 Pilih Murid</button>' +
               butangBorang +
+              (bil ? '<button class="btn sunyi kecil" data-sub-reset="' + i + ',' + j + '" ' +
+                'title="Buang semua penerima sub ini">🧹</button>' : '') +
               '<button class="btn sunyi kecil" data-sub-edit="' + i + ',' + j + '">Ubah</button>' +
               '<button class="btn sunyi kecil" data-sub-buang="' + i + ',' + j + '">Buang</button>' +
             '</span></li>';
@@ -1159,6 +1150,8 @@ function pilStatusBorang(b) {
         '<span class="kanan">' +
           '<span class="kecil">' + sub.length + ' sub · ' + bilMurid + ' murid</span>' +
           pilBorang +
+          (bilMurid ? '<button class="btn sunyi kecil" data-an-reset="' + i + '" ' +
+            'title="Buang semua penerima anugerah ini">🧹</button>' : '') +
           '<button class="btn ' + (borang ? 'sunyi' : 'hijau') + ' kecil" data-borang="' + i + '">' +
             (borang ? '🔗 Borang' : '📝 Bina Borang') + '</button>' +
           '<button class="btn sunyi kecil" data-sub-baru="' + i + '">➕ Sub</button>' +
@@ -1173,13 +1166,15 @@ function pilStatusBorang(b) {
 $('pokok-anugerah').addEventListener('click', e => {
   const b = e.target.closest('button[data-an-edit],button[data-an-buang],button[data-sub-baru],' +
     'button[data-sub-edit],button[data-sub-buang],button[data-sub-pilih],' +
-    'button[data-sub-borang],' +
+    'button[data-sub-borang],button[data-sub-reset],button[data-an-reset],' +
     'button[data-borang],.induk[data-togol],.kump-kepala[data-togol-kump]');
   if (!b) return;
   const d = b.dataset;
   if (d.borang !== undefined) return modalBorangGuru(parseInt(d.borang));
   if (d.subPilih) { const [i, j] = d.subPilih.split(',').map(Number); return modalPilihMurid(i, j); }
   if (d.subBorang) { const [i, j] = d.subBorang.split(',').map(Number); return modalBorangGuru(i, j); }
+  if (d.subReset) { const [i, j] = d.subReset.split(',').map(Number); return resetSub(i, j); }
+  if (d.anReset !== undefined) return resetAnugerah(parseInt(d.anReset));
   if (d.togolKump) {                   // kumpulan darjah ditekan
     POKOK_BUKA[d.togolKump] = !POKOK_BUKA[d.togolKump];
     const li = $('pokok-anugerah').querySelector('li[data-kump="' +
@@ -3302,19 +3297,23 @@ async function resetTulisPukal(ops) {
 /* Bina senarai operasi untuk membuang entri yang dipadankan oleh `padan`.
    Dikongsi oleh ketiga-tiga skop supaya penapisan giliran[] tidak boleh
    terlepas di salah satu laluan. */
+/* 🔴 Predikat menerima (entri, murid). Hujah kedua membolehkan skop
+   yang bergantung kepada MURID (buang-ikut-tapisan dalam Semak Penerima)
+   berkongsi fungsi yang sama dengan skop anugerah/sub \u2014 satu tempat
+   sahaja yang tahu cara menapis anugerah[] dan giliran[] seiring. */
 function resetOps(padan) {
   const ops = [];
   let bilEntri = 0;
   PENERIMA.forEach(p => {
     const semua = p.anugerah || [];
-    const baki = semua.filter(x => !padan(x));
+    const baki = semua.filter(x => !padan(x, p));
     if (baki.length === semua.length) return;      // tiada perubahan
     bilEntri += semua.length - baki.length;
     const ref = agDb.collection('anugerah_penerima').doc(p.docId);
     if (!baki.length) ops.push({ ref, padam: true });
     else ops.push({ ref, data: {
       anugerah: baki,
-      giliran: (p.giliran || []).filter(g => !padan(g))
+      giliran: (p.giliran || []).filter(g => !padan(g, p))
     }});
   });
   return { ops, bilEntri, bilMurid: ops.length };
@@ -3334,51 +3333,25 @@ async function resetBukaBorangTerjejas(padanKunci) {
   return kena.length;
 }
 
-function resetPilihan() {
-  const a = (MAJLIS.anugerah || [])[parseInt($('rs-anugerah').value)];
-  const sub = a ? (a.sub || [])[parseInt($('rs-sub').value)] : null;
-  return { a, sub };
-}
-
-function lukisReset() {
-  const selA = $('rs-anugerah');
-  if (!selA) return;
-  const senarai = MAJLIS.anugerah || [];
-  const simpanA = selA.value;
-  selA.innerHTML = senarai.length
-    ? senarai.map((a, i) => '<option value="' + i + '">' + agEsc(a.nama) + '</option>').join('')
-    : '<option value="">(tiada anugerah)</option>';
-  if (simpanA && senarai[parseInt(simpanA)]) selA.value = simpanA;
-  lukisResetSub();
-}
-
-function lukisResetSub() {
-  const a = (MAJLIS.anugerah || [])[parseInt($('rs-anugerah').value)];
-  const sub = (a && a.sub) || [];
-  $('rs-sub').innerHTML = sub.length
-    ? sub.map((x, j) => '<option value="' + j + '">' + agEsc(x.nama) + '</option>').join('')
-    : '<option value="">(tiada sub)</option>';
-  lukisResetKira();
-}
-
-function lukisResetKira() {
-  const el = $('rs-kira');
-  if (!el) return;
-  const { a, sub } = resetPilihan();
-  if (!a) { el.textContent = ''; return; }
-  const bilA = resetOps(x => x.anugerahId === a.id).bilEntri;
-  const bilS = sub ? resetOps(x => x.subId === sub.id).bilEntri : 0;
-  el.innerHTML = 'Sub ini: <strong>' + bilS + '</strong> penerima \u00b7 ' +
-    'Seluruh anugerah: <strong>' + bilA + '</strong> penerima';
-}
-
-$('rs-anugerah').addEventListener('change', lukisResetSub);
-$('rs-sub').addEventListener('change', lukisResetKira);
+/* 🔴 lukisReset() tiada lagi dropdown untuk dilukis \u2014 kad Majlis kini
+   hanya membawa dua tindakan seluruh-majlis. Fungsi dikekalkan sebagai
+   tiada-op supaya pemanggil sedia ada (pilihMajlis, resetJalan) tidak
+   perlu tahu; membuang pemanggil satu-satu ialah cara pendengar yatim
+   masuk semula. */
+function lukisReset() {}
 
 /* 🔴 Pengesahan menaip "PADAM", bukan confirm() \u2014 satu Enter yang
    tersasar tidak boleh mengosongkan senarai penerima satu majlis. */
 async function resetJalan(label, padan, padanKunci) {
   const { ops, bilEntri, bilMurid } = resetOps(padan);
+  /* 🔴 Borang yang dibuka semula mesti HANYA yang benar-benar
+     kehilangan penerima. Menapis Semak Penerima kepada satu kelas dan
+     menekan Buang tidak boleh membuka semula borang setiap guru lain
+     dalam majlis \u2014 senarai mereka tidak disentuh. */
+  const kenaSub = new Set();
+  PENERIMA.forEach(p => (p.anugerah || []).forEach(x => {
+    if (padan(x, p)) kenaSub.add(x.anugerahId + '|' + x.subId);
+  }));
   if (!bilEntri) { agToast('Tiada penerima untuk ' + label, 'ralat'); return; }
 
   const taip = prompt('Buang ' + bilEntri + ' penerima (' + bilMurid + ' murid) daripada ' +
@@ -3387,7 +3360,15 @@ async function resetJalan(label, padan, padanKunci) {
 
   try {
     await resetTulisPukal(ops);
-    const bukaBorang = padanKunci ? await resetBukaBorangTerjejas(padanKunci) : 0;
+    const semakKunci = padanKunci || (k => {
+      const { anugerahId, subId } = agPecahKunci(k);
+      /* Borang aras-sub: terjejas bila sub itu sendiri kehilangan murid.
+         Borang aras-anugerah: bila mana-mana subnya kehilangan murid. */
+      return subId
+        ? kenaSub.has(anugerahId + '|' + subId)
+        : [...kenaSub].some(x => x.split('|')[0] === anugerahId);
+    });
+    const bukaBorang = await resetBukaBorangTerjejas(semakKunci);
     PENERIMA = await agMuatPenerima(MAJLIS.id);
     lukisPokok(); lukisSemak(); lukisGiliran(); lukisPetugas(); lukisReset(); kemasSari();
     agToast(bilEntri + ' penerima dibuang' +
@@ -3395,21 +3376,7 @@ async function resetJalan(label, padan, padanKunci) {
   } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
 }
 
-$('b-rs-sub').addEventListener('click', () => {
-  const { a, sub } = resetPilihan();
-  if (!a || !sub) { agToast('Pilih sub-anugerah dahulu', 'ralat'); return; }
-  resetJalan('"' + sub.nama + '"',
-    x => x.subId === sub.id,
-    k => k === agKunciBorang(a.id, sub.id));
-});
 
-$('b-rs-anugerah').addEventListener('click', () => {
-  const { a } = resetPilihan();
-  if (!a) { agToast('Pilih anugerah dahulu', 'ralat'); return; }
-  resetJalan('"' + a.nama + '" (semua sub)',
-    x => x.anugerahId === a.id,
-    k => agPecahKunci(k).anugerahId === a.id);
-});
 
 $('b-rs-semua').addEventListener('click', () => {
   resetJalan('SEMUA anugerah dalam majlis ini', () => true, () => true);
@@ -3417,6 +3384,49 @@ $('b-rs-semua').addEventListener('click', () => {
 
 /* Nombor giliran sahaja \u2014 murid kekal dalam majlis. Berbeza daripada
    Jana Semula, yang memberi nombor baharu; ini mengosongkannya. */
+/* 🔴 Dipanggil dari butang 🧹 dalam pokok Jenis Anugerah. Skopnya
+   sama seperti dropdown lama dalam tab Majlis \u2014 yang berubah hanyalah
+   admin menekannya di tempat dia sedang melihat kiraan "34 murid". */
+function resetSub(iAn, jSub) {
+  const a = (MAJLIS.anugerah || [])[iAn];
+  const sub = a && (a.sub || [])[jSub];
+  if (!a || !sub) return;
+  resetJalan('"' + sub.nama + '"',
+    x => x.subId === sub.id,
+    k => k === agKunciBorang(a.id, sub.id));
+}
+
+function resetAnugerah(iAn) {
+  const a = (MAJLIS.anugerah || [])[iAn];
+  if (!a) return;
+  resetJalan('"' + a.nama + '" (semua ' + (a.sub || []).length + ' sub)',
+    x => x.anugerahId === a.id,
+    k => agPecahKunci(k).anugerahId === a.id);
+}
+
+/* 🔴 Buang mengikut TAPISAN semasa dalam Semak Penerima.
+   Tapisan darjah/kelas/nama memilih MURID, manakala tapisan anugerah
+   memilih ENTRI. Membuang "yang dipapar" mesti bermakna entri yang
+   betul-betul kelihatan di skrin: bagi murid yang terpapar, hanya
+   anugerah yang sepadan dengan tapisan anugerah itu. Tanpa pembezaan
+   ini, menapis kepada satu sub dan menekan Buang akan mengeluarkan
+   murid itu daripada SEMUA anugerah lain yang dia menang. */
+$('sk-buang').addEventListener('click', () => {
+  const subId = $('sk-anugerah').value;
+  if (!SK_BARIS.length) { agToast('Tiada penerima dipapar', 'ralat'); return; }
+
+  const idMurid = new Set(SK_BARIS.map(p => p.docId));
+  const padanEntri = (x, p) => idMurid.has(p.docId) && (!subId || x.subId === subId);
+
+  const sub = subId && (MAJLIS.anugerah || [])
+    .reduce((cari, a) => cari || (a.sub || []).find(z => z.id === subId), null);
+  const nama = sub
+    ? '"' + sub.nama + '" bagi ' + SK_BARIS.length + ' murid dipapar'
+    : SK_BARIS.length + ' murid dipapar \u2014 SEMUA anugerah mereka';
+
+  resetJalan(nama, padanEntri, null);
+});
+
 $('b-rs-giliran').addEventListener('click', async () => {
   const ada = PENERIMA.filter(p => (p.giliran || []).length);
   const bil = ada.reduce((n, p) => n + p.giliran.length, 0);

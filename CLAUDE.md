@@ -432,9 +432,26 @@ Sebahagian anugerah bukan milik admin: Tokoh NILAM diketahui oleh guru pusat sum
 
 **Guru membuang HANYA `sumber:'guru'`.** Murid yang ditambah admin dipaparkan dengan 🔒 supaya guru tahu siapa sudah ada, tetapi tidak boleh membuangnya — menyerahkan satu anugerah tidak bermakna menyerahkan kuasa membatalkan keputusan orang lain. Disemak dua kali: butang disembunyikan dalam paparan **dan** `entri.sumber !== 'guru'` disemak sebelum menulis; kawalan yang hanya wujud dalam paparan bukan kawalan.
 
-#### Reset Data Majlis (tab Majlis) — buang data ujian
+#### Buang penerima — tiga tempat, satu enjin
 
-Kad **🧹 Reset Data Majlis** membuang **penerima sahaja**, empat skop: satu sub · satu anugerah (semua subnya) · semua penerima majlis · nombor giliran sahaja. Jenis anugerah, sub, tetapan subjek dan pautan borang guru **tidak disentuh** — selepas membersihkan data ujian admin mahu majlis yang sama, bukan membina semula lima puluh lima sub.
+Butang berada **di tempat kerja**, bukan dalam satu kad tetapan jauh:
+
+| Tempat | Skop |
+|---|---|
+| 🏆 Jenis Anugerah — 🧹 pada baris anugerah | Anugerah itu + semua subnya |
+| 🏆 Jenis Anugerah — 🧹 pada baris sub | Sub itu sahaja |
+| 📋 Semak Penerima — 🧹 Buang yang dipapar | Ikut tapisan semasa |
+| ⚙️ Majlis — kad Reset | Hanya dua tindakan seluruh-majlis |
+
+Butang 🧹 **tidak dipapar bila 0 murid** — tiada butang untuk kerja yang tiada.
+
+Semua menuju ke `resetJalan(label, padan, padanKunci)` → `resetOps(padan)`. Jenis anugerah, sub, tetapan subjek dan pautan borang guru **tidak pernah disentuh** — selepas membersihkan data ujian admin mahu majlis yang sama, bukan membina semula lima puluh lima sub.
+
+**Predikat menerima `(entri, murid)`.** Hujah kedua wujud semata-mata untuk buang-ikut-tapisan: tapisan darjah/kelas/nama memilih **murid**, manakala tapisan anugerah memilih **entri**. Menapis kepada satu sub dan menekan Buang mesti mengeluarkan murid itu daripada **sub itu sahaja**, bukan daripada setiap anugerah lain yang dia menang.
+
+**Borang yang dibuka semula mesti hanya yang benar-benar kehilangan penerima.** `resetJalan` mengumpul `kenaSub` (set `anugerahId|subId` yang tersentuh) dan menurunkan `padanKunci` daripadanya apabila pemanggil tidak memberi satu. Versi pertama menghantar `() => true` daripada Semak Penerima — menapis kepada satu kelas akan membuka semula borang **setiap** guru dalam majlis, sedangkan senarai mereka tidak disentuh.
+
+**Membuang dropdown lama meninggalkan empat pendengar yatim** (`rs-anugerah`, `rs-sub`, dan dua butang). `$('rs-anugerah').addEventListener` pada `null` melontar `TypeError` semasa skrip dimuat dan **mematikan setiap `let` selepasnya** — perangkap yang sama seperti ketika tab Pilih Murid dibuang. `lukisReset()` dikekalkan sebagai tiada-op kerana `pilihMajlis` dan `resetJalan` masih memanggilnya; membuang pemanggil satu-satu ialah cara pendengar yatim masuk semula.
 
 **Penerima ialah satu doc per MURID dengan array `anugerah[]`.** Membuang satu sub bermakna **menapis array itu**, bukan memadam doc — murid yang sama mungkin memegang anugerah lain. Doc dipadam hanya apabila `anugerah[]` jadi kosong. `giliran[]` ditapis dengan predikat yang **sama**, jika tidak nombor giliran yatim kekal menunjuk kepada anugerah yang sudah tiada. `resetOps(padan)` ialah satu-satunya tempat logik ini hidup; ketiga-tiga skop memanggilnya.
 
