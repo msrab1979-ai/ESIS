@@ -752,6 +752,82 @@ function pasangMata(butangId, inputId) {
   });
 }
 
+/* ==========================================================================
+   PEPERIKSAAN MENGIKUT DARJAH
+   --------------------------------------------------------------------------
+   🔴 Satu majlis boleh memakai DUA nama peperiksaan: sekolah ini menduduki
+      "UJIAN AKHIR SEMESTER (UASA)" bagi darjah 4-6 dan "PENTAKSIRAN AKHIR
+      TAHUN" bagi darjah 1-3. Satu medan `MAJLIS.peperiksaan` tidak dapat
+      membawa kedua-duanya — kesannya 21 sub darjah 1-3 cuba mengira UASA
+      yang muridnya tidak pernah duduki, dan senarai calon keluar kosong.
+
+   🔴 `examTypes` SUDAH menyimpan `darjah[]` (contoh UASA = [4,5,6]), jadi
+      admin tidak perlu memberitahu sistem apa yang ia sudah tahu.
+      agPepUntukDarjah() membaca medan itu; `MAJLIS.pepDarjah` hanya
+      menyimpan pilihan admin apabila dia MENIMPA tekaan itu.
+
+   Keutamaan penuh (tertinggi menang):
+     sub.peperiksaan > anugerah.peperiksaan
+       > MAJLIS.pepDarjah[darjah] > examTypes.darjah > MAJLIS.peperiksaan
+   ========================================================================== */
+
+/* Cache per-tahun: agJenisPeperiksaan() ialah satu pertanyaan Firestore
+   dan ini dipanggil sekali bagi setiap sub semasa melukis pokok. */
+const AG_PEP_DARJAH_CACHE = {};
+
+async function agPetaPepDarjah(calYear) {
+  const kunci = String(calYear);
+  if (AG_PEP_DARJAH_CACHE[kunci]) return AG_PEP_DARJAH_CACHE[kunci];
+  const senarai = await agJenisPeperiksaan(calYear);
+  const peta = {};                       // nombor darjah -> [nama, ...]
+  senarai.forEach(e => {
+    if (e.aktif === false) return;       // peperiksaan ditutup bukan calon
+    (e.darjah || []).forEach(d => {
+      const n = Number(d);
+      if (!n) return;
+      (peta[n] = peta[n] || []).push(e.nama);
+    });
+  });
+  AG_PEP_DARJAH_CACHE[kunci] = peta;
+  return peta;
+}
+
+/* Nama peperiksaan bagi satu darjah, atau '' bila tidak dapat ditentukan.
+   `darjah` menerima perkataan (SATU..ENAM) atau nombor. */
+async function agPepUntukDarjah(majlis, darjah) {
+  const n = agWordDarjah(darjah);
+  if (!n) return (majlis && majlis.peperiksaan) || '';
+
+  /* Pilihan admin mengatasi tekaan automatik. */
+  const timpa = majlis && majlis.pepDarjah && majlis.pepDarjah[n];
+  if (timpa) return timpa;
+
+  try {
+    const peta = await agPetaPepDarjah((majlis && majlis.calYear) || new Date().getFullYear());
+    const calon = peta[n] || [];
+    if (!calon.length) return (majlis && majlis.peperiksaan) || '';
+    /* Peperiksaan majlis diutamakan apabila ia sendiri meliputi darjah
+       ini — admin memilihnya dengan sengaja. */
+    if (majlis && majlis.peperiksaan && calon.indexOf(majlis.peperiksaan) >= 0) {
+      return majlis.peperiksaan;
+    }
+    /* Jika tidak, yang terakhir mengikut `order` — peperiksaan akhir
+       tahun ialah yang biasanya menentukan anugerah. */
+    return calon[calon.length - 1];
+  } catch (e) {
+    return (majlis && majlis.peperiksaan) || '';
+  }
+}
+
+/* Darjah bagi satu sub-anugerah, daripada skopnya. Memulangkan 0 bila
+   skop itu bukan satu darjah tunggal (sekolah / tahap). */
+function agDarjahSub(sub) {
+  if (!sub) return 0;
+  if (sub.skopDarjah) return agWordDarjah(sub.skopDarjah);
+  if (sub.skopJenis === 'darjah') return agWordDarjah(sub.skopNilai);
+  return 0;
+}
+
 /* ---------- papar ---------- */
 function agEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g,

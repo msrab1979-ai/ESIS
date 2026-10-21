@@ -426,7 +426,10 @@ async function guruCadang(paksa) {
   const s = subSemasa();
   const an = KONTEKS.anugerah;
   if (!s) return;
-  const pep = s.peperiksaan || an.peperiksaan || KONTEKS.majlis.peperiksaan;
+  /* 🔴 Sama seperti panel admin: darjah sub menentukan peperiksaan,
+     kerana darjah 1-3 dan 4-6 menduduki kertas berbeza. */
+  const pepDarjah = await agPepUntukDarjah(KONTEKS.majlis, agDarjahSub(s));
+  const pep = s.peperiksaan || an.peperiksaan || pepDarjah || KONTEKS.majlis.peperiksaan;
   if (!pep) { agToast('Admin belum menetapkan jenis peperiksaan majlis', 'ralat'); return; }
 
   $('hasil').innerHTML = '<div class="kad-isi"><p class="hint">Mengira dari markah ESIS\u2026</p></div>';

@@ -491,6 +491,29 @@ Peraturannya: **setiap token mesti hadir, urutan tidak penting.** Taip lebih ban
 
 Disahkan 21 Okt 2026: oracle 2,022 kes (termasuk 2,000 rentetan rawak — tiada hempas pada nilai null/pelik), dan melalui UI sebenar: `layth saleh`, `saleh layth`, KP penuh dan KP bertanda semuanya 0 → 1.
 
+#### Satu majlis, dua nama peperiksaan (ikut darjah)
+
+Sekolah ini menduduki **UJIAN AKHIR SEMESTER (UASA)** bagi darjah 4–6 dan **PENTAKSIRAN AKHIR TAHUN** bagi darjah 1–3. Satu medan `MAJLIS.peperiksaan` tidak dapat membawa kedua-duanya — kesannya **21 sub darjah 1–3** mengira UASA yang muridnya tidak pernah duduki, dan senarai calon keluar kosong tanpa sebarang mesej yang menerangkannya.
+
+**`examTypes` SUDAH menyimpan `darjah[]`** (UASA = `[4,5,6]`, PENTAKSIRAN = `[1,2,3]`), jadi admin tidak perlu memberitahu sistem apa yang ia sudah tahu. `agPepUntukDarjah(majlis, darjah)` membaca medan itu; `MAJLIS.pepDarjah{}` hanya menyimpan pilihan admin apabila dia **menimpa** tekaan automatik.
+
+Keutamaan penuh, tertinggi menang:
+
+```
+sub.peperiksaan  >  anugerah.peperiksaan  >  MAJLIS.pepDarjah[n]
+                 >  examTypes.darjah      >  MAJLIS.peperiksaan
+```
+
+**Peperiksaan `aktif:false` tidak pernah dipilih automatik** — sekolah ini ada tiga peperiksaan tidak aktif bagi darjah 4–6 (UPSA, MATRIKS PRISMA, dan satu "UASA" pendua). Antara yang aktif, peperiksaan majlis menang bila ia sendiri meliputi darjah itu (admin memilihnya dengan sengaja); jika tidak, yang terakhir mengikut `order`.
+
+**Skop bukan-darjah jatuh ke `MAJLIS.peperiksaan`.** `agDarjahSub()` memulangkan 0 untuk skop `sekolah` dan `tahap` kerana ia merentasi beberapa darjah — tiada satu kertas yang betul untuk dipilih.
+
+Admin melihat dan menimpa peta itu dalam **⚙️ Majlis → Peperiksaan mengikut darjah**: enam baris, setiap satu memaparkan nama yang akan digunakan (`auto: PENTAKSIRAN AKHIR TAHUN`) atau `ditetapkan admin`. Pendengar `change` duduk pada **bekas**, bukan setiap `<select>` — baris dilukis semula setiap kali dan pendengar per-elemen akan berhimpun.
+
+Nota dalam modal anugerah menyenaraikan darjah sebenar sub anugerah itu (`D1: PENTAKSIRAN AKHIR TAHUN · D6: UASA`) supaya admin tidak perlu membuka tab lain untuk menyemaknya.
+
+Disahkan 21 Okt 2026: oracle 22 kes terhadap `examTypes` sebenar sekolah — darjah 1–3 → PENTAKSIRAN, 4–6 → UASA, timpa admin menang, peperiksaan tidak aktif dilangkau, skop sekolah/tahap jatuh ke lalai majlis.
+
 #### Borang aras-DARJAH (kumpulan kelas)
 
 Kunci `borangGuru` ada **tiga** bentuk, semuanya dalam satu peta:

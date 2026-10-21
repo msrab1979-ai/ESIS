@@ -284,6 +284,14 @@
             <div class="medan"><label for="m-tahun">Tahun kalendar</label><select id="m-tahun"></select></div>
             <div class="medan" style="flex:1 1 230px"><label for="m-pep">Jenis peperiksaan</label><select id="m-pep"></select></div>
           </div>
+          <div id="pep-darjah-kotak" style="margin-top:13px">
+            <label class="eyebrow" style="display:block;margin-bottom:6px">
+              Peperiksaan mengikut darjah</label>
+            <div id="pep-darjah-senarai"><p class="hint">Memuatkan…</p></div>
+            <p class="hint" style="margin:7px 0 0">Darjah 1–3 dan 4–6 selalunya menduduki
+            kertas berbeza. Sistem membaca <strong>darjah</strong> yang ditetapkan pada setiap
+            jenis peperiksaan dalam ESIS — tukar di sini hanya jika tekaan itu salah.</p>
+          </div>
           <p class="eyebrow" style="margin:17px 0 9px">Keselamatan</p>
           <div class="baris-input">
             <div class="medan">
@@ -957,7 +965,57 @@ async function isiDropdownPep() {
     console.error(e);
     sel.innerHTML = '<option value="">(gagal memuat)</option>';
   }
+  lukisPepDarjah();
 }
+
+/* Peta peperiksaan per-darjah: baris SATU..ENAM dengan dropdown setiap
+   satu. Nilai kosong = ikut tekaan automatik daripada examTypes.darjah,
+   dan baris itu memaparkan nama yang akan digunakan supaya admin boleh
+   menyemaknya tanpa membuka mana-mana anugerah. */
+const AG_DARJAH_KATA = ['SATU','DUA','TIGA','EMPAT','LIMA','ENAM'];
+
+async function lukisPepDarjah() {
+  const bekas = $('pep-darjah-senarai');
+  if (!bekas || !MAJLIS) return;
+  const tahun = parseInt($('m-tahun').value) || MAJLIS.calYear;
+  let senarai = [];
+  try { senarai = await agJenisPeperiksaan(tahun); } catch (e) {}
+  if (!bekas.isConnected) return;
+
+  const pilihan = n => '<option value="">(auto)</option>' +
+    senarai.map(e => '<option value="' + agEsc(e.nama) + '"' +
+      (((MAJLIS.pepDarjah || {})[n] === e.nama) ? ' selected' : '') + '>' +
+      agEsc(e.nama) + '</option>').join('');
+
+  const baris = await Promise.all(AG_DARJAH_KATA.map(async (kata, i) => {
+    const n = i + 1;
+    const auto = await agPepUntukDarjah(
+      Object.assign({}, MAJLIS, { pepDarjah: null }), n);
+    const timpa = (MAJLIS.pepDarjah || {})[n];
+    return '<div class="baris-input" style="align-items:center;margin-bottom:6px">' +
+      '<span class="kecil" style="width:74px;flex:none">Darjah ' + n + '</span>' +
+      '<select data-pepd="' + n + '" style="flex:1 1 200px">' + pilihan(n) + '</select>' +
+      '<span class="kecil" style="flex:1 1 170px;color:var(--neutral)">' +
+        (timpa ? 'ditetapkan admin'
+               : auto ? 'auto: ' + agEsc(auto)
+               : '<span style="color:#b3261e">tiada peperiksaan untuk darjah ini</span>') +
+      '</span></div>';
+  }));
+  if (!bekas.isConnected) return;
+  bekas.innerHTML = baris.join('');
+}
+
+/* 🔴 Pendengar pada BEKAS, bukan setiap select — baris dilukis semula
+   setiap kali dan pendengar per-elemen akan berhimpun. */
+$('pep-darjah-senarai').addEventListener('change', e => {
+  const sel = e.target.closest('select[data-pepd]');
+  if (!sel || !MAJLIS) return;
+  MAJLIS.pepDarjah = MAJLIS.pepDarjah || {};
+  if (sel.value) MAJLIS.pepDarjah[sel.dataset.pepd] = sel.value;
+  else delete MAJLIS.pepDarjah[sel.dataset.pepd];
+  lukisPepDarjah();
+  agToast('Tekan 💾 Simpan Majlis untuk mengesahkan');
+});
 
 function isiBorangMajlis() {
   $('m-nama').value = MAJLIS.nama || '';
@@ -973,7 +1031,7 @@ $('b-majlis-baru').addEventListener('click', async () => {
   MAJLIS = {
     id: 'majlis_' + tahun + '_' + Date.now().toString(36),
     nama: 'Majlis Anugerah Kecemerlangan ' + tahun,
-    tarikh: '', sekolah: '', calYear: tahun, peperiksaan: '',
+    tarikh: '', sekolah: '', calYear: tahun, peperiksaan: '', pepDarjah: {},
     pw: AG_PW_LALAI, anugerah: [],
     modPetugas: {
       kodPeserta: agKodBaru(), kodMC: agKodBaru(),
@@ -1001,6 +1059,7 @@ $('b-simpan-majlis').addEventListener('click', async () => {
   MAJLIS.sekolah = $('m-sekolah').value.trim();
   MAJLIS.calYear = parseInt($('m-tahun').value);
   MAJLIS.peperiksaan = $('m-pep').value;
+  MAJLIS.pepDarjah = MAJLIS.pepDarjah || {};
   MAJLIS.pw = $('m-pw').value.trim() || MAJLIS.pw || AG_PW_LALAI;
   MAJLIS.modPetugas = MAJLIS.modPetugas || {
     kodPeserta: agKodBaru(), kodMC: agKodBaru(),
@@ -1724,14 +1783,31 @@ function modalAnugerah(idx) {
     if (mod === 'majlis') {
       const pm = (MAJLIS && MAJLIS.peperiksaan) || '';
       el.innerHTML = (pm
-        ? 'Mengira markah <strong>' + agEsc(pm) + '</strong> tahun <strong>' +
-          agEsc((MAJLIS && MAJLIS.calYear) || '') + '</strong>, ditetapkan dalam tab ' +
-          '<strong>⚙️ Majlis</strong> → Jenis peperiksaan. Menukarnya di sana menukar ' +
-          'setiap anugerah yang ikut majlis.'
+        ? 'Peperiksaan dipilih <strong>mengikut darjah setiap sub</strong> ' +
+          '(tahun ' + agEsc((MAJLIS && MAJLIS.calYear) || '') + '). Lalai majlis ialah ' +
+          '<strong>' + agEsc(pm) + '</strong>; darjah yang menduduki kertas lain ' +
+          'mengambil kertasnya sendiri. Lihat tab <strong>⚙️ Majlis</strong> → ' +
+          'Peperiksaan mengikut darjah.'
         : '<span style="color:#b3261e">⚠ Majlis belum ada jenis peperiksaan. ' +
           'Tetapkannya dalam tab ⚙️ Majlis, atau pilih "Tunggal" di sini — tanpa ' +
           'salah satu, cadangan calon akan gagal.</span>'
       ) + amaranSub;
+
+      /* Senarai sebenar per-darjah, dikira untuk sub anugerah INI sahaja —
+         admin tidak patut perlu membuka tab lain untuk menyemaknya. */
+      const darjahAda = [];
+      (a.sub || []).forEach(x => {
+        const n = agDarjahSub(x);
+        if (n && darjahAda.indexOf(n) < 0) darjahAda.push(n);
+      });
+      if (darjahAda.length) {
+        Promise.all(darjahAda.sort((x, y) => x - y)
+          .map(n => agPepUntukDarjah(MAJLIS, n).then(p => 'D' + n + ': ' + (p || '—'))))
+          .then(baris => {
+            if (!el.isConnected) return;
+            el.innerHTML += '<br><span class="kecil">' + agEsc(baris.join('  ·  ')) + '</span>';
+          });
+      }
       return;
     }
     const pp = bacaPepAnugerah();
@@ -2098,12 +2174,21 @@ function pmLukisSediaAda() {
 
 async function pmCadang(paksa) {
   const { an, s } = PM;
-  if (!MAJLIS.peperiksaan) { agToast('Pilih jenis peperiksaan dalam tab Majlis dahulu', 'ralat'); return; }
+  /* 🔴 Peperiksaan dipilih mengikut DARJAH sub ini, bukan satu nilai
+     majlis: darjah 1-3 menduduki PENTAKSIRAN AKHIR TAHUN sementara 4-6
+     menduduki UASA. Tanpa ini, 21 sub tahap 1 mengira peperiksaan yang
+     muridnya tidak pernah duduki dan senarai calon keluar kosong. */
+  const pepDarjah = await agPepUntukDarjah(MAJLIS, agDarjahSub(s));
+  const pepDipakai = s.peperiksaan || an.peperiksaan || pepDarjah || MAJLIS.peperiksaan;
+  if (!pepDipakai) {
+    agToast('Pilih jenis peperiksaan dalam tab Majlis dahulu', 'ralat'); return;
+  }
+  PM.pepDipakai = pepDipakai;
   memuat($('pm-isi'), 'Mengira dari markah ESIS…');
   try {
     PM.hasil = await agKiraCalon({
       calYear: MAJLIS.calYear,
-      peperiksaan: s.peperiksaan || an.peperiksaan || MAJLIS.peperiksaan,
+      peperiksaan: pepDipakai,
       asas: s.asas || an.asas || 'gps',
       subjek: s.subjek || an.subjek,
       skopJenis: s.skopJenis, skopNilai: s.skopNilai, skopDarjah: s.skopDarjah,
@@ -2125,7 +2210,8 @@ function pmLukisCalon() {
   if (!senarai.length) {
     $('pm-isi').innerHTML = '<div class="nota amaran"><span class="sym">⚠</span><div>' +
       '<strong>Tiada murid dengan markah.</strong> ' + jumMurid + ' murid dalam skop ini, ' +
-      'tetapi tiada seorang pun ada markah ' + agEsc(MAJLIS.peperiksaan) + '.</div></div>';
+      'tetapi tiada seorang pun ada markah ' +
+      agEsc(PM.pepDipakai || MAJLIS.peperiksaan) + '.</div></div>';
     return;
   }
 
@@ -2205,7 +2291,7 @@ function pmLukisCalon() {
     (tiadaTeras ? '<div class="nota" style="margin-top:9px"><span class="sym">▸</span><div>' +
         tiadaTeras + ' murid tiada markah subjek teras — dikeluarkan dari senarai.</div></div>' : '') +
     (tiadaMarkah ? '<div class="nota" style="margin-top:9px"><span class="sym">▸</span><div>' +
-        tiadaMarkah + ' murid tiada markah ' + agEsc(MAJLIS.peperiksaan) +
+        tiadaMarkah + ' murid tiada markah ' + agEsc(PM.pepDipakai || MAJLIS.peperiksaan) +
         '.</div></div>' : '') +
     '<div class="baris-input" style="margin-top:13px; align-items:center">' +
       '<button class="btn emas" id="pm-simpan">💾 Simpan Calon Ditanda</button>' +
