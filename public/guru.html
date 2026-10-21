@@ -235,6 +235,12 @@ async function muatSemua() {
     isiKelas();
     lukis();
     lukisPilih();
+    /* 🔴 Calon ditunjukkan TERUS, tanpa menunggu guru menekan butang.
+       Panel admin membuka modal Pilih Murid terus pada senarai
+       berperingkat; borang guru yang membuka pada senarai nama mentah
+       kelihatan seperti ia gagal memuat markah. Butang ikut-sedia-ada
+       menjadi "Senarai Penuh" untuk kembali. */
+    if (bolehCadang()) guruCadang(false);
   } catch (e) {
     $('hasil').innerHTML = '<div class="kad-isi"><div class="nota ralat"><span class="sym">✕</span>' +
       '<div>Gagal memuat: ' + agEsc(e.message) + '</div></div></div>';
@@ -332,8 +338,12 @@ function isiKelas() {
 }
 
 $('f-sub').addEventListener('change', () => {
+  const adaCalon = !!CALON;
   CALON = null;                 // calon sub lama tidak sah untuk sub baharu
   isiDarjah(); isiKelas(); lukis(); lukisPilih();
+  /* Kekalkan mod yang guru sedang gunakan: dia memilih sub seterusnya,
+     bukan meminta paparan berbeza. */
+  if (adaCalon && bolehCadang()) guruCadang(false);
 });
 $('f-darjah').addEventListener('change', () => { isiKelas(); lukis(); });
 $('f-kelas').addEventListener('change', lukis);
