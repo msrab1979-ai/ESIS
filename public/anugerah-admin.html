@@ -1344,7 +1344,17 @@ function pilStatusBorang(b) {
 
     let barisSub;
     if (!sub.length) {
-      barisSub = '<li><span class="hint">Belum ada sub-anugerah. Tekan ➕ Sub.</span></li>';
+      /* 🔴 Anugerah tanpa sub tidak boleh memegang seorang pun murid:
+         penerima disimpan pada `subId`. Daripada memberitahu admin
+         "tekan ➕ Sub" \u2014 satu langkah yang dia tidak faham sebabnya \u2014
+         butang ini mencipta sub itu sendiri dan terus membuka modal
+         Pilih Murid. Anugerah lama (dicipta sebelum sub automatik)
+         dibaiki pada klik pertama. */
+      barisSub = '<li><span class="hint">Anugerah ini belum ada senarai murid.</span>' +
+        '<span class="kanan">' +
+          '<button class="btn emas kecil" data-sub-auto="' + i + '">👤 Pilih Murid</button>' +
+          '<button class="btn sunyi kecil" data-sub-baru="' + i + '">➕ Sub berasingan</button>' +
+        '</span></li>';
     } else if (semuaSubjek) {
       const ikutSubjek = {};
       sub.forEach((sb, j) => {
@@ -1438,7 +1448,7 @@ $('pokok-anugerah').addEventListener('click', e => {
   const b = e.target.closest('button[data-an-edit],button[data-an-buang],button[data-sub-baru],' +
     'button[data-sub-edit],button[data-sub-buang],button[data-sub-pilih],' +
     'button[data-sub-borang],button[data-sub-reset],button[data-an-reset],' +
-    'button[data-pecah],' +
+    'button[data-pecah],button[data-sub-auto],' +
     'button[data-dj-borang],button[data-dj-reset],' +
     'button[data-borang],.induk[data-togol],.kump-kepala[data-togol-kump]');
   if (!b) return;
@@ -1449,6 +1459,7 @@ $('pokok-anugerah').addEventListener('click', e => {
   if (d.subReset) { const [i, j] = d.subReset.split(',').map(Number); return resetSub(i, j); }
   if (d.anReset !== undefined) return resetAnugerah(parseInt(d.anReset));
   if (d.pecah !== undefined) return pecahIkutDarjah(parseInt(d.pecah));
+  if (d.subAuto !== undefined) return subAutoLaluPilih(parseInt(d.subAuto));
   if (d.djBorang) { const [i, w] = pecahDj(d.djBorang); return modalBorangGuru(i, null, w); }
   if (d.djReset) { const [i, w] = pecahDj(d.djReset); return resetDarjah(i, w); }
   if (d.togolKump) {                   // kumpulan darjah ditekan
@@ -3718,6 +3729,27 @@ $('b-t-kosong').addEventListener('click', () => {
   lukisTiket();
 });
 $('b-cetak-tiket').addEventListener('click', () => window.print());
+
+/* Cipta satu sub berskop sekolah dengan nama anugerah, kemudian terus
+   buka modal Pilih Murid. Untuk anugerah yang memang hanya mahu satu
+   senarai, admin tidak sepatutnya perlu tahu sub itu wujud. */
+async function subAutoLaluPilih(iAn) {
+  const a = (MAJLIS.anugerah || [])[iAn];
+  if (!a) return;
+  if (!(a.sub || []).length) {
+    a.sub = [{
+      id: 'sub_' + Date.now().toString(36),
+      nama: a.nama,
+      skopJenis: 'sekolah', skopNilai: '',
+      ambil: 1, paparSemua: a.sumber !== 'manual'
+    }];
+    try { await simpanMajlis(); }
+    catch (e) { agToast('Gagal: ' + e.message, 'ralat'); return; }
+    POKOK_BUKA[a.id] = true;
+    lukisPokok(); kemasSari();
+  }
+  modalPilihMurid(iAn, 0);
+}
 
 /* 🔴 Memecah sub berskop TAHAP kepada satu sub bagi setiap DARJAH
    dalam tahap itu: BAHASA MELAYU (tahap 2) menjadi tiga sub
