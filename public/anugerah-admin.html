@@ -2352,6 +2352,108 @@ function pmSudahAda() {
   return PENERIMA.filter(p => (p.anugerah || []).some(x => x.subId === PM.s.id));
 }
 
+/* ── Label "dah dapat N anugerah" ────────────────────────────────────
+   Admin memilih calon satu sub pada satu masa, jadi tanpa label ini
+   dia tidak dapat melihat bahawa murid di hadapannya sudah memenangi
+   tiga anugerah lain. Keputusan "beri juga kepadanya atau beri kepada
+   orang kedua" ialah keputusan sekolah — tetapi ia tidak boleh dibuat
+   atas maklumat yang tidak kelihatan.
+
+   🔴 Sub yang sedang DIBUKA dikecualikan. Label berbunyi "sudah dapat
+   di tempat LAIN"; memasukkan sub ini bermakna nombor bertukar sebaik
+   admin menanda kotak, dan label menjadi gema tandaannya sendiri,
+   bukan maklumat baharu. Lajur Status sudah menunjukkan "Dipilih".   */
+function pmPetaLain() {
+  const peta = {};
+  PENERIMA.forEach(p => {
+    const lain = (p.anugerah || []).filter(x => x.subId !== PM.s.id);
+    if (lain.length) peta[p.no_kp] = lain;
+  });
+  return peta;
+}
+
+/* Satu pil merah, atau rentetan kosong bila murid belum ada apa-apa.
+   Butang (bukan <span>) kerana ia boleh diklik — pembaca skrin dan
+   papan kekunci mendapat ini secara percuma. Senarai penuh dibawa
+   dalam `title` supaya hover berfungsi walaupun tanpa klik. */
+function pmPilLain(senarai) {
+  if (!senarai || !senarai.length) return '';
+  const tajuk = senarai.map(x => x.sub).join(' \u00b7 ');
+
+  /* 🔴 Label SENTIASA "N anugerah", termasuk N=1. Label ialah BENDERA
+     \u2014 kerjanya memberitahu admin "berhenti, murid ini sudah ada" dan
+     ia mesti kelihatan sama pada setiap baris supaya mata menangkapnya
+     semasa mengimbas 183 nama. Memapar nama anugerah pada N=1 sahaja
+     menjadikan sesetengah bendera merah panjang dan sesetengah pendek,
+     jadi corak itu hilang.
+     JENIS anugerah ialah kerja popover, bukan kerja label. */
+  return '<button type="button" class="pil-lain" data-pm-lain="1" ' +
+    'title="' + agEsc(tajuk) + '">' + senarai.length + ' anugerah</button>';
+}
+
+/* Popover, BUKAN bukaModal() — bukaModal menulis ganti #bekas-modal
+   sepenuhnya, jadi modal bersarang akan memusnahkan modal Pilih Murid
+   dan admin kehilangan setiap kotak yang sudah ditandanya. */
+function pmTunjukLain(btn, nama, senarai) {
+  document.querySelectorAll('.pop-lain').forEach(x => x.remove());
+  const pop = document.createElement('div');
+  pop.className = 'pop-lain';
+  /* Dua baris setiap entri: SUB tebal (nama yang muncul pada tiket dan
+     slaid) di atas, ANUGERAH induk kecil di bawah. Admin mengenali
+     "KAFA" daripada salah satu, bergantung bagaimana majlis disusun \u2014
+     memapar satu sahaja bermakna sebahagian admin melihat teks yang
+     tidak bermakna kepada mereka. */
+  pop.innerHTML =
+    '<div class="pop-kepala"><span>' + agEsc(nama) + '</span>' +
+      '<button type="button" class="pop-x" aria-label="Tutup">\u00d7</button></div>' +
+    '<div class="pop-kira">Sudah menerima <strong>' + senarai.length +
+      '</strong> anugerah lain dalam majlis ini</div>' +
+    '<div class="pop-isi">' + senarai.map((x, i) =>
+      '<div class="pop-baris"><span class="pop-no">' + (i + 1) + '</span>' +
+      '<div><strong>' + agEsc(x.sub) + '</strong>' +
+      (x.anugerah && x.anugerah !== x.sub
+        ? '<span>' + agEsc(x.anugerah) + '</span>' : '') +
+      '</div></div>').join('') +
+    '</div>';
+  document.body.appendChild(pop);
+
+  const r = btn.getBoundingClientRect();
+  const lebar = pop.offsetWidth, tinggi = pop.offsetHeight;
+  /* Jadual calon menatal dalam ruang 340px dan modal berada di tengah
+     skrin — popover yang dipaksa ke bawah/kanan keluar dari viewport
+     bagi baris terakhir. Jadi ia berbalik ke atas/kiri bila sempit. */
+  let atas = r.bottom + 6;
+  if (atas + tinggi > window.innerHeight - 8) atas = Math.max(8, r.top - tinggi - 6);
+  let kiri = r.left;
+  if (kiri + lebar > window.innerWidth - 8) kiri = Math.max(8, window.innerWidth - lebar - 8);
+  pop.style.top = atas + 'px';
+  pop.style.left = kiri + 'px';
+
+  pop.querySelector('.pop-x').onclick = () => pop.remove();
+}
+
+/* Satu pendengar peringkat dokumen, dipasang sekali. Jadual calon dan
+   jadual manual dilukis semula berkali-kali; pendengar per-butang akan
+   berhimpun dan satu klik membuka beberapa popover. */
+if (!window._pmLainPasang) {
+  window._pmLainPasang = true;
+  document.addEventListener('click', e => {
+    const b = e.target.closest('button[data-pm-lain]');
+    if (b) {
+      e.preventDefault(); e.stopPropagation();
+      const tr = b.closest('tr');
+      const cb = tr && tr.querySelector('input[data-pm-kp],input[data-pm-mkp]');
+      const kp = cb ? (cb.dataset.pmKp || cb.dataset.pmMkp) : '';
+      const p = PENERIMA.find(x => x.no_kp === kp);
+      if (p) pmTunjukLain(b, p.nama, (p.anugerah || []).filter(x => x.subId !== PM.s.id));
+      return;
+    }
+    if (!e.target.closest('.pop-lain')) {
+      document.querySelectorAll('.pop-lain').forEach(x => x.remove());
+    }
+  });
+}
+
 function pmLukisSediaAda() {
   const ada = pmSudahAda();
   $('pm-isi').innerHTML = ada.length
@@ -2415,6 +2517,7 @@ function pmLukisCalon() {
   const asas = s.asas || an.asas;
   const banyakPep = Array.isArray(senaraiPep) && senaraiPep.length > 1;
   const sudah = new Set(pmSudahAda().map(p => p.no_kp));
+  const lain = pmPetaLain();
   /* `paparSemua` pada sub-anugerah bermakna guru melihat KESELURUHAN
      kelas, bukan hanya calon teratas — ranking masih dikira dan
      dipaparkan, tetapi memilih dalam kalangan tiga puluh orang yang
@@ -2438,7 +2541,8 @@ function pmLukisCalon() {
       '<td><input type="checkbox" data-pm-kp="' + agEsc(h.no_kp) + '"' +
         (PM.tanda.has(h.no_kp) ? ' checked' : '') + '></td>' +
       '<td class="num">' + h.kedudukan + '</td>' +
-      '<td class="nama-murid lajur-teks">' + agEsc(h.nama) + '</td>' +
+      '<td class="nama-murid lajur-teks">' + agEsc(h.nama) +
+        pmPilLain(lain[h.no_kp]) + '</td>' +
       '<td>' + agEsc(agDarjahKelas(h.tahun, h.kelas)) + '</td>' +
       (banyakPep ? senaraiPep.map(np => '<td class="num">' +
         (h.markahPep && h.markahPep[np] != null ? h.markahPep[np] : '—') + '</td>').join('') : '') +
@@ -2663,13 +2767,15 @@ async function pmLukisManual() {
   function lukis() {
     const senarai = senaraiMurid();
     const ada = sudah();
+    const lain = pmPetaLain();
     $('pm-senarai').innerHTML = senarai.length
       ? '<div class="gulung" style="max-height:290px;overflow:auto"><table><tbody>' +
         senarai.map(m => {
           const sudahAda = ada.has(m.no_kp);
           return '<tr><td style="width:34px"><input type="checkbox" data-pm-mkp="' + agEsc(m.no_kp) + '"' +
             (sudahAda ? ' checked disabled' : (PM.tandaM.has(m.no_kp) ? ' checked' : '')) + '></td>' +
-            '<td class="nama-murid lajur-teks">' + agEsc(m.nama) + '</td>' +
+            '<td class="nama-murid lajur-teks">' + agEsc(m.nama) +
+              pmPilLain(lain[m.no_kp]) + '</td>' +
             '<td>' + agEsc(m.kelas) + '</td>' +
             '<td>' + (sudahAda ? '<span class="pil hadir">Sudah ada</span>'
                      : PM.tandaM.has(m.no_kp) ? '<span class="pil emas">Akan ditambah</span>' : '') +

@@ -477,6 +477,26 @@ Sebabnya: `ANUGERAH TERBAIK DALAM KELAS` ada 38 sub (satu per kelas). Satu boran
 
 Borang aras-sub mengunci dropdown Sub-anugerah (`disabled`, bukan disembunyikan — kawalan yang hilang menimbulkan soalan, kawalan yang mati menjawabnya), dan tajuk memapar nama **sub**, bukan nama anugerah.
 
+#### Label "dah dapat N anugerah" (modal Pilih Murid)
+
+Admin memilih calon **satu sub pada satu masa**, jadi tanpa label ini dia tidak dapat melihat bahawa murid di hadapannya sudah memenangi tiga anugerah lain. Keputusan "beri juga kepadanya atau beri kepada orang kedua" ialah keputusan sekolah — tetapi ia tidak boleh dibuat atas maklumat yang tidak kelihatan.
+
+Pil merah **⚠ N anugerah ▾** di sebelah nama, dalam kedua-dua jadual modal (calon automatik dan tambah manual). Klik → popover menyenaraikan sub + anugerah induk setiap satu. Fungsi `pmPetaLain()` / `pmPilLain()` / `pmTunjukLain()`.
+
+**Sub yang sedang DIBUKA dikecualikan daripada kiraan.** Label bermaksud "sudah dapat di tempat **lain**"; memasukkan sub ini bermakna nombor bertukar sebaik admin menanda kotak, dan label menjadi gema tandaannya sendiri, bukan maklumat baharu. Lajur Status sudah menunjukkan "Dipilih" untuk itu.
+
+**Label SENTIASA "N anugerah", termasuk N=1 — jangan tukar kepada nama anugerah.** Pernah dicuba: pada N=1 nama anugerah dipapar terus ("MURID CEMERLANG KAFA 2025"). Ia nampak lebih bermaklumat tetapi memecahkan kerja sebenar label itu. Label ialah **bendera**: mata mengimbas 183 baris dan menangkap yang merah tanpa membaca. Bendera yang panjang pada sesetengah baris dan pendek pada yang lain memaksa admin **membaca** setiap satu. Jenis anugerah ialah kerja popover.
+
+**`z-index` MESTI mengatasi `.lapis` (200, dalam `<style>` inline `anugerah-admin.html`).** Pada 120 popover terbina dengan kedudukan dan saiz yang betul, `visibility:visible`, tiada ralat konsol — tetapi dilukis **di belakang lapisan gelap modal**. Gejalanya: klik nampak seperti tidak berfungsi langsung. Kini 260. Sahkan dengan `elementFromPoint`, bukan dengan melihat nilai `z-index` sahaja.
+
+**Popover, BUKAN `bukaModal()`.** `bukaModal` menulis ganti `#bekas-modal` sepenuhnya, jadi modal bersarang memusnahkan modal Pilih Murid dan admin kehilangan setiap kotak yang sudah ditandanya. Popover duduk pada `document.body` dan berbalik ke atas/kiri bila dekat tepi skrin (jadual calon menatal dalam 340px, modal di tengah skrin).
+
+**Satu pendengar klik peringkat dokumen**, dijaga `window._pmLainPasang`. Jadual dilukis semula pada setiap taip dalam kotak carian — pendengar per-butang akan berhimpun dan satu klik membuka beberapa popover.
+
+Baris popover tidak mengulang nama bila `sub === anugerah` (contoh `KEHADIRAN PENUH`). `title` butang sentiasa membawa senarai penuh, jadi hover berfungsi tanpa klik.
+
+Disahkan 22 Okt 2026: oracle 10,562 kes (`pmPetaLain` berbanding pelaksana bebas, termasuk sifat "sub semasa tidak pernah bocor" dan "murid tanpa anugerah lain tidak hadir dalam peta") — 0 beza; 10 kes label termasuk escaping; dan melalui UI sebenar dengan `.lapis` z-index:200 di tempatnya.
+
 #### Carian nama — token, bukan substring
 
 `agPecahCarian(q)` + `agPadanCarian(c, nama, noKP)` dalam `anugerah-kongsi.js`. Ketiga-tiga kotak carian modul ini memakainya: **Semak Penerima** (`sk-cari`), **modal Pilih Murid** (`pm-cari`), dan **borang guru** (`f-cari`).
