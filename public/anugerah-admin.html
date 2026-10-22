@@ -2572,14 +2572,25 @@ async function pmSimpanCalon() {
 async function pmLukisManual() {
   const petaKelas = await agKelasIkutDarjah();
   const darjahAda = Object.keys(petaKelas).sort((a, b) => agWordDarjah(a) - agWordDarjah(b));
+  /* Sub berskop darjah bermula pada darjahnya; skop sekolah/tahap
+     bermula pada "semua darjah" supaya carian meliputi semua murid. */
   const mula = PM.s.skopJenis === 'darjah' && petaKelas[String(PM.s.skopNilai || '').toUpperCase()]
-    ? String(PM.s.skopNilai).toUpperCase() : darjahAda[0];
+    ? String(PM.s.skopNilai).toUpperCase()
+    : (PM.s.skopJenis === 'darjah' ? darjahAda[0] : '');
 
   PM.tandaM = new Set();
 
   $('pm-isi').innerHTML =
     '<div class="baris-input">' +
       '<div class="medan"><label for="pm-darjah">Darjah</label><select id="pm-darjah">' +
+        /* 🔴 Anugerah berskop SEKOLAH (contoh Kebitaraan Antarabangsa)
+           boleh memenangi murid dari mana-mana darjah. Tanpa pilihan ini
+           admin terpaksa memilih satu darjah dahulu dan tidak dapat
+           mencari merentas sekolah \u2014 carian nama menjadi tidak berguna
+           kerana ia hanya menapis dalam darjah yang dipilih. */
+        (PM.s.skopJenis === 'darjah' ? ''
+          : '<option value=""' + (mula === '' ? ' selected' : '') +
+            '>\u2014 semua darjah \u2014</option>') +
         darjahAda.map(w => '<option value="' + w + '"' + (w === mula ? ' selected' : '') +
           '>Darjah ' + agWordDarjah(w) + '</option>').join('') + '</select></div>' +
       '<div class="medan"><label for="pm-kelas">Kelas</label><select id="pm-kelas"></select></div>' +
@@ -2600,15 +2611,23 @@ async function pmLukisManual() {
 
   function isiKelas() {
     const w = $('pm-darjah').value;
-    $('pm-kelas').innerHTML = '<option value="">— semua kelas —</option>' +
-      (petaKelas[w] || []).map(k => '<option value="' + agEsc(k) + '">' + agEsc(k) + '</option>').join('');
+    /* 🔴 "Semua darjah" mesti memberi kelas daripada SEMUA darjah,
+       bukan senarai kosong. Nama kelas berulang merentas darjah
+       ("INTEL" wujud di enam darjah), jadi ia dinyahduakan \u2014 memilih
+       INTEL ketika semua darjah dipapar memadankan kesemuanya, yang
+       betul: admin sedang mencari merentas sekolah. */
+    const kelas = w ? (petaKelas[w] || [])
+      : Array.from(new Set(Object.keys(petaKelas)
+          .flatMap(d => petaKelas[d] || []))).sort();
+    $('pm-kelas').innerHTML = '<option value="">\u2014 semua kelas \u2014</option>' +
+      kelas.map(k => '<option value="' + agEsc(k) + '">' + agEsc(k) + '</option>').join('');
   }
 
   function senaraiMurid() {
     const w = $('pm-darjah').value, k = $('pm-kelas').value;
     const c = agPecahCarian($('pm-cari').value);
     return MURID_SEMUA
-      .filter(m => String(m.tahun || '').toUpperCase() === w)
+      .filter(m => !w || String(m.tahun || '').toUpperCase() === w)
       .filter(m => !k || String(m.kelas || '').toUpperCase() === k.toUpperCase())
       .filter(m => agPadanCarian(c, m.nama, m.no_kp))
       .sort((a, b) => String(a.nama).localeCompare(String(b.nama), 'ms'));
@@ -2645,7 +2664,15 @@ async function pmLukisManual() {
   $('pm-cari').oninput = lukis;
   $('pm-semua').onclick = () => {
     const ada = sudah();
-    senaraiMurid().forEach(m => { if (!ada.has(m.no_kp)) PM.tandaM.add(m.no_kp); });
+    const senarai = senaraiMurid();
+    /* 🔴 "Semua darjah" tanpa tapisan bermakna seluruh sekolah \u2014
+       seribu lebih murid. Menandakan kesemuanya hampir tidak pernah
+       dimaksudkan, jadi ia meminta pengesahan dahulu. */
+    if (senarai.length > 60 &&
+        !confirm('Tanda ' + senarai.length + ' murid?\n\n' +
+          'Tapis darjah, kelas atau nama dahulu kalau kau tidak ' +
+          'bermaksud menanda sebanyak ini.')) return;
+    senarai.forEach(m => { if (!ada.has(m.no_kp)) PM.tandaM.add(m.no_kp); });
     lukis();
   };
   $('pm-kosong').onclick = () => { senaraiMurid().forEach(m => PM.tandaM.delete(m.no_kp)); lukis(); };
