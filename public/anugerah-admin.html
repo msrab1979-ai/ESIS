@@ -2570,6 +2570,20 @@ async function pmSimpanCalon() {
 
 /* ---------- bahagian manual dalam modal yang sama ---------- */
 async function pmLukisManual() {
+  /* 🔴 MURID_SEMUA diisi sekali dalam mulaPanel(). Kalau pemuatan itu
+     gagal \u2014 atau modal dibuka melalui laluan yang memintasnya \u2014
+     senarai keluar "Tiada murid padan" tanpa sebab yang dinyatakan,
+     dan admin menyangka anugerah itu rosak. Muat sendiri bila kosong. */
+  if (!MURID_SEMUA || !MURID_SEMUA.length) {
+    memuat($('pm-isi'), 'Memuatkan senarai murid\u2026');
+    try {
+      MURID_SEMUA = await agMuatMurid();
+    } catch (e) {
+      $('pm-isi').innerHTML = '<div class="nota ralat"><span class="sym">\u2715</span><div>' +
+        '<strong>Gagal memuat senarai murid.</strong> ' + agEsc(e.message) + '</div></div>';
+      return;
+    }
+  }
   const petaKelas = await agKelasIkutDarjah();
   const darjahAda = Object.keys(petaKelas).sort((a, b) => agWordDarjah(a) - agWordDarjah(b));
   /* Sub berskop darjah bermula pada darjahnya; skop sekolah/tahap
