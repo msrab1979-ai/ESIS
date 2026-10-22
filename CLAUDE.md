@@ -722,6 +722,18 @@ All agama filters use `isIslam = (agama === 'ISLAM')` and `!isIslam` for "Tidak"
 
 Subject columns are the subjects that actually have marks, ordered by `GLOBAL_DATA.allSubjects` so the layout stays identical between classes. Missing mark renders `—`; **TH renders `TH` in amber, never 0** (same invariant as the TH section above). Calls `ensureMarksLoaded(year)` first — without it, picking a non-current year returns an empty list.
 
+### `GLOBAL_DATA.allMarks` holds ONE year — never read it for a year-filtered view
+
+**`GLOBAL_DATA.allMarks` is not "all marks".** `bacaInitialData` probes the last 6 years and pulls only the **most recent year that has data** (`tahunAdaData.slice(0, 1)`), per the perf fix above. Every other year reaches `marksCache` via `ensureMarksLoaded(year)`, and **newly saved marks land in `marksCache`, not in `allMarks`**.
+
+So any panel with its own year dropdown must read `await ensureMarksLoaded(year)` then `getMarksByYear(year)`. Reading `GLOBAL_DATA.allMarks` and filtering it by year yields **zero records** for every year except the one loaded at startup — and the symptom is not an error, it is a screen that looks like the teacher never entered the marks.
+
+**Fixed 22 Okt 2026 in `loadStatusPengisian` (Guru Kelas › Status Pengisian).** Three reads were on `allMarks`: the subject-column list, the `markahCount` loop, and the darjah fallback. Measured on live data for year 2025: **0 records found before, 7,015 after** (235 cells filled) — the whole table had been solid red ✗ while the marks existed. The per-record year filter inside the counting loop became redundant once the source was year-scoped, and was removed.
+
+**A year-filtered panel also needs its own refresh button.** `ensureMarksLoaded` **returns early when the year is already in `marksCache`**, so a plain re-render shows the same stale counts and the button looks broken. `segarkanStatusPengisian()` does `delete marksCache[year]` **first**, then re-populates the exam dropdown and re-renders. Status Pengisian previously had no refresh control at all, so marks entered by another teacher required a full page reload to appear.
+
+Remaining `allMarks` readers are existence checks (`.some(...)` for "does this exam have any records") and dropdown seeding, which are year-agnostic — those are fine. **Grep `GLOBAL_DATA.allMarks` before adding any year-aware view.**
+
 ### Cache invalidation after writing students (do not regress)
 
 `bacaInitialData()` **without** `forceRefresh` reads the IndexedDB cache. So any write to `students` must be followed by `clearAllCache()` + `bacaInitialData(true)`, or the change is invisible to the user who just made it until the cache expires (24h) or they hit 🔄 Segar Semula.
