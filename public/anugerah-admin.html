@@ -432,7 +432,10 @@
       <span class="sym">▸</span>
       <div><strong>Dinamik sepenuhnya.</strong> Tiada senarai anugerah yang tetap dalam kod —
       kau cipta sendiri. Anugerah akademik boleh cadang calon dari markah; anugerah seperti
-      Kehadiran atau Sahsiah tiada data dalam ESIS, jadi calonnya ditambah manual.</div>
+      Kehadiran atau Sahsiah tiada data dalam ESIS, jadi calonnya ditambah manual.
+      <br><strong>Anugerah baharu terus dapat satu sub</strong> dengan nama yang sama —
+      buka dan tekan <strong>👤 Pilih Murid</strong>. Tambah sub lagi hanya jika anugerah
+      itu perlu dipecah (ikut darjah, kelas atau subjek).</div>
     </div>
     <div class="kad">
       <div class="kad-kepala">
@@ -2146,6 +2149,24 @@ function modalAnugerah(idx) {
     }
 
     MAJLIS.anugerah = MAJLIS.anugerah || [];
+    /* 🔴 Anugerah baharu SENTIASA mendapat satu sub. Penerima disimpan
+       pada `subId` \u2014 giliran, tiket, kad jemputan, slaid dan Semak
+       Penerima semuanya memadankan padanya. Anugerah tanpa sub tidak
+       dapat memegang seorang pun murid dan tidak muncul di mana-mana;
+       admin menyangka ia rosak sedangkan ia cuma tiada tempat simpan.
+
+       Sub itu mengambil NAMA ANUGERAH supaya admin yang hanya mahu
+       "satu anugerah, satu senarai" tidak perlu memikirkan sub langsung
+       \u2014 ia kelihatan seperti satu baris dengan butang Pilih Murid. */
+    if (baru && !(a.sub || []).length) {
+      a.sub = [{
+        id: 'sub_' + Date.now().toString(36),
+        nama: a.nama,
+        skopJenis: 'sekolah', skopNilai: '',
+        ambil: 1, paparSemua: a.sumber === 'manual' ? false : true
+      }];
+    }
+
     if (baru) { a.urutan = MAJLIS.anugerah.length; MAJLIS.anugerah.push(a); }
     else MAJLIS.anugerah[idx] = a;
 
