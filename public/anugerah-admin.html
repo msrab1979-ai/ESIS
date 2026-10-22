@@ -1331,10 +1331,42 @@ function pilStatusBorang(b) {
        dan guru mencari darjahnya dahulu, bukan kelasnya. Kumpulan itu
        sendiri buka/tutup (`POKOK_BUKA[a.id + '|' + darjah]`). */
     const semuaKelas = sub.length && sub.every(x => x.skopJenis === 'kelas' && x.skopDarjah);
+    /* 🔴 Anugerah terbaik mata pelajaran dipecah kepada satu sub bagi
+       setiap SUBJEK x DARJAH (BAHASA MELAYU Tahun 4, 5, 6). Tiga belas
+       subjek x tiga darjah ialah 39 baris rata yang tidak boleh dibaca,
+       jadi ia dikumpul ikut SUBJEK \u2014 sama seperti sub berskop kelas
+       dikumpul ikut darjah. Kumpulan itu sendiri buka/tutup. */
+    const semuaSubjek = sub.length && sub.every(x =>
+      x.skopJenis === 'darjah' && agSubjekSub(x));
 
     let barisSub;
     if (!sub.length) {
       barisSub = '<li><span class="hint">Belum ada sub-anugerah. Tekan ➕ Sub.</span></li>';
+    } else if (semuaSubjek) {
+      const ikutSubjek = {};
+      sub.forEach((sb, j) => {
+        const k = agSubjekSub(sb);
+        (ikutSubjek[k] = ikutSubjek[k] || []).push([sb, j]);
+      });
+      barisSub = Object.keys(ikutSubjek).sort((x, y) => x.localeCompare(y, 'ms'))
+        .map(nama => {
+          const senarai = ikutSubjek[nama];
+          const kunci = a.id + '|sj|' + nama;
+          const bilM = senarai.reduce((n, [sb]) =>
+            n + PENERIMA.filter(p => (p.anugerah || []).some(x => x.subId === sb.id)).length, 0);
+          return '<li class="kump' + (POKOK_BUKA[kunci] ? ' buka' : '') +
+              '" data-kump="' + agEsc(kunci) + '">' +
+            '<div class="kump-kepala" data-togol-kump="' + agEsc(kunci) + '">' +
+              '<span class="anak-panah">\u25b6</span>' +
+              '<span class="nama-sub">' + agEsc(nama) + '</span>' +
+              '<span class="kanan"><span class="kecil">' + senarai.length + ' darjah \u00b7 ' +
+                bilM + ' murid</span></span>' +
+            '</div>' +
+            '<ul class="kump-isi">' + senarai
+              .sort(([x], [y]) => agWordDarjah(x.skopNilai) - agWordDarjah(y.skopNilai))
+              .map(([sb, j]) => lukisSatuSub(sb, j)).join('') +
+            '</ul></li>';
+        }).join('');
     } else if (!semuaKelas) {
       barisSub = sub.map(lukisSatuSub).join('');
     } else {
@@ -1386,6 +1418,10 @@ function pilStatusBorang(b) {
             'title="Buang semua penerima anugerah ini">🧹</button>' : '') +
           '<button class="btn ' + (borang ? 'sunyi' : 'hijau') + ' kecil" data-borang="' + i + '">' +
             (borang ? '🔗 Borang' : '📝 Bina Borang') + '</button>' +
+          (sub.length && sub.every(x => x.skopJenis === 'tahap' && agSubjekSub(x))
+            ? '<button class="btn sunyi kecil" data-pecah="' + i + '" ' +
+              'title="Pecah setiap subjek kepada satu sub per darjah">⚡ Pecah ikut darjah</button>'
+            : '') +
           '<button class="btn sunyi kecil" data-sub-baru="' + i + '">➕ Sub</button>' +
           '<button class="btn sunyi kecil" data-an-edit="' + i + '">Ubah</button>' +
           '<button class="btn sunyi kecil" data-an-buang="' + i + '">Buang</button>' +
@@ -1399,6 +1435,7 @@ $('pokok-anugerah').addEventListener('click', e => {
   const b = e.target.closest('button[data-an-edit],button[data-an-buang],button[data-sub-baru],' +
     'button[data-sub-edit],button[data-sub-buang],button[data-sub-pilih],' +
     'button[data-sub-borang],button[data-sub-reset],button[data-an-reset],' +
+    'button[data-pecah],' +
     'button[data-dj-borang],button[data-dj-reset],' +
     'button[data-borang],.induk[data-togol],.kump-kepala[data-togol-kump]');
   if (!b) return;
@@ -1408,6 +1445,7 @@ $('pokok-anugerah').addEventListener('click', e => {
   if (d.subBorang) { const [i, j] = d.subBorang.split(',').map(Number); return modalBorangGuru(i, j); }
   if (d.subReset) { const [i, j] = d.subReset.split(',').map(Number); return resetSub(i, j); }
   if (d.anReset !== undefined) return resetAnugerah(parseInt(d.anReset));
+  if (d.pecah !== undefined) return pecahIkutDarjah(parseInt(d.pecah));
   if (d.djBorang) { const [i, w] = pecahDj(d.djBorang); return modalBorangGuru(i, null, w); }
   if (d.djReset) { const [i, w] = pecahDj(d.djReset); return resetDarjah(i, w); }
   if (d.togolKump) {                   // kumpulan darjah ditekan
@@ -3618,6 +3656,68 @@ $('b-t-kosong').addEventListener('click', () => {
   lukisTiket();
 });
 $('b-cetak-tiket').addEventListener('click', () => window.print());
+
+/* 🔴 Memecah sub berskop TAHAP kepada satu sub bagi setiap DARJAH
+   dalam tahap itu: BAHASA MELAYU (tahap 2) menjadi tiga sub
+   \u2014 Tahun 4, Tahun 5, Tahun 6.
+
+   🔴 Nama sub membawa subjek PENUH ("BAHASA MELAYU \u2014 TAHUN 4"),
+      bukan "Tahun 4" sahaja. Tiket, slaid, kad jemputan dan CSV
+      memaparkan nama sub tanpa konteks kumpulan pokok; "Tahun 4"
+      berseorangan tidak memberitahu sesiapa anugerah apa itu.
+
+   🔴 `paparSemua:true` \u2014 setiap murid darjah itu dipapar mengikut
+      kedudukan, terbaik di atas, dan admin menandakan sendiri. Itu
+      keputusan sekolah, bukan kiraan: top-1 automatik menjadikan
+      "Simpan" satu gerakan tanpa fikir. */
+async function pecahIkutDarjah(iAn) {
+  const a = (MAJLIS.anugerah || [])[iAn];
+  if (!a) return;
+  const sub = a.sub || [];
+  if (!sub.length || !sub.every(x => x.skopJenis === 'tahap' && agSubjekSub(x))) {
+    agToast('Hanya sub berskop Tahap boleh dipecah', 'ralat'); return;
+  }
+
+  /* Tahap 1 = darjah 1,2,3 \u00b7 Tahap 2 = darjah 4,5,6 */
+  const KATA = ['SATU', 'DUA', 'TIGA', 'EMPAT', 'LIMA', 'ENAM'];
+  const darjahUtk = t => Number(t) === 1 ? [1, 2, 3] : [4, 5, 6];
+
+  const adaPenerima = PENERIMA.filter(p =>
+    (p.anugerah || []).some(x => x.anugerahId === a.id)).length;
+
+  const baru = [];
+  sub.forEach(sb => {
+    darjahUtk(sb.skopNilai).forEach(n => {
+      baru.push(Object.assign({}, sb, {
+        id: 'sub_' + Date.now().toString(36) + '_' + baru.length,
+        nama: agSubjekSub(sb) + ' \u2014 TAHUN ' + n,
+        skopJenis: 'darjah',
+        skopNilai: KATA[n - 1],
+        skopDarjah: KATA[n - 1],
+        paparSemua: true
+      }));
+    });
+  });
+
+  const taip = prompt('Pecah ' + sub.length + ' subjek kepada ' + baru.length +
+    ' sub (satu per darjah)?\n\n' +
+    'Contoh: ' + agSubjekSub(sub[0]) + ' \u2192 TAHUN ' +
+      darjahUtk(sub[0].skopNilai).join(', TAHUN ') + '\n\n' +
+    (adaPenerima
+      ? '\u26a0 ' + adaPenerima + ' penerima sedia ada akan kehilangan sub mereka ' +
+        'dan perlu dipilih semula.\n\n'
+      : '') +
+    'Taip PECAH untuk mengesahkan.');
+  if (taip !== 'PECAH') { if (taip !== null) agToast('Dibatalkan', 'ralat'); return; }
+
+  a.sub = baru;
+  POKOK_BUKA[a.id] = true;
+  try {
+    await simpanMajlis();
+    lukisPokok(); kemasSari();
+    agToast(baru.length + ' sub dibina \u00b7 dikumpul ikut subjek', 'ok');
+  } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
+}
 
 /* ==========================================================================
    SLAID PPTX

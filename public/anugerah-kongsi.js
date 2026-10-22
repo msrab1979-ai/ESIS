@@ -819,6 +819,17 @@ async function agPepUntukDarjah(majlis, darjah) {
   }
 }
 
+/* Nama subjek bagi satu sub, untuk mengumpul paparan.
+   🔴 `subjek` ialah string ATAU array ("Pendidikan Islam dan Moral"
+      menyimpan dua). Array digabung supaya kedua-dua subjek itu kekal
+      satu kumpulan dan tidak pecah kepada dua tajuk. */
+function agSubjekSub(sub) {
+  if (!sub) return '';
+  const x = sub.subjek;
+  if (!x) return '';
+  return (Array.isArray(x) ? x.join(' / ') : String(x)).toUpperCase();
+}
+
 /* Darjah bagi satu sub-anugerah, daripada skopnya. Memulangkan 0 bila
    skop itu bukan satu darjah tunggal (sekolah / tahap). */
 function agDarjahSub(sub) {
