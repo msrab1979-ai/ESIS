@@ -514,6 +514,42 @@ Nota dalam modal anugerah menyenaraikan darjah sebenar sub anugerah itu (`D1: PE
 
 Disahkan 21 Okt 2026: oracle 22 kes terhadap `examTypes` sebenar sekolah — darjah 1–3 → PENTAKSIRAN, 4–6 → UASA, timpa admin menang, peperiksaan tidak aktif dilangkau, skop sekolah/tahap jatuh ke lalai majlis.
 
+#### Tiket, kad jemputan dan slaid — tiga keluaran, satu sumber
+
+| Keluaran | Tab | Susunan | Saiz |
+|---|---|---|---|
+| **Tiket giliran** | 🎟️ Giliran & Tiket | nombor giliran | 136mm, 4 sehelai A4 |
+| **Kad jemputan** | 💌 Kad Jemputan | nama murid | 136mm, 4 sehelai A4 |
+| **Slaid PPTX** | 🎟️ Giliran & Tiket | nombor giliran | 16:9 |
+
+**SATU TIKET SEORANG MURID**, bukan satu per anugerah. Murid yang menang beberapa anugerah tetap naik pentas beberapa kali (`binaTurutan` tidak disentuh) tetapi memegang satu keping yang menyenaraikan semua anugerah dan semua nombor gilirannya, dengan lencana "2 ANUGERAH". Sama untuk kad jemputan, dengan nota "anak anda dipanggil 2 kali — sila kekal di dewan".
+
+**136mm ialah nilai yang diukur, bukan dipilih.** A4 = 297mm tolak margin 8mm atas+bawah = 281mm ruang; 2 baris × 136 = 272mm, lega 9mm. **Jangan naikkan ke 140mm**: 2 × 140 = 280mm meninggalkan 1mm, dan pembundaran pemandu pencetak menolak baris kedua ke halaman baharu — gejalanya **2 sehelai, bukan 4**. Nilai asal 74mm memberi 6 sehelai sedangkan UI menjanjikan 4.
+
+**Kad jemputan: butiran ialah baris DINAMIK** (`MAJLIS.kadBaris`), bukan medan tetap — setiap sekolah mahu perkara berbeza (pakaian, masa tiba, nombor untuk dihubungi). Tarikh majlis disalin sebagai nilai permulaan **sekali sahaja**; selepas simpan ia berdiri sendiri supaya menukar tarikh majlis tidak mengubah kad secara senyap. Baris tanpa label dibuang semasa simpan.
+
+**`kjSemakMuat()` memberi amaran sebelum isi terpotong.** Kad ialah tinggi TETAP dengan `overflow:visible` — isi yang terlalu panjang tidak menatal dan tidak mengembangkan `scrollHeight`, ia terkeluar senyap dan dipotong oleh pemotong kertas. Jadi tinggi cetak dikira (136mm tolak padding) berbanding jumlah tinggi anak kad. Diukur pada data sebenar: ruang susut ~23px setiap anugerah dan habis pada yang **ke-10**; ambang 30px memberi amaran tepat di situ (ambang 12px memberi amaran pada ke-11 — sudah terlambat).
+
+**PPTX dijana terus sebagai OOXML** (`anugerah-pptx.js`) — PPTX ialah fail ZIP berisi XML, jadi hanya JSZip diperlukan. Struktur slaid **identik dengan `tayang.html`**: satu slaid satu sub-anugerah. **Teks MESTI dilepaskan untuk XML** — nama murid membawa `&` dan kadangkala `<`; satu aksara tidak dilepaskan merosakkan keseluruhan fail dan PowerPoint menolaknya dengan "perlu dibaiki" tanpa menyatakan sebab.
+
+#### Anugerah tanpa sub — penerima disimpan pada `subId`
+
+**Penerima disimpan pada `subId`, bukan `anugerahId`.** Giliran, tiket, kad jemputan, slaid dan Semak Penerima semuanya memadankan padanya, jadi anugerah tanpa sub **tidak dapat memegang seorang pun murid dan tidak muncul di mana-mana** — admin menyangka ia rosak sedangkan ia cuma tiada tempat simpan.
+
+Anugerah baharu kini mencipta satu sub dengan **nama yang sama**, skop sekolah. Anugerah lama (0 sub) mendapat butang **👤 Pilih Murid** pada baris kosongnya yang mencipta sub itu pada klik pertama lalu terus membuka modal. `➕ Sub berasingan` kekal untuk yang memang perlu dipecah.
+
+**Modal Pilih Murid manual: "— semua darjah —"** untuk sub bukan-darjah. Tanpanya admin terpaksa memilih satu darjah dahulu dan kotak carian nama menjadi hampir tidak berguna — ia hanya menapis dalam darjah yang kebetulan dipilih, sedangkan anugerah berskop sekolah boleh memenangi murid dari mana-mana darjah. `isiKelas()` memberi kelas daripada semua darjah (dinyahduakan — "INTEL" wujud di enam darjah), dan "Tanda semua" meminta pengesahan melebihi 60 baris.
+
+**`MURID_SEMUA` diisi sekali dalam `mulaPanel()`.** Kalau pemuatan itu gagal, modal keluar "Tiada murid padan" tanpa sebab. `pmLukisManual()` kini memuatnya sendiri bila kosong.
+
+#### Anugerah subjek: pecah ikut darjah
+
+Butang **⚡ Pecah ikut darjah** menukar sub berskop `tahap` kepada satu sub per **darjah**: 13 subjek → **39 sub**. Pokok mengumpulkannya ikut **SUBJEK** (`agSubjekSub`) — 39 baris rata tidak boleh dibaca, jadi `SAINS` menjadi satu tajuk buka/tutup dengan `SAINS — TAHUN 4/5/6` di dalamnya, sama seperti sub berskop kelas dikumpul ikut darjah.
+
+Nama sub membawa subjek **penuh** (`SAINS — TAHUN 4`), bukan "Tahun 4" sahaja: tiket, slaid, kad jemputan dan CSV memaparkan nama sub tanpa konteks kumpulan pokok. `paparSemua:true` — setiap murid darjah itu dipapar mengikut kedudukan, terbaik di atas, admin menandakan sendiri.
+
+`agSubjekSub()` mengendalikan subjek **array** ("Pendidikan Islam dan Moral") supaya kedua-duanya kekal satu kumpulan, tidak pecah dua.
+
 #### Borang aras-DARJAH (kumpulan kelas)
 
 Kunci `borangGuru` ada **tiga** bentuk, semuanya dalam satu peta:
