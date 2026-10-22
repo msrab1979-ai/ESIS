@@ -1609,6 +1609,12 @@
                         </select>
                     </div>
                     <div class="flex items-end">
+                        <button onclick="segarkanStatusPengisian()" id="btn-segar-status" class="hidden px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-2" title="Tarik semula markah terkini dari pangkalan data">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Segar Semula
+                        </button>
                         <button onclick="printStatusPDF()" id="btn-print-status" class="hidden px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors flex items-center gap-2">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
@@ -3846,6 +3852,18 @@
             if (currentVal && examNames.includes(currentVal)) el.value = currentVal;
         }
 
+        // Segar semula Status Pengisian — tarik markah terkini dari Firestore.
+        // ensureMarksLoaded() keluar awal bila tahun itu sudah ada dalam marksCache,
+        // jadi entri tahun itu MESTI dibuang dahulu; tanpa ini butang nampak berfungsi
+        // tetapi memaparkan kiraan lama yang sama (markah guru lain tidak muncul).
+        async function segarkanStatusPengisian() {
+            const statusYearEl = document.getElementById('status-year');
+            const year = statusYearEl ? parseInt(statusYearEl.value) : new Date().getFullYear();
+            if (!isNaN(year)) delete marksCache[year];
+            await _populateStatusPerikDropdown(year);
+            await loadStatusPengisian();
+        }
+
         async function loadStatusPengisian() {
             const jenisPeperiksaan = document.getElementById('status-peperiksaan').value;
             const messageEl = document.getElementById('status-pengisian-message');
@@ -3856,6 +3874,10 @@
                 messageEl.textContent = 'Sila pilih Jenis Peperiksaan untuk melihat status pengisian markah.';
                 messageEl.classList.remove('hidden');
                 containerEl.classList.add('hidden');
+                const segarBtn = document.getElementById('btn-segar-status');
+                if (segarBtn) segarBtn.classList.add('hidden');
+                const pdfBtn = document.getElementById('btn-print-status');
+                if (pdfBtn) pdfBtn.classList.add('hidden');
                 return;
             }
 
@@ -3865,6 +3887,14 @@
             const statusYearEl = document.getElementById('status-year');
             const currentYear = statusYearEl ? parseInt(statusYearEl.value) : new Date().getFullYear();
             const darjahToTahun = { 1: 'SATU', 2: 'DUA', 3: 'TIGA', 4: 'EMPAT', 5: 'LIMA', 6: 'ENAM' };
+
+            // Sumber markah MESTI getMarksByYear(currentYear), bukan GLOBAL_DATA.allMarks:
+            // allMarks hanya memegang SATU tahun (yang terbaru ada data, lihat
+            // bacaInitialData), jadi memilih tahun lain dalam dropdown status akan
+            // mengira terhadap data tahun yang salah dan setiap sel keluar ✗.
+            // Markah yang baru disimpan juga masuk ke marksCache, bukan allMarks.
+            await ensureMarksLoaded(currentYear);
+            const marksTahun = getMarksByYear(currentYear);
 
             // Cuba ambil darjah dari examTypes, fallback ke rekodMarkah jika tiada
             const examTypesForYear = await getExamTypesForYear(currentYear);
@@ -3876,7 +3906,7 @@
                 // Fallback: derive darjah dari rekodMarkah yang sebenar
                 const _tahunToDarjahLocal = { 'SATU':1,'DUA':2,'TIGA':3,'EMPAT':4,'LIMA':5,'ENAM':6 };
                 darjahTerlibat = [...new Set(
-                    getMarksByYear(currentYear)
+                    marksTahun
                         .filter(m => m["JENIS PEPERIKSAAN"] === jenisPeperiksaan)
                         .map(m => _tahunToDarjahLocal[m.tahun])
                         .filter(Boolean)
@@ -3895,7 +3925,7 @@
             // Senarai subjek untuk kolum — semua sistem, ditapis ikut Subjek Terlibat jika ada.
             // Subjek yang sudah ada markah sentiasa ditunjuk supaya data sedia ada tak tersembunyi.
             const subjekAdaMarkah = new Set(
-                GLOBAL_DATA.allMarks
+                marksTahun
                     .filter(m => m["JENIS PEPERIKSAAN"] === jenisPeperiksaan)
                     .map(m => normSubjek(m.subjek))
             );
@@ -3907,16 +3937,11 @@
             // Bina lookup: markahCount[tahun][kelas][subjekNorm] = bilangan MURID unik ada markah.
             // Kira murid unik (by no_kp) supaya rekod ganti tidak dikira dua kali.
             // Guna cal_year field terus (lebih reliable dari parse docId atau timestamp)
+            // marksTahun sudah ditapis ikut tahun kalendar oleh getMarksByYear,
+            // jadi di sini cukup tapis jenis peperiksaan sahaja.
             const markahCount = {};
-            GLOBAL_DATA.allMarks
-                .filter(m => {
-                    if (m["JENIS PEPERIKSAAN"] !== jenisPeperiksaan) return false;
-                    // Guna timestamp dahulu (sumber kebenaran), fallback ke cal_year
-                    const tsYear = getTimestampYear(m);
-                    if (tsYear !== null) return tsYear === currentYear;
-                    if (m.cal_year !== undefined && m.cal_year !== null) return m.cal_year === currentYear;
-                    return false;
-                })
+            marksTahun
+                .filter(m => m["JENIS PEPERIKSAAN"] === jenisPeperiksaan)
                 .forEach(m => {
                     const sn = normSubjek(m.subjek);
                     if (!markahCount[m.tahun]) markahCount[m.tahun] = {};
@@ -3992,9 +4017,11 @@
             tableEl.innerHTML = tableHTML;
             containerEl.classList.remove('hidden');
             
-            // Show PDF button
+            // Show PDF + Segar Semula buttons
             const pdfButton = document.getElementById('btn-print-status');
             pdfButton.classList.remove('hidden');
+            const segarButton = document.getElementById('btn-segar-status');
+            if (segarButton) segarButton.classList.remove('hidden');
             
             console.log('✅ Status table rendered successfully');
         }
