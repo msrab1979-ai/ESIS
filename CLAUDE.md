@@ -50,7 +50,7 @@ The entire application lives in a **single file**: `public/index.html` (~10,070 
 5. **Guru Kelas** — Manage student roster (4 tabs: Tambah / Lihat-Edit / Status Pengisian / **Markah Kelas**)
 6. **Headcount** — Target tracking (TOV/OTI/ETR/AR)
 7. **Anugerah** — Award ceremony module, separate pages (`anugerah-admin.html` + peserta/hadiah/mc/tayang)
-8. **Markah ke SPPB** — Install guide for the ESIS→SPPB mark helper (`helper-sppb.html`); see its section below
+8. **ESIS Helper** — Install guide for the ESIS→SPPB mark helper (`helper-sppb.html`); see its section below
 9. **Admin Panel** (password-protected) — System configuration
 
 ### Key Code Locations
@@ -684,7 +684,17 @@ Format copied exactly from `Show.vue` `simpan()`:
 
 **Known gap: the helper matches the pupil, not the subject.** The confirm dialog prints both sides — `Dari ESIS: LIMA HIGEN — SAINS` against `Ke SPPB: — SAINS` (read from `pbd_mp.ltt_mata_pelajaran.keterangan`) — for the teacher to compare, but it cannot refuse on its own.
 
-**Rebuilding the bookmarklet** after editing `tampal-sppb.js`: strip comments, URL-encode, prefix `javascript:`, write to `bookmarklet.txt`, then re-embed in `public/helper-sppb.html` **twice** — the drag anchor's `href` (HTML-escaped) and the `KOD_HELPER` string (JS-escaped). Verify both decode to identical, parseable JS before deploying.
+**Rebuilding the bookmarklet** after editing `tampal-sppb.js`: strip comments, URL-encode, prefix `javascript:`, write to `bookmarklet.txt`, then re-embed in `public/helper-sppb.html` in **one** place — the drag anchor's `href` (HTML-escaped). Verify it decodes to parseable JS before deploying. (It used to be embedded twice; the second copy was a `KOD_HELPER` JS string feeding the copy-paste install, removed 22 Okt 2026 — see below.)
+
+#### Satu cara pasang sahaja: seret (22 Okt 2026)
+
+Halaman itu dulu menawarkan **dua** cara pasang dalam tab: "Salin & tampal" (butang salin → tampal ke kotak URL penanda) dan "Seret butang". Cara tampal dibuang; tinggal seret.
+
+Dua nama untuk satu benda ialah sebabnya ia dibuang: kad menu bertajuk "Markah ke SPPB", halaman bertajuk cara pasang, dan butang di bar penanda bernama "ESIS Helper" — guru yang mencari semula apa yang dia pasang tidak jumpa nama itu di mana-mana menu. Kad menu kini **ESIS Helper**, sama dengan nama bookmarklet.
+
+Yang dibuang bersama: pemboleh ubah `KOD_HELPER`, `tukar()`, `salinKod()`, dan CSS `.pilih` / `.btn-salin` / `.borang`. Blok `<script>` menjadi kosong dan dibuang terus — **halaman ini kini tiada JS langsung**, jadi jangan cari fungsi di situ bila menyahpepijat.
+
+**Nota lapuk yang masih tinggal:** langkah 3 halaman itu masih terangkan tawaran "uji 3 murid dahulu" yang sudah lama dibuang dari bookmarklet (lihat "No test mode" di atas). Panduan itu menerangkan butang yang tidak wujud.
 
 **`helper-sppb.html` is in the `no-cache` list in `firebase.json`** — it carries the bookmarklet source inline, so with the default `max-age=3600` a teacher installing after a fix copies the **old** code for up to an hour, with a confusing symptom: the helper runs but fails with a message that should no longer exist.
 
