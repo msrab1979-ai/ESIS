@@ -455,6 +455,16 @@
                 <p class="mt-2 text-sm">Majlis anugerah — pilih murid dari markah, giliran, tiket &amp; petugas.</p>
             </a>
 
+            <!-- MENU MARKAH UJIAN KHAS — halaman berasingan (markah-guru.html).
+                 Guru subjek isi markah kelasnya sendiri; pentadbir lihat semua. -->
+            <a id="markah-guru-card" href="markah-guru.html" class="card-menu block bg-gradient-to-r from-lime-600 to-green-700 text-white p-6 rounded-xl shadow-lg cursor-pointer no-underline">
+                <div class="flex items-center justify-between">
+                    <span class="text-4xl">📝</span>
+                    <h2 class="text-xl font-bold">Markah Ujian Khas</h2>
+                </div>
+                <p class="mt-2 text-sm">Guru subjek isi markah kelasnya sendiri &mdash; pentadbir lihat semua.</p>
+            </a>
+
             <!-- MENU ESIS HELPER — halaman panduan berasingan (helper-sppb.html) -->
             <a id="helper-sppb-card" href="helper-sppb.html" class="card-menu block bg-gradient-to-r from-sky-700 to-blue-800 text-white p-6 rounded-xl shadow-lg cursor-pointer no-underline">
                 <div class="flex items-center justify-between">
@@ -1838,6 +1848,7 @@
                 <button id="tab-bina-headcount" onclick="toggleAdminTab('bina-headcount')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-teal-500 text-gray-700">🎯 Bina Headcount</button>
                 <button id="tab-subjek-utama" onclick="toggleAdminTab('subjek-utama')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-yellow-500 text-gray-700">⭐ Subjek Diutamakan</button>
                 <button id="tab-siaran" onclick="toggleAdminTab('siaran')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-amber-500 text-gray-700">📢 Urus Siaran</button>
+                <button id="tab-guru-markah" onclick="toggleAdminTab('guru-markah')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-lime-600 text-gray-700">🔑 Guru Markah</button>
                 <button id="tab-reset-kemaskini" onclick="toggleAdminTab('reset-kemaskini')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-rose-600 text-rose-700 font-semibold">Reset & Kemaskini</button>
             </div>
             
@@ -2360,6 +2371,24 @@
                 <h3 class="text-xl font-bold text-gray-800">Urus Jenis Peperiksaan</h3>
                 <p class="text-sm text-gray-600">Tambah, edit, susun dan padam jenis peperiksaan. Setiap jenis peperiksaan boleh dikaitkan dengan darjah tertentu.</p>
 
+                <!-- Notis keputusan belum terbit — diisi oleh renderExamTypeList.
+                     Admin melihat markah yang guru tidak nampak; tanpa notis ini dia
+                     tidak tahu mengapa guru melaporkan "data hilang". -->
+                <div id="terbit-amaran" class="hidden bg-gray-700 text-white rounded-lg p-4">
+                    <p class="font-semibold text-sm mb-1">📢 <span id="terbit-amaran-tajuk"></span></p>
+                    <p class="text-xs text-gray-200" id="terbit-amaran-isi"></p>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p class="text-xs text-blue-800">
+                        <strong>Dua suis berbeza.</strong>
+                        <span class="text-green-700 font-semibold">Aktif</span> = guru boleh <strong>mengisi</strong> markah.
+                        <span class="text-blue-700 font-semibold">Terbit</span> = guru boleh <strong>melihat</strong> keputusan
+                        dalam Analisa, Murid Terbaik, Headcount, Slip dan Anugerah.
+                        Matikan Terbit untuk mengumpul markah dahulu, kemudian umumkan serentak.
+                    </p>
+                </div>
+
                 <!-- Penapis Tahun Kalendar -->
                 <div class="flex items-center gap-3">
                     <label class="text-sm font-medium text-gray-700">Tahun Kalendar:</label>
@@ -2408,6 +2437,16 @@
                             <div id="new-exam-subjek-list" class="flex flex-wrap gap-x-4 gap-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-3 bg-white">
                                 <p class="text-xs text-gray-400 italic">Memuatkan subjek...</p>
                             </div>
+                        </div>
+                        <!-- GURU TERHAD: markah diisi melalui menu "Markah Ujian Khas" sahaja -->
+                        <div class="border border-amber-200 bg-amber-50 rounded-md p-3">
+                            <label class="flex items-start gap-2 cursor-pointer">
+                                <input type="checkbox" id="new-exam-guru-terhad" class="w-4 h-4 text-amber-600 mt-0.5">
+                                <span class="text-sm">
+                                    <span class="font-semibold text-amber-900">🔒 Markah guru subjek sahaja</span>
+                                    <span class="block text-xs text-amber-800 mt-0.5">Peperiksaan ini <strong>disembunyikan</strong> dari Rekod &amp; Laporan. Hanya guru yang berdaftar (menu <strong>📝 Markah Ujian Khas</strong>) boleh isi markah kelasnya sendiri. Pentadbir boleh lihat semua.</span>
+                                </span>
+                            </label>
                         </div>
                         <div class="flex items-center gap-3">
                             <button onclick="tambahJenisPeperiksaan()" class="bg-indigo-600 text-white py-2 px-6 rounded-md hover:bg-indigo-700 transition font-semibold">+ Tambah</button>
@@ -2464,6 +2503,15 @@
                                 <div id="edit-exam-subjek-list" class="flex flex-wrap gap-x-4 gap-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50">
                                     <p class="text-xs text-gray-400 italic">Memuatkan subjek...</p>
                                 </div>
+                            </div>
+                            <div class="border border-amber-200 bg-amber-50 rounded-md p-3">
+                                <label class="flex items-start gap-2 cursor-pointer">
+                                    <input type="checkbox" id="edit-exam-guru-terhad" class="w-4 h-4 text-amber-600 mt-0.5">
+                                    <span class="text-sm">
+                                        <span class="font-semibold text-amber-900">🔒 Markah guru subjek sahaja</span>
+                                        <span class="block text-xs text-amber-800 mt-0.5">Disembunyikan dari Rekod &amp; Laporan. Hanya guru berdaftar (menu <strong>📝 Markah Ujian Khas</strong>) boleh isi.</span>
+                                    </span>
+                                </label>
                             </div>
                         </div>
                         <p id="edit-exam-type-status" class="text-sm font-medium mt-3"></p>
@@ -2631,6 +2679,50 @@
                         <button onclick="renderSenaraiSiaranAdmin()" class="text-xs text-amber-700 underline">🔄 Muat semula</button>
                     </div>
                     <div id="siaran-admin-list" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- TAB: GURU MARKAH (pendaftaran guru subjek untuk Markah Ujian Khas) -->
+            <div id="admin-guru-markah" class="hidden space-y-5">
+                <div class="bg-lime-50 border border-lime-200 rounded-lg p-4">
+                    <h3 class="font-bold text-lime-900 mb-1">🔑 Guru Markah — pendaftaran guru subjek</h3>
+                    <p class="text-sm text-lime-800">
+                        Guru mendaftar sendiri melalui menu <strong>📝 Markah Ujian Khas</strong>.
+                        Satu slot <strong>subjek × kelas</strong> hanya boleh dimiliki seorang guru —
+                        guru kedua ditolak sehingga anda membuang pendaftaran yang ada.
+                    </p>
+                    <p class="text-xs text-lime-700 mt-2">
+                        Membuang pendaftaran <strong>tidak membuang markah</strong>. Markah milik sekolah, bukan guru.
+                    </p>
+                </div>
+
+                <div class="flex items-end gap-3 flex-wrap">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Tahun kalendar</label>
+                        <select id="gm-tahun" onchange="renderGuruMarkah()" class="border border-gray-300 rounded-md px-3 py-2 text-sm"></select>
+                    </div>
+                    <div class="flex-1 min-w-[180px]">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Cari nama / subjek / kelas</label>
+                        <input type="text" id="gm-cari" oninput="renderGuruMarkah()" placeholder="contoh: ali, sains, 4 intel"
+                            class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+                    </div>
+                    <button onclick="renderGuruMarkah(true)" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-md text-sm hover:bg-gray-200">🔄 Segar semula</button>
+                </div>
+
+                <div id="gm-ringkas" class="text-sm"></div>
+                <div id="gm-list" class="space-y-2">
+                    <p class="text-sm text-gray-400 italic">Memuatkan…</p>
+                </div>
+            </div>
+
+            <!-- MODAL: TUKAR KATA LALUAN / UBAH KELAS GURU MARKAH -->
+            <div id="gm-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                    <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+                        <h3 class="font-bold text-gray-800" id="gm-modal-tajuk">Ubah</h3>
+                        <button onclick="document.getElementById('gm-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-700 text-xl leading-none">&times;</button>
+                    </div>
+                    <div class="p-5 space-y-4" id="gm-modal-isi"></div>
                 </div>
             </div>
 
@@ -2961,18 +3053,58 @@
         }
 
         // Helper: tapis marks mengikut calendar year (untuk per-panel dropdown)
+        // ==========================================================
+        // TERBIT KEPUTUSAN — examTypes.diterbit
+        // ----------------------------------------------------------
+        // Admin menutup satu peperiksaan daripada SEMUA paparan guru
+        // (Analisa, Murid Terbaik, Headcount, Slip, Status Pengisian,
+        // Markah Kelas, Anugerah) tanpa menghalang guru mengisi markah.
+        // Itu kerja toggle `aktif` yang berasingan: `aktif` mengawal
+        // siapa boleh MENULIS, `diterbit` mengawal siapa boleh MELIHAT.
+        //
+        // 🔴 Lalai `true`. Dokumen lama tiada medan ini, dan ia mesti
+        //    terus berkelakuan seperti sebelum ciri ini wujud — sama
+        //    peraturan dengan `aktif` dan `subjek`. Jangan sekali-kali
+        //    tukar maknanya kepada "belum terbit".
+        //
+        // 🔴 Admin (isAuthenticated) MELIHAT SEMUA. Dia perlu menyemak
+        //    Analisa sebelum mengumumkan. Panel Admin membawa notis
+        //    yang menyenaraikan peperiksaan belum terbit, supaya dia
+        //    tahu nombor di hadapannya belum dilihat guru lain.
+        //
+        // 🔴 Status dibaca TERUS dari GLOBAL_DATA.examTypes, bukan
+        //    disimpan dalam cache markah. Jadi menogol suis berkuat
+        //    kuasa pada muat semula berikutnya dan tidak perlu
+        //    menunggu cache IndexedDB luput 24 jam (dan DATA_VERSION
+        //    tidak perlu dinaikkan — cara markah diproses tidak berubah).
+        // ==========================================================
+        function _pepBelumTerbit() {
+            return new Set(
+                (GLOBAL_DATA.examTypes || [])
+                    .filter(et => et.diterbit === false && et.nama)
+                    .map(et => et.nama)
+            );
+        }
+
+        function _tapisDiterbit(senarai) {
+            if (isAuthenticated) return senarai;          // admin nampak semua
+            const tutup = _pepBelumTerbit();
+            if (!tutup.size) return senarai;              // laluan biasa — tiada kos
+            return senarai.filter(m => !tutup.has(m["JENIS PEPERIKSAAN"]));
+        }
+
         function getMarksByYear(year) {
             const yearInt = parseInt(year);
             // Guna cache dahulu (termasuk tahun lain yang diload on-demand)
-            if (marksCache[yearInt] !== undefined) return marksCache[yearInt];
+            if (marksCache[yearInt] !== undefined) return _tapisDiterbit(marksCache[yearInt]);
             // Tapis dari GLOBAL_DATA guna timestamp
-            return GLOBAL_DATA.allMarks.filter(mark => {
+            return _tapisDiterbit(GLOBAL_DATA.allMarks.filter(mark => {
                 const tsYear = getTimestampYear(mark);
                 if (tsYear !== null) return tsYear === yearInt;
                 // Fallback: rekod tanpa timestamp
                 if (mark.cal_year != null) return mark.cal_year === yearInt;
                 return false;
-            });
+            }));
         }
 
         // ==========================================================
@@ -3515,6 +3647,15 @@
                 .map(et => et.nama);
             aktifTypes.forEach(nama => examsForYear.add(nama));
 
+            // 🔒 GURU TERHAD — markah diisi melalui menu "Markah Ujian Khas" sahaja.
+            // Buang dari panel ini SEPENUHNYA (walaupun sudah ada rekod): kalau ia
+            // kekal muncul, mana-mana guru boleh pilih kelas orang lain dan menulis
+            // atas markahnya — itu menidakkan seluruh tujuan kawalan ini. Pentadbir
+            // melihatnya dalam markah-guru.html (mod baca, semua kelas).
+            (GLOBAL_DATA.examTypes || [])
+                .filter(et => et.guruTerhad === true && et.nama)
+                .forEach(et => examsForYear.delete(et.nama));
+
             if (examsForYear.size > 0) {
                 Array.from(examsForYear).sort().forEach(examName => {
                     const opt = document.createElement('option');
@@ -3835,18 +3976,46 @@
             }
         }
 
-        // Isi dropdown status-peperiksaan mengikut tahun — sumber: rekodMarkah (tunjuk semua)
+        // Isi dropdown status-peperiksaan mengikut tahun.
+        //
+        // DUA SUMBER digabung — sama corak dengan onEditYearChange:
+        //  (a) peperiksaan yang sudah ADA markah (sumber asal)
+        //  (b) peperiksaan 🔒 guruTerhad dari examTypes, WALAUPUN 0 markah
+        //
+        // 🔴 (b) perlu kerana dropdown yang dibina daripada markah sahaja
+        //    mempunyai masalah ayam-dan-telur: peperiksaan yang belum diisi
+        //    LANGSUNG tidak muncul, jadi ia tidak boleh dikesan sebagai kosong
+        //    — sedangkan "tiada seorang guru pun sudah mula" ialah tepat
+        //    keadaan yang tab ini wujud untuk menangkapnya.
+        //
+        //    Dihadkan kepada guruTerhad kerana di situlah kerja diagihkan
+        //    kepada banyak guru dan perlu dijejak. Peperiksaan biasa kekal
+        //    seperti asal — satu guru kelas tahu sendiri kelasnya belum diisi.
         async function _populateStatusPerikDropdown(year) {
             const el = document.getElementById('status-peperiksaan');
             if (!el) return;
             await ensureMarksLoaded(year);
             const marks = getMarksByYear(year);
-            const examNames = [...new Set(marks.map(m => m["JENIS PEPERIKSAAN"]).filter(Boolean))].sort();
+            const namaSet = new Set(marks.map(m => m["JENIS PEPERIKSAAN"]).filter(Boolean));
+            const khas = new Set();
+            try {
+                (await getExamTypesForYear(year))
+                    .filter(et => et.guruTerhad === true && et.nama)
+                    .forEach(et => { namaSet.add(et.nama); khas.add(et.nama); });
+            } catch (e) { /* senarai markah sahaja — jangan halang tab terbuka */ }
+            const examNames = [...namaSet].sort();
+            const adaMarkah = new Set(marks.map(m => m["JENIS PEPERIKSAAN"]));
             const currentVal = el.value;
             el.innerHTML = '<option value="">-- Pilih Jenis Peperiksaan --</option>';
             examNames.forEach(e => {
                 const opt = document.createElement('option');
-                opt.value = e; opt.textContent = e;
+                opt.value = e;
+                // 🔒 menandakan peperiksaan yang diisi guru subjek berdaftar.
+                // "(belum ada markah)" memberitahu terus bahawa tiada seorang pun
+                // sudah mula — tanpa perlu memilihnya dahulu untuk mengetahuinya.
+                opt.textContent = e
+                    + (khas.has(e) ? ' 🔒' : '')
+                    + (!adaMarkah.has(e) ? ' — belum ada markah' : '');
                 el.appendChild(opt);
             });
             if (currentVal && examNames.includes(currentVal)) el.value = currentVal;
@@ -3874,8 +4043,13 @@
                 messageEl.textContent = 'Sila pilih Jenis Peperiksaan untuk melihat status pengisian markah.';
                 messageEl.classList.remove('hidden');
                 containerEl.classList.add('hidden');
+                // Butang Segar Semula KEKAL kelihatan walaupun belum memilih.
+                // Markah dicache per-tahun, jadi peperiksaan yang baru diisi guru
+                // lain tidak muncul dalam dropdown sehingga cache ditarik semula —
+                // dan butang yang tersembunyi ketika itu bermakna tiada jalan
+                // untuk membetulkannya tanpa memuat semula seluruh halaman.
                 const segarBtn = document.getElementById('btn-segar-status');
-                if (segarBtn) segarBtn.classList.add('hidden');
+                if (segarBtn) segarBtn.classList.remove('hidden');
                 const pdfBtn = document.getElementById('btn-print-status');
                 if (pdfBtn) pdfBtn.classList.add('hidden');
                 return;
@@ -5608,6 +5782,7 @@
              const siaranTab = document.getElementById('admin-siaran');
              const subjekUtamaTab = document.getElementById('admin-subjek-utama');
              const resetKemaskiniTab = document.getElementById('admin-reset-kemaskini');
+             const guruMarkahTab = document.getElementById('admin-guru-markah');
              const btnImport = document.getElementById('tab-import');
              const btnUrusSubjek = document.getElementById('tab-urus-subjek');
              const btnMuridKelas = document.getElementById('tab-murid-kelas');
@@ -5619,6 +5794,7 @@
              const btnSiaran = document.getElementById('tab-siaran');
              const btnSubjekUtama = document.getElementById('tab-subjek-utama');
              const btnResetKemaskini = document.getElementById('tab-reset-kemaskini');
+             const btnGuruMarkah = document.getElementById('tab-guru-markah');
 
              importTab.classList.add('hidden');
              urusSubjekTab.classList.add('hidden');
@@ -5631,6 +5807,7 @@
              if (siaranTab) siaranTab.classList.add('hidden');
              if (subjekUtamaTab) subjekUtamaTab.classList.add('hidden');
              if (resetKemaskiniTab) resetKemaskiniTab.classList.add('hidden');
+             if (guruMarkahTab) guruMarkahTab.classList.add('hidden');
 
              if (btnImport) btnImport.classList.remove('border-blue-500');
              if (btnUrusSubjek) btnUrusSubjek.classList.remove('border-red-500');
@@ -5643,6 +5820,7 @@
              if (btnSiaran) btnSiaran.classList.remove('border-amber-500');
              if (btnSubjekUtama) btnSubjekUtama.classList.remove('border-yellow-500');
              if (btnResetKemaskini) btnResetKemaskini.classList.remove('border-rose-600');
+             if (btnGuruMarkah) btnGuruMarkah.classList.remove('border-lime-600');
 
              if (tab === 'subjek-utama') {
                  subjekUtamaTab.classList.remove('hidden');
@@ -5705,6 +5883,10 @@
                  if (resetKemaskiniTab) resetKemaskiniTab.classList.remove('hidden');
                  if (btnResetKemaskini) btnResetKemaskini.classList.add('border-rose-600');
                  loadResetKemaskiniTab();
+             } else if (tab === 'guru-markah') {
+                 if (guruMarkahTab) guruMarkahTab.classList.remove('hidden');
+                 if (btnGuruMarkah) btnGuruMarkah.classList.add('border-lime-600');
+                 initGuruMarkah();
              }
         }
 
@@ -7688,9 +7870,13 @@
             const viewTahunDropdown = document.getElementById('view-tahun');
             const subjekFilterSelect = document.getElementById('subjek-filter-select');
             
-            const tahunMarks = new Set(GLOBAL_DATA.allMarks.map(m => m.tahun));
-            const examMarks = new Set(GLOBAL_DATA.allMarks.map(m => m["JENIS PEPERIKSAAN"]));
-            const subjekMarks = new Set(GLOBAL_DATA.allMarks.map(m => m.subjek)); 
+            // Dropdown mesti menapis juga — nama peperiksaan belum terbit yang
+            // kekal dalam senarai memberitahu guru bahawa ia wujud, dan memilihnya
+            // memberi jadual kosong tanpa sebab yang dinyatakan.
+            const _markTerbit = _tapisDiterbit(GLOBAL_DATA.allMarks);
+            const tahunMarks = new Set(_markTerbit.map(m => m.tahun));
+            const examMarks = new Set(_markTerbit.map(m => m["JENIS PEPERIKSAAN"]));
+            const subjekMarks = new Set(_markTerbit.map(m => m.subjek));
 
             if (analisaTahunDropdown) analisaTahunDropdown.innerHTML = '<option value="">-- Pilih Darjah --</option>';
             if (analisaSubjekTahunDropdown) analisaSubjekTahunDropdown.innerHTML = '<option value="">-- Pilih Darjah --</option>';
@@ -16076,7 +16262,10 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 .sort((a, b) => (a.order ?? 999) - (b.order ?? 999)
                     || (a.nama || '').localeCompare(b.nama || ''));
             _examTypesCache[year] = { data, time: Date.now() };
-            return data;
+            // Cache menyimpan senarai PENUH; tapisan terbit dibuat pada setiap
+            // pemulangan supaya admin yang log masuk pertengahan sesi terus
+            // nampak semua tanpa menunggu TTL cache tamat.
+            return isAuthenticated ? data : data.filter(et => et.diterbit !== false);
         }
 
         // Isi dropdown jenis peperiksaan (Rekod Markah, MK, MT, Slip) — tanpa filter darjah
@@ -16099,10 +16288,17 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 // Panel baca-sahaja (Murid Terbaik, Slip) — JANGAN tapis `aktif`.
                 // `aktif:false` hanya mengunci pengeditan dalam Rekod Markah; laporan
                 // mesti tetap boleh jana utk peperiksaan lama. Label '(dikunci)' sahaja.
+                //
+                // `diterbit:false` PULA ditapis — itu keputusan yang belum diumumkan,
+                // dan nama dalam dropdown yang memberi jadual kosong lebih teruk
+                // daripada nama yang tiada. Admin melihatnya dengan label.
                 GLOBAL_DATA.examTypes.forEach(et => {
+                    const belumTerbit = et.diterbit === false;
+                    if (belumTerbit && !isAuthenticated) return;
                     const opt = document.createElement('option');
                     opt.value = et.nama;
-                    opt.textContent = et.nama + (et.aktif === false ? ' (dikunci)' : '');
+                    opt.textContent = et.nama + (et.aktif === false ? ' (dikunci)' : '')
+                                    + (belumTerbit ? ' — belum terbit' : '');
                     el.appendChild(opt);
                 });
                 // Pulihkan nilai sebelum jika masih wujud
@@ -16206,6 +16402,72 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             }
         }
 
+        // ==========================================================
+        // TERBIT KEPUTUSAN — toggle per peperiksaan
+        // ----------------------------------------------------------
+        // Menghidupkan: terus, tiada soalan — ia membuka maklumat dan
+        // tidak merosakkan apa-apa.
+        //
+        // Mematikan: SAHKAN dahulu dengan kiraan markah sebenar. Ia
+        // menarik balik nombor yang guru mungkin sudah lihat pagi tadi,
+        // dan "berapa banyak" ialah soalan pertama admin sebelum menekan.
+        // ==========================================================
+        async function toggleExamTypeTerbit(id, terbit) {
+            const et = GLOBAL_DATA.examTypes.find(e => e.id === id);
+            const nama = et ? et.nama : '';
+            const tahunKal = et ? (et.tahunKalendar || new Date().getFullYear())
+                                : new Date().getFullYear();
+
+            if (!terbit) {
+                // Kira markah sebenar supaya admin nampak saiz keputusan ini.
+                // marksCache mungkin tiada tahun itu — ensureMarksLoaded menariknya.
+                let bil = 0;
+                try {
+                    await ensureMarksLoaded(tahunKal);
+                    const semua = marksCache[tahunKal] || GLOBAL_DATA.allMarks || [];
+                    bil = semua.filter(m => m['JENIS PEPERIKSAAN'] === nama).length;
+                } catch (e) { bil = 0; }
+
+                const ok = confirm(
+                    `📢 TARIK BALIK KEPUTUSAN\n\n` +
+                    `${nama}\n` +
+                    `${bil.toLocaleString()} markah akan HILANG dari paparan guru:\n` +
+                    `Analisa, Murid Terbaik, Headcount, Slip dan Anugerah.\n\n` +
+                    `• Guru masih boleh MENGISI markah (toggle Aktif tidak berubah)\n` +
+                    `• Admin masih nampak semuanya\n` +
+                    `• Slip yang sudah dicetak tidak terjejas\n\n` +
+                    `Teruskan?`
+                );
+                if (!ok) {
+                    // Pulihkan kedudukan suis — pengguna membatalkan
+                    const cb = document.getElementById('terbit-' + id);
+                    if (cb) cb.checked = true;
+                    return;
+                }
+            }
+
+            try {
+                await db.collection('examTypes').doc(id).update({ diterbit: terbit });
+                if (et) et.diterbit = terbit;
+                // Senarai examTypes per-tahun dicache berasingan — buang supaya
+                // Status Pengisian & Analisa Kelas membaca status baharu.
+                if (typeof _examTypesCache === 'object') delete _examTypesCache[tahunKal];
+                populateAllExamDropdowns();
+                await renderExamTypeList(tahunKal);
+                showNotification(
+                    terbit ? 'Diterbitkan' : 'Ditarik balik',
+                    terbit
+                        ? `"${nama}" kini kelihatan kepada semua guru.`
+                        : `"${nama}" kini tersembunyi. Admin sahaja nampak.`,
+                    false
+                );
+            } catch (error) {
+                const cb = document.getElementById('terbit-' + id);
+                if (cb) cb.checked = !terbit;
+                showNotification('Ralat', 'Gagal kemaskini status terbit: ' + error.message, true);
+            }
+        }
+
         // Buang duplikat examTypes dalam Firestore untuk tahun tertentu (nama+tahunKalendar composite key)
         async function deduplicateExamTypes(year) {
             const snapshot = await db.collection('examTypes')
@@ -16258,6 +16520,9 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             GLOBAL_DATA.examTypes.forEach((et, idx) => {
                 const hasRecords = GLOBAL_DATA.allMarks.some(m => m['JENIS PEPERIKSAAN'] === et.nama);
                 const isAktif = et.aktif !== false; // default true jika field tiada
+                // Lalai TERBIT. Dokumen lama tiada medan `diterbit` dan mesti
+                // terus kelihatan seperti sebelum ciri ini wujud.
+                const isTerbit = et.diterbit !== false;
                 const darjahStr = Array.isArray(et.darjah) && et.darjah.length > 0
                     ? et.darjah.sort((a, b) => a - b).map(d => `D${d}`).join(', ')
                     : '<span class="text-red-500">Tiada darjah</span>';
@@ -16291,6 +16556,8 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                         <span class="ml-2 text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">${et.tahunKalendar || '—'}</span>
                         ${hasRecords ? '<span class="ml-2 text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">Ada rekod markah</span>' : ''}
                         ${!isAktif ? '<span class="ml-2 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Tersembunyi</span>' : ''}
+                        ${et.guruTerhad === true ? '<span class="ml-2 text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full" title="Tidak muncul dalam Rekod &amp; Laporan. Markah diisi melalui menu Markah Ujian Khas oleh guru berdaftar.">🔒 Guru subjek sahaja</span>' : ''}
+                        ${!isTerbit ? '<span class="ml-2 text-xs text-white bg-gray-500 px-2 py-0.5 rounded-full" title="Keputusan tersembunyi dari guru. Admin sahaja nampak.">📢 Belum terbit</span>' : ''}
                     </div>
 
                     <!-- Toggle Aktif/Sembunyi + Toggle kunci + butang aksi -->
@@ -16304,6 +16571,18 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                                 <div class="toggle-thumb absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${isAktif ? 'translate-x-5' : 'translate-x-0'}"></div>
                             </div>
                             <span class="text-xs font-medium ${isAktif ? 'text-green-600' : 'text-gray-400'}">${isAktif ? 'Aktif' : 'Off'}</span>
+                        </label>
+
+                        <!-- Toggle TERBIT — biru, supaya tidak tersilap dengan toggle Aktif (hijau).
+                             Aktif = siapa boleh TULIS. Terbit = siapa boleh LIHAT dalam laporan. -->
+                        <label class="flex items-center gap-2 cursor-pointer" title="${isTerbit ? 'Keputusan kelihatan dalam Analisa, Murid Terbaik, Headcount, Slip & Anugerah. Klik untuk tarik balik.' : 'Keputusan TERSEMBUNYI dari guru. Admin sahaja nampak. Klik untuk terbitkan.'}">
+                            <div class="relative">
+                                <input type="checkbox" id="terbit-${et.id}" class="sr-only" ${isTerbit ? 'checked' : ''}
+                                    onchange="toggleExamTypeTerbit('${et.id}', this.checked)">
+                                <div class="toggle-track w-10 h-5 rounded-full transition ${isTerbit ? 'bg-blue-500' : 'bg-gray-300'}"></div>
+                                <div class="toggle-thumb absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${isTerbit ? 'translate-x-5' : 'translate-x-0'}"></div>
+                            </div>
+                            <span class="text-xs font-medium whitespace-nowrap ${isTerbit ? 'text-blue-600' : 'text-gray-400'}">${isTerbit ? 'Terbit' : 'Belum terbit'}</span>
                         </label>
 
                         ${hasRecords ? `
@@ -16324,6 +16603,23 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 `;
                 listEl.appendChild(row);
             });
+
+            // Notis: peperiksaan belum terbit untuk tahun ini
+            const amaranEl = document.getElementById('terbit-amaran');
+            if (amaranEl) {
+                const belum = GLOBAL_DATA.examTypes.filter(e => e.diterbit === false);
+                if (belum.length === 0) {
+                    amaranEl.classList.add('hidden');
+                } else {
+                    document.getElementById('terbit-amaran-tajuk').textContent =
+                        `${belum.length} keputusan belum diterbitkan`;
+                    document.getElementById('terbit-amaran-isi').innerHTML =
+                        belum.map(e => `<strong>${e.nama}</strong>`).join(' · ') +
+                        ' — markahnya <strong>tersembunyi</strong> dari guru. ' +
+                        'Anda nampak kerana anda admin.';
+                    amaranEl.classList.remove('hidden');
+                }
+            }
         }
 
         // ==========================================================
@@ -16510,6 +16806,7 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 } catch (e) {
                     newOrder = GLOBAL_DATA.examTypes.length;
                 }
+                const guruTerhadEl = document.getElementById('new-exam-guru-terhad');
                 await db.collection('examTypes').add({
                     nama: nama,
                     darjah: darjahChecked,
@@ -16517,6 +16814,7 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                     order: newOrder,
                     tahunKalendar: tahunKalendar,
                     aktif: true,
+                    guruTerhad: !!(guruTerhadEl && guruTerhadEl.checked),
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
@@ -16527,6 +16825,7 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 namaInput.value = '';
                 document.querySelectorAll('.new-exam-darjah:checked').forEach(cb => cb.checked = false);
                 setSubjekChecks('new-exam-subjek', true); // reset ke default (semua ditanda)
+                if (guruTerhadEl) guruTerhadEl.checked = false;
 
                 // Refresh senarai + semua dropdown
                 await renderExamTypeList(tahunKalendar);
@@ -16557,6 +16856,9 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
 
             // Jana checklist subjek — et.subjek kosong/tiada = semua ditanda
             renderSubjekChecklist('edit-exam-subjek', et.subjek);
+
+            const gtEl = document.getElementById('edit-exam-guru-terhad');
+            if (gtEl) gtEl.checked = et.guruTerhad === true;
 
             document.getElementById('edit-exam-type-modal').classList.remove('hidden');
         }
@@ -16597,8 +16899,13 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             // Subjek terlibat — [] bermakna semua subjek terlibat (default)
             const subjekTerlibat = bacaSubjekTerlibat('edit-exam-subjek');
 
+            const gtEditEl = document.getElementById('edit-exam-guru-terhad');
+
             try {
-                await db.collection('examTypes').doc(id).update({ nama: nama, darjah: darjahChecked, subjek: subjekTerlibat });
+                await db.collection('examTypes').doc(id).update({
+                    nama: nama, darjah: darjahChecked, subjek: subjekTerlibat,
+                    guruTerhad: !!(gtEditEl && gtEditEl.checked)
+                });
 
                 statusEl.textContent = '✅ Berjaya dikemas kini!';
                 statusEl.className = 'text-sm font-medium text-green-600';
@@ -16641,6 +16948,317 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 await renderExamTypeList(year);
             } catch (error) {
                 showNotification('Ralat', 'Gagal memadam: ' + error.message, true);
+            }
+        }
+
+        /* ==================================================================
+           GURU MARKAH — pendaftaran guru subjek untuk "Markah Ujian Khas"
+           ------------------------------------------------------------------
+           Guru mendaftar SENDIRI di markah-guru.html. Tab ini untuk admin
+           melihat, membuang, tukar kata laluan dan ubah kelas.
+
+           🔴 Kunci slot = subjek + kelas. Satu slot satu tuan. Semakan itu
+              hidup di DUA tempat (sini + markah-guru.js) dan kedua-duanya
+              mesti sama, jika tidak admin boleh mencipta pertindihan yang
+              borang pendaftaran sendiri menolak.
+
+           🔴 Membuang pendaftaran TIDAK membuang markah. Markah milik
+              sekolah; guru yang bertukar sekolah tidak membawa markah
+              muridnya keluar bersama.
+           ================================================================== */
+        const GM_KOLEKSI = 'guruMarkah';
+        let GM_DATA = [];          // pendaftaran tahun dipilih
+        let GM_MARKAH_BIL = {};    // "SUBJEK||KELAS" -> bil rekod markah
+
+        // Doc id guruMarkah ialah nama dinormalkan, dijana oleh mgIdNama()
+        // dalam markah-guru.js semasa pendaftaran. Tab ini TIDAK menjana id
+        // sendiri — ia selalu memakai `g.id` yang dibaca dari Firestore, jadi
+        // tiada salinan kedua logik normalisasi untuk tersasar daripada yang
+        // asal. Kalau tab ini satu hari perlu mencipta pendaftaran, pindahkan
+        // mgIdNama ke anugerah-kongsi.js dan kongsi satu pelaksanaan.
+        function gmKunciSlot(subjek, kelas) {
+            return String(subjek || '').trim().toUpperCase() + '||' +
+                   String(kelas || '').trim().toUpperCase();
+        }
+
+        function initGuruMarkah() {
+            const sel = document.getElementById('gm-tahun');
+            if (sel && !sel.options.length) {
+                const kini = new Date().getFullYear();
+                [kini - 1, kini, kini + 1].forEach(y => {
+                    const o = document.createElement('option');
+                    o.value = y; o.textContent = y;
+                    if (y === kini) o.selected = true;
+                    sel.appendChild(o);
+                });
+            }
+            renderGuruMarkah(true);
+        }
+
+        async function renderGuruMarkah(muatSemula) {
+            const listEl = document.getElementById('gm-list');
+            const ringkasEl = document.getElementById('gm-ringkas');
+            if (!listEl) return;
+
+            const tahun = parseInt(document.getElementById('gm-tahun').value) ||
+                          new Date().getFullYear();
+
+            if (muatSemula) {
+                listEl.innerHTML = '<p class="text-sm text-gray-400 italic">Memuatkan…</p>';
+                try {
+                    const snap = await db.collection(GM_KOLEKSI)
+                        .where('calYear', '==', tahun).get();
+                    GM_DATA = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                    // Bil rekod markah per slot — supaya admin tahu sebelum
+                    // membuang: guru ini sudah mengisi 50 markah atau belum mula.
+                    GM_MARKAH_BIL = {};
+                    const terhad = (GLOBAL_DATA.examTypes || [])
+                        .filter(e => e.guruTerhad === true).map(e => e.nama);
+                    if (terhad.length) {
+                        const mSnap = await db.collection('rekodMarkah')
+                            .where('cal_year', '==', tahun).get();
+                        mSnap.docs.forEach(d => {
+                            const x = d.data();
+                            if (!terhad.includes(x['JENIS PEPERIKSAAN'])) return;
+                            const k = gmKunciSlot(x.subjek, x.kelas);
+                            GM_MARKAH_BIL[k] = (GM_MARKAH_BIL[k] || 0) + 1;
+                        });
+                    }
+                } catch (e) {
+                    listEl.innerHTML = '<p class="text-sm text-red-600">Gagal memuatkan: ' + e.message + '</p>';
+                    return;
+                }
+            }
+
+            const q = (document.getElementById('gm-cari').value || '').trim().toLowerCase();
+            const tapis = !q ? GM_DATA : GM_DATA.filter(g => {
+                const teks = [g.nama, g.subjek, (g.kelas || []).join(' '), g.darjah]
+                    .join(' ').toLowerCase();
+                return q.split(/\s+/).every(t => teks.includes(t));
+            });
+
+            const jumSlot = GM_DATA.reduce((n, g) => n + (g.kelas || []).length, 0);
+            ringkasEl.innerHTML = GM_DATA.length === 0 ? '' :
+                '<span class="text-gray-600"><strong>' + GM_DATA.length + '</strong> guru berdaftar · ' +
+                '<strong>' + jumSlot + '</strong> slot subjek×kelas' +
+                (q ? ' · menunjukkan <strong>' + tapis.length + '</strong>' : '') + '</span>';
+
+            if (!GM_DATA.length) {
+                listEl.innerHTML =
+                    '<div class="bg-gray-50 border border-gray-200 rounded-lg p-5 text-center">' +
+                    '<p class="text-sm text-gray-600">Belum ada guru berdaftar untuk ' + tahun + '.</p>' +
+                    '<p class="text-xs text-gray-500 mt-1">Guru mendaftar sendiri melalui menu ' +
+                    '<strong>📝 Markah Ujian Khas</strong> di halaman utama.</p></div>';
+                return;
+            }
+            if (!tapis.length) {
+                listEl.innerHTML = '<p class="text-sm text-gray-500 italic">Tiada guru padan carian itu.</p>';
+                return;
+            }
+
+            listEl.innerHTML = tapis
+                .slice()
+                .sort((a, b) => String(a.subjek || '').localeCompare(String(b.subjek || '')) ||
+                                String(a.nama || '').localeCompare(String(b.nama || '')))
+                .map(g => {
+                    const kelas = g.kelas || [];
+                    const bil = kelas.reduce((n, k) => n + (GM_MARKAH_BIL[gmKunciSlot(g.subjek, k)] || 0), 0);
+                    const idEsc = encodeURIComponent(g.id);
+                    const kelasPil = kelas.map(k => {
+                        const n = GM_MARKAH_BIL[gmKunciSlot(g.subjek, k)] || 0;
+                        return '<span class="text-xs bg-white border border-gray-200 px-2 py-0.5 rounded-full" ' +
+                               'title="' + n + ' rekod markah">' + k +
+                               (n ? ' <span class="text-green-700 font-semibold">' + n + '</span>' : '') +
+                               '</span>';
+                    }).join(' ');
+                    return '<div class="flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm">' +
+                        '<div class="flex-1 min-w-0">' +
+                            '<div class="flex items-center gap-2 flex-wrap">' +
+                                '<span class="font-bold text-gray-800">' + (g.nama || g.id) + '</span>' +
+                                '<span class="text-xs text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full font-semibold">' +
+                                    (g.subjek || '—') + '</span>' +
+                                '<span class="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">Darjah ' +
+                                    (_darjahToTahunNo(g.darjah) || '?') + '</span>' +
+                                /* Mengambil kira `akhir` (kali terakhir menyimpan), bukan
+                                   `dibuka` sahaja — guru yang mendaftar lalu terus mengisi
+                                   pernah dipaparkan "belum log masuk" sedangkan markahnya
+                                   sudah tersimpan. */
+                                ((g.dibuka || g.akhir) ? '' : '<span class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">belum log masuk</span>') +
+                            '</div>' +
+                            '<div class="mt-1.5 flex gap-1.5 flex-wrap">' + kelasPil + '</div>' +
+                            '<p class="text-xs text-gray-500 mt-1.5">' + bil + ' rekod markah · ' +
+                                kelas.length + ' kelas</p>' +
+                        '</div>' +
+                        '<div class="flex flex-col gap-1.5 shrink-0">' +
+                            '<button onclick="gmModalKelas(\'' + idEsc + '\')" class="text-xs bg-gray-100 hover:bg-gray-200 px-2.5 py-1 rounded">✏️ Kelas</button>' +
+                            '<button onclick="gmModalPw(\'' + idEsc + '\')" class="text-xs bg-gray-100 hover:bg-gray-200 px-2.5 py-1 rounded">🔑 Kata laluan</button>' +
+                            '<button onclick="gmBuang(\'' + idEsc + '\')" class="text-xs bg-red-50 text-red-700 hover:bg-red-100 px-2.5 py-1 rounded">🗑️ Buang</button>' +
+                        '</div>' +
+                    '</div>';
+                }).join('');
+        }
+
+        // Darjah disimpan sebagai PERKATAAN (EMPAT) — tukar ke nombor utk paparan
+        function _darjahToTahunNo(word) {
+            const peta = { SATU: 1, DUA: 2, TIGA: 3, EMPAT: 4, LIMA: 5, ENAM: 6 };
+            return peta[String(word || '').toUpperCase()] || Number(word) || 0;
+        }
+
+        function gmCariGuru(idEnc) {
+            const id = decodeURIComponent(idEnc);
+            return GM_DATA.find(g => g.id === id);
+        }
+
+        function gmTutupModal() {
+            document.getElementById('gm-modal').classList.add('hidden');
+        }
+
+        // ---------- tukar kata laluan ----------
+        function gmModalPw(idEnc) {
+            const g = gmCariGuru(idEnc);
+            if (!g) return;
+            document.getElementById('gm-modal-tajuk').textContent = 'Kata laluan — ' + (g.nama || g.id);
+            document.getElementById('gm-modal-isi').innerHTML =
+                '<p class="text-sm text-gray-600">Beritahu guru kata laluan baharu ini. ' +
+                'Pendaftaran, kelas dan markahnya tidak berubah.</p>' +
+                '<div><label class="block text-sm font-medium text-gray-700 mb-1">Kata laluan baharu</label>' +
+                '<input type="text" id="gm-pw-baru" value="' + (g.pw || '') + '" ' +
+                'class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono"></div>' +
+                '<p id="gm-pw-status" class="text-sm"></p>' +
+                '<div class="flex gap-3">' +
+                '<button onclick="gmSimpanPw(\'' + idEnc + '\')" class="flex-1 bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 font-semibold">Simpan</button>' +
+                '<button onclick="gmTutupModal()" class="flex-1 bg-gray-200 text-gray-800 py-2 rounded-md hover:bg-gray-300">Batal</button>' +
+                '</div>';
+            document.getElementById('gm-modal').classList.remove('hidden');
+            document.getElementById('gm-pw-baru').focus();
+        }
+
+        async function gmSimpanPw(idEnc) {
+            const g = gmCariGuru(idEnc);
+            if (!g) return;
+            const pw = document.getElementById('gm-pw-baru').value;
+            const st = document.getElementById('gm-pw-status');
+            if (pw.length < 4) {
+                st.textContent = '❌ Kata laluan mesti sekurang-kurangnya 4 aksara.';
+                st.className = 'text-sm text-red-600';
+                return;
+            }
+            st.textContent = '⏳ Menyimpan…';
+            st.className = 'text-sm text-gray-500';
+            try {
+                await db.collection(GM_KOLEKSI).doc(g.id).update({ pw: pw });
+                g.pw = pw;
+                st.textContent = '✅ Kata laluan ditukar.';
+                st.className = 'text-sm text-green-600';
+                setTimeout(gmTutupModal, 900);
+            } catch (e) {
+                st.textContent = '❌ Ralat: ' + e.message;
+                st.className = 'text-sm text-red-600';
+            }
+        }
+
+        // ---------- ubah kelas ----------
+        async function gmModalKelas(idEnc) {
+            const g = gmCariGuru(idEnc);
+            if (!g) return;
+
+            // Slot yang sudah dimiliki guru LAIN — tidak boleh diambil
+            const slotLain = {};
+            GM_DATA.filter(x => x.id !== g.id).forEach(x => {
+                (x.kelas || []).forEach(k => {
+                    slotLain[gmKunciSlot(x.subjek, k)] = x.nama || x.id;
+                });
+            });
+
+            const darjah = String(g.darjah || '').toUpperCase();
+            const senarai = (GLOBAL_DATA.allClasses && GLOBAL_DATA.allClasses[darjah]) || [];
+            const kelasAda = (g.kelas || []).map(k => String(k).toUpperCase());
+
+            document.getElementById('gm-modal-tajuk').textContent = 'Kelas — ' + (g.nama || g.id);
+            document.getElementById('gm-modal-isi').innerHTML =
+                '<p class="text-sm text-gray-600"><strong>' + (g.subjek || '') + '</strong> · Darjah ' +
+                    (_darjahToTahunNo(darjah) || '?') + '</p>' +
+                (senarai.length ? '' : '<p class="text-sm text-amber-700">Tiada kelas dijumpai untuk darjah ini.</p>') +
+                '<div class="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-3">' +
+                senarai.map(k => {
+                    const ku = String(k).toUpperCase();
+                    const tuan = slotLain[gmKunciSlot(g.subjek, ku)];
+                    const n = GM_MARKAH_BIL[gmKunciSlot(g.subjek, ku)] || 0;
+                    return '<label class="flex items-start gap-2 text-sm' +
+                        (tuan ? ' opacity-50 cursor-not-allowed' : ' cursor-pointer') + '">' +
+                        '<input type="checkbox" class="gm-kelas mt-0.5" value="' + ku + '"' +
+                            (kelasAda.includes(ku) ? ' checked' : '') + (tuan ? ' disabled' : '') + '>' +
+                        '<span>' + k +
+                            (tuan ? '<span class="block text-xs text-red-600">diambil — ' + tuan + '</span>' : '') +
+                            (n && !tuan ? '<span class="block text-xs text-green-700">' + n + ' rekod markah</span>' : '') +
+                        '</span></label>';
+                }).join('') +
+                '</div>' +
+                '<div class="bg-amber-50 border border-amber-200 rounded-md p-3 text-xs text-amber-800">' +
+                'Membuang tanda pada satu kelas <strong>tidak membuang markahnya</strong> — ' +
+                'ia cuma mengeluarkan kelas itu daripada senarai guru ini, dan membebaskan ' +
+                'slot untuk guru lain mendaftar.</div>' +
+                '<p id="gm-kelas-status" class="text-sm"></p>' +
+                '<div class="flex gap-3">' +
+                '<button onclick="gmSimpanKelas(\'' + idEnc + '\')" class="flex-1 bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 font-semibold">Simpan</button>' +
+                '<button onclick="gmTutupModal()" class="flex-1 bg-gray-200 text-gray-800 py-2 rounded-md hover:bg-gray-300">Batal</button>' +
+                '</div>';
+            document.getElementById('gm-modal').classList.remove('hidden');
+        }
+
+        async function gmSimpanKelas(idEnc) {
+            const g = gmCariGuru(idEnc);
+            if (!g) return;
+            const st = document.getElementById('gm-kelas-status');
+            const kelas = Array.from(document.querySelectorAll('.gm-kelas:checked')).map(cb => cb.value);
+            if (!kelas.length) {
+                st.textContent = '❌ Sila tandakan sekurang-kurangnya satu kelas. (Untuk membuang guru ini sepenuhnya, guna butang 🗑️ Buang.)';
+                st.className = 'text-sm text-red-600';
+                return;
+            }
+            st.textContent = '⏳ Menyimpan…';
+            st.className = 'text-sm text-gray-500';
+            try {
+                await db.collection(GM_KOLEKSI).doc(g.id).update({ kelas: kelas });
+                g.kelas = kelas;
+                st.textContent = '✅ Disimpan.';
+                st.className = 'text-sm text-green-600';
+                setTimeout(() => { gmTutupModal(); renderGuruMarkah(); }, 800);
+            } catch (e) {
+                st.textContent = '❌ Ralat: ' + e.message;
+                st.className = 'text-sm text-red-600';
+            }
+        }
+
+        // ---------- buang pendaftaran ----------
+        async function gmBuang(idEnc) {
+            const g = gmCariGuru(idEnc);
+            if (!g) return;
+            const bil = (g.kelas || []).reduce(
+                (n, k) => n + (GM_MARKAH_BIL[gmKunciSlot(g.subjek, k)] || 0), 0);
+
+            // Taip PADAM — piawai projek. Satu Enter tersasar tidak boleh
+            // membuang pendaftaran guru di tengah musim peperiksaan.
+            const jawab = prompt(
+                '🗑️ BUANG PENDAFTARAN\n\n' +
+                (g.nama || g.id) + ' — ' + (g.subjek || '') + '\n' +
+                'Kelas: ' + (g.kelas || []).join(', ') + '\n\n' +
+                bil + ' rekod markah KEKAL (markah tidak dibuang).\n' +
+                'Slot subjek×kelas itu akan bebas untuk guru lain mendaftar.\n\n' +
+                'Taip PADAM untuk teruskan:'
+            );
+            if (jawab === null) return;
+            if (String(jawab).trim().toUpperCase() !== 'PADAM') {
+                showNotification('Dibatalkan', 'Pendaftaran tidak dibuang.', false);
+                return;
+            }
+            try {
+                await db.collection(GM_KOLEKSI).doc(g.id).delete();
+                showNotification('Berjaya', (g.nama || g.id) + ' dibuang. Markahnya kekal.', false);
+                await renderGuruMarkah(true);
+            } catch (e) {
+                showNotification('Ralat', 'Gagal membuang: ' + e.message, true);
             }
         }
 

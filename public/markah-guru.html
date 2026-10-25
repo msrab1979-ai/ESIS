@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markah Ujian Khas — Guru Subjek</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="anugerah-kongsi.css">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+.login-kotak{max-width:460px; margin:40px auto}
+.daftar-kotak{max-width:620px; margin:40px auto}
+
+/* `.hint` dipakai meluas oleh guru.html tanpa definisi dalam CSS dikongsi
+   (ia bergantung pada warisan). Ditetapkan di sini supaya teks panduan
+   halaman ini kekal kelabu dan kecil seperti yang dimaksudkan. */
+.hint{font-size:12.5px; color:var(--neutral); line-height:1.5}
+.lajur-teks-kecil{max-width:200px; white-space:normal}
+
+/* Kotak markah dalam jadual — kecil, kanan, mono supaya mudah diimbas */
+.kotak-markah{
+  width:72px; text-align:center; font-variant-numeric:tabular-nums;
+  padding:6px 7px; border:1px solid var(--garis); border-radius:7px;
+  font-size:14px; font-weight:600; background:var(--kertas-2);
+  color:var(--tinta);
+}
+.kotak-markah:focus{outline:2px solid var(--emas); outline-offset:1px; border-color:var(--emas)}
+.kotak-markah:disabled{background:var(--kertas-3); color:var(--neutral); font-weight:400}
+.kotak-markah.kosong{border-color:var(--amaran); background:var(--amaran-bg)}
+
+/* Sel TH — checkbox + label pendek */
+.sel-th{text-align:center; white-space:nowrap}
+.sel-th input{width:16px; height:16px; cursor:pointer; accent-color:var(--absen)}
+
+.gred-sel{text-align:center; font-weight:700; font-variant-numeric:tabular-nums}
+
+/* Baris TH dikelabukan — markah tiada makna di situ */
+tr.baris-th .kotak-markah{opacity:.35}
+
+.tapis-bar{
+  display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;
+  padding:12px 16px; border-bottom:1px solid var(--garis-halus); background:var(--kertas-2);
+}
+.kelas-kunci{
+  display:inline-flex; align-items:center; gap:6px; padding:5px 11px;
+  border-radius:999px; background:var(--kertas-3); font-size:12px;
+  font-weight:600; color:var(--neutral);
+}
+
+/* Senarai kelas semasa daftar — kelas bertuan kelabu + mati */
+.kelas-grid{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr));
+  gap:7px; max-height:230px; overflow-y:auto;
+  border:1px solid var(--garis-halus); border-radius:9px; padding:11px;
+  background:var(--kertas);
+}
+.kelas-pilih{
+  display:flex; align-items:flex-start; gap:7px; padding:6px 8px;
+  border-radius:7px; cursor:pointer; font-size:13px; line-height:1.35;
+}
+.kelas-pilih:hover{background:var(--kertas-3)}
+.kelas-pilih input{margin-top:2px; width:15px; height:15px; accent-color:var(--emas)}
+.kelas-pilih.bertuan{cursor:not-allowed; opacity:.55}
+.kelas-pilih.bertuan:hover{background:transparent}
+.kelas-tuan{display:block; font-size:11px; color:var(--absen); font-weight:600}
+
+/* Jalur gred — ringkasan taburan sebaris */
+.gred-jalur{display:flex; flex-wrap:wrap; gap:5px; align-items:center}
+.gred-nota{font-size:11.5px; color:var(--neutral); margin-left:4px}
+
+/* Jadual taburan gred (panel guru) */
+.gred-kira{
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(74px, 1fr));
+  gap:8px; margin-bottom:13px;
+}
+.gred-sel-kira{
+  text-align:center; padding:9px 6px; border-radius:9px;
+  border:1px solid var(--garis-halus); background:var(--kertas);
+}
+.gred-sel-kira b{display:block; font-size:21px; line-height:1.15; font-variant-numeric:tabular-nums}
+.gred-sel-kira span{font-size:11px; color:var(--neutral); font-weight:600; letter-spacing:.04em}
+.gred-sel-kira.g-A b{color:var(--hadir)}
+.gred-sel-kira.g-B b{color:var(--hadir)}
+.gred-sel-kira.g-C b{color:var(--emas)}
+.gred-sel-kira.g-D b{color:var(--amaran)}
+.gred-sel-kira.g-E b{color:var(--amaran)}
+.gred-sel-kira.g-F b{color:var(--absen)}
+.gred-sel-kira.g-TH b{color:var(--neutral)}
+.gred-sel-kira.kosong{opacity:.42}
+
+.sticky-simpan{
+  position:sticky; bottom:0; z-index:5;
+  display:flex; gap:11px; align-items:center; flex-wrap:wrap;
+  padding:12px 16px; background:var(--kertas-2);
+  border-top:1px solid var(--garis);
+}
+
+/* Sel bernilai 0 dikelabukan — mata menangkap gred yang benar-benar ada */
+.sifar{color:var(--neutral); opacity:.35}
+
+/* ---------- CETAK (PDF) — panel guru ----------
+   Dialog cetak pelayar menjadi penjana PDF; tiada pustaka dimuat.
+   Semua yang bukan jadual markah + analisa disembunyikan. */
+@media print {
+  body.cetak-guru .tajuk,
+  body.cetak-guru .tapis-bar,
+  body.cetak-guru .sticky-simpan,
+  body.cetak-guru #i-amaran,
+  body.cetak-guru #b-guru-csv,
+  body.cetak-guru #b-guru-pdf { display:none !important }
+
+  body.cetak-guru .kad{border:none !important; box-shadow:none !important; margin:0 !important}
+  body.cetak-guru .badan{padding:0 !important}
+
+  /* Kotak input tidak bercetak dengan baik — tukar kepada teks biasa */
+  body.cetak-guru .kotak-markah{
+    border:none !important; background:transparent !important;
+    -webkit-appearance:none; appearance:none; width:auto; font-weight:700;
+  }
+  body.cetak-guru .kotak-markah::-webkit-outer-spin-button,
+  body.cetak-guru .kotak-markah::-webkit-inner-spin-button{display:none}
+  body.cetak-guru .sel-th input{transform:scale(.9)}
+
+  body.cetak-guru .senarai{font-size:11px}
+  body.cetak-guru .senarai thead{display:table-header-group}  /* ulang pd setiap halaman */
+  body.cetak-guru .senarai tr{break-inside:avoid}
+  body.cetak-guru #i-analisa-kad{break-before:auto}
+  @page{size:A4 portrait; margin:12mm}
+}
+</style>
+</head>
+<body>
+
+<header class="tajuk tanpa-tab">
+  <div class="tajuk-dlm">
+    <div class="jenama">
+      <h1 id="tajuk">Markah Ujian Khas</h1>
+      <span class="cap" id="cap-peranan">Guru Subjek</span>
+    </div>
+    <p class="sari" id="sari">Memuatkan…</p>
+  </div>
+</header>
+
+<main class="badan lebar">
+
+  <!-- ============ RALAT ============ -->
+  <div id="p-ralat" hidden>
+    <div class="kad login-kotak">
+      <div class="kad-kepala"><h3>Tidak tersedia</h3></div>
+      <div class="kad-isi">
+        <div class="nota ralat" style="margin:0">
+          <span class="sym">✕</span><div id="ralat-teks"></div>
+        </div>
+        <p class="kecil" style="margin:13px 0 0">
+          <a href="index.html">← Kembali ke ESIS</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LOGIN ============ -->
+  <div id="p-login" hidden>
+    <div class="kad login-kotak">
+      <div class="kad-kepala"><h3>Masuk</h3></div>
+      <div class="kad-isi">
+        <p class="hint" style="margin:0 0 14px" id="login-sari"></p>
+
+        <div class="medan" style="width:100%">
+          <label for="l-nama">Nama anda</label>
+          <input type="text" id="l-nama" autocomplete="name" placeholder="contoh: ALI">
+        </div>
+        <div class="medan" style="width:100%; margin-top:11px">
+          <label for="l-pw">Kata laluan</label>
+          <div class="pw-baris">
+            <input type="password" id="l-pw" autocomplete="current-password">
+            <button type="button" class="b-mata" id="b-mata-login"
+              aria-label="Tunjuk kata laluan" title="Tunjuk kata laluan">👁</button>
+          </div>
+        </div>
+
+        <div class="nota ralat" id="login-ralat" style="margin:12px 0 0" hidden>
+          <span class="sym">✕</span><div></div>
+        </div>
+
+        <div class="baris-input" style="margin-top:16px">
+          <button class="btn emas" id="b-masuk">Masuk</button>
+          <button class="btn sunyi" id="b-ke-daftar">Belum daftar? Daftar baharu</button>
+        </div>
+
+        <p class="kecil" style="margin:14px 0 0">
+          <strong>Pentadbir:</strong> biar nama kosong dan masukkan kata laluan admin
+          untuk melihat semua kelas (baca sahaja).
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DAFTAR ============ -->
+  <div id="p-daftar" hidden>
+    <div class="kad daftar-kotak">
+      <div class="kad-kepala"><h3>Daftar Guru Subjek</h3></div>
+      <div class="kad-isi">
+        <p class="hint" style="margin:0 0 15px">
+          Daftar <strong>sekali sahaja</strong>. Tandakan semua kelas yang anda ajar
+          untuk subjek itu — anda boleh tukar antara kelas selepas masuk.
+        </p>
+
+        <div class="baris-input">
+          <div class="medan" style="flex:1 1 220px">
+            <label for="d-nama">Nama anda</label>
+            <input type="text" id="d-nama" autocomplete="name" placeholder="contoh: ALI">
+          </div>
+          <div class="medan" style="flex:1 1 200px">
+            <label for="d-pw">Kata laluan pilihan anda</label>
+            <div class="pw-baris">
+              <input type="password" id="d-pw" autocomplete="new-password">
+              <button type="button" class="b-mata" id="b-mata-daftar"
+                aria-label="Tunjuk kata laluan" title="Tunjuk kata laluan">👁</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="baris-input" style="margin-top:11px">
+          <div class="medan" style="flex:1 1 240px">
+            <label for="d-subjek">Subjek anda</label>
+            <select id="d-subjek"><option value="">Memuatkan…</option></select>
+          </div>
+          <div class="medan" style="flex:1 1 160px">
+            <label for="d-darjah">Darjah</label>
+            <select id="d-darjah"><option value="">Memuatkan…</option></select>
+          </div>
+        </div>
+
+        <div style="margin-top:14px">
+          <label class="eyebrow" style="display:block; margin-bottom:7px">
+            Kelas yang anda ajar
+            <span class="sub" id="d-kelas-kira"></span>
+          </label>
+          <div class="kelas-grid" id="d-kelas-grid">
+            <p class="hint" style="margin:0">Pilih subjek dan darjah dahulu.</p>
+          </div>
+        </div>
+
+        <div class="nota ralat" id="daftar-ralat" style="margin:13px 0 0" hidden>
+          <span class="sym">✕</span><div></div>
+        </div>
+        <div class="nota" id="daftar-ok" style="margin:13px 0 0" hidden>
+          <span class="sym">✓</span><div></div>
+        </div>
+
+        <div class="baris-input" style="margin-top:17px">
+          <button class="btn emas" id="b-daftar">Daftar</button>
+          <button class="btn sunyi" id="b-ke-login">← Sudah daftar? Masuk</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ GURU: ISI MARKAH ============ -->
+  <div id="p-isi" hidden>
+    <div class="kad">
+      <div class="tapis-bar">
+        <div class="medan" style="flex:0 1 210px">
+          <label for="i-kelas">Kelas</label>
+          <select id="i-kelas"></select>
+        </div>
+        <div style="flex:1 1 auto; display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+          <span class="kelas-kunci" id="i-pil-subjek"></span>
+          <span class="kelas-kunci" id="i-pil-pep"></span>
+        </div>
+        <button class="btn sunyi kecil" id="b-keluar">Keluar</button>
+      </div>
+
+      <div id="i-amaran"></div>
+
+      <div class="gulung" id="i-jadual">
+        <p class="hint" style="padding:16px">Memuatkan senarai murid…</p>
+      </div>
+
+      <div class="sticky-simpan" id="i-simpan-bar" hidden>
+        <button class="btn emas" id="b-simpan">💾 Simpan markah</button>
+        <span class="kecil" id="i-status"></span>
+      </div>
+    </div>
+
+    <!-- Analisa gred kelas ini — guru nampak taburan kelasnya sendiri
+         sambil mengisi, tanpa perbandingan dengan kelas lain. -->
+    <div class="kad" id="i-analisa-kad" style="margin-top:18px" hidden>
+      <div class="kad-kepala" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap">
+        <h3 id="i-analisa-tajuk">Analisa Gred</h3>
+        <div style="display:flex; gap:8px">
+          <button class="btn sunyi kecil" id="b-guru-csv">⬇ CSV</button>
+          <button class="btn sunyi kecil" id="b-guru-pdf">🖨 PDF</button>
+        </div>
+      </div>
+      <div class="kad-isi" id="i-analisa"></div>
+    </div>
+  </div>
+
+  <!-- ============ PENTADBIR: LIHAT SEMUA ============ -->
+  <div id="p-pentadbir" hidden>
+    <div class="kad">
+      <div class="tapis-bar">
+        <div class="medan" style="flex:0 1 230px">
+          <label for="pt-pep">Peperiksaan</label>
+          <select id="pt-pep"></select>
+        </div>
+        <div class="medan" style="flex:0 1 150px">
+          <label for="pt-darjah">Darjah</label>
+          <select id="pt-darjah"><option value="">Semua</option></select>
+        </div>
+        <div class="medan" style="flex:0 1 180px">
+          <label for="pt-subjek">Subjek</label>
+          <select id="pt-subjek"><option value="">Semua</option></select>
+        </div>
+        <button class="btn sunyi kecil" id="b-pt-segar">🔄 Segar semula</button>
+        <button class="btn sunyi kecil" id="b-pt-csv">⬇ CSV</button>
+        <button class="btn sunyi kecil" id="b-pt-keluar">Keluar</button>
+      </div>
+
+      <div class="kad-isi" style="padding-bottom:0">
+        <div class="kpi-grid" id="pt-kpi"></div>
+      </div>
+
+      <div id="pt-amaran"></div>
+
+      <div class="gulung" id="pt-jadual">
+        <p class="hint" style="padding:16px">Memuatkan…</p>
+      </div>
+    </div>
+
+    <div class="kad" style="margin-top:18px">
+      <div class="kad-kepala"><h3 id="pt-markah-tajuk">Markah murid</h3></div>
+      <div class="gulung" id="pt-markah">
+        <p class="hint" style="padding:16px">Pilih satu baris di atas untuk melihat markah muridnya.</p>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script src="anugerah-kongsi.js"></script>
+<script src="markah-guru.js"></script>
+</body>
+</html>

@@ -259,6 +259,22 @@
   .kj .anu-baris .no,.kj .sek{color:#8A6A1F!important}
   @page{size:A4; margin:8mm}
 }
+
+/* Senarai kotak tanda peperiksaan (modal anugerah, mod "gabung") —
+   menggantikan dua dropdown tetap supaya 3+ peperiksaan boleh digabung. */
+.pep-grid{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(215px, 1fr));
+  gap:5px; max-height:190px; overflow-y:auto;
+  border:1px solid var(--garis-halus); border-radius:9px;
+  padding:9px; background:var(--kertas);
+}
+.pep-pilih{
+  display:flex; align-items:flex-start; gap:7px;
+  padding:5px 7px; border-radius:7px; cursor:pointer;
+  font-size:13px; line-height:1.35;
+}
+.pep-pilih:hover{background:var(--kertas-3)}
+.pep-pilih input{margin-top:2px; width:15px; height:15px; accent-color:var(--emas)}
 </style>
 </head>
 <body>
@@ -1820,9 +1836,14 @@ function bacaPepAnugerah() {
   if (mod === 'majlis') return [];
   const satu = $('a-pep1') ? $('a-pep1').value : '';
   if (mod === 'tunggal') return satu ? [satu] : [];
-  const dua = $('a-pep2') ? $('a-pep2').value : '';
-  /* Peperiksaan yang sama dua kali bukan purata — ia nombor yang sama. */
-  return [satu, dua].filter((x, i, arr) => x && arr.indexOf(x) === i);
+  /* Gabung: BEBERAPA peperiksaan (bukan dua tetap). Susunan mengikut
+     `order` examTypes kerana itulah susunan kotak tanda dilukis — jadi
+     lajur dalam jadual calon keluar mengikut urutan peperiksaan diduduki.
+     Nyahduakan: peperiksaan yang sama dua kali bukan purata, ia nombor
+     yang sama. */
+  const tanda = Array.from(document.querySelectorAll('.a-pep-chk:checked'))
+    .map(cb => cb.value);
+  return tanda.filter((x, i, arr) => x && arr.indexOf(x) === i);
 }
 
 function modalAnugerah(idx) {
@@ -1880,16 +1901,22 @@ function modalAnugerah(idx) {
           '<div class="medan"><label for="a-pmod">Cara kiraan</label><select id="a-pmod">' +
             '<option value="majlis">Ikut peperiksaan majlis</option>' +
             '<option value="tunggal">Tunggal — satu peperiksaan</option>' +
-            '<option value="gabung">Gabung — purata dua peperiksaan</option>' +
+            '<option value="gabung">Gabung — purata beberapa peperiksaan</option>' +
           '</select></div>' +
         '</div>' +
-        '<div class="baris-input" style="margin-top:9px" id="a-pkotak" hidden>' +
-          '<div class="medan" style="flex:1 1 220px" id="a-pk1">' +
+        '<div style="margin-top:9px" id="a-pkotak" hidden>' +
+          '<div class="medan" id="a-pk1" style="max-width:280px">' +
             '<label for="a-pep1">Jenis peperiksaan</label>' +
             '<select id="a-pep1"><option value="">Memuatkan…</option></select></div>' +
-          '<div class="medan" style="flex:1 1 220px" id="a-pk2" hidden>' +
-            '<label for="a-pep2">Jenis peperiksaan 2</label>' +
-            '<select id="a-pep2"><option value="">Memuatkan…</option></select></div>' +
+          /* Gabung: senarai kotak tanda, bukan dua dropdown tetap. Sekolah ini
+             menggabungkan UASA + UPSA + MATRIK — tiga, bukan dua, dan enjin
+             agKiraCalon sudah menerima array sepanjang mana pun. */
+          '<div id="a-pk2" hidden>' +
+            '<label class="eyebrow" style="display:block;margin-bottom:6px">' +
+              'Peperiksaan yang digabung <span class="sub" id="a-pbil"></span></label>' +
+            '<div id="a-psenarai" class="pep-grid">' +
+              '<p class="hint" style="margin:0">Memuatkan…</p></div>' +
+          '</div>' +
         '</div>' +
         '<p class="hint" style="margin:7px 0 0" id="a-pnota"></p></div>' +
       '<div class="nota" style="margin:15px 0 0"><span class="sym">▸</span><div>' +
@@ -1990,16 +2017,22 @@ function modalAnugerah(idx) {
       return;
     }
     const pp = bacaPepAnugerah();
+    const bilEl = $('a-pbil');
+    if (bilEl) bilEl.textContent = pp.length ? '— ' + pp.length + ' ditanda' : '';
+
     el.innerHTML = !pp.length
-      ? 'Pilih jenis peperiksaan.'
+      ? (mod === 'gabung' ? 'Tandakan sekurang-kurangnya satu peperiksaan.'
+                          : 'Pilih jenis peperiksaan.')
       : pp.length === 1
       ? (mod === 'gabung'
-          ? '⚠ Hanya satu peperiksaan dipilih — markah <strong>' + agEsc(pp[0]) +
+          ? '⚠ Hanya satu peperiksaan ditanda — markah <strong>' + agEsc(pp[0]) +
             '</strong> digunakan terus, tiada purata.'
           : 'Markah <strong>' + agEsc(pp[0]) + '</strong> digunakan terus.')
-      : '<strong>Purata markah</strong> antara ' + agEsc(agSingkatPep(pp[0])) + ' dan ' +
-        agEsc(agSingkatPep(pp[1])) + '. Setiap peperiksaan mendapat lajurnya sendiri ' +
-        'dalam jadual calon — murid yang hanya menduduki satu ditanda <strong>1/2</strong>.';
+      : '<strong>Purata markah</strong> ' + pp.length + ' peperiksaan: ' +
+        pp.map(p => agEsc(agSingkatPep(p))).join(' · ') +
+        '. Setiap peperiksaan mendapat lajurnya sendiri dalam jadual calon — ' +
+        'murid yang hanya menduduki sebahagian ditanda <strong>1/' + pp.length +
+        '</strong> dan dikira atas yang diduduki.';
     el.innerHTML += amaranSub;
   }
 
@@ -2012,21 +2045,37 @@ function modalAnugerah(idx) {
   const pep1Awal = $('a-pep1');
   agJenisPeperiksaan((MAJLIS && MAJLIS.calYear) || new Date().getFullYear()).then(senarai => {
     if (!pep1Awal.isConnected) return;
-    const opt = terpilih => '<option value="">(pilih)</option>' +
+    $('a-pep1').innerHTML = '<option value="">(pilih)</option>' +
       senarai.map(e => '<option value="' + agEsc(e.nama) + '"' +
-        (e.nama === terpilih ? ' selected' : '') + '>' + agEsc(e.nama) + '</option>').join('');
-    $('a-pep1').innerHTML = opt(pepAda[0] || '');
-    $('a-pep2').innerHTML = opt(pepAda[1] || '');
+        (e.nama === pepAda[0] ? ' selected' : '') + '>' + agEsc(e.nama) + '</option>').join('');
+
+    /* Kotak tanda untuk mod gabung — satu bagi setiap peperiksaan tahun ini,
+       mengikut susunan `order` supaya lajur jadual calon keluar mengikut
+       urutan peperiksaan sebenar diduduki. */
+    $('a-psenarai').innerHTML = senarai.length
+      ? senarai.map(e =>
+          '<label class="pep-pilih"><input type="checkbox" class="a-pep-chk" value="' +
+          agEsc(e.nama) + '"' + (pepAda.indexOf(e.nama) >= 0 ? ' checked' : '') + '>' +
+          '<span>' + agEsc(e.nama) +
+          (e.aktif === false ? ' <span class="kecil">(dikunci)</span>' : '') +
+          '</span></label>').join('')
+      : '<p class="hint" style="margin:0">Tiada jenis peperiksaan untuk tahun ini.</p>';
+
     if (pepAda.length > 1) $('a-pmod').value = 'gabung';
     else if (pepAda.length === 1) $('a-pmod').value = 'tunggal';
+
+    /* Pendengar dipasang SELEPAS kotak dilukis — ia tidak wujud sebelum ini.
+       Satu pendengar pada bekas, bukan satu per kotak: senarai dilukis semula
+       setiap kali modal dibuka dan pendengar per-kotak akan berhimpun. */
+    $('a-psenarai').addEventListener('change', notaPep);
     notaPep();
   }).catch(() => {
     if (!pep1Awal.isConnected) return;
     $('a-pep1').innerHTML = '<option value="">(gagal memuat)</option>';
-    $('a-pep2').innerHTML = '<option value="">(gagal memuat)</option>';
+    $('a-psenarai').innerHTML = '<p class="hint" style="margin:0">(gagal memuat)</p>';
   });
 
-  ['a-pmod', 'a-pep1', 'a-pep2'].forEach(id => {
+  ['a-pmod', 'a-pep1'].forEach(id => {
     const el = $(id);
     if (el) el.addEventListener('change', notaPep);
   });

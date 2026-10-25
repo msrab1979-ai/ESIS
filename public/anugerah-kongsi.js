@@ -104,14 +104,31 @@ async function agMuatMurid(paksa) {
         nama: String(x.nama || '').trim(),
         tahun: String(x.tahun || '').trim().toUpperCase(),
         kelas: String(x.kelas || '').trim().toUpperCase(),
-        jantina: String(x.jantina || '').trim().toUpperCase()
+        jantina: String(x.jantina || '').trim().toUpperCase(),
+        /* 🔴 `agama` diperlukan oleh markah-guru.js apabila ia MENULIS rekod
+           markah: rekod ESIS membawa medan ini dan tapisan agama dalam Analisa
+           membacanya. Rekod tanpa `agama` terkeluar secara senyap dari tapisan
+           itu. Nilai dikekalkan apa adanya — JANGAN default ke ISLAM (lihat
+           normalizeAgama dalam index.html; murid HINDU/KRISTIAN sekolah ini
+           pernah dipaparkan sebagai Islam kerana default begitu). */
+        agama: String(x.agama || '').trim().toUpperCase()
       };
     })
     .filter(m => m.no_kp && m.nama);
   return AG_MURID_CACHE;
 }
 
-/* ---------- markah satu tahun + satu peperiksaan ---------- */
+/* ---------- markah satu tahun + satu peperiksaan ----------
+   🔴 TIDAK menapis `examTypes.diterbit` (Terbit Keputusan dalam
+      index.html). Modul Anugerah ialah panel ADMIN MAJLIS, bukan
+      paparan guru: justru kerjanya memilih calon daripada keputusan
+      yang BELUM diumumkan, supaya tiket dan giliran sudah siap pada
+      hari majlis. Menapis di sini akan mengosongkan senarai calon
+      setiap kali admin menutup keputusan — kegagalan senyap yang
+      kelihatan seperti markah hilang.
+
+      Borang guru (guru.html) tidak membaca fungsi ini; ia menulis
+      penerima sahaja, jadi guru tetap tidak nampak markah. */
 const AG_MARKAH_CACHE = {};
 
 async function agMuatMarkah(calYear, peperiksaan, paksa) {
@@ -422,8 +439,44 @@ async function agKiraCalon(o) {
     }
 
     /* asas gps / jumlah / purata — TH dibuang dahulu, bukan dikira 0 */
-    const sah = rekod.filter(r => !agIsTH(r) && !isNaN(parseInt(r.markah)));
+    let sah = rekod.filter(r => !agIsTH(r) && !isNaN(parseInt(r.markah)));
     if (!sah.length) { tiadaMarkah++; return; }
+
+    /* 🔴 BEBERAPA PEPERIKSAAN: satu baris per SUBJEK, bukan per rekod.
+       Tanpa ini, rekod semua peperiksaan ditimbun jadi satu kolam dan
+       setiap subjek dikira sekali bagi setiap peperiksaan — tiga kesan,
+       semuanya senyap:
+         · GPS condong ke arah subjek yang lebih banyak peperiksaan
+           (UASA+MATRIK: 4 subjek → 8 rekod, GPS 4.88 bukan 5.00)
+         · `jumlah` berganda (580 bukan 290), jadi pemecah seri salah
+         · `kurang` tidak pernah dicetuskan — murid dengan 2 daripada 4
+           subjek teras × 2 peperiksaan = 4 rekod dan dilaporkan LENGKAP,
+           jadi amaran "2/4" yang admin bergantung padanya tidak muncul.
+       Purata MARKAH per subjek dahulu (sama peraturan dengan cabang
+       `asas:'subjek'` di atas), kemudian gred dikira atas purata itu. */
+    if (senaraiPep.length > 1) {
+      const ikutSubjek = {};
+      sah.forEach(r => {
+        const s = String(r.subjek || '').trim().toUpperCase();
+        const pep = r._pep || senaraiPep[0];
+        const simpan = (ikutSubjek[s] = ikutSubjek[s] || { subjek: r.subjek, pep: {} });
+        /* Rekod pendua dalam peperiksaan yang sama: yang PERTAMA menang —
+           sama peraturan dengan cabang asas:'subjek'. */
+        if (simpan.pep[pep] == null) simpan.pep[pep] = parseInt(r.markah);
+      });
+      sah = Object.keys(ikutSubjek).map(s => {
+        const x = ikutSubjek[s];
+        const nilaiPep = Object.keys(x.pep).map(k => x.pep[k]);
+        const purataSub = nilaiPep.reduce((a, b) => a + b, 0) / nilaiPep.length;
+        return {
+          subjek: x.subjek,
+          markah: Math.round(purataSub * 100) / 100,
+          gred: null,                  /* dikira semula daripada purata */
+          markahPep: x.pep,
+          adaPep: nilaiPep.length
+        };
+      });
+    }
 
     /* Murid yang kurang satu subjek teras TETAP dikira — keputusan
        sekolah, bukan kod. Ia ditanda supaya admin nampak 3/4 sebelum
@@ -433,7 +486,12 @@ async function agKiraCalon(o) {
     if (kurang) takLengkap++;
 
     const gredList = sah.map(r => r.gred || agGredDariMarkah(r.markah));
-    const jumlah = sah.reduce((j, r) => j + parseInt(r.markah), 0);
+    /* parseFloat, bukan parseInt: purata merentas beberapa peperiksaan
+       boleh jadi 72.5, dan parseInt membuangnya menjadi 72 — pada 13
+       subjek itu sudah cukup untuk menukar kedudukan dua murid. Markah
+       satu peperiksaan ialah integer, jadi nilainya tidak berubah. */
+    const jumlah = Math.round(
+      sah.reduce((j, r) => j + parseFloat(r.markah), 0) * 100) / 100;
     const gps = agGPS(gredList);
     const bilA = gredList.filter(g => String(g).toUpperCase() === 'A').length;
 

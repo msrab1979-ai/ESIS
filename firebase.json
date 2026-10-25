@@ -39,6 +39,13 @@
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
         ]
+      },
+      {
+        "//": "Markah Ujian Khas — guru mengisi markah peperiksaan rasmi di sini. Satu pembetulan pada logik simpan tidak boleh menunggu sejam sementara guru menulis markah dengan kod lama.",
+        "source": "/markah-guru.{html,js}",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+        ]
       }
     ]
   },

@@ -38,8 +38,9 @@ The entire application lives in a **single file**: `public/index.html` (~10,070 
 | `rekodMarkah` | Exam mark records |
 | `subjek` | Subject definitions |
 | `gred` | Grade ranges/definitions (doc id = grade letter `A`..`F`; fields: `markah_min`, `markah_max`, and `mata` = GPS point value, see GPS section) |
-| `examTypes` | Exam type classifications (fields: `nama`, `tahunKalendar`, `darjah[]`, `subjek[]`, `aktif`, `order`) |
+| `examTypes` | Exam type classifications (fields: `nama`, `tahunKalendar`, `darjah[]`, `subjek[]`, `aktif`, `order`, `guruTerhad`, `diterbit`) |
 | `settings` | System settings (markahEnabled flag, school name, logo URL) |
+| `guruMarkah` | Pendaftaran guru subjek untuk Markah Ujian Khas (doc id = nama dinormalkan) |
 
 ### UI Panels (main navigation sections)
 
@@ -51,7 +52,8 @@ The entire application lives in a **single file**: `public/index.html` (~10,070 
 6. **Headcount** — Target tracking (TOV/OTI/ETR/AR)
 7. **Anugerah** — Award ceremony module, separate pages (`anugerah-admin.html` + peserta/hadiah/mc/tayang)
 8. **ESIS Helper** — Install guide for the ESIS→SPPB mark helper (`helper-sppb.html`); see its section below
-9. **Admin Panel** (password-protected) — System configuration
+9. **Markah Ujian Khas** — Guru subjek isi markah kelasnya sendiri (`markah-guru.html`); pentadbir lihat semua. Lihat bahagiannya di bawah
+10. **Admin Panel** (password-protected) — System configuration
 
 ### Key Code Locations
 
@@ -627,6 +629,91 @@ Setiap kerjanya kini dibuat dari **🏆 Jenis Anugerah → 👤 Pilih Murid**, j
 
 Selepas membuang mana-mana panel, imbas dua perkara: pendengar aras-atas yang merujuk id yang sudah tiada, dan fungsi yang kehilangan semua pemanggilnya. `tambahPenerimaManualRamai` dan `agDarjahDariKelas` tinggal di dalam blok yang dibuang — kedua-duanya masih dipakai oleh modal baharu dan `guru.html`, jadi ia dipindahkan keluar, bukan dipadam bersama.
 
+### Markah Ujian Khas (`public/markah-guru.html` + `markah-guru.js`)
+
+Rekod & Laporan terbuka kepada **setiap** guru — sesiapa boleh pilih mana-mana darjah/kelas/subjek dan menulis atas markah orang lain. Untuk ujian khas (contoh MATRIKS SEBENAR darjah 4), sekolah mahu guru SAINS 4 INTEL mengisi SAINS 4 INTEL **sahaja**.
+
+| Peranan | Nampak |
+|---|---|
+| **Guru** | satu subjek, kelas yang didaftarkannya, boleh tulis |
+| **Pentadbir** | kata laluan admin, semua subjek × semua kelas, **baca sahaja** |
+
+**Kunci slot = `subjek + kelas`.** Satu slot satu tuan. Pendaftaran kedua untuk slot yang sama **ditolak dengan nama tuannya dipaparkan** — bukan ditolak senyap, kerana guru perlu tahu siapa hendak dihubungi. Subjek lain pada kelas yang sama kekal bebas (BAHASA MELAYU BYTECH masih terbuka selepas SAINS BYTECH diambil).
+
+**Doc id `guruMarkah` = nama DINORMALKAN** (`mgIdNama`): huruf kecil, ruang dimampat, gelaran dilucutkan berulang kali (`pn hjh siti` → `siti`). Keunikan nama dikuatkuasakan oleh **Firestore sendiri** (satu doc satu id), bukan oleh semakan yang boleh terlepas apabila dua guru mendaftar serentak. Guru menaip namanya setiap kali masuk, jadi padanan tepat akan menjadi aduan harian.
+
+```
+guruMarkah/{nama-dinormal}
+  { nama, pw, subjek, kelas:[...], darjah, calYear, daftar, dibuka, akhir }
+```
+
+**Markah ditulis ke `rekodMarkah`** — koleksi dan format docId **yang sama** dengan seluruh ESIS (`${no_kp}_${subjek}_${tahun}_${peperiksaan}_${calYear}`), ditanda `sumber:'guru'` + `guru:<nama>`. Jadi Analisa, Headcount, GPS, slip dan Anugerah membacanya tanpa satu baris kod baharu dan tanpa penyegerakan. **Dua koleksi bermakna dua kebenaran.**
+
+Peraturan simpan **mesti sama** dengan `simpanEditMarkah`: sel kosong **dilangkau** (tiada rekod ditulis), TH ditulis `{markah:null, gred:'TH', th:true}`, markah **0 diterima**.
+
+**`examTypes.guruTerhad: true`** menanda peperiksaan ini. Kesannya dua: ia **dibuang sepenuhnya** dari dropdown Rekod & Laporan (walaupun sudah ada rekod — kalau ia kekal, mana-mana guru boleh menulis atas markah kelas orang lain dan seluruh tujuan kawalan ini gugur), dan ia muncul dalam menu Markah Ujian Khas. Kotak tandanya ada dalam **modal Edit** jenis peperiksaan, bukan di baris senarai.
+
+**`agMuatMurid` kini membawa `agama`** — rekod markah ESIS mengandungi medan itu dan tapisan agama dalam Analisa membacanya; rekod tanpanya terkeluar secara senyap.
+
+#### Analisa gred
+
+`mgKiraGred(rekod)` memulangkan `{A..F, th, bil, gps, purata, lulus, pLulus}`. Dipakai oleh **kedua-dua** panel supaya dua skrin tidak boleh memberi nombor berbeza: kad di bawah jadual guru, dan lajur A–F + GPS + Lulus dalam senarai pentadbir.
+
+**TH keluar dari pengangka DAN penyebut** — kelas 30 murid dengan 2 TH dikira atas 28. Gred `Gagal`/`TIDAK SAH` = 0 mata tetapi **kekal** dalam penyebut. Kad guru dikira daripada apa yang **tersimpan** (`MG.markah`), bukan daripada kotak di skrin — supaya nombor itu bermaksud "keputusan yang sudah disimpan", bukan draf separuh taip.
+
+PDF melalui **dialog cetak pelayar** (`body.cetak-guru` + `@media print`), bukan jsPDF — tiada pustaka dimuat, dan guru menyimpan sebagai PDF dari dialog yang sama.
+
+Disahkan 25 Okt 2026 pada data sebenar: 28 murid BYTECH, 7 rekod ditulis daripada 28 baris (21 sel kosong dilangkau), markah 0 tersimpan sebagai `0`, TH sebagai `gred:'TH'`. Oracle 40,000 kes `mgKiraGred` + 8 mutasi ditangkap; 27 kes normalisasi nama.
+
+### Terbit Keputusan (`examTypes.diterbit`)
+
+Admin menutup satu peperiksaan daripada **semua** paparan guru tanpa menghalang guru mengisi markah. Toggle **biru** di sebelah toggle Aktif (**hijau**) dalam Urus Jenis Peperiksaan.
+
+| Suis | Kawal |
+|---|---|
+| `aktif` | siapa boleh **MENULIS** markah |
+| `diterbit` | siapa boleh **MELIHAT** keputusan |
+
+**Lalai `true`.** Dokumen lama tiada medan ini dan mesti terus berkelakuan seperti sebelum ciri ini wujud — sama peraturan dengan `aktif` dan `subjek`. **Jangan tukar maknanya kepada "belum terbit"**: 18,000 markah akan hilang dari paparan guru pada deploy berikutnya.
+
+**Satu pintu, bukan dua puluh.** Tapisan hidup dalam `_tapisDiterbit()`, dipanggil oleh **`getMarksByYear()`** (30 pemanggil) dan oleh pengisi dropdown yang membaca `allMarks` terus. `getExamTypesForYear()` menapis pada setiap pemulangan (bukan semasa menulis cache) supaya admin yang log masuk pertengahan sesi terus nampak semua tanpa menunggu TTL.
+
+**Admin (`isAuthenticated`) melihat semua** — dia perlu menyemak Analisa sebelum mengumumkan. Notis kelabu di atas senarai menamakan apa yang belum terbit, kerana tanpanya admin melihat nombor yang guru tidak nampak dan tidak tahu mengapa mereka melaporkan "data hilang".
+
+**Mematikan perlu sahkan**, dengan **kiraan markah sebenar** dalam dialog ("828 markah akan hilang") — itu soalan pertama admin sebelum menekan. Menghidupkan terus, tiada soalan.
+
+**`DATA_VERSION` TIDAK dinaikkan** — status terbit dibaca dari `examTypes`, bukan disimpan dalam cache markah, jadi menogol suis berkuat kuasa pada muat semula berikutnya tanpa menunggu cache 24 jam.
+
+**Modul Anugerah TIDAK ditapis** (`agMuatMarkah`). Ia panel **admin majlis**: justru kerjanya memilih calon daripada keputusan yang belum diumumkan, supaya tiket dan giliran siap sebelum hari majlis. Menapis di sana akan mengosongkan senarai calon setiap kali admin menutup keputusan. `guru.html` hanya menulis penerima, tidak membaca markah.
+
+Disahkan 25 Okt 2026 pada data live: guru 18,024 → 17,196 markah (tepat 828 MATRIKS PRISMA hilang, UASA kekal 5,922), admin 18,024 penuh, hidupkan semula → 828 kembali. Oracle 30,000 kes + 4 mutasi.
+
+#### Status Pengisian — peperiksaan 🔒 muncul walaupun 0 markah
+
+`_populateStatusPerikDropdown` menggabungkan **dua sumber**: peperiksaan yang ada markah (asal) **dan** peperiksaan `guruTerhad` dari `examTypes` walaupun kosong.
+
+Sebabnya ayam-dan-telur: dropdown yang dibina daripada markah sahaja bermakna peperiksaan yang belum diisi **langsung** tidak muncul — sedangkan "tiada seorang guru pun sudah mula" ialah tepat keadaan yang tab ini wujud untuk menangkapnya. Option berlabel `🔒` dan `— belum ada markah`.
+
+Butang **Segar Semula kekal kelihatan** walaupun belum memilih peperiksaan. Markah dicache per-tahun, jadi peperiksaan yang baru diisi guru lain tidak muncul sehingga cache ditarik semula — dan butang yang tersembunyi ketika itu bermakna tiada jalan membetulkannya tanpa memuat semula halaman.
+
+### Anugerah — gabung BEBERAPA peperiksaan
+
+Modal anugerah dulu ada **dua** slot tetap (`a-pep1`, `a-pep2`) berlabel "purata dua peperiksaan". Kini senarai **kotak tanda** (`.a-pep-chk`) — UASA + UPSA + MATRIK, seberapa banyak yang perlu. Enjin `agKiraCalon` memang sudah generik (gelung `senaraiPep`), hanya UI yang mengehadkannya.
+
+#### `asas:'gps'` dengan beberapa peperiksaan — purata per SUBJEK dahulu
+
+**Pepijat yang dibetulkan 25 Okt 2026.** Rekod semua peperiksaan ditimbun menjadi satu kolam, jadi setiap subjek dikira **sekali bagi setiap peperiksaan**. Tiga kesan, semuanya senyap:
+
+- **GPS condong** — UASA+MATRIK 4 subjek → 8 rekod, GPS 4.88 bukan 5.00
+- **`jumlah` berganda** (580 bukan 290), jadi pemecah seri salah
+- **`kurang` tidak pernah dicetuskan** — murid dengan **2 daripada 4** subjek teras × 2 peperiksaan = 4 rekod, dilaporkan **LENGKAP**, jadi amaran "2/4" yang admin bergantung padanya tidak muncul
+
+Kini: purata **markah per subjek** dahulu (sama peraturan dengan cabang `asas:'subjek'`), kemudian gred dikira atas purata itu. Rekod pendua dalam peperiksaan yang sama: **yang pertama menang**.
+
+`jumlah` guna **`parseFloat`**, bukan `parseInt` — purata merentas beberapa peperiksaan boleh jadi 72.5, dan `parseInt` membuangnya menjadi 72; pada 13 subjek itu cukup untuk menukar kedudukan dua murid.
+
+Oracle 40,000 kes · 0 beza · 6 mutasi ditangkap (termasuk kod lama: 25,656 beza).
+
 ### Helper markah ESIS → SPPB (`public/helper-sppb.html` + `helper-sppb/`)
 
 Teachers had to retype marks that already exist in ESIS into the KPM **SPPB** form (`moeissppb.moe.gov.my`, reached via idMe → Pengurusan Pentaksiran). SPPB has **no CSV import**.
@@ -743,6 +830,8 @@ So any panel with its own year dropdown must read `await ensureMarksLoaded(year)
 **A year-filtered panel also needs its own refresh button.** `ensureMarksLoaded` **returns early when the year is already in `marksCache`**, so a plain re-render shows the same stale counts and the button looks broken. `segarkanStatusPengisian()` does `delete marksCache[year]` **first**, then re-populates the exam dropdown and re-renders. Status Pengisian previously had no refresh control at all, so marks entered by another teacher required a full page reload to appear.
 
 Remaining `allMarks` readers are existence checks (`.some(...)` for "does this exam have any records") and dropdown seeding, which are year-agnostic — those are fine. **Grep `GLOBAL_DATA.allMarks` before adding any year-aware view.**
+
+**`getMarksByYear` kini juga menapis `examTypes.diterbit`** (lihat Terbit Keputusan). Pembaca `allMarks` terus yang mengisi dropdown mesti melalui `_tapisDiterbit()` juga — jika tidak, nama peperiksaan yang ditutup kekal dalam senarai dan memilihnya memberi jadual kosong tanpa sebab yang dinyatakan.
 
 ### Cache invalidation after writing students (do not regress)
 
