@@ -20,6 +20,22 @@
   background:var(--amaran-bg); color:var(--emas); padding:1px 7px; border-radius:20px;
 }
 .gil-no-kecil{font-variant-numeric:tabular-nums; color:var(--neutral)}
+
+/* 🔴 Murid yang naik pentas BERULANG. Pengurus peserta berdiri di pintu
+   dewan dan menanda masuk; dia perlu tahu murid ini akan dipanggil
+   lebih sekali SEBELUM dia menanda, kerana tanda tidak-hadir menjatuhkan
+   KESEMUA giliran murid itu sekali gus — dua anugerah hilang, bukan satu.
+
+   Lencana "2 giliran" sedia ada terlalu senyap untuk kerja itu: ia sama
+   rupa dengan "1 giliran" dan mata yang mengimbas 105 baris tidak
+   menangkapnya. */
+.lencana-ulang{
+  display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700;
+  background:var(--absen-bg); color:var(--absen); padding:1px 7px; border-radius:20px;
+  border:1px solid color-mix(in srgb, var(--absen) 34%, transparent);
+}
+.baris.ulang{border-left:3px solid var(--absen)}
+.gil-seterus{font-size:11px; color:var(--emas); font-weight:650}
 </style>
 </head>
 <body>
@@ -219,10 +235,17 @@ function lukis() {
     .reduce((j, m) => j + m.giliran.length, 0);
   const peratus = MURID.length ? Math.round(hadir / MURID.length * 100) : 0;
 
+  /* Murid berulang ialah angka yang pengurus peserta perlukan SEBELUM
+     majlis bermula — mereka yang tidak boleh balik selepas giliran
+     pertama. KPI ini menjadikannya jelas tanpa menatal 105 baris. */
+  const ulang = MURID.filter(m => m.giliran.length > 1).length;
+
   $('kpi').innerHTML =
     kad(hadir, 'Sudah hadir', 'dari ' + MURID.length + ' murid', 'ok') +
     kad(belum, 'Belum sampai', 'belum ditanda') +
     kad(absen, 'Tidak hadir', gilAbsen + ' giliran terjejas', absen ? 'bahaya' : '') +
+    kad(ulang, 'Naik pentas >1', ulang ? 'kekal di dewan' : 'seorang satu giliran',
+        ulang ? 'bahaya' : '') +
     kad(peratus + '%', 'Kehadiran', 'segar setiap 25s');
 
   const q = $('t-cari').value.trim().toUpperCase();
@@ -282,22 +305,46 @@ function kad(angka, label, kecil, jenis) {
     '<div class="kecil">' + agEsc(kecil) + '</div></div>';
 }
 
+/* 🔴 Giliran SETERUSNYA yang belum dipanggil. Pengurus peserta yang
+   melihat "4 · 31" tidak tahu yang mana sudah lepas — MC menanda
+   `mc:true` apabila murid sudah naik, jadi giliran seterusnya ialah
+   nombor terkecil yang belum ditanda. Tanpa ini dia perlu bertanya MC. */
+function gilSeterusnya(m) {
+  const belum = (m.giliran || [])
+    .filter(g => g.no != null && g.mc !== true)
+    .map(g => g.no).sort((a, b) => a - b);
+  return belum.length ? belum[0] : null;
+}
+
 function baris(m) {
   const nombor = m.giliran.map(g => g.no).filter(n => n != null).sort((a, b) => a - b);
   const bil = m.giliran.length;
+  /* Murid berulang mendapat lencana MERAH, bukan lencana emas yang sama
+     rupa dengan "1 giliran" — ia mesti ditangkap tanpa dibaca. */
+  const ulang = bil > 1;
   const lencana = bil
-    ? '<span class="lencana-gil">' + bil + ' giliran</span> ' +
-      '<span class="gil-no-kecil">' + nombor.join(' · ') + '</span>'
+    ? '<span class="' + (ulang ? 'lencana-ulang' : 'lencana-gil') + '">' +
+        (ulang ? '\u26a0 NAIK PENTAS ' + bil + ' KALI' : bil + ' giliran') + '</span> ' +
+      '<span class="gil-no-kecil">' + nombor.join(' \u00b7 ') + '</span>'
     : '<span class="pil tunggu">belum bernombor</span>';
 
-  const kelas = m.status === 'hadir' ? ' sudah' : (m.status === 'absen' ? ' absen' : '');
+  /* Giliran seterusnya hanya berguna semasa majlis berjalan — iaitu
+     apabila sebahagian giliran murid ini sudah dipanggil. */
+  const seterus = gilSeterusnya(m);
+  const notaSeterus = (ulang && seterus != null && nombor.length > 1 &&
+                       seterus !== nombor[0] && m.status !== 'absen')
+    ? ' · <span class="gil-seterus">seterusnya: ' + seterus + '</span>' : '';
+
+  const kelas = (m.status === 'hadir' ? ' sudah' : (m.status === 'absen' ? ' absen' : '')) +
+                (ulang ? ' ulang' : '');
   const catatan = m.status === 'absen'
-    ? ' · <span class="pil absen">Tidak hadir</span>' : '';
+    ? ' \u00b7 <span class="pil absen">Tidak hadir</span>' : '';
 
   return '<li class="baris' + kelas + '" data-doc="' + agEsc(m.docId) + '">' +
     '<div class="baris-info">' +
       '<div class="n">' + agEsc(m.nama) + '</div>' +
-      '<div class="k">' + agEsc(agDarjahKelas(m.tahun, m.kelas)) + ' · ' + lencana + catatan + '</div>' +
+      '<div class="k">' + agEsc(agDarjahKelas(m.tahun, m.kelas)) + ' \u00b7 ' + lencana +
+        notaSeterus + catatan + '</div>' +
     '</div>' +
     '<div class="baris-butang">' +
       '<button class="b-tanda" data-tanda="hadir" title="Hadir">✓</button>' +
@@ -316,6 +363,23 @@ $('senarai').addEventListener('click', e => {
   const mahu = b.dataset.tanda;
   /* tekan butang yang sama lagi = buang tanda */
   const baru = m.status === mahu ? null : (mahu === 'hadir');
+
+  /* 🔴 Tanda tidak-hadir menjatuhkan KESEMUA giliran murid itu sekali gus.
+     Untuk murid yang naik pentas sekali itu jelas; untuk murid berulang
+     ia bermakna dua atau tiga anugerah hilang daripada majlis dengan
+     satu tekanan, dan MC serta pengurus hadiah terus melihat kesannya.
+     Itu keputusan yang patut disahkan, bukan kesan sampingan. */
+  if (baru === false && m.giliran.length > 1) {
+    const no = m.giliran.map(g => g.no).filter(n => n != null).sort((a, b) => a - b);
+    const sub = m.giliran.map(g => g.sub || g.anugerah).filter(Boolean);
+    if (!confirm('TIDAK HADIR \u2014 ' + m.nama + '\n\n' +
+        'Murid ini naik pentas ' + m.giliran.length + ' kali' +
+        (no.length ? ' (giliran ' + no.join(', ') + ')' : '') + '.\n' +
+        'KESEMUA giliran akan dilangkau:\n' +
+        sub.map(x => '  \u2022 ' + x).join('\n') + '\n\n' +
+        'MC akan melangkau semuanya dan pengurus hadiah akan menyimpan ' +
+        'balik hadiahnya. Teruskan?')) return;
+  }
 
   /* ---- tulis optimistik: paparan berubah serta-merta ---- */
   m.status = baru === null ? 'belum' : (baru ? 'hadir' : 'absen');
