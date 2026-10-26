@@ -55,6 +55,42 @@
 .anak .kanan{margin-left:auto; display:flex; gap:6px; align-items:center}
 .hint{font-size:11px; color:var(--neutral-lembut); font-style:italic}
 
+/* ---------- senarai murid dalam pokok ----------
+   🔴 Admin bertanya "siapa dalam senarai ini?" sambil melihat baris sub.
+      Sebelum ini jawapannya memerlukan modal Pilih Murid atau tab Semak
+      Penerima — dua skrin lain untuk soalan yang timbul di sini.
+
+   `li.ada-murid` mesti block (bukan flex) atas sebab yang SAMA dengan
+   `li.kump` di atas: baris sub dan senarai muridnya akan jadi dua item
+   bersebelahan, bukan satu di bawah satu. */
+.anak > li.ada-murid{display:block !important; padding:0 !important}
+.sub-baris{
+  display:flex; align-items:center; gap:10px; padding:8px 16px 8px 40px;
+  flex-wrap:wrap; font-size:13.5px;
+}
+.sub-baris .kanan{margin-left:auto; display:flex; gap:6px; align-items:center}
+.murid-togol{
+  cursor:pointer; user-select:none; border:0; background:transparent;
+  font:inherit; font-size:11.5px; color:var(--neutral); padding:0;
+  display:inline-flex; align-items:center; gap:4px;
+}
+.murid-togol:hover{color:var(--teks); text-decoration:underline}
+.murid-togol .anak-panah{font-size:9px; transition:transform .15s; display:inline-block}
+.murid-togol[aria-expanded="true"] .anak-panah{transform:rotate(90deg)}
+.murid-senarai{
+  padding:2px 16px 11px 40px; border-top:1px dashed var(--garis-halus);
+  background:var(--kertas-2);
+}
+.murid-senarai table{width:100%; border-collapse:collapse; font-size:12.5px}
+.murid-senarai td{padding:4px 8px 4px 0; border-bottom:1px solid var(--garis-halus)}
+.murid-senarai tr:last-child td{border-bottom:0}
+.murid-senarai .bil{color:var(--neutral-lembut); width:26px; text-align:right}
+.murid-senarai .kls{color:var(--neutral); white-space:nowrap}
+/* Murid di luar skop sub ini — ditanda supaya admin nampak tanpa
+   perlu menapis di Semak Penerima. */
+.murid-senarai tr.luar td{background:rgba(190,60,60,.07)}
+.murid-senarai tr.luar .kls{color:#b33; font-weight:650}
+
 /* ---------- tiket ---------- */
 /* \U0001f534 SATU LAJUR, rata tengah. Versi lama mempunyai lajur kanan
    92px yang mengumpulkan SEMUA nombor giliran bertindan \u2014 ia
@@ -103,12 +139,12 @@
 .kj .kelas{font-size:12.5px; color:var(--neutral)}
 .kj .but{display:grid; grid-template-columns:auto 1fr; gap:3px 10px; font-size:11.5px; margin-top:10px; color:var(--tinta-lembut)}
 .kj .but b{color:var(--tinta); font-weight:600}
-.kj .anu{margin-top:auto; border-top:1px dashed var(--garis); padding-top:9px}
-.kj .anu-baris{display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:12px; margin-bottom:4px}
-.kj .anu-baris .no{color:var(--emas); font-weight:700; font-variant-numeric:tabular-nums; flex:none}
-.kj .kaki{font-size:10px; color:var(--neutral); margin-top:8px; font-style:italic; line-height:1.45}
-.kj .pil-kali{display:inline-block; background:var(--amaran-bg,#FBF6E8); border:1px solid var(--emas);
-  color:var(--emas); font-size:9.5px; font-weight:700; padding:2px 7px; border-radius:99px; letter-spacing:.05em; margin-left:6px}
+/* 🔴 `margin-top:auto` berpindah ke .kaki apabila blok .anu dibuang —
+   tanpanya nota kaki melekat pada butiran dan separuh bawah kad kosong. */
+.kj .kaki{
+  margin-top:auto; border-top:1px dashed var(--garis); padding-top:9px;
+  font-size:10px; color:var(--neutral); font-style:italic; line-height:1.45;
+}
 .kj-baris{display:flex; gap:8px; align-items:center; margin-bottom:7px}
 .kj-baris input{flex:1; min-width:0}
 .kj-baris .lbl-in{flex:0 0 150px}
@@ -266,9 +302,8 @@
   .kj .nama{font-size:21px!important}
   .kj .kelas{font-size:13.5px!important}
   .kj .ajak,.kj .but{font-size:12px!important}
-  .kj .anu-baris{font-size:12.5px!important}
   .kj .nama,.kj .tajuk,.kj .but b{color:#16233A!important}
-  .kj .anu-baris .no,.kj .sek{color:#8A6A1F!important}
+  .kj .sek{color:#8A6A1F!important}
   @page{size:A4; margin:8mm}
 }
 
@@ -645,10 +680,18 @@
         <div id="borang-grid"></div>
         <hr style="border:none;border-top:1px solid var(--garis-halus);margin:19px 0">
         <p class="eyebrow">Reset tanda — selepas majlis sebenar, ini satu-satunya rekod siapa naik pentas</p>
-        <div class="baris-input">
+        <div id="reset-status"></div>
+        <div class="baris-input" style="margin-top:9px">
           <button class="btn sunyi kecil" id="b-reset-hadir">Reset tanda kehadiran</button>
           <button class="btn sunyi kecil" id="b-reset-mc">Reset tanda MC</button>
+          <button class="btn kecil" id="b-reset-dua"
+            style="background:var(--bahaya,#b3261e);color:#fff;border-color:var(--bahaya,#b3261e)">
+            Reset kedua-dua</button>
         </div>
+        <p class="hint" style="margin:9px 0 0">Untuk menguji: tanda beberapa murid dalam
+          panel petugas, kemudian tekan <strong>Reset kedua-dua</strong> untuk mengembalikan
+          majlis kepada keadaan sebelum majlis bermula. Nombor giliran dan senarai penerima
+          <strong>tidak</strong> disentuh.</p>
       </div>
     </div>
   </section>
@@ -1260,6 +1303,89 @@ const ASAS_LABEL = {
 };
 
 let POKOK_BUKA = {};        // anugerah mana terbuka (kekal antara lukisan)
+let MURID_BUKA = {};        // sub mana senarai muridnya terbuka
+
+/* ==========================================================================
+   SENARAI MURID DI DALAM POKOK
+   --------------------------------------------------------------------------
+   🔴 Admin bertanya "siapa sudah dipilih untuk sub ini?" sambil matanya
+      berada pada baris sub itu. Sebelum ini jawapannya memerlukan modal
+      Pilih Murid (satu sub pada satu masa) atau tab Semak Penerima
+      (tapis dahulu) — dua skrin lain untuk soalan yang timbul di sini.
+
+   🔴 SUMBER DITANDA. "Admin" vs nama guru yang menghantarnya. Anugerah
+      yang diserahkan kepada guru ditulis terus ke koleksi yang sama,
+      jadi tanpa tanda ini admin tidak dapat membezakan senarai yang dia
+      sendiri bina daripada yang datang melalui borang.
+
+   🔴 LUAR SKOP DITANDA MERAH. Ia tidak sepatutnya berlaku lagi (guru.html
+      menolaknya semasa simpan), tetapi rekod lama masih ada dan baris
+      yang menyatakan "68 murid" tanpa memberitahu 61 daripadanya milik
+      darjah lain ialah tepat bagaimana masalah itu tersembunyi selama ini.
+   ========================================================================== */
+
+/* Murid sub ini, mengikut nama. Memulangkan entri + murid bersama supaya
+   pemanggil tidak perlu mencari dua kali. */
+function agMuridSub(subId) {
+  return PENERIMA
+    .filter(p => (p.anugerah || []).some(x => x.subId === subId))
+    .map(p => ({ p, x: (p.anugerah || []).find(x => x.subId === subId) }))
+    .sort((a, b) => String(a.p.nama).localeCompare(String(b.p.nama), 'ms'));
+}
+
+/* Label sumber: "Admin" atau nama guru yang menghantar borang. */
+function agLabelSumber(x) {
+  if (!x) return '';
+  if (x.sumber === 'guru') return x.catatan ? String(x.catatan) : 'Guru';
+  return 'Admin';
+}
+
+/* Kunci = `anugerahId|m|subId`. Dipecah pada '|m|' PERTAMA sahaja —
+   id dijana boleh mengandungi apa sahaja, dan split('|') akan memecahkan
+   id yang membawa paip. */
+function cariSubDariKunci(kunci) {
+  const t = String(kunci).indexOf('|m|');
+  if (t < 0) return [-1, -1];
+  const anId = kunci.slice(0, t), subId = kunci.slice(t + 3);
+  const i = (MAJLIS.anugerah || []).findIndex(a => a.id === anId);
+  if (i < 0) return [-1, -1];
+  return [i, ((MAJLIS.anugerah[i].sub || []).findIndex(x => x.id === subId))];
+}
+
+function lukisMuridSub(s, baris) {
+  if (!baris.length) return '';
+  return '<div class="murid-senarai"><table><tbody>' +
+    baris.map((b, n) => {
+      const luar = luarSkopPenerima(s, b.p);
+      const guru = b.x && b.x.sumber === 'guru';
+      return '<tr' + (luar ? ' class="luar"' : '') + '>' +
+        '<td class="bil">' + (n + 1) + '</td>' +
+        '<td>' + agEsc(b.p.nama) + '</td>' +
+        '<td class="kls">' + agEsc(agDarjahKelas(b.p.tahun, b.p.kelas)) +
+          (luar ? ' ⚠ luar skop' : '') + '</td>' +
+        '<td style="width:1%;white-space:nowrap">' +
+          '<span class="pil ' + (guru ? 'hadir' : 'tunggu') + '">' +
+            agEsc(agLabelSumber(b.x)) + '</span></td>' +
+      '</tr>';
+    }).join('') +
+  '</tbody></table></div>';
+}
+
+/* Sama peraturan dengan luarSkopSub() dalam guru.html — murid yang tidak
+   tergolong dalam skop sub ini. Skop sekolah/tahap merentasi beberapa
+   darjah, jadi ia sentiasa lulus. */
+function luarSkopPenerima(s, p) {
+  if (!s) return false;
+  const U = x => String(x || '').toUpperCase();
+  if (s.skopJenis === 'darjah')
+    return !!U(s.skopNilai) && U(p.tahun) !== U(s.skopNilai);
+  if (s.skopJenis === 'kelas') {
+    if (U(s.skopNilai) && U(p.kelas) !== U(s.skopNilai)) return true;
+    if (U(s.skopDarjah) && U(p.tahun) !== U(s.skopDarjah)) return true;
+  }
+  return false;
+}
+
 
 function lukisPokok() {
   const bekas = $('pokok-anugerah');
@@ -1276,6 +1402,15 @@ function lukisPokok() {
     const sub = a.sub || [];
     const bilMurid = PENERIMA.filter(p =>
       (p.anugerah || []).some(x => x.anugerahId === a.id)).length;
+
+    /* Jumlah entri luar skop merentas semua sub anugerah ini — memandu
+       butang 🔧 pada baris induk, supaya admin boleh membetulkan enam
+       sub sekaligus dan bukan satu demi satu. */
+    const luarAn = PENERIMA.reduce((n, p) => n + (p.anugerah || []).filter(x => {
+      if (x.anugerahId !== a.id) return false;
+      const s = (a.sub || []).find(y => y.id === x.subId);
+      return s && luarSkopPenerima(s, p);
+    }).length, 0);
 
     /* Peperiksaan dipapar hanya bila ia BERBEZA daripada peperiksaan
        majlis — kalau tidak setiap baris mengulang maklumat yang sama. */
@@ -1310,8 +1445,9 @@ function pilStatusBorang(b) {
 
 /* Satu baris sub, dipakai sama ada rata atau di dalam kumpulan darjah. */
     const lukisSatuSub = (s, j) => {
-          const bil = PENERIMA.filter(p =>
-            (p.anugerah || []).some(x => x.subId === s.id)).length;
+          const muridSub = agMuridSub(s.id);
+          const bil = muridSub.length;
+          const bilLuar = muridSub.filter(b => luarSkopPenerima(s, b.p)).length;
           const skop = s.skopJenis === 'kelas' ? 'kelas ' + (s.skopNilai || '')
                      : s.skopJenis === 'darjah' ? 'darjah ' + (s.skopNilai || '')
                      : s.skopJenis === 'tahap' ? 'Tahap ' + (s.skopNilai || '')
@@ -1342,19 +1478,46 @@ function pilStatusBorang(b) {
             : '<button class="btn sunyi kecil" data-sub-borang="' + i + ',' + j + '" ' +
               'title="Diliputi oleh borang Darjah ' + agWordDarjah(s.skopDarjah) +
               '">\u21b3 ikut darjah</button>';
-          return '<li>' +
+          /* Kiraan jadi butang togol bila ada murid — tempat paling
+             semula jadi untuk ditekan oleh admin yang mahu melihat
+             siapa mereka. Tanpa murid ia kekal teks biasa. */
+          const kunciM = a.id + '|m|' + s.id;
+          const buka = !!MURID_BUKA[kunciM];
+          const kiraan = bil
+            ? '<button class="murid-togol" data-murid-togol="' + agEsc(kunciM) + '" ' +
+                'aria-expanded="' + buka + '" title="Lihat senarai murid">' +
+                '<span class="anak-panah">\u25b6</span>' + bil + ' murid</button>' +
+              (bilLuar ? '<span class="pil amaran" title="Murid ini bukan dalam skop ' +
+                'sub-anugerah ini">\u26a0 ' + bilLuar + ' luar skop</span>' : '')
+            : '<span class="kecil">0 murid</span>';
+
+          /* li sentiasa block + baris dalam div sendiri: senarai murid
+             mesti duduk DI BAWAH baris, bukan di sebelahnya (li ialah
+             flex secara lalai di sini). */
+          return '<li class="ada-murid">' +
+            '<div class="sub-baris">' +
             '<span class="nama-sub">' + agEsc(s.nama) + '</span>' +
             '<span class="hint">' + agEsc(hint) + '</span>' +
             '<span class="kanan">' +
               pilStatusBorang(bSub) +
-              '<span class="kecil">' + bil + ' murid</span>' +
+              kiraan +
+              /* 🔴 Hanya muncul bila ADA kerja untuk dibuat — butang
+                 untuk sifar murid luar skop ialah bunyi bising pada
+                 setiap baris, dan admin berhenti membacanya. */
+              (bilLuar ? '<button class="btn kecil" style="background:#b33;color:#fff;' +
+                'border-color:#b33" data-sub-betul="' + i + ',' + j + '" ' +
+                'title="Pindah ' + bilLuar + ' murid ke sub darjah yang betul">' +
+                '\ud83d\udd27 Betulkan ' + bilLuar + '</button>' : '') +
               '<button class="btn emas kecil" data-sub-pilih="' + i + ',' + j + '">👤 Pilih Murid</button>' +
               butangBorang +
               (bil ? '<button class="btn sunyi kecil" data-sub-reset="' + i + ',' + j + '" ' +
                 'title="Buang semua penerima sub ini">🧹</button>' : '') +
               '<button class="btn sunyi kecil" data-sub-edit="' + i + ',' + j + '">Ubah</button>' +
               '<button class="btn sunyi kecil" data-sub-buang="' + i + ',' + j + '">Buang</button>' +
-            '</span></li>';
+            '</span>' +
+            '</div>' +
+            (bil && buka ? lukisMuridSub(s, muridSub) : '') +
+            '</li>';
     };
 
     /* Anugerah yang setiap subnya berskop kelas dikumpul mengikut darjah —
@@ -1455,6 +1618,10 @@ function pilStatusBorang(b) {
         '<span class="kanan">' +
           '<span class="kecil">' + sub.length + ' sub · ' + bilMurid + ' murid</span>' +
           pilBorang +
+          (luarAn ? '<button class="btn kecil" style="background:#b33;color:#fff;' +
+            'border-color:#b33" data-an-betul="' + i + '" ' +
+            'title="Pindah ' + luarAn + ' murid ke sub darjah masing-masing">' +
+            '\ud83d\udd27 Betulkan ' + luarAn + '</button>' : '') +
           (bilMurid ? '<button class="btn sunyi kecil" data-an-reset="' + i + '" ' +
             'title="Buang semua penerima anugerah ini">🧹</button>' : '') +
           '<button class="btn ' + (borang ? 'sunyi' : 'hijau') + ' kecil" data-borang="' + i + '">' +
@@ -1478,18 +1645,44 @@ $('pokok-anugerah').addEventListener('click', e => {
     'button[data-sub-borang],button[data-sub-reset],button[data-an-reset],' +
     'button[data-pecah],button[data-sub-auto],' +
     'button[data-dj-borang],button[data-dj-reset],' +
-    'button[data-borang],.induk[data-togol],.kump-kepala[data-togol-kump]');
+    'button[data-borang],button[data-murid-togol],' +
+    'button[data-sub-betul],button[data-an-betul],' +
+    '.induk[data-togol],.kump-kepala[data-togol-kump]');
   if (!b) return;
   const d = b.dataset;
   if (d.borang !== undefined) return modalBorangGuru(parseInt(d.borang));
   if (d.subPilih) { const [i, j] = d.subPilih.split(',').map(Number); return modalPilihMurid(i, j); }
   if (d.subBorang) { const [i, j] = d.subBorang.split(',').map(Number); return modalBorangGuru(i, j); }
   if (d.subReset) { const [i, j] = d.subReset.split(',').map(Number); return resetSub(i, j); }
+  if (d.subBetul) { const [i, j] = d.subBetul.split(',').map(Number); return betulkanJalan(i, j); }
+  if (d.anBetul !== undefined) return betulkanJalan(parseInt(d.anBetul), null);
   if (d.anReset !== undefined) return resetAnugerah(parseInt(d.anReset));
   if (d.pecah !== undefined) return pecahIkutDarjah(parseInt(d.pecah));
   if (d.subAuto !== undefined) return subAutoLaluPilih(parseInt(d.subAuto));
   if (d.djBorang) { const [i, w] = pecahDj(d.djBorang); return modalBorangGuru(i, null, w); }
   if (d.djReset) { const [i, w] = pecahDj(d.djReset); return resetDarjah(i, w); }
+  /* 🔴 Disemak SEBELUM .induk[data-togol]: butang ini duduk DI DALAM
+     baris sub, jadi membiarkan togol anugerah menangkapnya akan menutup
+     seluruh anugerah apabila admin cuma mahu melihat senarai murid.
+     (Perangkap yang sama seperti butang Ubah dalam baris induk.)
+
+     Melukis semula seluruh pokok untuk satu togol akan menutup setiap
+     accordion lain, jadi senarai disuntik ke tempatnya sahaja. */
+  if (d.muridTogol) {
+    const kunci = d.muridTogol;
+    MURID_BUKA[kunci] = !MURID_BUKA[kunci];
+    const li = b.closest('li');
+    const sedia = li && li.querySelector(':scope > .murid-senarai');
+    if (sedia) sedia.remove();
+    if (MURID_BUKA[kunci]) {
+      const [i, j] = cariSubDariKunci(kunci);
+      const sub = i >= 0 && (MAJLIS.anugerah[i].sub || [])[j];
+      if (sub && li) li.insertAdjacentHTML('beforeend',
+        lukisMuridSub(sub, agMuridSub(sub.id)));
+    }
+    b.setAttribute('aria-expanded', String(!!MURID_BUKA[kunci]));
+    return;
+  }
   if (d.togolKump) {                   // kumpulan darjah ditekan
     POKOK_BUKA[d.togolKump] = !POKOK_BUKA[d.togolKump];
     const li = $('pokok-anugerah').querySelector('li[data-kump="' +
@@ -1525,6 +1718,7 @@ $('b-buka-semua').addEventListener('click', () => {
 });
 $('b-tutup-semua').addEventListener('click', () => {
   POKOK_BUKA = {};
+  MURID_BUKA = {};          // senarai murid juga — "tutup semua" bermakna semua
   lukisPokok();
 });
 
@@ -1792,8 +1986,30 @@ function lukisBorangGuru() {
       const bil = PENERIMA.filter(p =>
         (p.anugerah || []).some(x => x.anugerahId === a.id && x.sumber === 'guru' &&
           (sub ? x.subId === sub.id : idDj ? idDj.has(x.subId) : true))).length;
+
+      /* 🔴 Borang yang meliputi BEBERAPA DARJAH menyuruh seorang guru
+         menukar dropdown sub sekali bagi setiap darjah. Itu yang berlaku
+         kepada CIKGU FAEZAH: 6 sub dalam satu borang, dan 61 murid
+         darjah 2-6 berakhir dalam sub Darjah 1.
+
+         guru.html kini menolak simpanan luar skop, jadi ia tidak boleh
+         berulang secara senyap — tetapi borang yang dipecah ikut darjah
+         tetap lebih mudah, dan admin tidak dapat melihat perbezaannya
+         tanpa lencana ini. */
+      const liputan = sub ? [sub]
+        : idDj ? (a.sub || []).filter(x => idDj.has(x.id))
+        : (a.sub || []);
+      const djLiput = [...new Set(liputan
+        .map(x => x.skopJenis === 'darjah' ? x.skopNilai : x.skopDarjah)
+        .filter(Boolean).map(x => String(x).toUpperCase()))];
+      const pilRisiko = djLiput.length > 1
+        ? '<span class="pil amaran" title="Guru perlu menukar dropdown ' +
+          'sub-anugerah ' + djLiput.length + ' kali \u2014 pertimbangkan borang ' +
+          'berasingan ikut darjah">\u26a0 ' + djLiput.length + ' darjah</span>'
+        : '';
+
       return '<tr>' +
-        '<td class="nama-murid lajur-teks">' + agEsc(label) + '</td>' +
+        '<td class="nama-murid lajur-teks">' + agEsc(label) + ' ' + pilRisiko + '</td>' +
         '<td>' + (agEsc(b.nama) || '<em class="kecil">tiada nama</em>') + '</td>' +
         '<td class="lb-url">' + agEsc(url) + '</td>' +
         '<td>' + (b.dihantar
@@ -4190,39 +4406,30 @@ function lukisKad() {
   const ajak = MAJLIS.kadAjak || KJ_AJAK_LALAI;
   const kaki = MAJLIS.kadKaki || KJ_KAKI_LALAI;
 
+  /* 🔴 KAD JEMPUTAN TIDAK MENYEBUT ANUGERAH, GILIRAN ATAU BILANGAN
+     NAIK PENTAS. Ia jemputan kepada ibu bapa, bukan jadual majlis.
+
+     Versi awal membawa senarai anugerah + "Giliran 12" setiap satu +
+     lencana "NAIK PENTAS 2 KALI". Tiga maklumat itu milik TIKET murid
+     (tab 🎟️ Giliran & Tiket), yang memang dicetak untuk dipegang murid
+     sendiri pada hari majlis. Pada kad ibu bapa ia membocorkan keputusan
+     sebelum diumumkan, dan menjadikan kad padat sehingga terpotong.
+
+     Jangan kembalikan tanpa diminta — kjSemakMuat di bawah mengukur
+     ruang berdasarkan blok yang kini tiada. */
   bekas.innerHTML = senarai.map(p => {
-    const an = p.anugerah || [];
-    /* Nombor giliran dipadankan mengikut subId; kad boleh dicetak
-       sebelum nombor diberi, jadi ketiadaannya normal. */
-    const gilUtk = x => {
-      const g = (p.giliran || []).find(y => y.subId === x.subId && y.no != null);
-      return g ? g.no : null;
-    };
-    const banyak = an.length > 1;
     return '<div class="kj">' +
       '<div class="sek">' + agEsc(MAJLIS.sekolah || '') + '</div>' +
       '<div class="tajuk">' + agEsc(MAJLIS.nama || '') + '</div>' +
       '<hr class="garis">' +
       '<div class="ajak">' + agEsc(ajak) + '</div>' +
       '<div class="nama">' + agEsc(p.nama || '') + '</div>' +
-      '<div class="kelas">' + agEsc(agDarjahKelas(p.tahun, p.kelas)) +
-        (banyak ? '<span class="pil-kali">NAIK PENTAS ' + an.length + ' KALI</span>' : '') +
-      '</div>' +
+      '<div class="kelas">' + agEsc(agDarjahKelas(p.tahun, p.kelas)) + '</div>' +
       (baris.length
         ? '<div class="but">' + baris.map(b =>
             '<span>' + agEsc(b.label) + '</span><b>' + agEsc(b.nilai) + '</b>').join('') + '</div>'
         : '') +
-      '<div class="anu">' +
-        an.map(x => {
-          const no = gilUtk(x);
-          return '<div class="anu-baris"><span>' + agEsc(x.sub || x.anugerah) + '</span>' +
-            '<span class="no">' + (no != null ? 'Giliran ' + no : '\u2014') + '</span></div>';
-        }).join('') +
-        '<div class="kaki">' + (banyak
-          ? 'Anak anda dipanggil <strong>' + an.length + ' kali</strong> \u2014 sila kekal ' +
-            'di dewan sehingga giliran terakhir selesai.'
-          : agEsc(kaki)) + '</div>' +
-      '</div>' +
+      '<div class="kaki">' + agEsc(kaki) + '</div>' +
     '</div>';
   }).join('');
 
@@ -4258,16 +4465,18 @@ function kjSemakMuat(senarai) {
     let isi = 0;
     Array.from(el.children).forEach(c => {
       const g = getComputedStyle(c);
-      /* .anu membawa margin-top:auto pada skrin \u2014 abaikan margin itu
+      /* .kaki membawa margin-top:auto pada skrin \u2014 abaikan margin itu
          dan kira tinggi sebenar setiap blok sahaja. */
       isi += c.getBoundingClientRect().height +
         (g.marginTop === 'auto' ? 0 : parseFloat(g.marginTop) || 0) +
         (parseFloat(g.marginBottom) || 0);
     });
-    /* Ambang 30px \u2248 satu baris anugerah (diukur 23px) + jidar.
-       Diuji pada data sebenar: ruang habis pada anugerah ke-10, jadi
-       amaran mesti cetus pada ke-9 \u2014 SEBELUM kerosakan, bukan selepas.
-       Ambang 12px memberi amaran pada ke-11, iaitu sudah terlambat. */
+    /* Ambang 30px \u2248 satu baris teks + jidar.
+
+       Sejak senarai anugerah dibuang, kad ini jauh lebih lapang \u2014
+       yang tinggal hanya baris butiran (dikawal admin) dan ayat ajak/kaki.
+       Amaran dikekalkan kerana baris butiran dinamik: sepuluh baris
+       pakaian/masa/nombor telefon masih boleh melimpah 136mm. */
     if (isi > dalam - 30) sesak.push((senarai[i] && senarai[i].nama) || 'murid');
   });
 
@@ -4281,6 +4490,31 @@ function kjSemakMuat(senarai) {
 /* ==========================================================================
    PETUGAS
    ========================================================================== */
+/* Berapa tanda wujud sekarang. Butang reset tanpa angka ini tidak
+   memberitahu admin sama ada dia memadam kerja satu majlis penuh atau
+   tidak ada apa-apa \u2014 dan semasa menguji, itu tepat soalannya. */
+function lukisResetStatus() {
+  const bekas = $('reset-status');
+  if (!bekas) return;
+  let hadir = 0, absen = 0, mc = 0, gil = 0;
+  PENERIMA.forEach(p => (p.giliran || []).forEach(g => {
+    gil++;
+    if (g.hadir === true) hadir++;
+    if (g.hadir === false) absen++;
+    if (g.mc === true) mc++;
+  }));
+  bekas.innerHTML = !gil
+    ? '<p class="hint">Belum ada nombor giliran \u2014 tiada apa untuk ditanda lagi.</p>'
+    : (hadir || absen || mc)
+    ? '<div class="nota amaran"><span class="sym">\u25b8</span><div>' +
+        '<strong>Ada tanda dalam majlis ini.</strong> ' +
+        hadir + ' hadir \u00b7 ' + absen + ' tidak hadir \u00b7 ' + mc +
+        ' sudah naik pentas, daripada ' + gil + ' giliran.</div></div>'
+    : '<div class="nota"><span class="sym">\u2713</span><div>' +
+        'Bersih \u2014 tiada tanda kehadiran atau MC. ' + gil +
+        ' giliran sedia untuk majlis.</div></div>';
+}
+
 function lukisPetugas() {
   const mod = MAJLIS.modPetugas = MAJLIS.modPetugas || {};
   const asas = location.href.replace(/[^/]*$/, '');
@@ -4297,6 +4531,7 @@ function lukisPetugas() {
   ];
 
   lukisBorangGuru();
+  lukisResetStatus();
 
   $('link-grid').innerHTML = peranan.map(r => {
     const kod = mod[r.k];
@@ -4470,6 +4705,147 @@ function resetSub(iAn, jSub) {
     k => k === agKunciBorang(a.id, sub.id));
 }
 
+/* ==========================================================================
+   BETULKAN SUB — pindah murid luar skop ke sub darjahnya yang betul
+   --------------------------------------------------------------------------
+   🔴 PUNCANYA sudah ditutup dalam guru.html (luarSkopSub menolak semasa
+      simpan, dropdown dikunci, papan tanda skop). Butang ini membersihkan
+      rekod yang MASUK SEBELUM itu — dan kekal berguna kalau skop sebuah
+      sub diubah kemudian, kerana murid lama tidak berpindah sendiri.
+
+      Pada majlis 2026: 61 murid darjah 2-6 tersangkut dalam "KEHADIRAN
+      PENUH — DARJAH 1" dan 2 murid darjah 5 dalam "SAHSIAH TERPUJI —
+      DARJAH 1", semuanya daripada borang guru. Sub darjah 2-5 kosong.
+
+   🔴 Murid yang SUDAH memegang sub sasaran tidak dipindah, DIBUANG —
+      memindahkannya mencipta dua entri untuk anugerah yang sama, dan
+      murid itu naik pentas dua kali.
+
+   🔴 Murid yang tiada sub sasaran (contoh sub darjah itu belum dibina)
+      DIBIARKAN di tempat asal, dan admin diberitahu. Membuangnya akan
+      menghilangkan murid dari majlis tanpa sesiapa memintanya.
+
+   🔴 giliran[] mesti ikut subId baharu. Nombor giliran yang masih
+      menunjuk sub lama menjadi yatim — murid dipanggil untuk anugerah
+      yang senarainya tidak lagi mengandunginya.
+   ========================================================================== */
+
+/* Peta subId → sub darjah yang betul bagi seorang murid dalam anugerah ini.
+   Memulangkan null bila anugerah ini tiada sub untuk darjah murid itu. */
+function betulSubSasaran(a, p) {
+  const U = x => String(x || '').toUpperCase();
+  return (a.sub || []).find(y =>
+    y.skopJenis === 'darjah' && U(y.skopNilai) === U(p.tahun)) || null;
+}
+
+/* Kira apa yang akan berlaku. Baca sahaja — tiada tulisan. */
+function betulkanRancang(a, hadSub) {
+  const pindah = [], buang = [], yatim = [];
+  PENERIMA.forEach(p => {
+    (p.anugerah || []).forEach(x => {
+      if (x.anugerahId !== a.id) return;
+      if (hadSub && x.subId !== hadSub.id) return;      // skop satu sub sahaja
+      const s = (a.sub || []).find(y => y.id === x.subId);
+      if (!s || !luarSkopPenerima(s, p)) return;        // sudah betul
+      const t = betulSubSasaran(a, p);
+      if (!t) { yatim.push({ p, x, s }); return; }
+      if ((p.anugerah || []).some(z => z.subId === t.id)) { buang.push({ p, x, s, t }); return; }
+      pindah.push({ p, x, s, t });
+    });
+  });
+  return { pindah, buang, yatim };
+}
+
+/* Ringkasan "12 ke DARJAH 6 · 16 ke DARJAH 5" untuk dialog pengesahan —
+   admin mesti nampak ke mana murid pergi sebelum menekan, bukan selepas. */
+function betulkanRingkas(pindah) {
+  const ikut = {};
+  pindah.forEach(r => { ikut[r.t.nama] = (ikut[r.t.nama] || 0) + 1; });
+  return Object.keys(ikut).sort()
+    .map(nama => '  • ' + ikut[nama] + ' → ' + nama).join('\n');
+}
+
+async function betulkanJalan(iAn, jSub) {
+  const a = (MAJLIS.anugerah || [])[iAn];
+  if (!a) return;
+  const hadSub = jSub == null ? null : (a.sub || [])[jSub];
+  if (jSub != null && !hadSub) return;
+
+  const { pindah, buang, yatim } = betulkanRancang(a, hadSub);
+  const label = hadSub ? '"' + hadSub.nama + '"' : '"' + a.nama + '"';
+
+  if (!pindah.length && !buang.length) {
+    agToast(yatim.length
+      ? yatim.length + ' murid tiada sub darjah untuk dipindah'
+      : 'Tiada murid luar skop dalam ' + label, yatim.length ? 'ralat' : 'ok');
+    return;
+  }
+
+  const soal = 'BETULKAN ' + label + '\n\n' +
+    (pindah.length ? pindah.length + ' murid akan DIPINDAH:\n' +
+       betulkanRingkas(pindah) + '\n\n' : '') +
+    (buang.length ? buang.length + ' entri PENDUA akan dibuang\n' +
+       '(murid ini sudah ada dalam sub darjahnya yang betul)\n\n' : '') +
+    (yatim.length ? '⚠ ' + yatim.length + ' murid DIBIARKAN — anugerah ini ' +
+       'tiada sub untuk darjah mereka\n\n' : '') +
+    'Sandaran disimpan dahulu. Teruskan?';
+  if (!confirm(soal)) return;
+
+  try {
+    /* Sandaran SEBELUM menulis. resetJalan tiada sandaran kerana ia
+       membuang atas permintaan terang admin; di sini admin menerima
+       cadangan sistem, jadi dia mesti boleh berpatah balik. */
+    const simpan = {};
+    [...pindah, ...buang].forEach(r => { simpan[r.p.docId] = r.p.anugerah || []; });
+    const idSandar = 'betul_' + new Date().toISOString().slice(0, 19).replace(/[:T-]/g, '');
+    await agDb.collection('anugerah_backup').doc(idSandar).set({
+      majlisId: MAJLIS.id, masa: new Date().toISOString(),
+      sebab: 'betulkan sub ' + label, data: JSON.stringify(simpan) });
+
+    /* Satu operasi per MURID, bukan per entri — seorang murid boleh
+       mempunyai beberapa entri yang perlu dipindah. */
+    const ikutMurid = {};
+    pindah.forEach(r => (ikutMurid[r.p.docId] = ikutMurid[r.p.docId] || { p: r.p, pindah: [], buang: [] }).pindah.push(r));
+    buang.forEach(r => (ikutMurid[r.p.docId] = ikutMurid[r.p.docId] || { p: r.p, pindah: [], buang: [] }).buang.push(r));
+
+    const ops = Object.values(ikutMurid).map(({ p, pindah: pp, buang: bb }) => {
+      const tukar = new Map(pp.map(r => [r.x.subId, r.t]));
+      const nyah = new Set(bb.map(r => r.x.subId));
+      const ubah = arr => (arr || []).flatMap(x => {
+        if (x.anugerahId !== a.id) return [x];
+        if (nyah.has(x.subId)) return [];
+        const t = tukar.get(x.subId);
+        return t ? [Object.assign({}, x, { subId: t.id, sub: t.nama })] : [x];
+      });
+      return { ref: agDb.collection('anugerah_penerima').doc(p.docId),
+               data: { anugerah: ubah(p.anugerah), giliran: ubah(p.giliran) } };
+    });
+    await resetTulisPukal(ops);
+
+    PENERIMA = await agMuatPenerima(MAJLIS.id);
+    lukisPokok(); lukisSemak(); lukisGiliran(); lukisPetugas(); kemasSari();
+    agToast(pindah.length + ' dipindah' +
+      (buang.length ? ' · ' + buang.length + ' pendua dibuang' : '') +
+      ' · sandaran ' + idSandar, 'ok');
+    console.log('Pulihkan dengan: betulkanPulih("' + idSandar + '")');
+  } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
+}
+
+/* Dipanggil dari Console bila admin mahu berpatah balik. Tidak diletakkan
+   sebagai butang: ia memulihkan keadaan yang admin sendiri sudah sahkan,
+   jadi ia jarang dan tidak patut duduk di sebelah butang yang biasa. */
+async function betulkanPulih(id) {
+  const d = (await agDb.collection('anugerah_backup').doc(id).get()).data();
+  if (!d) { agToast('Sandaran tidak dijumpai', 'ralat'); return; }
+  const simpan = JSON.parse(d.data);
+  const ops = Object.entries(simpan).map(([docId, anugerah]) =>
+    ({ ref: agDb.collection('anugerah_penerima').doc(docId), data: { anugerah } }));
+  await resetTulisPukal(ops);
+  PENERIMA = await agMuatPenerima(MAJLIS.id);
+  lukisPokok(); lukisSemak(); lukisGiliran(); kemasSari();
+  agToast(ops.length + ' murid dipulihkan', 'ok');
+}
+
 /* `data-dj-*` membawa "indeks,DARJAH" dan darjah ialah PERKATAAN
    (SATU..ENAM), jadi ia tidak boleh dihurai dengan .split(',').map(Number)
    seperti pasangan indeks yang lain. */
@@ -4544,27 +4920,64 @@ $('b-rs-giliran').addEventListener('click', async () => {
 
 $('b-reset-hadir').addEventListener('click', () => resetTanda('hadir', 'kehadiran'));
 $('b-reset-mc').addEventListener('click', () => resetTanda('mc', 'MC'));
+$('b-reset-dua').addEventListener('click', () =>
+  resetTanda(['hadir', 'mc'], 'kehadiran + MC'));
 
+/* ==========================================================================
+   RESET TANDA PETUGAS — kehadiran (peserta) dan/atau MC
+   --------------------------------------------------------------------------
+   🔴 `medan` menerima ARRAY supaya satu butang boleh mengosongkan
+      kedua-duanya dalam SATU tulisan. Dua tulisan berasingan bermakna
+      separuh reset kalau yang kedua gagal — dan admin yang sedang menguji
+      tidak dapat membezakan "gagal" daripada "memang tiada tanda".
+
+   🔴 Dipecah pada RESET_CHUNK (400), sama seperti setiap tulisan pukal
+      lain dalam fail ini. Versi lama memakai SATU batch; Firestore
+      menghadkan 500 operasi, jadi ia pecah senyap pada majlis >500 murid.
+      Majlis ini 105 — ia belum pernah gagal, dan itulah sebabnya ia
+      terlepas pandang.
+
+   🔴 Kiraan tanda SEBENAR dipapar dalam dialog. "Reset semua tanda MC?"
+      tanpa nombor tidak memberitahu admin sama ada dia memadam kerja satu
+      majlis penuh atau tidak ada apa-apa. */
 async function resetTanda(medan, label) {
-  const taip = prompt('Reset semua tanda ' + label + '?\n\n' +
-    'Selepas majlis sebenar, ini satu-satunya rekod siapa naik pentas.\n\n' +
+  const medanArr = [].concat(medan);
+
+  /* Kira dulu — admin mesti nampak saiz kerosakan sebelum menaip RESET. */
+  let bilTanda = 0, bilMurid = 0;
+  PENERIMA.forEach(p => {
+    const kena = (p.giliran || []).filter(g => medanArr.some(k => g[k] != null)).length;
+    if (kena) { bilTanda += kena; bilMurid++; }
+  });
+
+  if (!bilTanda) { agToast('Tiada tanda ' + label + ' untuk direset', 'ok'); return; }
+
+  const taip = prompt('Reset tanda ' + label + '?\n\n' +
+    bilTanda + ' tanda pada ' + bilMurid + ' murid akan dikosongkan.\n\n' +
+    'Selepas majlis sebenar, ini satu-satunya rekod siapa naik pentas.\n' +
+    'TIADA UNDO.\n\n' +
     'Taip RESET untuk teruskan:');
   if (taip !== 'RESET') { if (taip !== null) agToast('Dibatalkan'); return; }
 
-  const batch = agDb.batch();
-  let n = 0;
+  const ops = [];
   PENERIMA.forEach(p => {
-    const gil = (p.giliran || []).map(g => ({ ...g, [medan]: null }));
+    const gil = p.giliran || [];
     if (!gil.length) return;
-    batch.update(agDb.collection('anugerah_penerima').doc(p.docId), { giliran: gil });
-    n++;
+    if (!gil.some(g => medanArr.some(k => g[k] != null))) return;   // sudah bersih
+    const baru = gil.map(g => {
+      const x = { ...g };
+      medanArr.forEach(k => { x[k] = null; });
+      return x;
+    });
+    ops.push({ ref: agDb.collection('anugerah_penerima').doc(p.docId),
+               data: { giliran: baru } });
   });
-  if (!n) { agToast('Tiada giliran'); return; }
 
   try {
-    await batch.commit();
+    await resetTulisPukal(ops);
     PENERIMA = await agMuatPenerima(MAJLIS.id);
-    agToast('Tanda ' + label + ' direset', 'ok');
+    lukisSemak(); lukisGiliran(); lukisResetStatus(); kemasSari();
+    agToast(bilTanda + ' tanda ' + label + ' direset', 'ok');
   } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
 }
 
