@@ -746,8 +746,15 @@ async function simpan() {
 
     await muatKelas();   /* baca balik supaya guru nampak apa yang tersimpan */
   } catch (e) {
-    st.innerHTML = '<span style="color:var(--absen)">Gagal menyimpan: ' +
-      agEsc(e.message) + '</span>';
+    // Kuota Firestore habis menolak TULISAN juga, bukan bacaan sahaja.
+    // Guru perlu tahu markahnya TIDAK tersimpan dan jangan tutup tab —
+    // mesej generik membuatkan dia menyangka ralat kecil dan beredar.
+    const kuota = String(e.code || '').toLowerCase() === 'resource-exhausted' ||
+                  /resource_exhausted|quota exceeded/i.test(String(e.message || ''));
+    st.innerHTML = kuota
+      ? '<span style="color:var(--absen)"><strong>MARKAH TIDAK TERSIMPAN</strong> — kuota pangkalan data habis. ' +
+        'Jangan tutup halaman ini. Maklumkan pentadbir, kemudian tekan Simpan semula.</span>'
+      : '<span style="color:var(--absen)">Gagal menyimpan: ' + agEsc(e.message) + '</span>';
   } finally {
     btn.disabled = false;
   }

@@ -3074,6 +3074,64 @@
 
         // Helper: tapis marks mengikut calendar year (untuk per-panel dropdown)
         // ==========================================================
+        // ==========================================================
+        // KUOTA FIRESTORE HABIS — jangan sesekali gagal secara senyap
+        // ----------------------------------------------------------
+        // Firestore memulangkan `resource-exhausted` (gRPC 8) apabila
+        // kuota harian projek habis. Pada pelan Spark, SETIAP bacaan
+        // ditolak selepas itu — termasuk satu dokumen.
+        //
+        // 🔴 Kegagalan ini dahulu ditangkap dan dicatat ke console
+        //    sahaja, lalu kod meneruskan dengan SENARAI KOSONG. Jadi
+        //    "kuota habis" kelihatan serupa dengan "guru belum isi
+        //    markah": Rekod & Laporan papar "tiada data", Status
+        //    Pengisian papar hampir semua kelas sudah siap, dan tiada
+        //    sesiapa dapat membezakan keduanya. Guru menyangka markah
+        //    mereka hilang.
+        //
+        // 🔴 Menekan 🔄 Segar Semula MEMBURUKKAN keadaan: ia membuang
+        //    cache yang masih baik, kemudian gagal mengisi ganti. Jadi
+        //    setiap laluan segar semula mesti menyemak `_kuotaHabis`
+        //    dan BERHENTI sebelum membuang apa-apa.
+        // ==========================================================
+        let _kuotaHabis = false;
+
+        function _adalahRalatKuota(e) {
+            if (!e) return false;
+            const kod = String(e.code || '').toLowerCase();
+            if (kod === 'resource-exhausted' || kod === '8') return true;
+            const msg = String(e.message || e.details || '').toLowerCase();
+            return msg.includes('resource_exhausted') || msg.includes('quota exceeded');
+        }
+
+        // Dipanggil dari setiap catch yang membaca Firestore. Memulangkan
+        // true apabila ralat itu ialah kuota, supaya pemanggil boleh
+        // berhenti dan bukan meneruskan dengan data separuh.
+        function _lapurRalatKuota(e, konteks) {
+            if (!_adalahRalatKuota(e)) return false;
+            _kuotaHabis = true;
+            console.error(`🚫 KUOTA FIRESTORE HABIS (${konteks || 'baca'})`, e);
+            _paparBanerKuota();
+            return true;
+        }
+
+        // Baner merah melekat di atas halaman. Guna DOM terus — kuota
+        // habis bermakna kita tidak boleh bergantung pada apa-apa yang
+        // perlu dibaca dari Firestore dahulu.
+        function _paparBanerKuota() {
+            if (document.getElementById('baner-kuota')) return;
+            const bar = document.createElement('div');
+            bar.id = 'baner-kuota';
+            bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#b91c1c;color:#fff;padding:12px 16px;font-size:14px;line-height:1.5;box-shadow:0 2px 8px rgba(0,0,0,.3)';
+            bar.innerHTML =
+                '<strong>🚫 KUOTA PANGKALAN DATA HABIS — data di skrin TIDAK LENGKAP.</strong><br>' +
+                'Markah yang tidak kelihatan <strong>tidak hilang</strong>; sistem cuma tidak dapat membacanya sekarang. ' +
+                '<strong>Jangan tekan 🔄 Segar Semula</strong> dan jangan isi markah baharu sehingga baner ini hilang. ' +
+                'Sila maklumkan pentadbir sistem.' +
+                '<button onclick="this.parentNode.remove()" style="margin-left:12px;padding:2px 10px;border:1px solid #fff;border-radius:4px;background:transparent;color:#fff;cursor:pointer">Tutup</button>';
+            (document.body || document.documentElement).appendChild(bar);
+        }
+
         // TERBIT KEPUTUSAN — examTypes.diterbit
         // ----------------------------------------------------------
         // Admin menutup satu peperiksaan daripada SEMUA paparan guru
@@ -4064,6 +4122,15 @@
         async function segarkanStatusPengisian() {
             const statusYearEl = document.getElementById('status-year');
             const year = statusYearEl ? parseInt(statusYearEl.value) : new Date().getFullYear();
+            // 🔴 Kuota habis: membuang cache di sini memusnahkan satu-satunya
+            //    data baik yang masih ada, dan bacaan ganti akan ditolak juga.
+            //    Jadi berhenti SEBELUM delete, bukan selepasnya.
+            if (_kuotaHabis) {
+                _paparBanerKuota();
+                showNotification('KUOTA HABIS',
+                    'Tidak dapat menyegarkan data — kuota pangkalan data habis. Data di skrin dikekalkan supaya tidak hilang.', true);
+                return;
+            }
             if (!isNaN(year)) delete marksCache[year];
             await _populateStatusPerikDropdown(year);
             await loadStatusPengisian();
@@ -5200,7 +5267,15 @@
                 showLoader(false);
             } catch (e) {
                 showLoader(false);
+                // 🔴 JANGAN tetapkan marksCache[yearInt] di sini. Membiarkannya
+                //    `undefined` bermakna cubaan berikutnya akan mencuba semula.
+                //    Menulis [] akan "menyimpan" kegagalan ini sebagai fakta
+                //    bahawa tahun itu tiada markah — dan setiap panel selepas
+                //    itu akan memaparkan skrin kosong yang kelihatan sah.
+                if (_lapurRalatKuota(e, `ensureMarksLoaded ${yearInt}`)) return;
                 console.error('ensureMarksLoaded error:', e.message);
+                showNotification('RALAT BACA DATA',
+                    `Gagal membaca markah tahun ${yearInt}. Data di skrin mungkin tidak lengkap. Ralat: ${e.message}`, true);
             }
         }
 
@@ -7641,10 +7716,27 @@
             console.log('🔄 Manual refresh triggered...');
             
             try {
-                await bacaInitialData(true); // Force refresh from Firebase
-                showNotification("BERJAYA", "Data telah dikemaskini dari Firebase!", false);
+                // 🔴 bacaInitialData MENANGKAP ralatnya sendiri, jadi ia tidak
+                //    melontar ke sini. Melaporkan "BERJAYA" tanpa syarat
+                //    bermakna butang ini memberitahu guru data sudah dikemas
+                //    kini sedangkan setiap bacaan baru sahaja ditolak — itulah
+                //    sebabnya menekan butang biru kelihatan seperti tiada apa
+                //    berlaku. Semak _kuotaHabis selepas panggilan itu.
+                _kuotaHabis = false;                  // beri peluang cubaan baharu
+                await bacaInitialData(true);
+                if (_kuotaHabis) {
+                    showNotification("KUOTA HABIS",
+                        "Data TIDAK dikemas kini — kuota pangkalan data habis. Markah anda tidak hilang; sila cuba lagi kemudian.", true);
+                } else {
+                    showNotification("BERJAYA", "Data telah dikemaskini dari Firebase!", false);
+                }
             } catch (error) {
-                showNotification("RALAT", `Gagal refresh data: ${error.message}`, true);
+                if (!_lapurRalatKuota(error, 'refresh manual')) {
+                    showNotification("RALAT", `Gagal refresh data: ${error.message}`, true);
+                } else {
+                    showNotification("KUOTA HABIS",
+                        "Data TIDAK dikemas kini — kuota pangkalan data habis. Markah anda tidak hilang; sila cuba lagi kemudian.", true);
+                }
             } finally {
                 showLoader(false);
                 if (refreshBtn) {
@@ -7773,7 +7865,11 @@
                         .where('timestamp', '<', endTs)
                         .limit(1).get()
                         .then(s => s.size > 0 ? y : null)
-                        .catch(() => null);
+                        // Tinjauan ini menelan ralat dengan sengaja (tahun kosong
+                        // bukan ralat), tetapi kuota habis MESTI dilaporkan — jika
+                        // tidak setiap tahun kembali null dan sistem menyimpulkan
+                        // sekolah ini tiada markah sama sekali.
+                        .catch(e => { _lapurRalatKuota(e, `tinjau ${y}`); return null; });
                 }));
                 const tahunAdaData = tinjauan.filter(y => y !== null).sort((a, b) => b - a);
 
@@ -7857,8 +7953,13 @@
                 
             } catch (error) {
                 console.error("RALAT KETIKA MEMUATKAN DATA AWAL:", error);
-                showNotification("RALAT DATA", `Gagal memuatkan data awal dari Firestore. Sila semak Security Rules Tuan di Firebase Console. Ralat: ${error.message}`, true);
                 showLoader(false);
+                // Kuota habis ialah punca yang JAUH lebih biasa daripada
+                // Security Rules, dan mesejnya mesti menamakannya — mesej
+                // "semak Security Rules" menghantar admin memburu punca
+                // yang salah sedangkan rules tidak pernah berubah.
+                if (_lapurRalatKuota(error, 'bacaInitialData')) return;
+                showNotification("RALAT DATA", `Gagal memuatkan data awal dari Firestore. Ralat: ${error.message}`, true);
             }
         }
 
@@ -8519,6 +8620,12 @@
         // Segar Semula: buang cache markah tahun terlibat & tarik semula dari Firestore.
         // Menutup "gap" di mana ensureMarksLoaded tak tarik semula tahun yang sudah dicache.
         async function hcSegarSemula() {
+            if (_kuotaHabis) {
+                _paparBanerKuota();
+                showNotification('KUOTA HABIS',
+                    'Tidak dapat menyegarkan data — kuota pangkalan data habis. Data di skrin dikekalkan supaya tidak hilang.', true);
+                return;
+            }
             const cy = new Date().getFullYear();
             const tovYear = parseInt(document.getElementById('hc-tov-tahun').value);
             [cy, tovYear].forEach(y => { if (!isNaN(y)) delete marksCache[y]; });
