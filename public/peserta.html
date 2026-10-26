@@ -35,7 +35,43 @@
   border:1px solid color-mix(in srgb, var(--absen) 34%, transparent);
 }
 .baris.ulang{border-left:3px solid var(--absen)}
-.gil-seterus{font-size:11px; color:var(--emas); font-weight:650}
+/* Baris sendiri di bawah nama, bukan sebahagian baris kelas — pengurus
+   peserta membacanya sebagai "siapa lepas ini", jadi ia perlu ruang. */
+.gil-seterus{font-size:11px; color:var(--emas); font-weight:650; margin-top:2px}
+.baris-butang .pil.absen{margin-right:2px}
+
+/* ---------- accordion dua aras ----------
+   🔴 `.grup-kepala` dikongsi dengan mc.html/hadiah.html melalui
+   anugerah-kongsi.css — gaya togol ditambah DI SINI sahaja supaya
+   kedua-dua panel lain kekal senarai rata seperti sebelum ini. */
+.grup-kepala[data-an-togol]{cursor:pointer; user-select:none}
+.grup-kepala[data-an-togol]:hover{background:var(--garis-halus)}
+.grup-kepala .anak-panah,.sub-kepala .anak-panah{
+  font-size:10px; color:var(--neutral); transition:transform .15s;
+  display:inline-block; flex:none;
+}
+.grup-kepala.buka .anak-panah,.sub-kepala.buka .anak-panah{transform:rotate(90deg)}
+.grup-kepala .an-nama{min-width:0}
+.grup-isi{background:var(--kertas-2)}
+.sub-kepala{
+  display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+  padding:8px 16px 8px 30px; cursor:pointer; user-select:none;
+  background:var(--kertas-2); border-bottom:1px solid var(--garis-halus);
+  font-size:12.5px; font-weight:650;
+}
+.sub-kepala:hover{background:var(--garis-halus)}
+.sub-kepala .bil-kep{
+  margin-left:auto; font-size:11px; color:var(--neutral); font-weight:700;
+}
+.grup-isi .baris{padding-left:30px}
+
+/* Giliran LAIN murid berulang: nombor + nama anugerah, baris sendiri. */
+.nota-ulang{margin-top:3px; font-size:11px; color:var(--neutral); line-height:1.6}
+.gil-lain{
+  display:inline-block; background:var(--kertas-3); border:1px solid var(--garis);
+  border-radius:20px; padding:1px 8px; margin-right:4px;
+  font-weight:650; color:var(--tinta); font-variant-numeric:tabular-nums;
+}
 </style>
 </head>
 <body>
@@ -120,6 +156,10 @@
 let MAJLIS = null;
 let MURID = [];            // [{docId, nama, tahun, kelas, giliran[], status}]
 const MENUNGGU = [];       // baris gilir luar talian
+/* Blok mana terbuka. Kekal antara lukisan — muat berkala 90s akan
+   menutup semula apa yang pengurus peserta baru buka tanpa ini. */
+const BUKA_AN = {};
+const BUKA_SUB = {};
 
 const $ = id => document.getElementById(id);
 function memuat(el, teks) {
@@ -274,28 +314,128 @@ function lukis() {
     return;
   }
 
-  /* 🔴 Kumpul ikut ANUGERAH murid itu, bukan giliran[0].
-     Murid yang menang beberapa anugerah muncul di bawah SETIAP anugerah
-     yang dia menang — kalau tidak, guru yang membuka "Terbaik Kelas"
-     akan nampak 2 dari 24 orang dan sangka senarai rosak.              */
-  const grup = {};
-  tapis.forEach(m => {
-    const senarai = m.anugerah.length ? m.anugerah : [{ anugerah: '(tiada anugerah)' }];
-    senarai.forEach(x => {
-      const k = x.anugerah || '(tiada anugerah)';
-      (grup[k] = grup[k] || []).push(m);
-    });
+  /* 🔴 SUSUNAN MESTI SAMA PERSIS DENGAN "Susunan Naik Pentas" dalam tab
+     🎟️ Giliran. Pengurus peserta berdiri di pintu dewan dengan senarai
+     ini di tangan sementara MC memanggil nombor mengikut susunan itu —
+     dua susunan berbeza bermakna dia mencari ke bawah senarai setiap kali.
+
+     Versi lama mengumpul ikut nama anugerah dan menyusun ABJAD
+     (Object.keys().sort()), jadi "ANUGERAH IKON TV" boleh muncul sebelum
+     anugerah yang sebenarnya naik pentas dahulu.
+
+     Peraturan diambil terus daripada binaTurutan() dalam anugerah-admin:
+       anugerah ikut `urutan`  →  sub ikut susunan array a.sub
+       →  murid ikut nama dalam sub itu
+     Sub TIADA medan `urutan` — susunannya ialah susunan array itu sendiri.
+     Jadi apa-apa perubahan susunan di Giliran terus terpakai di sini. */
+  /* 🔴 DUA ARAS, kedua-duanya buka/tutup. Majlis ini ada 14 kumpulan
+     sub yang berisi; terbuka semuanya ia senarai 110 baris yang
+     pengurus peserta perlu tatal untuk mencari satu anugerah.
+
+     Aras luar = ANUGERAH (master), aras dalam = SUB. Lalai TERTUTUP —
+     pengurus peserta membuka anugerah yang sedang naik pentas sahaja.
+
+     `BUKA_AN` / `BUKA_SUB` kekal antara lukisan, jika tidak muat
+     berkala 90s akan menutup semula apa yang dia baru buka. */
+  const ikutAn = [];
+  kumpulIkutGiliran(tapis).forEach(g => {
+    let blok = ikutAn.find(x => x.anId === g.anId);
+    if (!blok) { blok = { anId: g.anId, anNama: g.anNama, sub: [] }; ikutAn.push(blok); }
+    blok.sub.push(g);
   });
 
-  $('senarai').innerHTML = Object.keys(grup).sort().map(nama => {
-    const senarai = grup[nama];
-    const unik = Array.from(new Set(senarai.map(m => m.docId)))
-      .map(id => senarai.find(m => m.docId === id));
-    const bilHadir = unik.filter(m => m.status === 'hadir').length;
-    return '<div class="grup-kepala">' + agEsc(nama) +
-      '<span class="bil-kep">' + unik.length + ' murid · ' + bilHadir + ' hadir</span></div>' +
-      '<ul class="senarai">' + unik.map(baris).join('') + '</ul>';
+  const kira = baris => {
+    const h = baris.filter(b => b.m.status === 'hadir').length;
+    const a = baris.filter(b => b.m.status === 'absen').length;
+    return baris.length + ' murid \u00b7 ' + h + ' hadir' +
+      (a ? ' \u00b7 ' + a + ' tidak hadir' : '');
+  };
+
+  $('senarai').innerHTML = ikutAn.map(blok => {
+    const semua = blok.sub.flatMap(g => g.baris);
+    const bukaAn = !!BUKA_AN[blok.anId];
+
+    /* Anugerah dengan SATU sub sahaja tidak perlu dua aras — tajuk
+       dalam akan mengulang tajuk luar. Ia dipaparkan sebagai satu
+       blok, sama seperti sebelum ini. */
+    const satuSub = blok.sub.length === 1;
+
+    const dalam = blok.sub.map(g => {
+      if (satuSub) return '<ul class="senarai">' +
+        g.baris.map(b => baris(b.m, b.no)).join('') + '</ul>';
+      const bukaSub = !!BUKA_SUB[g.kunci];
+      return '<div class="sub-kepala' + (bukaSub ? ' buka' : '') +
+          '" data-sub-togol="' + agEsc(g.kunci) + '">' +
+          '<span class="anak-panah">\u25b6</span>' +
+          '<span class="sub-nama">' + agEsc(g.subNama) + '</span>' +
+          '<span class="bil-kep">' + kira(g.baris) + '</span>' +
+        '</div>' +
+        (bukaSub ? '<ul class="senarai">' +
+          g.baris.map(b => baris(b.m, b.no)).join('') + '</ul>' : '');
+    }).join('');
+
+    return '<div class="grup-kepala' + (bukaAn ? ' buka' : '') +
+        '" data-an-togol="' + agEsc(blok.anId) + '">' +
+        '<span class="anak-panah">\u25b6</span>' +
+        '<span class="an-nama">' + agEsc(blok.anNama) + '</span>' +
+        '<span class="bil-kep">' + kira(semua) +
+          (satuSub ? '' : ' \u00b7 ' + blok.sub.length + ' kategori') + '</span>' +
+      '</div>' +
+      (bukaAn ? '<div class="grup-isi">' + dalam + '</div>' : '');
   }).join('');
+}
+
+/* 🔴 SATU BARIS PER GILIRAN, bukan per murid. Murid yang menang dua
+   anugerah naik pentas DUA kali dengan dua nombor berbeza, dan pengurus
+   peserta perlu melihat setiap panggilan itu pada tempatnya dalam
+   susunan — bukan satu baris yang membawa "4 · 31" dan dia sendiri
+   kena fikir yang mana datang dahulu.
+
+   Sub yang tiada seorang pun murid DILANGKAU (bukan dipapar kosong) —
+   majlis ini ada sub yang memang 0 murid dan itu normal. */
+function kumpulIkutGiliran(tapis) {
+  const bolehPapar = new Set(tapis.map(m => m.docId));
+  const ikutDoc = {};
+  tapis.forEach(m => { ikutDoc[m.docId] = m; });
+
+  const keluar = [];
+  (MAJLIS.anugerah || []).slice()
+    .sort((a, b) => (a.urutan || 0) - (b.urutan || 0))
+    .forEach(a => {
+      (a.sub || []).forEach(s => {
+        const baris = MURID
+          .filter(m => (m.anugerah || []).some(x => x.subId === s.id))
+          .filter(m => bolehPapar.has(m.docId))
+          .sort((x, y) => String(x.nama).localeCompare(String(y.nama), 'ms'))
+          .map(m => {
+            const g = (m.giliran || []).find(x => x.subId === s.id);
+            return { m: ikutDoc[m.docId] || m, no: g && g.no != null ? g.no : null };
+          });
+        if (!baris.length) return;
+        /* Nama sub dalam aras dalam tidak perlu mengulang nama
+           anugerah yang sudah berada di aras luar — "KEHADIRAN PENUH —
+           DARJAH 1" di bawah "ANUGERAH KEHADIRAN PENUH" dibaca dua
+           kali. Awalan yang sama dibuang. */
+        const nA = String(a.nama || '').toUpperCase().replace(/^ANUGERAH\s+/, '');
+        let subNama = String(s.nama || a.nama);
+        if (subNama.toUpperCase().startsWith(nA + ' \u2014 '))
+          subNama = subNama.slice(nA.length + 3);
+        else if (subNama.toUpperCase() === nA) subNama = s.nama || a.nama;
+        keluar.push({ anId: a.id, anNama: a.nama, subNama,
+                      kunci: a.id + '|' + s.id, baris });
+      });
+    });
+
+  /* Murid tanpa anugerah langsung tidak muncul dalam gelung di atas;
+     ia keadaan tidak normal, jadi ia dipaparkan dan bukan disenyapkan. */
+  const sudah = new Set();
+  keluar.forEach(g => g.baris.forEach(b => sudah.add(b.m.docId)));
+  const yatim = tapis.filter(m => !sudah.has(m.docId));
+  if (yatim.length) keluar.push({ anId: '_yatim', anNama: '(tiada anugerah)',
+    subNama: '(tiada anugerah)', kunci: '_yatim',
+    baris: yatim.map(m => ({ m, no: null })) });
+
+  return keluar;
 }
 
 function kad(angka, label, kecil, jenis) {
@@ -305,52 +445,78 @@ function kad(angka, label, kecil, jenis) {
     '<div class="kecil">' + agEsc(kecil) + '</div></div>';
 }
 
-/* 🔴 Giliran SETERUSNYA yang belum dipanggil. Pengurus peserta yang
-   melihat "4 · 31" tidak tahu yang mana sudah lepas — MC menanda
-   `mc:true` apabila murid sudah naik, jadi giliran seterusnya ialah
-   nombor terkecil yang belum ditanda. Tanpa ini dia perlu bertanya MC. */
-function gilSeterusnya(m) {
-  const belum = (m.giliran || [])
-    .filter(g => g.no != null && g.mc !== true)
-    .map(g => g.no).sort((a, b) => a - b);
-  return belum.length ? belum[0] : null;
-}
-
-function baris(m) {
-  const nombor = m.giliran.map(g => g.no).filter(n => n != null).sort((a, b) => a - b);
+/* `no` = nombor giliran BARIS INI (bukan semua nombor murid itu). */
+function baris(m, no) {
   const bil = m.giliran.length;
-  /* Murid berulang mendapat lencana MERAH, bukan lencana emas yang sama
-     rupa dengan "1 giliran" — ia mesti ditangkap tanpa dibaca. */
+  /* Murid berulang ditanda MERAH — tanda tidak-hadir menjatuhkan
+     KESEMUA gilirannya, bukan hanya baris ini. */
   const ulang = bil > 1;
-  const lencana = bil
-    ? '<span class="' + (ulang ? 'lencana-ulang' : 'lencana-gil') + '">' +
-        (ulang ? '\u26a0 NAIK PENTAS ' + bil + ' KALI' : bil + ' giliran') + '</span> ' +
-      '<span class="gil-no-kecil">' + nombor.join(' \u00b7 ') + '</span>'
-    : '<span class="pil tunggu">belum bernombor</span>';
 
-  /* Giliran seterusnya hanya berguna semasa majlis berjalan — iaitu
-     apabila sebahagian giliran murid ini sudah dipanggil. */
-  const seterus = gilSeterusnya(m);
-  const notaSeterus = (ulang && seterus != null && nombor.length > 1 &&
-                       seterus !== nombor[0] && m.status !== 'absen')
-    ? ' · <span class="gil-seterus">seterusnya: ' + seterus + '</span>' : '';
+  /* 🔴 Giliran LAIN mesti membawa NOMBOR + NAMA ANUGERAH. "juga: 41"
+     ialah nombor bogel: pengurus peserta nampak angka dan tidak tahu
+     41 itu anugerah apa, jadi dia tidak dapat memberitahu murid bila
+     dia perlu kembali ke pentas. */
+  const lain = ulang
+    ? m.giliran.filter(g => g.no != null && g.no !== no)
+        .sort((a, b) => a.no - b.no)
+        .map(g => '<span class="gil-lain">#' + g.no + ' ' +
+          agEsc(agRingkasSub(g.sub || g.anugerah || '')) + '</span>')
+    : [];
+
+  const notaUlang = ulang
+    ? '<div class="nota-ulang">' +
+        '<span class="lencana-ulang">\u26a0 NAIK PENTAS ' + bil + ' KALI</span> ' +
+        (lain.length ? 'juga: ' + lain.join(' ') : '') +
+      '</div>'
+    : '';
 
   const kelas = (m.status === 'hadir' ? ' sudah' : (m.status === 'absen' ? ' absen' : '')) +
                 (ulang ? ' ulang' : '');
   const catatan = m.status === 'absen'
-    ? ' \u00b7 <span class="pil absen">Tidak hadir</span>' : '';
+    ? '<span class="pil absen">Tidak hadir</span>' : '';
 
   return '<li class="baris' + kelas + '" data-doc="' + agEsc(m.docId) + '">' +
+    '<div class="baris-no">' + (no != null ? no : '\u2014') + '</div>' +
     '<div class="baris-info">' +
       '<div class="n">' + agEsc(m.nama) + '</div>' +
-      '<div class="k">' + agEsc(agDarjahKelas(m.tahun, m.kelas)) + ' \u00b7 ' + lencana +
-        notaSeterus + catatan + '</div>' +
+      '<div class="k">' + agEsc(agDarjahKelas(m.tahun, m.kelas)) + '</div>' +
+      notaUlang +
     '</div>' +
     '<div class="baris-butang">' +
-      '<button class="b-tanda" data-tanda="hadir" title="Hadir">✓</button>' +
-      '<button class="b-tanda x" data-tanda="absen" title="Tidak hadir">✕</button>' +
+      (catatan ? catatan + ' ' : '') +
+      '<button class="b-tanda" data-tanda="hadir" title="Hadir">\u2713</button>' +
+      '<button class="b-tanda x" data-tanda="absen" title="Tidak hadir">\u2715</button>' +
     '</div></li>';
 }
+
+/* Nama sub dipendekkan untuk pil kecil — "KEHADIRAN PENUH — DARJAH 4"
+   muat, "ANUGERAH KEBITARAAN ANTARABANGSA" tidak. Awalan "ANUGERAH"
+   dibuang kerana setiap nama membawanya. */
+function agRingkasSub(nama) {
+  const t = String(nama || '').replace(/^ANUGERAH\s+/i, '').trim();
+  return t.length > 30 ? t.slice(0, 29) + '\u2026' : t;
+}
+
+/* ---------- buka/tutup ---------- */
+/* 🔴 Butang tanda disemak DAHULU: ia duduk DI DALAM baris, jadi kalau
+   togol diperiksa dahulu, menekan ✓ juga akan menutup blok. (Perangkap
+   sama seperti pokok Jenis Anugerah dalam panel admin.) */
+$('senarai').addEventListener('click', e => {
+  if (e.target.closest('button[data-tanda]')) return;   // dikendali di bawah
+  const sub = e.target.closest('[data-sub-togol]');
+  if (sub) {
+    const k = sub.dataset.subTogol;
+    BUKA_SUB[k] = !BUKA_SUB[k];
+    lukis();
+    return;
+  }
+  const an = e.target.closest('[data-an-togol]');
+  if (an) {
+    const k = an.dataset.anTogol;
+    BUKA_AN[k] = !BUKA_AN[k];
+    lukis();
+  }
+});
 
 /* ---------- tanda ---------- */
 $('senarai').addEventListener('click', e => {
