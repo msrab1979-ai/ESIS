@@ -214,13 +214,31 @@
             /* Sembunyikan kolum 'Edit' semasa cetak */
             .print-hide { display: none; }
             
-            /* Status Pengisian Markah Print Styling */
-            #guru-kelas-panel { display: block !important; }
-            #analisa-kelas-panel { display: block !important; }
-            #analisa-kelas-panel #ak-print-header { display: block !important; }
-            #analisa-kelas-panel #ak-empty { display: none !important; }
-            #guru-kelas-status { display: block !important; }
-            #status-pengisian-container { display: block !important; }
+            /* Status Pengisian Markah Print Styling
+               🔴 MESTI BERSYARAT. Versi lama memaksa #guru-kelas-panel,
+               #analisa-kelas-panel DAN #guru-kelas-status kelihatan pada
+               SETIAP cetakan, tanpa mengira apa yang pengguna sedang lihat.
+               Dua kesan: (a) mencetak Status Pengisian turut mencetak tab
+               "Tambah Murid" (yang tiada kelas .hidden kerana ia tab lalai)
+               dan seluruh panel Analisa Kelas; (b) mencetak mana-mana panel
+               LAIN turut mencetak Status Pengisian. Gejalanya: butang PDF
+               mengeluarkan halaman yang salah.
+               Kini printStatusPDF/cetakAnalisaKelas menanda <body> dahulu,
+               jadi hanya panel yang diminta dicetak. */
+            body.cetak-status #guru-kelas-panel { display: block !important; }
+            body.cetak-status #guru-kelas-status { display: block !important; }
+            body.cetak-status #status-pengisian-container { display: block !important; }
+            /* Tab Guru Kelas yang lain — termasuk tab lalai "Tambah Murid"
+               yang tiada kelas .hidden sendiri. */
+            body.cetak-status #guru-kelas-add,
+            body.cetak-status #guru-kelas-view,
+            body.cetak-status #guru-kelas-markah { display: none !important; }
+
+            /* Analisa Kelas TIDAK perlu peraturan di sini — cetakAnalisaKelas()
+               membuka tetingkap baharu dengan CSS sendiri (window.open), jadi
+               peraturan asal untuk #analisa-kelas-panel tidak pernah digunakan
+               untuk mencetaknya; ia cuma memaksa panel itu masuk ke dalam
+               cetakan panel LAIN. Dibuang. */
             
             /* Print header for Status Pengisian */
             #status-print-header {
@@ -2445,6 +2463,7 @@
                                 <span class="text-sm">
                                     <span class="font-semibold text-amber-900">🔒 Markah guru subjek sahaja</span>
                                     <span class="block text-xs text-amber-800 mt-0.5">Peperiksaan ini <strong>disembunyikan</strong> dari Rekod &amp; Laporan. Hanya guru yang berdaftar (menu <strong>📝 Markah Ujian Khas</strong>) boleh isi markah kelasnya sendiri. Pentadbir boleh lihat semua.</span>
+                                    <span class="block text-xs text-blue-800 mt-1 font-medium">📘 Keputusan dicipta <strong>belum terbit</strong> — markah tidak masuk Analisa, Murid Terbaik, Headcount atau slip sampai anda hidupkan toggle biru <strong>Terbit</strong> dalam senarai di bawah.</span>
                                 </span>
                             </label>
                         </div>
@@ -2510,6 +2529,7 @@
                                     <span class="text-sm">
                                         <span class="font-semibold text-amber-900">🔒 Markah guru subjek sahaja</span>
                                         <span class="block text-xs text-amber-800 mt-0.5">Disembunyikan dari Rekod &amp; Laporan. Hanya guru berdaftar (menu <strong>📝 Markah Ujian Khas</strong>) boleh isi.</span>
+                                        <span class="block text-xs text-blue-800 mt-1 font-medium">📘 Menanda kotak ini juga <strong>menutup keputusan</strong> (Terbit dimatikan). Hidupkan semula bila sedia. Kalau ia sudah bertanda, status Terbit anda tidak diubah.</span>
                                     </span>
                                 </label>
                             </div>
@@ -3078,12 +3098,28 @@
         //    menunggu cache IndexedDB luput 24 jam (dan DATA_VERSION
         //    tidak perlu dinaikkan — cara markah diproses tidak berubah).
         // ==========================================================
+        // 🔴 GLOBAL_DATA.examTypes MEMEGANG SATU TAHUN SAHAJA — tahun yang
+        //    terakhir dimuat oleh loadExamTypes (bacaInitialData memuat dataYear
+        //    kemudian calYear, jadi yang terakhir menang). Membaca ia sahaja
+        //    bermakna peperiksaan yang ditutup dalam tahun LAIN tidak dikenali
+        //    dan tidak ditapis — gejalanya: admin matikan Terbit, markah masih
+        //    muncul, tanpa sebarang ralat. Jadi gabungkan _examTypesCache
+        //    (semua tahun yang pernah dimuat) dengan senarai semasa.
+        //    Nama peperiksaan ialah kunci tapisan, jadi menutup "UASA" 2026
+        //    turut menutup "UASA" 2025 — itu betul: guru melihat nama, bukan
+        //    dokumen, dan separuh tertutup lebih mengelirukan daripada kedua-dua.
         function _pepBelumTerbit() {
-            return new Set(
-                (GLOBAL_DATA.examTypes || [])
-                    .filter(et => et.diterbit === false && et.nama)
-                    .map(et => et.nama)
-            );
+            const tutup = new Set();
+            const kutip = (senarai) => {
+                (senarai || []).forEach(et => {
+                    if (et && et.diterbit === false && et.nama) tutup.add(et.nama);
+                });
+            };
+            kutip(GLOBAL_DATA.examTypes);
+            if (typeof _examTypesCache === 'object' && _examTypesCache) {
+                Object.values(_examTypesCache).forEach(c => kutip(c && c.data));
+            }
+            return tutup;
         }
 
         function _tapisDiterbit(senarai) {
@@ -4216,6 +4252,10 @@
             // Add print-panel class to make panel visible during print
             const guruKelasPanel = document.getElementById('guru-kelas-panel');
             guruKelasPanel.classList.add('print-panel');
+            // Tanda <body> supaya CSS @media print membuka HANYA tab ini.
+            // Tanpa penanda, peraturan print lama membuka tab Tambah Murid
+            // dan panel Analisa Kelas sekali — halaman yang salah dicetak.
+            document.body.classList.add('cetak-status');
             
             // Set document title for PDF filename
             const originalTitle = document.title;
@@ -4231,6 +4271,7 @@
             setTimeout(() => {
                 document.title = originalTitle;
                 guruKelasPanel.classList.remove('print-panel');
+                document.body.classList.remove('cetak-status');
             }, 100);
         }
 
@@ -5301,7 +5342,9 @@
             } else {
                 // Mod 2: tapis dari semua tahun yang ada
                 await Promise.all(availableYears.map(y => ensureMarksLoaded(y)));
-                const allMarks = Object.values(marksCache).flat();
+                // marksCache ialah data MENTAH — getMarksByYear yang menapis
+                // `diterbit`, jadi membaca cache terus memintas penapis itu.
+                const allMarks = _tapisDiterbit(Object.values(marksCache).flat());
                 examNames = [...new Set(
                     allMarks.filter(m => m.subjek === subjek)
                         .map(m => m['JENIS PEPERIKSAAN'])
@@ -5329,7 +5372,7 @@
             const darjahSel = document.getElementById('analisa-subjek-darjah');
             darjahSel.innerHTML = '<option value="">-- Pilih Darjah --</option>';
             const darjahOrder = ['SATU','DUA','TIGA','EMPAT','LIMA','ENAM'];
-            const allMarks = Object.values(marksCache).flat();
+            const allMarks = _tapisDiterbit(Object.values(marksCache).flat());
             const darjahs = [...new Set(
                 allMarks.filter(m => m.subjek === subjek && m['JENIS PEPERIKSAAN'] === perik)
                     .map(m => m.tahun)
@@ -6470,7 +6513,7 @@
             if (tahun && kelas && jenisPeperiksaan) {
                 // Get unique subjects from actual marks data
                 const uniqueSubjects = new Set();
-                GLOBAL_DATA.allMarks.forEach(mark => {
+                _tapisDiterbit(GLOBAL_DATA.allMarks).forEach(mark => {
                     if (mark.tahun === tahun && 
                         mark.kelas === kelas && 
                         mark["JENIS PEPERIKSAAN"] === jenisPeperiksaan) {
@@ -6481,7 +6524,7 @@
                 console.log(`✅ Slip subjects populated from database: ${allSubjects.length} subjects`, allSubjects);
             } else {
                 // Fallback to getting ALL unique subjects from entire database
-                const uniqueSubjects = new Set(GLOBAL_DATA.allMarks.map(m => m.subjek));
+                const uniqueSubjects = new Set(_tapisDiterbit(GLOBAL_DATA.allMarks).map(m => m.subjek));
                 allSubjects = Array.from(uniqueSubjects).sort();
                 console.log(`⚠️ Using all subjects from database (no filter): ${allSubjects.length} subjects`);
             }
@@ -6985,7 +7028,7 @@
                 let selectedSubjects = getSelectedSlipSubjects();
                 if (selectedSubjects.length === 0) {
                     const uniq = new Set();
-                    GLOBAL_DATA.allMarks.forEach(m => {
+                    _tapisDiterbit(GLOBAL_DATA.allMarks).forEach(m => {
                         if (m.tahun === tahun && m["JENIS PEPERIKSAAN"] === jenisPeperiksaan) uniq.add(m.subjek);
                     });
                     selectedSubjects = Array.from(uniq).sort();
@@ -15134,7 +15177,7 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
 
         // Mod 2: Agregat markah mengikut Tahun Kalendar untuk 1 darjah (trend)
         function buildAnalisaByCalYear(subjek, perik, darjah) {
-            const allMarks = Object.values(marksCache).flat();
+            const allMarks = _tapisDiterbit(Object.values(marksCache).flat());
             const filtered = allMarks.filter(m =>
                 m.subjek === subjek && m['JENIS PEPERIKSAAN'] === perik && m.tahun === darjah
             );
@@ -15636,7 +15679,11 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 return;
             }
             
-            const filteredMarks = GLOBAL_DATA.allMarks.filter(mark => 
+            // _tapisDiterbit: keputusan belum terbit tidak boleh bocor ke sini.
+            // allMarks TIDAK ditapis (getMarksByYear yang menapis), jadi pembaca
+            // terus mesti menapis sendiri — jika tidak panel ini memaparkan
+            // markah yang sudah ditutup admin.
+            const filteredMarks = _tapisDiterbit(GLOBAL_DATA.allMarks).filter(mark => 
                 mark.tahun === tahun && 
                 mark.kelas === kelas && 
                 mark["JENIS PEPERIKSAAN"] === peperiksaan &&
@@ -15910,7 +15957,8 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                 return;
             }
             
-            const filteredMarks = GLOBAL_DATA.allMarks.filter(mark => 
+            // Lihat nota _tapisDiterbit dalam cariMuridKelas.
+            const filteredMarks = _tapisDiterbit(GLOBAL_DATA.allMarks).filter(mark => 
                 mark.tahun === tahun && 
                 mark["JENIS PEPERIKSAAN"] === peperiksaan &&
                 selectedSubjects.includes(mark.subjek)
@@ -16215,7 +16263,10 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             if (typeof year !== 'number') year = new Date().getFullYear();
             const cached = _examTypesCache[year];
             if (cached && cached.data.length > 0 && (Date.now() - cached.time) < _EXAM_CACHE_TTL) {
-                return cached.data;
+                // Laluan cache MESTI menapis juga — cache menyimpan senarai
+                // penuh, jadi memulangkannya terus membocorkan peperiksaan
+                // yang belum terbit selama tempoh TTL.
+                return _tapisJenisTerbit(cached.data);
             }
             const snapshot = await db.collection('examTypes')
                 .where('tahunKalendar', '==', year).get();
@@ -16265,7 +16316,13 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             // Cache menyimpan senarai PENUH; tapisan terbit dibuat pada setiap
             // pemulangan supaya admin yang log masuk pertengahan sesi terus
             // nampak semua tanpa menunggu TTL cache tamat.
-            return isAuthenticated ? data : data.filter(et => et.diterbit !== false);
+            return _tapisJenisTerbit(data);
+        }
+
+        // Tapis senarai JENIS peperiksaan (bukan markah) — admin nampak semua.
+        function _tapisJenisTerbit(senarai) {
+            if (isAuthenticated) return senarai;
+            return (senarai || []).filter(et => et.diterbit !== false);
         }
 
         // Isi dropdown jenis peperiksaan (Rekod Markah, MK, MT, Slip) — tanpa filter darjah
@@ -16488,6 +16545,52 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             if (found) await batch.commit();
         }
 
+        // ==========================================================
+        // ADA REKOD MARKAH? — kunci Edit/Padam jenis peperiksaan
+        // ----------------------------------------------------------
+        // 🔴 JANGAN baca GLOBAL_DATA.allMarks di sini. Ia memegang
+        //    SATU TAHUN sahaja (tahun terakhir dimuat), jadi:
+        //    (a) melihat senarai 2026 sementara allMarks memegang 2025
+        //        memberi hasRecords=false — butang Edit kelihatan hidup,
+        //        kotak "Buka Kunci" tidak dipapar, dan admin boleh menukar
+        //        nama peperiksaan yang sebenarnya ada markah. Markah itu
+        //        kekal dalam Firestore tetapi tiada panel dapat mencarinya
+        //        lagi, kerana padanan adalah pada NAMA.
+        //    (b) sebaliknya, nama yang sama merentas tahun menandakan
+        //        rekod milik tahun lain sebagai miliknya sendiri.
+        //
+        // 🔴 Padan NAMA + TAHUN KALENDAR, bukan nama sahaja. Sekolah
+        //    ini menggunakan nama yang sama setiap tahun ("UASA" 2025 dan
+        //    "UASA" 2026 ialah dua dokumen berbeza), jadi padanan nama
+        //    sahaja mengunci peperiksaan tahun baharu yang masih kosong.
+        //
+        // Sumber: marksCache (semua tahun yang pernah dimuat) + allMarks.
+        // Tidak ditapis `diterbit` — ini soalan "ada data?" untuk admin,
+        // bukan paparan keputusan.
+        // ==========================================================
+        function examTypeAdaRekod(et) {
+            if (!et || !et.nama) return false;
+            const nama = et.nama;
+            const tahunKal = et.tahunKalendar != null ? parseInt(et.tahunKalendar) : null;
+
+            const padan = (m) => {
+                if (!m || m['JENIS PEPERIKSAAN'] !== nama) return false;
+                if (tahunKal == null) return true;   // dokumen lama tanpa tahunKalendar
+                const ty = getTimestampYear(m);
+                if (ty !== null) return ty === tahunKal;
+                if (m.cal_year != null) return parseInt(m.cal_year) === tahunKal;
+                return true;  // rekod tanpa tarikh — jangan andaikan ia milik tahun lain
+            };
+
+            if (typeof marksCache === 'object' && marksCache) {
+                for (const k in marksCache) {
+                    const senarai = marksCache[k];
+                    if (Array.isArray(senarai) && senarai.some(padan)) return true;
+                }
+            }
+            return (GLOBAL_DATA.allMarks || []).some(padan);
+        }
+
         // Render senarai jenis peperiksaan dalam tab Admin untuk tahun tertentu
         async function renderExamTypeList(year) {
             if (typeof year !== 'number') {
@@ -16500,6 +16603,10 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             // Invalidate cache untuk tahun ini dan reload
             if (_examTypesCache[year]) _examTypesCache[year].time = 0;
             await loadExamTypes(year, true);
+            // Markah tahun ini MESTI dimuat sebelum examTypeAdaRekod dipanggil
+            // — tanpa ini marksCache[year] kosong, hasRecords jadi false, dan
+            // kunci Edit/Padam tidak muncul untuk peperiksaan yang ada markah.
+            try { await ensureMarksLoaded(year); } catch (e) { console.warn('ensureMarksLoaded gagal:', e.message); }
             // Buang duplikat jika ada
             await deduplicateExamTypes(year);
             populateAllExamDropdowns();
@@ -16518,7 +16625,7 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
 
             listEl.innerHTML = '';
             GLOBAL_DATA.examTypes.forEach((et, idx) => {
-                const hasRecords = GLOBAL_DATA.allMarks.some(m => m['JENIS PEPERIKSAAN'] === et.nama);
+                const hasRecords = examTypeAdaRekod(et);
                 const isAktif = et.aktif !== false; // default true jika field tiada
                 // Lalai TERBIT. Dokumen lama tiada medan `diterbit` dan mesti
                 // terus kelihatan seperti sebelum ciri ini wujud.
@@ -16807,6 +16914,12 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                     newOrder = GLOBAL_DATA.examTypes.length;
                 }
                 const guruTerhadEl = document.getElementById('new-exam-guru-terhad');
+                const isGuruTerhad = !!(guruTerhadEl && guruTerhadEl.checked);
+                // Ujian khas bermula BELUM TERBIT — guna medan `diterbit` yang
+                // sama, bukan mekanisme baharu. Markah diisi guru sepanjang
+                // tempoh ujian; keputusan separuh siap tidak patut masuk Analisa
+                // setiap guru sebelum admin menyemaknya. Admin hidupkan toggle
+                // biru bila sedia. Peperiksaan biasa kekal terbit (tiada medan).
                 await db.collection('examTypes').add({
                     nama: nama,
                     darjah: darjahChecked,
@@ -16814,7 +16927,8 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
                     order: newOrder,
                     tahunKalendar: tahunKalendar,
                     aktif: true,
-                    guruTerhad: !!(guruTerhadEl && guruTerhadEl.checked),
+                    guruTerhad: isGuruTerhad,
+                    ...(isGuruTerhad ? { diterbit: false } : {}),
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
@@ -16900,12 +17014,24 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
             const subjekTerlibat = bacaSubjekTerlibat('edit-exam-subjek');
 
             const gtEditEl = document.getElementById('edit-exam-guru-terhad');
+            const gtBaru = !!(gtEditEl && gtEditEl.checked);
+            const etSemasa = GLOBAL_DATA.examTypes.find(e => e.id === id);
+            const gtLama = etSemasa && etSemasa.guruTerhad === true;
+
+            // Bertukar menjadi ujian khas → tutup keputusan serentak, guna
+            // medan `diterbit` yang sama. Hanya pada PERALIHAN: kalau ia sudah
+            // 🔒 sebelum ini, jangan tulis ganti — admin mungkin sudah
+            // menghidupkan toggle biru dengan sengaja, dan menyimpan edit nama
+            // tidak boleh membatalkan keputusan itu secara senyap.
+            const tutupTerbit = gtBaru && !gtLama;
 
             try {
                 await db.collection('examTypes').doc(id).update({
                     nama: nama, darjah: darjahChecked, subjek: subjekTerlibat,
-                    guruTerhad: !!(gtEditEl && gtEditEl.checked)
+                    guruTerhad: gtBaru,
+                    ...(tutupTerbit ? { diterbit: false } : {})
                 });
+                if (etSemasa && tutupTerbit) etSemasa.diterbit = false;
 
                 statusEl.textContent = '✅ Berjaya dikemas kini!';
                 statusEl.className = 'text-sm font-medium text-green-600';
@@ -16925,8 +17051,11 @@ Tindakan ini KEKAL dan tidak boleh dibatalkan!`;
         async function deleteJenisPeperiksaan(id, nama) {
             const et = GLOBAL_DATA.examTypes.find(e => e.id === id);
             const year = et ? (et.tahunKalendar || new Date().getFullYear()) : new Date().getFullYear();
-            // Semak sekali lagi jika ada rekod markah (double-check)
-            const hasRecords = GLOBAL_DATA.allMarks.some(m => m['JENIS PEPERIKSAAN'] === nama);
+            // Semak sekali lagi jika ada rekod markah (double-check).
+            // Helper yang SAMA dengan senarai — dua semakan berbeza bermakna
+            // dialog boleh berkata "tiada rekod" untuk peperiksaan yang
+            // barisnya memaparkan lencana "Ada rekod markah".
+            const hasRecords = examTypeAdaRekod(et || { nama: nama });
             if (hasRecords) {
                 // Semak toggle — jika toggle tidak diaktifkan, block
                 const lockToggle = document.getElementById(`lock-${id}`);
