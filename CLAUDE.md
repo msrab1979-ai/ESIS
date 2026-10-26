@@ -682,6 +682,24 @@ Kiraan "N murid" pada baris sub ialah **butang togol**; senarai terbuka di tempa
 - Butang togol **disemak sebelum `.induk[data-togol]`** dalam pendengar klik: ia duduk di dalam baris sub, jadi membiarkan togol anugerah menangkapnya akan menutup seluruh anugerah. (Perangkap sama seperti butang Ubah.)
 - Kunci = `anugerahId|m|subId`, dipecah pada `'|m|'` **pertama** — id dijana boleh mengandungi paip, jadi `split('|')` memecahkannya.
 
+#### Butang Buang pada setiap baris murid (dalam senarai pokok)
+
+Senarai murid di dalam pokok Jenis Anugerah membawa butang **Buang** pada setiap baris. Admin yang membaca senarai dan nampak seorang murid yang tidak sepatutnya ada boleh membuangnya di situ juga — sebelum ini jalannya ialah tab Semak Penerima (tapis dahulu) atau modal Pilih Murid (buka, cari, nyahtanda, simpan): dua skrin untuk satu baris yang sudah di hadapan matanya.
+
+**Melalui `resetOps()` yang SAMA** dengan 🧹 dan reset majlis — satu-satunya tempat yang tahu menapis `anugerah[]` dan `giliran[]` seiring, dan memadam doc hanya bila `anugerah[]` jadi kosong. Predikatnya `(x, m) => m.no_kp === noKP && x.subId === subId`: **kedua-dua syarat perlu**; melupakan `no_kp` membuang murid itu daripada **setiap** murid dalam sub tersebut.
+
+**`confirm()`, bukan taip "PADAM".** Skopnya satu baris yang admin sedang tuding dan kiraannya kelihatan di skrin. Dialog menyatakan sama ada murid itu masih memegang anugerah lain (tidak disentuh) atau ini yang terakhir (rekodnya dibuang).
+
+**Butang muncul untuk SEMUA sumber**, admin dan guru — ini panel admin, dan 🔒 dalam `guru.html` wujud untuk menghalang **guru** membuang kerja admin, bukan sebaliknya.
+
+**Borang guru yang meliputi sub itu dibuka semula**, sama peraturan dengan `resetJalan`. Ketiga-tiga bentuk kunci disemak (`anugerahId`, `anugerahId::subId`, `anugerahId::@DARJAH`), bukan padanan tepat sahaja.
+
+**Kunci `data-buang-murid` = `no_kp|m|subId`, dipecah pada `'|m|'` PERTAMA** — id sub dijana boleh membawa paip, jadi `split('|')` memecahkannya. Butang disemak **sebelum** `.induk[data-togol]` dalam pendengar klik: ia duduk di dalam baris sub, jadi membiarkan togol anugerah menangkapnya akan menutup seluruh anugerah.
+
+`lukisPokok()` melukis semula senarai yang terbuka (`MURID_BUKA` kekal), jadi baris yang dibuang hilang tanpa accordion tertutup.
+
+Disahkan 26 Okt 2026: oracle 5,000 kes (0 beza) + 2 mutasi ditangkap (lupa `no_kp` → membuang 2 murid bukan 1; `giliran[]` tidak ditapis → nombor yatim); live di Chrome — ALI kekal dengan anugerah kedua dan giliran 12 (giliran 5 dibuang), ABU dipadam kerana anugerah terakhir, id sub bertanda paip selamat.
+
 #### Butang 🔧 Betulkan — pindah murid luar skop
 
 Pada baris **anugerah** (semua sub) dan baris **sub** (satu sub). **Muncul hanya bila ada murid luar skop** — butang untuk sifar ialah bunyi bising pada setiap baris, dan admin berhenti membacanya.

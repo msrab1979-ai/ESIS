@@ -90,6 +90,17 @@
    perlu menapis di Semak Penerima. */
 .murid-senarai tr.luar td{background:rgba(190,60,60,.07)}
 .murid-senarai tr.luar .kls{color:#b33; font-weight:650}
+/* Butang buang seorang murid. Sunyi sehingga baris di-hover — lima puluh
+   lima baris merah membuatkan mata berhenti membaca mana-mana. */
+.murid-senarai .buang td{width:1%; white-space:nowrap}
+.murid-senarai .btn-buang-murid{
+  border:1px solid var(--garis); background:var(--kertas); color:var(--neutral);
+  border-radius:6px; padding:2px 8px; font-size:11.5px; cursor:pointer;
+  line-height:1.5; opacity:.55; transition:opacity .12s,color .12s,border-color .12s;
+}
+.murid-senarai tr:hover .btn-buang-murid{opacity:1}
+.murid-senarai .btn-buang-murid:hover{color:#b33; border-color:#b33}
+.murid-senarai .btn-buang-murid:disabled{opacity:.4; cursor:default}
 
 /* ---------- tiket ---------- */
 /* \U0001f534 SATU LAJUR, rata tengah. Versi lama mempunyai lajur kanan
@@ -1366,6 +1377,12 @@ function lukisMuridSub(s, baris) {
         '<td style="width:1%;white-space:nowrap">' +
           '<span class="pil ' + (guru ? 'hadir' : 'tunggu') + '">' +
             agEsc(agLabelSumber(b.x)) + '</span></td>' +
+        /* Buang seorang murid, di tempat admin sedang membaca senarai.
+           Kunci membawa no_kp + subId: subId sahaja tidak cukup kerana
+           baris ini ialah satu MURID dalam satu sub. */
+        '<td class="buang"><button class="btn-buang-murid" ' +
+          'data-buang-murid="' + agEsc(b.p.no_kp) + '|m|' + agEsc(s.id) + '" ' +
+          'title="Buang ' + agEsc(b.p.nama) + ' daripada sub ini">Buang</button></td>' +
       '</tr>';
     }).join('') +
   '</tbody></table></div>';
@@ -1645,7 +1662,7 @@ $('pokok-anugerah').addEventListener('click', e => {
     'button[data-sub-borang],button[data-sub-reset],button[data-an-reset],' +
     'button[data-pecah],button[data-sub-auto],' +
     'button[data-dj-borang],button[data-dj-reset],' +
-    'button[data-borang],button[data-murid-togol],' +
+    'button[data-borang],button[data-murid-togol],button[data-buang-murid],' +
     'button[data-sub-betul],button[data-an-betul],' +
     '.induk[data-togol],.kump-kepala[data-togol-kump]');
   if (!b) return;
@@ -1668,6 +1685,14 @@ $('pokok-anugerah').addEventListener('click', e => {
 
      Melukis semula seluruh pokok untuk satu togol akan menutup setiap
      accordion lain, jadi senarai disuntik ke tempatnya sahaja. */
+  /* 🔴 Disemak sebelum .induk[data-togol] atas sebab yang sama dengan
+     butang togol: ia duduk DI DALAM baris sub. Kunci dipecah pada '|m|'
+     PERTAMA \u2014 no_kp bersih tetapi id sub dijana boleh membawa paip. */
+  if (d.buangMurid) {
+    const t = d.buangMurid.indexOf('|m|');
+    if (t < 0) return;
+    return buangSeorangMurid(d.buangMurid.slice(0, t), d.buangMurid.slice(t + 3), b);
+  }
   if (d.muridTogol) {
     const kunci = d.muridTogol;
     MURID_BUKA[kunci] = !MURID_BUKA[kunci];
@@ -4698,6 +4723,62 @@ $('b-rs-semua').addEventListener('click', () => {
 /* 🔴 Dipanggil dari butang 🧹 dalam pokok Jenis Anugerah. Skopnya
    sama seperti dropdown lama dalam tab Majlis \u2014 yang berubah hanyalah
    admin menekannya di tempat dia sedang melihat kiraan "34 murid". */
+/* ── Buang SEORANG murid daripada SATU sub ──────────────────────────
+   Admin membaca senarai murid di dalam pokok dan nampak seorang yang
+   tidak sepatutnya ada. Sebelum ini jalannya ialah tab Semak Penerima
+   (tapis dahulu) atau modal Pilih Murid (buka, cari, nyahtanda, simpan)
+   \u2014 dua skrin untuk satu baris yang sudah di hadapan matanya.
+
+   🔴 Melalui resetOps() yang SAMA dengan 🧹 dan reset majlis. Ia satu-
+      satunya tempat yang tahu cara menapis anugerah[] dan giliran[]
+      seiring, dan memadam doc hanya bila anugerah[] jadi kosong \u2014
+      murid yang sama mungkin memegang anugerah lain.
+
+   🔴 confirm(), bukan taip "PADAM". Skopnya satu baris yang admin
+      sedang tuding, dan kiraannya kelihatan di skrin; menaip PADAM untuk
+      seorang murid akan menjadikan pengesahan itu gerakan tanpa fikir
+      di tempat lain yang memang memerlukannya.
+
+   🔴 Borang guru yang menghantar murid ini DIBUKA SEMULA \u2014 sama
+      peraturan dengan resetJalan: senarai yang guru hantar sudah tidak
+      sepadan dengan apa yang ada. */
+async function buangSeorangMurid(noKP, subId, btn) {
+  const p = PENERIMA.find(x => String(x.no_kp) === String(noKP));
+  if (!p) return agToast('Murid tidak dijumpai', 'ralat');
+  const entri = (p.anugerah || []).find(x => x.subId === subId);
+  if (!entri) return agToast('Entri tidak dijumpai', 'ralat');
+
+  const lagi = (p.anugerah || []).length - 1;
+  if (!confirm('Buang ' + p.nama + ' daripada "' + entri.sub + '"?\n\n' +
+    (lagi > 0
+      ? 'Dia masih memegang ' + lagi + ' anugerah lain \u2014 itu tidak disentuh.'
+      : 'Ini anugerah terakhirnya; rekodnya dibuang daripada majlis.'))) return;
+
+  if (btn) { btn.disabled = true; btn.textContent = '\u2026'; }
+  try {
+    const { ops } = resetOps((x, m) =>
+      String(m.no_kp) === String(noKP) && x.subId === subId);
+    await resetTulisPukal(ops);
+
+    /* Borang yang meliputi sub ini \u2014 aras sub, aras darjah dan aras
+       anugerah semuanya boleh memegangnya, jadi tiga bentuk kunci
+       disemak, bukan padanan tepat sahaja. */
+    const buka = await resetBukaBorangTerjejas(k => {
+      const { anugerahId, subId: sKunci } = agPecahKunci(k);
+      if (anugerahId !== entri.anugerahId) return false;
+      return !sKunci || sKunci === subId || sKunci.charAt(0) === '@';
+    });
+
+    PENERIMA = await agMuatPenerima(MAJLIS.id);
+    lukisPokok(); lukisSemak(); lukisGiliran(); lukisPetugas(); kemasSari();
+    agToast(p.nama + ' dibuang' +
+      (buka ? ' \u00b7 ' + buka + ' borang dibuka semula' : ''), 'ok');
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Buang'; }
+    agToast('Gagal: ' + e.message, 'ralat');
+  }
+}
+
 function resetSub(iAn, jSub) {
   const a = (MAJLIS.anugerah || [])[iAn];
   const sub = a && (a.sub || [])[jSub];
