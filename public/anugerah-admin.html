@@ -3950,17 +3950,19 @@ async function beriNombor(semua) {
 
   if (!tambah) { agToast('Semua giliran sudah bernombor'); return; }
 
-  const batch = agDb.batch();
-  Object.keys(petaBaru).forEach(docId => {
+  /* 🔴 Dipecah pada RESET_CHUNK (400) — Firestore menghadkan 500
+     operasi satu batch. Majlis ini 105 murid, jadi satu batch belum
+     pernah gagal; ia akan pecah senyap pada majlis yang lebih besar. */
+  const ops = Object.keys(petaBaru).map(docId => {
     const p = PENERIMA.find(x => x.docId === docId);
     const data = { giliran: petaBaru[docId].sort((a, b) => a.no - b.no) };
     /* satu pusingan disimpan untuk ↩️ Pulihkan */
     if (semua) data.giliranLama = p.giliran || [];
-    batch.update(agDb.collection('anugerah_penerima').doc(docId), data);
+    return { ref: agDb.collection('anugerah_penerima').doc(docId), data };
   });
 
   try {
-    await batch.commit();
+    await resetTulisPukal(ops);
     PENERIMA = await agMuatPenerima(MAJLIS.id);
     $('susun-amaran').innerHTML = '';
     lukisGiliran(); kemasSari();
