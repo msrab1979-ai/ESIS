@@ -56,25 +56,38 @@
 .hint{font-size:11px; color:var(--neutral-lembut); font-style:italic}
 
 /* ---------- tiket ---------- */
+/* \U0001f534 SATU LAJUR, rata tengah. Versi lama mempunyai lajur kanan
+   92px yang mengumpulkan SEMUA nombor giliran bertindan \u2014 ia
+   memisahkan nombor daripada anugerahnya, jadi murid dengan tiga
+   anugerah memegang tiga nombor tanpa tahu yang mana untuk yang mana.
+   Kini setiap nombor duduk SEBARIS dengan anugerahnya sendiri. */
 .tiket-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(248px,1fr)); gap:14px}
 .tiket{
   border:1px solid var(--emas); border-radius:4px; overflow:hidden;
-  display:grid; grid-template-columns:1fr 60px; background:var(--kertas-2);
+  background:var(--kertas-2); padding:12px 14px;
+  display:flex; flex-direction:column; text-align:center;
 }
-.tiket-kiri{padding:12px 14px; min-width:0}
 .tiket .sekolah{font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--emas); font-weight:700}
-.tiket .majlis{font-family:"Fraunces",serif; font-size:13.5px; font-weight:600; margin:3px 0 8px; line-height:1.25}
-.tiket .nama{font-weight:700; font-size:14px; line-height:1.25; overflow-wrap:break-word}
-.tiket .kelas{font-size:12px; color:var(--neutral); margin-top:1px}
-.tiket .anugerah-t{font-size:11.5px; color:var(--tinta-lembut); margin-top:7px; padding-top:7px; border-top:1px dashed var(--garis)}
-.tiket-kanan{border-left:2px dashed var(--emas); display:grid; place-content:center; text-align:center; padding:8px 4px}
-.tiket .anugerah-t .baris-an{display:flex; gap:6px; align-items:baseline; justify-content:space-between}
-.tiket .anugerah-t .baris-an + .baris-an{margin-top:4px}
-.tiket .anugerah-t .no-kecil{font-variant-numeric:tabular-nums; color:var(--emas); font-weight:700; flex:none}
-.tiket-kanan .gil-bil{font-size:8px; letter-spacing:.08em; text-transform:uppercase; color:var(--neutral); margin-top:4px}
-.tiket-kanan .gil-no.banyak{font-size:19px; line-height:1.15}
-.tiket-kanan .gil-lbl{font-size:8.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--neutral); font-weight:700}
-.tiket-kanan .gil-no{font-family:"Fraunces",serif; font-size:26px; font-weight:700; color:var(--emas); line-height:1; font-variant-numeric:tabular-nums}
+.tiket .majlis{font-family:"Fraunces",serif; font-size:13.5px; font-weight:600; margin:3px 0 0; line-height:1.25}
+.tiket .pemisah{border:0; border-top:1px solid var(--garis); width:100%; margin:9px 0 8px}
+.tiket .nama{font-family:"Fraunces",serif; font-weight:700; font-size:15px; line-height:1.2; overflow-wrap:break-word}
+.tiket .kelas{font-size:12px; color:var(--neutral); margin-top:2px; letter-spacing:.06em}
+
+/* Jadual anugerah \u00d7 giliran. `margin-top:auto` melekatkannya ke bawah
+   supaya kedudukannya sama pada setiap tiket walaupun panjang nama
+   berbeza \u2014 penting apabila dipotong sekeping demi sekeping. */
+.tiket .gil-jadual{margin-top:auto; width:100%; border-collapse:collapse; text-align:left}
+.tiket .gil-jadual th{
+  font-size:8.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--neutral);
+  font-weight:700; padding:0 0 4px; border-bottom:1px solid var(--garis)}
+.tiket .gil-jadual th.no,.tiket .gil-jadual td.no{text-align:right; width:16mm}
+.tiket .gil-jadual td{padding:4px 0; border-bottom:1px dotted var(--garis); vertical-align:middle}
+.tiket .gil-jadual tr:last-child td{border-bottom:0}
+.tiket .gil-jadual td.an{font-family:"Fraunces",serif; font-weight:600; font-size:11.5px;
+  line-height:1.2; padding-right:4mm; overflow-wrap:break-word}
+.tiket .gil-jadual td.no{font-family:"Fraunces",serif; font-weight:700; font-size:20px;
+  color:var(--emas); line-height:1; font-variant-numeric:tabular-nums;
+  border-left:1px solid var(--garis); padding-left:4mm}
 
 /* ---------- kad jemputan ---------- */
 .kad-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px}
@@ -213,31 +226,30 @@
   .tiket{
     border:1px dashed #8A6A1F!important; border-radius:0!important;
     height:136mm; page-break-inside:avoid; background:transparent!important;
-    grid-template-columns:1fr 92px!important;
+    padding:10mm 9mm!important;
   }
-  /* 🔴 Nama murid ialah sebab tiket ini wujud — ia mendapat ruang
-     tengah dan saiz terbesar. Kepala (sekolah + majlis) di atas, nama
-     di tengah dengan margin auto dua belah, anugerah di bawah. */
-  .tiket-kiri{padding:12mm 16px!important; display:flex!important;
-    flex-direction:column!important}
-  .tiket .nama{margin-top:auto!important}
-  .tiket .kelas{margin-bottom:auto!important}
   .tiket .sekolah{font-size:11px!important; letter-spacing:.15em!important}
-  .tiket .majlis{font-size:17px!important; margin:5px 0 14px!important}
-  .tiket .nama{font-size:24px!important; line-height:1.22!important;
+  .tiket .majlis{font-size:16px!important; margin:5px 0 0!important}
+  .tiket .pemisah{margin:9mm 0 7mm!important}
+  /* \U0001f534 Nama murid ialah sebab tiket ini wujud \u2014 saiz terbesar. */
+  .tiket .nama{font-size:23px!important; line-height:1.2!important;
     word-break:normal!important; overflow-wrap:break-word!important}
-  .tiket .kelas{font-size:16px!important; margin-top:5px!important}
-  .tiket .anugerah-t{font-size:14px!important; margin-top:0!important; padding-top:12px!important}
-  .tiket-kanan .gil-lbl{font-size:10px!important}
-  .tiket-kanan .gil-no{font-size:54px!important; line-height:1.05!important}
-  /* Murid dengan beberapa anugerah: nombor bertindan, jadi saiz turun
-     supaya tiga nombor pun masih muat dalam lajur 92px. */
-  .tiket-kanan .gil-no.banyak{font-size:38px!important}
-  .tiket-kanan .gil-bil{font-size:9px!important; margin-top:6px!important}
-  .tiket .anugerah-t .no-kecil{font-size:13px!important}
-  .tiket .anugerah-t .baris-an + .baris-an{margin-top:6px!important}
-  .tiket .nama,.tiket .majlis,.tiket-kanan .gil-no{color:#16233A!important}
-  .tiket-kanan .gil-no{color:#8A6A1F!important}
+  .tiket .kelas{font-size:15px!important; margin-top:4px!important}
+  .tiket .gil-jadual th{font-size:9.5px!important; padding-bottom:5px!important}
+  .tiket .gil-jadual td{padding:5px 0!important}
+  .tiket .gil-jadual td.an{font-size:14px!important; padding-right:5mm!important}
+  .tiket .gil-jadual td.no{font-size:30px!important; padding-left:5mm!important}
+  .tiket .gil-jadual th.no,.tiket .gil-jadual td.no{width:22mm!important}
+  /* \U0001f534 Tinggi TETAP dengan overflow:visible \u2014 isi yang terlalu
+     panjang TIDAK menatal, ia terkeluar senyap dan dipotong oleh
+     pemotong kertas. Murid dengan 4+ anugerah: taip mengecil supaya
+     senarai tetap muat dalam 136mm. Disahkan muat sehingga 5 anugerah. */
+  .tiket.padat .nama{font-size:20px!important}
+  .tiket.padat .gil-jadual td{padding:3.5px 0!important}
+  .tiket.padat .gil-jadual td.an{font-size:12.5px!important}
+  .tiket.padat .gil-jadual td.no{font-size:22px!important}
+  .tiket .nama,.tiket .majlis{color:#16233A!important}
+  .tiket .gil-jadual td.no,.tiket .sekolah{color:#8A6A1F!important}
   /* Kad jemputan: 4 sehelai A4 (2 lajur x 2 baris), sama tinggi dengan
      tiket supaya guna pemotong yang sama. 2 x 136 = 272mm dalam 281mm
      ruang cetak, lega 9mm.
@@ -3821,28 +3833,29 @@ function lukisTiket() {
     return;
   }
 
+  /* \U0001f534 Nombor giliran duduk SEBARIS dengan anugerahnya, dalam satu
+     jadual dua lajur. Versi lama mengumpulkan semua nombor dalam lajur
+     kanan berasingan \u2014 murid dengan tiga anugerah mendapat tiga
+     nombor bertindan tanpa tahu yang mana untuk yang mana.
+     `padat` mengecilkan taip pada 4+ anugerah: tinggi tiket TETAP
+     136mm dan isi berlebihan terkeluar senyap, bukan menatal. */
   bekas.innerHTML = semua.map(({ p, gil }) =>
-    '<div class="tiket"><div class="tiket-kiri">' +
+    '<div class="tiket' + (gil.length >= 4 ? ' padat' : '') + '">' +
       '<div class="sekolah">' + agEsc(MAJLIS.sekolah || 'Sekolah') + '</div>' +
       '<div class="majlis">' + agEsc(MAJLIS.nama || '') + '</div>' +
-      /* 🔴 Nama PENUH. Potongan 24 aksara wujud ketika tiket 74mm;
+      '<hr class="pemisah">' +
+      /* \U0001f534 Nama PENUH. Potongan 24 aksara wujud ketika tiket 74mm;
          pada 136mm ia memotong "AHMAD ILMAN AL FATEH BIN..." tanpa sebab.
          Tiket ialah benda yang ibu bapa simpan \u2014 nama patut lengkap. */
       '<div class="nama">' + agEsc(p.nama || '') + '</div>' +
       '<div class="kelas">' + agEsc(agDarjahKelas(p.tahun, p.kelas)) + '</div>' +
-      /* Setiap anugerah pada barisnya sendiri, dengan nombor gilirannya
-         di sebelah \u2014 murid perlu tahu giliran MANA untuk anugerah mana. */
-      '<div class="anugerah-t">' +
-        gil.map(g => '<div class="baris-an">' + agEsc(g.sub) +
-          (gil.length > 1 ? '<span class="no-kecil">#' + g.no + '</span>' : '') +
-          '</div>').join('') +
-      '</div>' +
-    '</div><div class="tiket-kanan">' +
-      '<div class="gil-lbl">Giliran</div>' +
-      '<div class="gil-no' + (gil.length > 1 ? ' banyak' : '') + '">' +
-        gil.map(g => g.no).join('<br>') + '</div>' +
-      (gil.length > 1 ? '<div class="gil-bil">' + gil.length + ' anugerah</div>' : '') +
-    '</div></div>').join('');
+      '<table class="gil-jadual"><thead><tr>' +
+        '<th>Nama Anugerah</th><th class="no">Giliran</th>' +
+      '</tr></thead><tbody>' +
+      gil.map(g => '<tr><td class="an">' + agEsc(g.sub) + '</td>' +
+                   '<td class="no">' + g.no + '</td></tr>').join('') +
+      '</tbody></table>' +
+    '</div>').join('');
 }
 
 /* Dropdown darjah/kelas tiket \u2014 hanya murid yang BERNOMBOR, kerana
