@@ -720,6 +720,67 @@ Tanda tidak-hadir menulis `giliran[].hadir` ke **kesemua** giliran murid itu sek
 
 Sync **Peserta → MC → Hadiah** disahkan hujung-ke-hujung 26 Okt 2026 pada majlis sebenar: satu tanda ✕ mencoret kedua-dua giliran dalam MC ("Tidak hadir — langkau") dan menurunkan "perlu dibawa" dalam Hadiah. **Peserta ialah penulis tunggal** `hadir`; MC dan Hadiah membacanya dan tidak boleh mengubahnya. Oracle 20,000 kes + 3 mutasi (`gilSeterusnya`).
 
+#### Tiga panel petugas berkongsi SATU corak paparan
+
+Peserta, MC dan Hadiah kini semuanya **accordion dua aras** (anugerah › sub), lalai **tertutup**. Petugas yang berpindah antara skrin tidak perlu belajar dua cara membaca senarai yang sama.
+
+**Susunan ialah `binaTurutan()`, bukan abjad.** Pengurus peserta berdiri di pintu dewan dengan senarainya sementara MC memanggil nombor mengikut Susunan Naik Pentas — dua susunan berbeza bermakna dia mencari ke bawah senarai setiap kali. Peraturan disalin terus:
+
+```
+anugerah ikut `urutan`  →  sub ikut susunan array a.sub  →  murid ikut nama
+```
+
+**Sub TIADA medan `urutan`** — susunannya ialah susunan array itu sendiri, jadi menyeret sub di tab Giliran terus terpakai pada ketiga-tiga panel tanpa sebarang tetapan. Versi lama Peserta memakai `Object.keys(grup).sort()` (abjad), jadi "IKON TV" boleh muncul sebelum anugerah yang sebenarnya naik pentas dahulu.
+
+**Satu baris per GILIRAN, bukan per murid.** Murid yang menang dua anugerah naik pentas dua kali dengan dua nombor; satu baris membawa "4 · 31" memaksa petugas sendiri memikirkan yang mana dahulu. Giliran lain dipapar sebagai **nombor + nama anugerah** (`juga: #109 KEBITARAAN ANTARABANGSA`) — "juga: 41" ialah nombor bogel yang tidak memberitahu anugerah apa.
+
+**Nama sub tidak mengulang nama anugerah** (`nemaSub`): "KEHADIRAN PENUH — DARJAH 1" di bawah tajuk "ANUGERAH KEHADIRAN PENUH" dibaca dua kali. Awalan yang sama dibuang.
+
+**State buka/tutup kekal antara lukisan** (`BUKA_AN`/`BUKA_SUB`). Tanpa ini, muat berkala 90s dan setiap tanda ✓ (yang melukis semula) akan menutup blok yang petugas baru buka.
+
+**Butang disemak DAHULU dalam pendengar accordion.** Butang ✓ duduk di dalam baris, dan baris di dalam blok — kalau togol menangkap klik itu, MC kehilangan tempatnya setiap kali dia menanda seorang murid. Perangkap sama seperti pokok Jenis Anugerah.
+
+Anugerah dengan **satu sub sahaja** tidak mendapat aras dalam — tajuk dalam akan mengulang tajuk luar.
+
+#### Butang muat MERAH — perubahan diambil bila petugas sedia
+
+Auto-muat 90s kini **senyap**: ia menyemak dan menyalakan butang, **tidak melukis semula**. Jadual yang bertukar di bawah tangan petugas semasa dia mengira hadiah atau membaca nama ke mikrofon ialah tepat apa yang tidak boleh berlaku semasa majlis berjalan.
+
+| Panel | Cap jari | Sebab |
+|---|---|---|
+| **Hadiah** (`capBaris`) | `hadir` **dan** `mc` | kedua-duanya mengubah kiraan "perlu dibawa" |
+| **MC** (`capHadir`) | `hadir` **sahaja** | memasukkan `mc` akan menyalakan butang setiap kali MC menekan ✓ pada panelnya sendiri |
+
+- Butang membawa **apa** yang berubah (`🔄 1 tidak hadir`), bukan sekadar "sila refresh".
+- Menekan butang memakai data yang **sudah dimuat** (`TERTUNDA`), tidak pergi Firestore lagi — kuota majlis ini pernah habis di tengah ujian.
+- Accordion **kekal terbuka** selepas mengambil data.
+
+Aliran tulisan tidak berubah: **Peserta ialah penulis tunggal `hadir`**; MC menulis `mc`; Hadiah tidak menulis apa-apa.
+
+#### Apa yang DIBUANG dari panel petugas (jangan kembalikan tanpa diminta)
+
+| Panel | Dibuang |
+|---|---|
+| **Hadiah** | kad Stok Hadiah (jadual penuh) + 4 KPI |
+| **MC** | kad Seterusnya (nombor besar + ✓) + 4 KPI |
+| **MC** | `catatan` guru ("CIKGU FAEZAH") — dari paparan **dan** struktur data |
+
+Kiraan tidak hilang: ia berpindah ke tajuk accordion (`70 giliran · 0 sudah naik · 2 tidak hadir`), dan jumlah besar kekal di kepala halaman (`sari`).
+
+`catatan` ialah maklumat pentadbiran — nama guru yang menghantar borang penerima. MC membaca barisnya ke mikrofon; nama guru memanjangkan baris yang dia perlu tangkap sekilas. Ia masih dipapar di tempat yang betul: 📋 Semak Penerima dan senarai murid dalam 🏆 Jenis Anugerah.
+
+**Membuang panel mematikan seluruh skrip kalau pendengarnya ditinggalkan** — `$('stok').addEventListener(...)` pada `null` melontar `TypeError` semasa skrip dimuat, dan setiap `let` selepasnya tidak pernah wujud. Dibuang sekali: `lukisStok`, `lukisKPI`, `kad()`, pendengar `#stok`, pendengar `data-seterusnya`, CSS `.seterusnya` / `.dicoret` / `[data-stok-togol]`. `nemaSub()` **dikekalkan** — masih dipakai oleh accordion.
+
+Hadiah: status **"Simpan balik" → "Tidak hadir"** dalam jadual **dan** dropdown tapisan. Tapisan yang berkata lain daripada baris bermakna petugas tidak tahu itu benda sama.
+
+#### Nombor giliran mesti berturutan tanpa jurang
+
+`beriNombor(true)` (🔁 Jana Semula) menomborkan 1…N mengikut `binaTurutan`; sub tanpa peserta dilangkau sendiri dan tidak memakan nombor.
+
+Selepas kerja membetulkan sub darjah (26 Okt 2026), majlis ini tinggal **110 murid tetapi nombor berjalan sehingga 113** dengan jurang di 2, 5, 6 — nombor yatim milik entri pendua yang dibuang. Dijana semula ke **1–110, 0 jurang, 0 pendua**.
+
+**Nombor disimpan dalam database, bukan dikira pada paparan.** Membiarkan satu panel mengira nombornya sendiri bermakna pengurus peserta nampak "5" sementara MC memanggil "7" untuk murid yang sama. Kalau tiket sudah dicetak, jana semula bermakna cetak semula.
+
 #### Reset tanda petugas
 
 `resetTanda(medan, label)` menerima **array** supaya "Reset kedua-dua" mengosongkan `hadir` dan `mc` dalam **satu** tulisan. Dua tulisan berasingan bermakna separuh reset kalau yang kedua gagal — dan admin yang sedang menguji tidak dapat membezakan "gagal" daripada "memang tiada tanda".
