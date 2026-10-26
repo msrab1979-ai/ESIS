@@ -544,7 +544,13 @@ Disahkan 21 Okt 2026: oracle 22 kes terhadap `examTypes` sebenar sekolah — dar
 | **Kad jemputan** | 💌 Kad Jemputan | nama murid | 136mm, 4 sehelai A4 |
 | **Slaid PPTX** | 🎟️ Giliran & Tiket | nombor giliran | 16:9 |
 
-**SATU TIKET SEORANG MURID**, bukan satu per anugerah. Murid yang menang beberapa anugerah tetap naik pentas beberapa kali (`binaTurutan` tidak disentuh) tetapi memegang satu keping yang menyenaraikan semua anugerah dan semua nombor gilirannya, dengan lencana "2 ANUGERAH". Sama untuk kad jemputan, dengan nota "anak anda dipanggil 2 kali — sila kekal di dewan".
+**SATU TIKET SEORANG MURID**, bukan satu per anugerah. Murid yang menang beberapa anugerah tetap naik pentas beberapa kali (`binaTurutan` tidak disentuh) tetapi memegang satu keping yang menyenaraikan semua anugerah dan semua nombor gilirannya. Sama untuk kad jemputan, dengan nota "anak anda dipanggil 2 kali — sila kekal di dewan".
+
+**Nombor giliran duduk SEBARIS dengan anugerahnya** (jadual `.gil-jadual`, dua lajur `NAMA ANUGERAH | GILIRAN`). Susunan lama ialah dua lajur dengan lajur kanan 92px mengumpulkan semua nombor **bertindan** — murid yang menang tiga anugerah memegang nombor 1, 6 dan 18 dalam satu blok dan nama anugerah di lajur lain, jadi dia tidak tahu yang mana untuk yang mana. Itu soalan yang tiket ini wujud untuk menjawabnya. Jangan kembalikan lajur berasingan.
+
+Tiket kini **satu lajur rata tengah**: sekolah → majlis → nama murid (serif, terbesar) → kelas → jadual anugerah. Nama sekolah dan majlis dibaca daripada `MAJLIS.sekolah` / `MAJLIS.nama` — tiada medan baharu untuk admin isi.
+
+**4+ anugerah mendapat kelas `.padat`** yang mengecilkan taip. Sebab sama dengan `kjSemakMuat` di bawah: tinggi tiket TETAP dengan `overflow:visible`, jadi isi berlebihan tidak menatal — ia terkeluar senyap dan dipotong oleh pemotong kertas. Disahkan muat sehingga **5** anugerah; kalau sekolah ada murid yang melebihi itu, turunkan ambang atau tambah aras kedua.
 
 **136mm ialah nilai yang diukur, bukan dipilih.** A4 = 297mm tolak margin 8mm atas+bawah = 281mm ruang; 2 baris × 136 = 272mm, lega 9mm. **Jangan naikkan ke 140mm**: 2 × 140 = 280mm meninggalkan 1mm, dan pembundaran pemandu pencetak menolak baris kedua ke halaman baharu — gejalanya **2 sehelai, bukan 4**. Nilai asal 74mm memberi 6 sehelai sedangkan UI menjanjikan 4.
 
