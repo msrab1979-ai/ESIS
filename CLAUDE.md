@@ -143,6 +143,16 @@ A TH record is written so it is clear the teacher *processed* that pupil — a T
 
 Filtering applies **only at mark entry**: `onEditKelasChange` restricts the `edit-subjek` dropdown to `examType.subjek` (var `subjekTerlibat`). Slip & Analisa are **not** filtered (they follow actual marks). Subjects that already have records are **always shown** even if not in the list (so existing data is never hidden). Admin list badge shows "N subjek" / "Semua subjek".
 
+### Kuota Firestore habis — jangan gagal secara senyap
+
+Firestore memulangkan `resource-exhausted` (gRPC 8) apabila kuota harian projek habis. Pada pelan Spark, **setiap** bacaan ditolak selepas itu — termasuk satu dokumen.
+
+Kegagalan ini dahulu ditangkap dan dicatat ke console sahaja, lalu kod meneruskan dengan **senarai kosong**. Jadi "kuota habis" kelihatan serupa dengan **"guru belum isi markah"**: Rekod & Laporan papar "tiada data", Status Pengisian papar hampir semua kelas sudah siap, dan tiada sesiapa dapat membezakan keduanya. Guru menyangka markah mereka hilang.
+
+- `_adalahRalatKuota(e)` menyemak `e.code` (`resource-exhausted` / `8`) **dan** teks mesej — pembungkus SDK tidak sentiasa mengekalkan kod.
+- Bendera `_kuotaHabis` menghalang laluan **segar semula** daripada membuang cache yang masih baik: menekan 🔄 ketika kuota habis **memburukkan** keadaan, kerana ia membuang data yang boleh dipakai kemudian gagal mengisi ganti.
+- `markah-guru.js`: guru diberitahu markah **TIDAK tersimpan** dan jangan tutup tab. Mesej generik membuatkan dia menyangka ralat kecil dan beredar — kuota menolak **tulisan** juga, bukan bacaan sahaja.
+
 ### Caching
 
 IndexedDB is used to cache Firestore data client-side. A "force refresh" button in the UI invalidates this cache. Cache keys follow the pattern `year_subject_marks`.
@@ -634,6 +644,92 @@ Setiap kerjanya kini dibuat dari **🏆 Jenis Anugerah → 👤 Pilih Murid**, j
 **Membuang panel mematikan seluruh skrip kalau pendengarnya ditinggalkan.** `$('b-tambah-manual').addEventListener(...)` di aras atas melontar `TypeError` pada `null` apabila butang itu tiada lagi — dan kerana ia berjalan semasa skrip dimuat, **setiap `let` selepasnya tidak pernah wujud**. Gejalanya menipu: fungsi di sekeliling wujud dan sintaks lulus, tetapi tab Semak Penerima terbuka kosong dengan `Cannot access 'SK_BARIS' before initialization`.
 
 Selepas membuang mana-mana panel, imbas dua perkara: pendengar aras-atas yang merujuk id yang sudah tiada, dan fungsi yang kehilangan semua pemanggilnya. `tambahPenerimaManualRamai` dan `agDarjahDariKelas` tinggal di dalam blok yang dibuang — kedua-duanya masih dipakai oleh modal baharu dan `guru.html`, jadi ia dipindahkan keluar, bukan dipadam bersama.
+
+#### Skop sub DIKUATKUASAKAN semasa simpan (jangan regres)
+
+Dropdown **Darjah** dalam borang guru ialah **tapisan paparan, bukan kunci skop**. Guru boleh menetapkannya ke "— semua darjah —" sambil dropdown Sub-anugerah kekal pada pilihan pertama, lalu menanda seluruh sekolah ke dalam satu sub.
+
+**Ini berlaku pada majlis 2026.** `ANUGERAH KEHADIRAN PENUH` ada 6 sub (satu per darjah) dalam **satu** borang aras-anugerah; guru kena tukar dropdown 6 kali dan tiada apa-apa memberitahunya. Hasilnya: **61 murid darjah 2–6 dalam "KEHADIRAN PENUH — DARJAH 1"**, dan sub darjah 2–5 kekal kosong. `ANUGERAH SAHSIAH TERPUJI` sama: 2 murid darjah 5 dalam sub Darjah 1. **Dua guru berbeza, kesilapan serupa — itu borangnya, bukan orangnya.**
+
+Tiga lapisan, semuanya perlu:
+
+| Lapisan | Peranan |
+|---|---|
+| `lukisPapanSkop()` | Guru **nampak** sub mana sedang diisi — papan tanda di atas jadual |
+| `isiDarjah()` / `isiKelas()` | Guru **tak boleh** pilih murid darjah salah — dropdown dikunci |
+| `luarSkopSub()` dalam `simpan()` | Kalau lolos juga, simpan **tolak semua** |
+
+- **Semakan berada dalam SIMPAN, bukan hanya paparan.** Kawalan yang hanya wujud dalam paparan bukan kawalan — sama peraturan dengan butang Buang yang disemak dua kali.
+- **Luar skop = BERHENTI, tiada apa ditulis.** Separuh disimpan bermakna guru perlu meneka yang mana menjadi. Nama yang salah dipaparkan; ditolak senyap ialah tepat bagaimana 63 entri salah berlaku tanpa disedari.
+- Dropdown **dimatikan, bukan disembunyikan**, dan opsyen "semua darjah" **dibuang terus** — tiada pilihan salah untuk dipilih. Darjah sub mesti wujud sebagai opsyen walaupun tiada murid padanya, jika tidak dropdown terkunci jadi kosong.
+- Skop `sekolah` dan `tahap` merentasi beberapa darjah, jadi tiada ujian darjah tunggal yang betul — ia sentiasa lulus.
+- Skop `kelas` mesti menyemak `skopDarjah` **juga** — "INTEL" wujud di keenam-enam darjah.
+
+**Papan tanda duduk TEPAT di atas jadual**, bukan di atas bar tapisan. Sebaik guru mula menatal senarai nama, dropdown Sub-anugerah keluar dari skrin — dan dia menanda berpuluh kotak tanpa apa-apa di hadapan matanya yang menyatakan senarai ini untuk apa. Ia dilukis **sebelum** cabang `CALON` dalam `lukis()` supaya kedua-dua mod mendapatnya.
+
+Disahkan 26 Okt 2026: oracle 48,000 kes (0 beza) + 4 mutasi ditangkap; live terhadap **95/95 sub berskop** dalam majlis sebenar — 0 bocor.
+
+**Cadangan struktur:** borang **aras-darjah** (tekan 📝 Bina Borang pada kumpulan darjah, bukan tajuk anugerah) menghapuskan masalah ini di punca — satu guru, satu darjah, tiada dropdown untuk tersilap. Lencana ⚠ dalam Link Petugas menandakan borang yang merentas beberapa darjah.
+
+#### Senarai murid di dalam pokok Jenis Anugerah
+
+Kiraan "N murid" pada baris sub ialah **butang togol**; senarai terbuka di tempat yang sama (`MURID_BUKA`, DOM id `murid-*`). Admin bertanya "siapa sudah dipilih?" sambil matanya pada baris sub — sebelum ini jawapannya memerlukan modal Pilih Murid (satu sub pada satu masa) atau tab Semak Penerima (tapis dahulu).
+
+- **Sumber ditanda**: `Admin` (kuning) vs nama guru dari `catatan` (hijau). Borang guru menulis ke koleksi yang sama, jadi tanpa tanda ini admin tidak dapat membezakan senarai yang dia sendiri bina daripada yang datang melalui borang.
+- **Luar skop ditanda merah** (`luarSkopPenerima` — peraturan sama dengan `luarSkopSub` dalam `guru.html`). Baris yang menyatakan "68 murid" tanpa memberitahu 61 daripadanya milik darjah lain ialah tepat bagaimana masalah itu tersembunyi.
+- `li.ada-murid` mesti `display:block` — sebab yang **sama** dengan `li.kump`: baris sub dan senarai muridnya akan jadi dua item bersebelahan, bukan satu di bawah satu.
+- Togol **tidak melukis semula pokok** — satu togol akan menutup setiap accordion lain. Senarai disuntik ke `li` itu sahaja.
+- Butang togol **disemak sebelum `.induk[data-togol]`** dalam pendengar klik: ia duduk di dalam baris sub, jadi membiarkan togol anugerah menangkapnya akan menutup seluruh anugerah. (Perangkap sama seperti butang Ubah.)
+- Kunci = `anugerahId|m|subId`, dipecah pada `'|m|'` **pertama** — id dijana boleh mengandungi paip, jadi `split('|')` memecahkannya.
+
+#### Butang 🔧 Betulkan — pindah murid luar skop
+
+Pada baris **anugerah** (semua sub) dan baris **sub** (satu sub). **Muncul hanya bila ada murid luar skop** — butang untuk sifar ialah bunyi bising pada setiap baris, dan admin berhenti membacanya.
+
+Tiga peraturan dalam `betulkanRancang()`:
+
+| Keadaan | Tindakan |
+|---|---|
+| Murid darjah 6 dalam sub DARJAH 1 | **Pindah** ke sub DARJAH 6 |
+| Murid **sudah** ada dalam sub sasaran | **Buang pendua** — jika tidak dia naik pentas dua kali |
+| Anugerah tiada sub untuk darjah itu | **Biarkan** + beritahu admin |
+
+- **`giliran[]` ditransformasi dengan peta yang sama** sebagai `anugerah[]`. Nombor giliran yang masih menunjuk sub lama menjadi yatim — murid dipanggil untuk anugerah yang senarainya tidak lagi mengandunginya.
+- Satu operasi per **MURID**, bukan per entri — seorang murid boleh mempunyai beberapa entri untuk dipindah.
+- **Sandaran ke `anugerah_backup` sebelum menulis**; `betulkanPulih(id)` memulihkan dari Console. `resetJalan` tiada sandaran kerana ia membuang atas permintaan terang admin; di sini admin menerima **cadangan sistem**, jadi dia mesti boleh berpatah balik.
+- Dialog memaparkan **ke mana setiap murid pergi** sebelum menekan (`betulkanRingkas`), bukan selepas.
+
+Dijalankan pada majlis sebenar 26 Okt 2026: 61 pindah + 2 pendua dibuang → **0 salah, 39 nombor giliran utuh, 0 doc kosong, 0 entri yatim**. Oracle 4,000 iterasi (0 beza) + 7 mutasi ditangkap.
+
+#### Kad jemputan TIDAK menyebut anugerah, giliran atau bilangan naik pentas
+
+Ia **jemputan kepada ibu bapa, bukan jadual majlis**. Versi awal membawa senarai anugerah + "Giliran 12" setiap satu + lencana "NAIK PENTAS 2 KALI". Tiga maklumat itu milik **tiket murid** (tab 🎟️ Giliran & Tiket), yang memang dicetak untuk dipegang murid sendiri. Pada kad ibu bapa ia membocorkan keputusan sebelum diumumkan, dan menjadikan kad padat sehingga terpotong.
+
+Yang tinggal: sekolah · majlis · ayat jemputan · nama murid · kelas · baris butiran dinamik · nota kaki.
+
+**`margin-top:auto` berpindah ke `.kaki`** apabila blok `.anu` dibuang — tanpanya nota kaki melekat pada butiran dan separuh bawah kad kosong. `kjSemakMuat` masih dikekalkan kerana baris butiran dinamik: sepuluh baris pakaian/masa/telefon masih boleh melimpah 136mm. Diukur selepas perubahan: ruang 482px, isi tertinggi 42px, **0 kad sesak** daripada 105.
+
+#### Pengurus peserta — murid yang naik pentas berulang
+
+Tanda tidak-hadir menulis `giliran[].hadir` ke **kesemua** giliran murid itu sekali gus. Untuk murid berulang itu bermakna dua atau tiga anugerah hilang dengan satu tekanan, dan MC (`statusBaris`) serta pengurus hadiah (`status`) terus melihat kesannya.
+
+- **Lencana MERAH `⚠ NAIK PENTAS N KALI`** + garis tepi (`.baris.ulang`). Lencana emas sedia ada sama rupa dengan "1 giliran" dan mata yang mengimbas 105 baris tidak menangkapnya.
+- **Pengesahan sebelum menanda tidak hadir**, menyenaraikan setiap anugerah yang akan dilangkau. **Hanya untuk murid berulang** — satu giliran tiada dialog.
+- **`gilSeterusnya(m)`** = nombor terkecil yang MC belum tanda (`mc !== true`). Pengurus peserta yang melihat "4 · 31" tidak tahu yang mana sudah lepas; tanpa ini dia perlu bertanya MC.
+- KPI **"Naik pentas >1"** — angka yang diperlukan **sebelum** majlis bermula.
+
+Sync **Peserta → MC → Hadiah** disahkan hujung-ke-hujung 26 Okt 2026 pada majlis sebenar: satu tanda ✕ mencoret kedua-dua giliran dalam MC ("Tidak hadir — langkau") dan menurunkan "perlu dibawa" dalam Hadiah. **Peserta ialah penulis tunggal** `hadir`; MC dan Hadiah membacanya dan tidak boleh mengubahnya. Oracle 20,000 kes + 3 mutasi (`gilSeterusnya`).
+
+#### Reset tanda petugas
+
+`resetTanda(medan, label)` menerima **array** supaya "Reset kedua-dua" mengosongkan `hadir` dan `mc` dalam **satu** tulisan. Dua tulisan berasingan bermakna separuh reset kalau yang kedua gagal — dan admin yang sedang menguji tidak dapat membezakan "gagal" daripada "memang tiada tanda".
+
+- **Dipecah pada `RESET_CHUNK` (400).** Versi lama memakai **satu batch**; Firestore menghadkan 500 operasi, jadi ia akan pecah senyap pada majlis >500 murid. Majlis ini 105 — ia belum pernah gagal, dan itulah sebabnya ia terlepas pandang.
+- **Dialog membawa kiraan tanda sebenar.** "Reset semua tanda MC?" tanpa nombor tidak memberitahu admin sama ada dia memadam kerja satu majlis penuh atau tiada apa-apa.
+- `lukisResetStatus()` memaparkan keadaan semasa (kuning bila ada tanda, hijau bila bersih).
+- Nombor giliran dan senarai penerima **tidak disentuh** — boleh diulang berapa kali pun semasa menguji.
+
+Disahkan 26 Okt 2026 pada majlis sebenar: taip salah → 5 tanda kekal; taip RESET → **0 tanda tinggal, 39 giliran kekal, 0 medan lain berubah**. Oracle 20,000 kes + 15 unit, termasuk invarian "reset `hadir` tidak menyentuh `mc`/`no`/`sub`/`hadiah`".
 
 ### Markah Ujian Khas (`public/markah-guru.html` + `markah-guru.js`)
 
