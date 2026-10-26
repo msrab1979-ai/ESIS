@@ -106,6 +106,13 @@
           <input type="text" id="f-cari" placeholder="Nama atau no. KP…"></div>
       </div>
 
+      <!-- 🔴 Papan tanda skop: guru menatal senarai panjang dan menanda
+           berpuluh kotak. Nama sub dalam dropdown kecil di atas keluar
+           dari pandangan sebaik dia mula menatal — dan itulah tepat
+           bagaimana 58 murid masuk sub yang salah. Ia mesti kelihatan
+           di sebelah jadual, bukan di atasnya sahaja. -->
+      <div id="skop-papan"></div>
+
       <div class="kad-isi" style="padding-bottom:9px">
         <div class="baris-input" style="align-items:center">
           <button class="btn emas kecil" id="b-cadang" hidden>📊 Cadang dari Markah</button>
@@ -325,9 +332,27 @@ function isiDarjah() {
     else if (s.skopJenis === 'kelas' && s.skopDarjah) mula = String(s.skopDarjah).toUpperCase();
   }
 
-  $('f-darjah').innerHTML = '<option value="">— semua darjah —</option>' +
-    ada.map(w => '<option value="' + w + '"' + (w === mula ? ' selected' : '') + '>' +
-      'Darjah ' + agWordDarjah(w) + '</option>').join('');
+  /* 🔴 Sub berskop darjah/kelas MENGUNCI dropdown ini — ia bukan lagi
+     tapisan, ia skop sub itu. Dropdown yang boleh ditukar bebas ialah
+     cara 58 entri masuk sub darjah yang salah: guru menetapkannya ke
+     "semua darjah", menanda seluruh sekolah, dan tiada apa membantah.
+
+     DIMATIKAN, bukan disembunyikan — kawalan yang hilang menimbulkan
+     soalan, kawalan yang mati menjawabnya. Opsyen "semua darjah" juga
+     dibuang supaya tiada pilihan salah untuk dipilih. */
+  /* Darjah sub mesti wujud sebagai opsyen walaupun tiada murid padanya,
+     jika tidak dropdown terkunci jadi KOSONG dan guru tiada apa dilihat. */
+  const kunci = !!mula;
+  if (kunci && !ada.includes(mula)) ada.push(mula);
+  $('f-darjah').innerHTML =
+    (kunci ? '' : '<option value="">— semua darjah —</option>') +
+    ada.filter(w => !kunci || w === mula)
+       .map(w => '<option value="' + w + '"' + (w === mula ? ' selected' : '') + '>' +
+         'Darjah ' + agWordDarjah(w) + '</option>').join('');
+  $('f-darjah').disabled = kunci;
+  $('f-darjah').title = kunci
+    ? 'Dikunci — sub-anugerah ini untuk Darjah ' + agWordDarjah(mula) + ' sahaja'
+    : '';
 }
 
 function isiKelas() {
@@ -338,9 +363,20 @@ function isiKelas() {
   const s = subSemasa();
   const mula = (s && s.skopJenis === 'kelas') ? String(s.skopNilai || '').toUpperCase() : '';
 
-  $('f-kelas').innerHTML = '<option value="">— semua kelas —</option>' +
-    ada.map(k => '<option value="' + agEsc(k) + '"' + (k === mula ? ' selected' : '') + '>' +
-      agEsc(k) + '</option>').join('');
+  /* 🔴 Sama seperti dropdown darjah: sub berskop kelas MENGUNCI ini.
+     Nama kelas berulang merentas darjah ("INTEL" di keenam-enam), jadi
+     dropdown darjah di atas sudah dikunci pada skopDarjah — dua-dua
+     bersama memberi tepat satu kelas. */
+  const kunci = !!mula;
+  if (kunci && !ada.some(k => String(k).toUpperCase() === mula)) ada.push(mula);
+  $('f-kelas').innerHTML =
+    (kunci ? '' : '<option value="">— semua kelas —</option>') +
+    ada.filter(k => !kunci || String(k).toUpperCase() === mula)
+       .map(k => '<option value="' + agEsc(k) + '"' +
+         (String(k).toUpperCase() === mula ? ' selected' : '') + '>' +
+         agEsc(k) + '</option>').join('');
+  $('f-kelas').disabled = kunci;
+  $('f-kelas').title = kunci ? 'Dikunci — sub-anugerah ini untuk kelas ini sahaja' : '';
 }
 
 $('f-sub').addEventListener('change', () => {
@@ -381,6 +417,45 @@ function senaraiMurid() {
     .filter(m => !k || String(m.kelas || '').toUpperCase() === k.toUpperCase())
     .filter(m => agPadanCarian(c, m.nama, m.no_kp))
     .sort((a, b) => String(a.nama).localeCompare(String(b.nama), 'ms'));
+}
+
+/* ==========================================================================
+   SKOP SUB — murid luar skop TIDAK BOLEH disimpan
+   --------------------------------------------------------------------------
+   🔴 Dropdown darjah ialah TAPISAN PAPARAN, bukan kunci skop. Guru boleh
+      menetapkannya ke "— semua darjah —" sambil dropdown sub masih pada
+      pilihan pertama, lalu menanda seluruh sekolah ke dalam satu sub.
+
+      Ini BERLAKU pada majlis 2026: 56 murid darjah 2-6 ditulis ke
+      "KEHADIRAN PENUH — DARJAH 1", dan 2 murid darjah 5 ke "SAHSIAH
+      TERPUJI — DARJAH 1". Sub darjah 2-6 kekal kosong. Tiada apa-apa
+      dalam UI membantah, jadi guru tidak tahu apa-apa berlaku.
+
+   🔴 Semakan ini berada dalam SIMPAN, bukan hanya dalam paparan. Kawalan
+      yang hanya wujud dalam paparan bukan kawalan — sama peraturan
+      dengan butang Buang yang disemak dua kali.
+
+   Skop `sekolah` dan `tahap` merentasi beberapa darjah, jadi tiada ujian
+   darjah tunggal yang betul untuk keduanya — ia sentiasa lulus di sini.
+   ========================================================================== */
+function luarSkopSub(s, m) {
+  if (!s) return null;
+  const darjah = String(m.tahun || '').toUpperCase();
+  const kelas  = String(m.kelas || '').toUpperCase();
+
+  if (s.skopJenis === 'darjah') {
+    const perlu = String(s.skopNilai || '').toUpperCase();
+    if (perlu && darjah !== perlu) return 'Darjah ' + agWordDarjah(m.tahun);
+  }
+  if (s.skopJenis === 'kelas') {
+    const perluK = String(s.skopNilai || '').toUpperCase();
+    /* skopDarjah wajib disemak juga — nama kelas berulang merentas
+       darjah ("INTEL" wujud di keenam-enam darjah, 187 murid). */
+    const perluD = String(s.skopDarjah || '').toUpperCase();
+    if (perluK && kelas !== perluK) return agDarjahKelas(m.tahun, m.kelas);
+    if (perluD && darjah !== perluD) return agDarjahKelas(m.tahun, m.kelas);
+  }
+  return null;
 }
 
 /* entri sub-anugerah semasa bagi seorang murid, atau null */
@@ -517,6 +592,53 @@ function lukisCalon() {
   kemasKira(); kemasModBaca(); kemasButangCadang();
 }
 
+/* ==========================================================================
+   PAPAN TANDA SKOP — guru mesti nampak dia mengisi sub YANG MANA
+   --------------------------------------------------------------------------
+   🔴 Dropdown "Sub-anugerah" berada di atas bar tapisan. Sebaik guru
+      mula menatal senarai nama dan menanda kotak, dropdown itu keluar
+      dari skrin — dan dia menanda berpuluh murid tanpa apa-apa di
+      hadapan matanya yang menyatakan senarai ini untuk apa.
+
+      Itu tepat bagaimana 58 murid darjah 2-6 masuk "KEHADIRAN PENUH —
+      DARJAH 1" pada majlis 2026.
+
+   Papan ini duduk TEPAT di atas jadual, jadi ia sebaris dengan kotak
+   pertama yang guru tanda.
+   ========================================================================== */
+function lukisPapanSkop(s) {
+  const bekas = $('skop-papan');
+  if (!bekas) return;
+  if (!s) { bekas.innerHTML = ''; return; }
+
+  let skop = 'Seluruh sekolah';
+  if (s.skopJenis === 'darjah') {
+    skop = 'Darjah ' + agWordDarjah(s.skopNilai) + ' sahaja';
+  } else if (s.skopJenis === 'kelas') {
+    skop = 'Kelas ' + (s.skopDarjah ? agWordDarjah(s.skopDarjah) + ' ' : '') +
+           String(s.skopNilai || '') + ' sahaja';
+  } else if (s.skopJenis === 'tahap') {
+    skop = 'Tahap ' + s.skopNilai +
+           (String(s.skopNilai) === '1' ? ' (Darjah 1, 2, 3)' : ' (Darjah 4, 5, 6)');
+  }
+
+  bekas.innerHTML =
+    '<div class="kad-isi" style="padding-top:0;padding-bottom:11px">' +
+      '<div style="border:2px solid var(--emas);border-radius:9px;' +
+        'padding:11px 14px;background:rgba(184,146,61,.07)">' +
+        '<div class="kecil" style="opacity:.72;letter-spacing:.04em">' +
+          'ANDA SEDANG MENGISI' +
+        '</div>' +
+        '<div style="font-size:1.12rem;font-weight:700;margin:3px 0 1px">' +
+          agEsc(s.nama) +
+        '</div>' +
+        '<div class="kecil" style="opacity:.8">' +
+          agEsc(KONTEKS.anugerah.nama) + ' &middot; <strong>' + agEsc(skop) + '</strong>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+}
+
 function lukis() {
   const s = subSemasa();
   const senarai = senaraiMurid();
@@ -530,6 +652,7 @@ function lukis() {
 
   $('kad-tajuk').textContent = s.nama;
   $('kad-sari').textContent = KONTEKS.anugerah.nama;
+  lukisPapanSkop(s);          // sebelum cabang CALON — kedua-dua mod perlukannya
 
   if (CALON) return lukisCalon();
   $('cadang-nota').innerHTML = '';
@@ -597,6 +720,24 @@ $('b-simpan').addEventListener('click', async () => {
   if (!s) return;
   const pilih = MURID.filter(m => TANDA.has(m.no_kp) && !entriMurid(m.no_kp));
   if (!pilih.length) { agToast('Tiada murid ditanda', 'ralat'); return; }
+
+  /* 🔴 Luar skop = BERHENTI, tiada apa-apa ditulis. Separuh disimpan
+     bermakna guru perlu meneka yang mana menjadi. Nama dipaparkan
+     supaya guru nampak sendiri apa yang silap — ditolak senyap ialah
+     tepat bagaimana 58 entri salah sub berlaku tanpa disedari. */
+  const luar = pilih.map(m => ({ m, sebab: luarSkopSub(s, m) })).filter(x => x.sebab);
+  if (luar.length) {
+    const senarai = luar.slice(0, 8)
+      .map(x => '\u2022 ' + x.m.nama + ' (' + x.sebab + ')').join('\n');
+    alert('TIDAK DISIMPAN \u2014 ' + luar.length + ' murid di luar skop.\n\n' +
+      'Anda sedang mengisi:\n' + s.nama + '\n\n' +
+      'Murid ini tidak tergolong di dalamnya:\n' + senarai +
+      (luar.length > 8 ? '\n\u2026 dan ' + (luar.length - 8) + ' lagi' : '') +
+      '\n\nTukar "Sub-anugerah" di atas kepada yang betul, ' +
+      'atau nyahtanda murid ini.');
+    agToast(luar.length + ' murid di luar skop \u2014 tiada apa disimpan', 'ralat');
+    return;
+  }
 
   const b = $('b-simpan');
   b.disabled = true; b.textContent = 'Menyimpan…';
