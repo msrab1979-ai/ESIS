@@ -6753,6 +6753,37 @@
         //        logoUrl, showClassRank, showYearRank }
         // Pulangkan { blob, filename } atau null jika gagal.
         // ==========================================================
+        // ==========================================================
+        // AUTO-KECILKAN FONT supaya teks muat dalam ruangnya
+        // ----------------------------------------------------------
+        // `pdf.text()` TIDAK memotong dan TIDAK membaluti: teks yang
+        // melebihi ruang terus mencetak melepasi tepi kertas dan hilang,
+        // tanpa amaran. Guru tidak perasan sampai ibu bapa bertanya.
+        //
+        // Diukur pada 1,134 nama murid sekolah ini (Okt 2026): yang
+        // terpanjang ialah 145.7mm dalam ruang 148mm — baki 2.3mm sahaja.
+        // Hari ini 0 melimpah, tetapi itu nasib, bukan keselamatan;
+        // satu nama baharu yang sedikit lebih panjang akan terkeluar.
+        //
+        // Kecilkan, JANGAN baluti dua baris: baris kedua menolak segala
+        // yang di bawahnya turun dan jadual boleh melimpah ke muka surat
+        // kedua. Satu baris kekal satu baris, jadi layout tidak beranjak.
+        //
+        // Pulangkan saiz yang dipakai supaya pemanggil boleh pulihkan.
+        // ==========================================================
+        function _slipTeksMuat(pdf, teks, lebarMaks, saizAsal, saizMin) {
+            saizMin = saizMin || 8;
+            let saiz = saizAsal;
+            pdf.setFontSize(saiz);
+            // getTextWidth() ikut font+saiz SEMASA, jadi setFont() mesti
+            // sudah dipanggil (bold vs normal beri lebar berbeza).
+            while (saiz > saizMin && pdf.getTextWidth(teks) > lebarMaks) {
+                saiz -= 0.25;
+                pdf.setFontSize(saiz);
+            }
+            return saiz;
+        }
+
         function binaSlipBlobMurid(student, ctx) {
             const { tahun, jenisPeperiksaan, selectedSubjects, slipSettings,
                     logoData, jataData, ttdData, showClassRank, showYearRank, showPurata } = ctx;
@@ -6802,33 +6833,58 @@
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF('portrait', 'mm', 'a4');
 
-                // === HEADER: Jata kiri + Logo kanan (guna dataURL yang dipramuat) ===
+                // === HEADER: Logo sekolah DI TENGAH, Jata Negara di kiri ===
+                // Logo dipindahkan dari kanan ke tengah atas nama sekolah.
+                // Dahulu nama sekolah "tengah" pada x=105 sedangkan logo di
+                // kanan menolaknya secara visual — nama nampak terpesong.
+                //
+                // Jata Negara pilihan: `settings/slipTemplate.jataUrl` kosong
+                // pada sekolah ini, jadi `if (jataData)` tidak berjalan dan
+                // logo tengah berdiri sendiri. Bila admin memuat naiknya
+                // nanti, ia terus muncul di kiri tanpa perubahan kod.
                 const headerTop = 15;
                 const imgSize = 26;
+                let yPos = headerTop;
+
+                if (logoData) {
+                    try {
+                        pdf.addImage(logoData, 'JPEG', 105 - imgSize / 2, yPos, imgSize, imgSize);
+                        yPos += imgSize + 4;
+                    } catch (e) {
+                        console.warn('Logo gagal:', e);
+                        yPos += 4;
+                    }
+                } else {
+                    yPos += 4;
+                }
+
+                // Jata sebaris dengan logo, bukan di bawahnya
                 if (jataData) {
                     try { pdf.addImage(jataData, 'JPEG', 20, headerTop, imgSize, imgSize); } catch (e) { console.warn('Jata gagal:', e); }
                 }
-                if (logoData) {
-                    try { pdf.addImage(logoData, 'JPEG', 190 - imgSize, headerTop, imgSize, imgSize); } catch (e) { console.warn('Logo gagal:', e); }
-                }
 
-                // Nama sekolah + alamat di tengah (selari dengan imej)
-                let yPos = headerTop + 9;
+                // Nama sekolah — BESAR, BOLD, HURUF BESAR, di tengah.
+                // Ruang 170mm bila tiada jata; bila ada jata ia sempit
+                // ke 118mm supaya nama tidak bertindih dengan lambang.
+                const ruangNama = jataData ? 118 : 170;
                 pdf.setTextColor(0, 0, 0);
-                pdf.setFontSize(15);
                 pdf.setFont('helvetica', 'bold');
-                pdf.text(slipSettings.namaSekolah || 'SEKOLAH KEBANGSAAN', 105, yPos, { align: 'center' });
-                yPos += 7;
+                const namaSek = (slipSettings.namaSekolah || 'SEKOLAH KEBANGSAAN').toUpperCase();
+                _slipTeksMuat(pdf, namaSek, ruangNama, 15);
+                yPos += 5;
+                pdf.text(namaSek, 105, yPos, { align: 'center' });
+                yPos += 6;
 
                 // Alamat sekolah (jika ada)
                 if (slipSettings.alamatSekolah) {
-                    pdf.setFontSize(10.5);
                     pdf.setFont('helvetica', 'normal');
+                    _slipTeksMuat(pdf, slipSettings.alamatSekolah, ruangNama, 10.5);
                     pdf.text(slipSettings.alamatSekolah, 105, yPos, { align: 'center' });
                     yPos += 6;
                 }
 
-                // Pastikan turun di bawah imej header
+                // Pastikan turun di bawah imej header (jata lebih rendah
+                // daripada logo bila nama sekolah pendek)
                 yPos = Math.max(yPos, headerTop + imgSize) + 3;
 
                 // Garis berkembar (dua garis nipis, rasmi)
@@ -6839,36 +6895,53 @@
                 pdf.line(20, yPos + 1.2, 190, yPos + 1.2);
                 yPos += 8;
 
-                // Nama peperiksaan di tengah, bawah garisan
-                pdf.setFontSize(11.5);
+                // Tajuk slip di tengah, bawah garisan
                 pdf.setFont('helvetica', 'bold');
-                pdf.text(slipSettings.namaSlip || 'SLIP KEPUTUSAN PEPERIKSAAN', 105, yPos, { align: 'center' });
-                yPos += 9;
+                const tajukSlip = (slipSettings.namaSlip || 'SLIP KEPUTUSAN PEPERIKSAAN').toUpperCase();
+                _slipTeksMuat(pdf, tajukSlip, 170, 11.5);
+                pdf.text(tajukSlip, 105, yPos, { align: 'center' });
+                yPos += 6.5;
+
+                // Nama jenis peperiksaan — baris sendiri di bawah tajuk.
+                // Slip dahulu tidak menyebut langsung peperiksaan mana,
+                // jadi helaian UASA dan PENTAKSIRAN kelihatan serupa
+                // sebaik ia keluar dari pencetak.
+                if (jenisPeperiksaan) {
+                    pdf.setFont('helvetica', 'bold');
+                    const namaPep = String(jenisPeperiksaan).toUpperCase();
+                    _slipTeksMuat(pdf, namaPep, 170, 11.5);
+                    pdf.text(namaPep, 105, yPos, { align: 'center' });
+                    yPos += 6.5;
+                }
+                yPos += 3;
 
                 // Gabung darjah: nombor tahun + nama kelas (cth "4 INTEL")
                 const _tahunKeNombor = { 'SATU': '1', 'DUA': '2', 'TIGA': '3', 'EMPAT': '4', 'LIMA': '5', 'ENAM': '6' };
                 const darjahLabel = `${_tahunKeNombor[String(tahun).toUpperCase()] || tahun} ${kelas}`;
 
-                // Maklumat murid
+                // Maklumat murid — label DAN nilai dua-dua bold, huruf besar.
+                // Nilai bermula x=42, margin kanan 190, jadi ruang = 148mm.
+                // Nama terpanjang sekolah ini 145.7mm — _slipTeksMuat
+                // mengecilkan font bagi mana-mana nama yang melebihinya.
                 pdf.setTextColor(0, 0, 0);
+                pdf.setFont('helvetica', 'bold');
+
+                const RUANG_NILAI = 190 - 42;
+                const barisMurid = [
+                    ['NAMA',   String(student.nama || '').toUpperCase()],
+                    ['NO. KP', String(student.no_kp || '')],
+                    ['KELAS',  darjahLabel.toUpperCase()]
+                ];
+                barisMurid.forEach(([label, nilai]) => {
+                    pdf.setFontSize(11);
+                    pdf.text(label, 20, yPos);
+                    pdf.text(':', 38, yPos);
+                    _slipTeksMuat(pdf, nilai, RUANG_NILAI, 11);
+                    pdf.text(nilai, 42, yPos);
+                    yPos += 6.5;
+                });
                 pdf.setFontSize(11);
-                pdf.setFont('helvetica', 'bold');
-                pdf.text('Nama', 20, yPos);
-                pdf.setFont('helvetica', 'normal');
-                pdf.text(`:  ${student.nama.toUpperCase()}`, 42, yPos);
-                yPos += 6.5;
-
-                pdf.setFont('helvetica', 'bold');
-                pdf.text('No. KP', 20, yPos);
-                pdf.setFont('helvetica', 'normal');
-                pdf.text(`:  ${student.no_kp}`, 42, yPos);
-                yPos += 6.5;
-
-                pdf.setFont('helvetica', 'bold');
-                pdf.text('Darjah', 20, yPos);
-                pdf.setFont('helvetica', 'normal');
-                pdf.text(`:  ${darjahLabel}`, 42, yPos);
-                yPos += 8;
+                yPos += 1.5;
 
                 // Baris footer: JUMLAH MARKAH + (optional) PURATA (%)
                 const footRows = [['', 'JUMLAH MARKAH', String(jumlahMarkah), '']];

@@ -846,6 +846,22 @@ PDF melalui **dialog cetak pelayar** (`body.cetak-guru` + `@media print`), bukan
 
 Disahkan 25 Okt 2026 pada data sebenar: 28 murid BYTECH, 7 rekod ditulis daripada 28 baris (21 sel kosong dilangkau), markah 0 tersimpan sebagai `0`, TH sebagai `gred:'TH'`. Oracle 40,000 kes `mgKiraGred` + 8 mutasi ditangkap; 27 kes normalisasi nama.
 
+#### Analisa Mengikut Subjek (panel pentadbir)
+
+Jadual status ialah satu baris per **slot** (subjek × kelas): ia menjawab *"siapa belum isi?"*. Kad kedua menjawab soalan yang berbeza — *"subjek mana lemah?"* — dan itu tidak boleh dibaca daripada tiga puluh baris berselerak. Susun atur disalin daripada **Analisa Keseluruhan** dalam `index.html` (Bil + % bagi A–F, Jumlah, GPS, footer TOTAL GPS) supaya dua skrin itu dibaca dengan cara yang sama.
+
+**Rekod mentah dihimpunkan semula, BUKAN statistik per-kelas dicampur.** GPS purata-bagi-purata memberi nombor yang salah apabila saiz kelas berbeza — kelas 12 murid menyumbang berat yang sama dengan kelas 34. Diukur oleh oracle: purata-bagi-purata memberi **3.31** di mana jawapan betul ialah **3.63**. `mgKiraGred` kekal satu-satunya enjin kiraan (sama dengan jadual status dan panel guru).
+
+`TOTAL GPS` = `Σ skor semua subjek ÷ Σ murid dinilai`, bukan purata lajur GPS — sebab yang sama.
+
+**Mengikut tapisan Darjah + Subjek yang sedia ada**, peraturan sama dengan KPI: nombor yang tidak berubah ketika pentadbir menapis mengelirukan.
+
+**Subjek yang kelasnya belum diisi ditanda dua kali** — "2 dari 6 kelas belum diisi" di bawah nama subjek itu, dan nota ringkas di bawah jadual. Tanpa ini GPS 5.20 dibaca sebagai keputusan subjek sedangkan ia keputusan satu kelas daripada enam.
+
+Fungsi: `ptSubjekStat()` (himpun) → `lukisAnalisaSubjek()` (lukis) → `ptSubjekCSV()`. Dipanggil dari `lukisPentadbir()`, jadi ia mengikut setiap tapisan tanpa pendawaian tambahan.
+
+Disahkan 27 Okt 2026: oracle 60,000 kes berbanding pelaksana bebas — 0 beza; 4 mutasi ditangkap (purata-bagi-purata, lupa tapis darjah, TH masuk penyebut, lupa tapis subjek).
+
 ### Terbit Keputusan (`examTypes.diterbit`)
 
 Admin menutup satu peperiksaan daripada **semua** paparan guru tanpa menghalang guru mengisi markah. Toggle **biru** di sebelah toggle Aktif (**hijau**) dalam Urus Jenis Peperiksaan.
@@ -1039,4 +1055,51 @@ jsPDF, html2pdf, and JSZip are lazy-loaded on demand via `loadScript()` / `ensur
 
 ### Exam Slip PDFs
 
-Slip layout (black/white, no color): Jata Negara (left) + school logo (right) header with double rule, BIL/SUBJEK/MARKAH/GRED table with a JUMLAH MARKAH footer row (sums only ticked subjects, skips '-'), bold black text, class/year ranking (optional), print date. Images are fetched once per batch via `bacaSlipCtx()`, resized and re-encoded as JPEG on white background (`_imgToDataURL`) — this is ~17x smaller than embedding the original PNGs and is what makes bulk ZIP generation fast. `downloadSlipDarjah()` generates every student in a darjah, grouped into one folder per kelas inside the ZIP.
+Slip layout (black/white, no color): Jata Negara (left) + school logo **centred above the school name** with double rule, BIL/SUBJEK/MARKAH/GRED table with a JUMLAH MARKAH footer row (sums only ticked subjects, skips '-'), bold black text, class/year ranking (optional), print date. Images are fetched once per batch via `bacaSlipCtx()`, resized and re-encoded as JPEG on white background (`_imgToDataURL`) — this is ~17x smaller than embedding the original PNGs and is what makes bulk ZIP generation fast. `downloadSlipDarjah()` generates every student in a darjah, grouped into one folder per kelas inside the ZIP.
+
+#### Susun atur slip DIBEKUKAN (27 Okt 2026) — jangan ubah tanpa diminta
+
+Pengguna telah meluluskan susun atur ini dan memintanya **kekal sehingga dia memberitahu sebaliknya**. Jangan laraskan kedudukan, saiz font, jarak atau susunan elemen slip walaupun ia kelihatan boleh diperbaiki.
+
+Bentuk yang diluluskan, dari atas:
+
+```
+        [ logo sekolah — TENGAH ]        (jata di KIRI bila ada)
+          NAMA SEKOLAH  — bold, huruf besar, tengah
+            alamat       — bila ada
+  ═══════════════════════════════════════  garis berkembar
+     SLIP KEPUTUSAN PEPERIKSAAN   — bold, tengah
+        NAMA JENIS PEPERIKSAAN    — bold, tengah, baris sendiri
+  NAMA   : <nama murid>    — label DAN nilai bold, huruf besar
+  NO. KP : <no kp>
+  KELAS  : <darjah + kelas>
+  [ jadual BIL / SUBJEK / MARKAH / GRED ]
+  [ kedudukan — pilihan ]
+  [ tandatangan — KIRI ]
+```
+
+**Logo di TENGAH, bukan kanan.** Dahulu nama sekolah "tengah" pada x=105 sedangkan logo di kanan menolaknya secara visual — nama nampak terpesong ke kiri. Jata Negara kekal di kiri dan sebaris dengan logo.
+
+**Jata adalah pilihan dan kini KOSONG.** `settings/slipTemplate` **tidak wujud** dalam Firestore projek ini, jadi `jataUrl` kosong, `if (jataData)` tidak berjalan, dan logo tengah berdiri sendiri. Bila admin memuat naiknya melalui Admin → Setting, ia terus muncul di kiri tanpa perubahan kod. Ruang nama sekolah mengecil 170mm → 118mm bila jata hadir, supaya nama tidak bertindih dengan lambang.
+
+**Nama jenis peperiksaan ialah baris sendiri.** Sebelum ini slip tidak menyebut langsung peperiksaan mana, jadi helaian UASA dan PENTAKSIRAN kelihatan serupa sebaik keluar dari pencetak.
+
+**Isu sedia ada yang BELUM dibetulkan:** `slipTemplate.namaSekolah` kosong, jadi slip mencetak nilai lalai `SEKOLAH KEBANGSAAN` dan bukan `SK SULTAN ISMAIL`. Nama sebenar ada di `settings/systemSettings.tajuk` (tempat logo diambil juga). Jatuh-balik ke medan itu telah dicadangkan tetapi **belum diluluskan** — jangan laksana tanpa diminta.
+
+#### `_slipTeksMuat` — auto-kecilkan font supaya teks muat
+
+`pdf.text()` jsPDF **tidak memotong dan tidak membaluti**: teks yang melebihi ruangnya terus mencetak melepasi tepi kertas dan hilang, tanpa amaran dan tanpa ralat. Guru tidak perasan sampai ibu bapa bertanya kenapa nama anaknya terpotong.
+
+```js
+_slipTeksMuat(pdf, teks, lebarMaks, saizAsal, saizMin = 8)
+```
+
+Turun **0.25pt** setiap langkah sehingga muat, berhenti pada `saizMin`; pulangkan saiz yang dipakai. `setFont()` mesti sudah dipanggil sebelum ini — `getTextWidth()` ikut font **dan** saiz semasa, dan bold memberi lebar berbeza daripada normal.
+
+**Kecilkan, JANGAN baluti dua baris.** Baris kedua menolak segala yang di bawahnya turun, dan jadual 12–13 subjek boleh melimpah ke muka surat kedua. Satu baris kekal satu baris, jadi layout tidak beranjak.
+
+Dipakai pada: nama murid (ruang **148mm** — nilai bermula x=42, margin kanan 190), nama sekolah dan alamat (170mm, atau 118mm bila ada jata), tajuk slip dan nama peperiksaan (170mm).
+
+**Mengapa ia perlu walaupun 0 nama melimpah hari ini:** diukur pada kesemua **1,134 nama murid** sekolah ini — terpanjang `TENGKU MUHAMMAD AMSYAR HAZIQ BIN TENGKU MOHAMED SALAHUDDIN` = **145.7mm dalam ruang 148mm**. Baki **2.3mm**. Itu nasib, bukan keselamatan; satu murid baharu dengan nama dua aksara lebih panjang akan terkeluar. Tujuh murid sudah melepasi 130mm.
+
+Disahkan 27 Okt 2026: oracle 30,000 kes berbanding pelaksana bebas — 0 beza, tiga invarian lulus (hasil mesti muat atau sudah di minimum; tidak pernah bawah 8pt; tidak pernah melebihi saiz asal); 4 mutasi ditangkap (lupa `setFontSize` dalam gelung, langkah 1pt, lupa had minimum, pulang `saizAsal`). Diuji live: nama 76 aksara (184.3mm) turun ke **8.75pt** dan muat dalam 146.6mm; slip sebenar murid 58-aksara dengan 12 subjek muat satu muka surat.
