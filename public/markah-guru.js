@@ -786,6 +786,7 @@ async function masukPentadbir() {
   });
   $('b-pt-segar').onclick = () => muatPentadbir(true);
   $('b-pt-csv').onclick = ptCSV;
+  $('b-pt-subjek-csv').onclick = ptSubjekCSV;
 
   await muatPentadbir();
 }
@@ -950,7 +951,166 @@ function lukisPentadbir() {
     lukisMarkahPentadbir();
   });
 
+  lukisAnalisaSubjek();
+
   if (PT.pilih) lukisMarkahPentadbir();
+}
+
+/* ==========================================================================
+   ANALISA MENGIKUT SUBJEK — kelas dihimpunkan
+   --------------------------------------------------------------------------
+   Jadual status di atas ialah satu baris per SLOT (subjek × kelas): ia
+   menjawab "siapa belum isi?". Pentadbir juga perlu "subjek mana lemah?",
+   dan itu tidak dapat dibaca daripada tiga puluh baris berselerak.
+
+   Rekod mentah dihimpunkan semula, BUKAN kiraan per-kelas dicampur: GPS
+   purata-bagi-purata memberi nombor yang salah apabila saiz kelas berbeza
+   (kelas 12 murid menyumbang sama berat dengan kelas 34). `mgKiraGred` ialah
+   satu-satunya enjin kiraan, sama dengan jadual status dan panel guru.
+
+   Mengikut tapisan darjah/subjek yang sama — nombor yang tidak berubah
+   ketika pentadbir menapis mengelirukan (peraturan sama dengan KPI).
+   ========================================================================== */
+function ptSubjekStat() {
+  const d = $('pt-darjah').value, s = $('pt-subjek').value;
+
+  /* Kumpul REKOD, bukan statistik — lihat nota di atas. */
+  const kolam = {};
+  PT.baris.forEach(b => {
+    if (d && String(b.darjah) !== d) return;
+    if (s && b.subjek !== s) return;
+    const e = kolam[b.subjek] || (kolam[b.subjek] = {
+      subjek: b.subjek, rekod: [], bilMurid: 0, slot: 0, slotKosong: 0
+    });
+    e.bilMurid += b.bilMurid;
+    e.slot++;
+    if (b.jumRekod === 0) e.slotKosong++;
+  });
+
+  PT.markah.forEach(r => {
+    const e = kolam[r.subjek];
+    if (!e) return;                                    // subjek luar tapisan
+    const dn = agWordDarjah(r.tahun);
+    if (d && String(dn) !== d) return;
+    e.rekod.push(r);
+  });
+
+  return Object.keys(kolam).sort((a, b) => a.localeCompare(b, 'ms'))
+    .map(k => {
+      const e = kolam[k];
+      return { ...e, gred: mgKiraGred(e.rekod), jumRekod: e.rekod.length };
+    });
+}
+
+function lukisAnalisaSubjek() {
+  const stat = ptSubjekStat();
+  const bekas = $('pt-analisa-subjek');
+  if (!bekas) return;
+
+  if (!stat.length) {
+    bekas.innerHTML = '<p class="hint" style="padding:16px">Tiada subjek untuk tapisan ini.</p>';
+    return;
+  }
+
+  /* TOTAL GPS = jumlah skor semua subjek ÷ jumlah rekod dinilai — bukan
+     purata lajur GPS, atas sebab yang sama dengan nota di atas. */
+  const mata = agMataMap();
+  let skorSemua = 0, bilSemua = 0, thSemua = 0;
+  stat.forEach(x => {
+    MG_GRED.forEach(g => { skorSemua += x.gred[g] * (mata[g] || 0); });
+    bilSemua += x.gred.bil;
+    thSemua  += x.gred.th;
+  });
+  const totalGps = bilSemua ? Math.round((skorSemua / bilSemua) * 100) / 100 : null;
+
+  const pct = (n, j) => j ? (n / j * 100).toFixed(1) + '%' : '—';
+
+  bekas.innerHTML =
+    '<table class="senarai"><thead><tr>' +
+      '<th style="width:42px">#</th>' +
+      '<th class="lajur-teks">Subjek</th>' +
+      MG_GRED.map(g =>
+        '<th style="width:40px; text-align:center">' + g + '</th>' +
+        '<th style="width:54px; text-align:center">% ' + g + '</th>').join('') +
+      '<th style="width:40px; text-align:center" title="Tidak Hadir — dikecualikan dari GPS">TH</th>' +
+      '<th style="width:66px; text-align:center" title="Murid dinilai (TH dikecualikan)">Dinilai</th>' +
+      '<th style="width:58px; text-align:center" title="Gred Purata Subjek">GPS</th>' +
+      '<th style="width:62px; text-align:center">Purata</th>' +
+      '<th style="width:58px; text-align:center">Lulus</th>' +
+    '</tr></thead><tbody>' +
+    stat.map((x, i) => {
+      const s = x.gred;
+      return '<tr>' +
+        '<td class="num">' + (i + 1) + '</td>' +
+        '<td><strong>' + agEsc(x.subjek) + '</strong>' +
+          (x.slotKosong
+            ? '<br><span class="kecil" style="color:var(--absen)">' + x.slotKosong +
+              ' dari ' + x.slot + ' kelas belum diisi</span>'
+            : '') + '</td>' +
+        MG_GRED.map(g =>
+          '<td style="text-align:center; font-variant-numeric:tabular-nums"' +
+            (s[g] ? '' : ' class="sifar"') + '>' + s[g] + '</td>' +
+          '<td style="text-align:center; font-variant-numeric:tabular-nums"' +
+            (s[g] ? ' class="kecil"' : ' class="sifar kecil"') + '>' +
+            pct(s[g], s.bil) + '</td>').join('') +
+        '<td style="text-align:center; font-variant-numeric:tabular-nums"' +
+          (s.th ? '' : ' class="sifar"') + '>' + s.th + '</td>' +
+        '<td style="text-align:center; font-variant-numeric:tabular-nums">' +
+          s.bil + ' / ' + x.bilMurid + '</td>' +
+        '<td style="text-align:center; font-weight:700; font-variant-numeric:tabular-nums">' +
+          (s.gps ?? '—') + '</td>' +
+        '<td style="text-align:center; font-variant-numeric:tabular-nums">' +
+          (s.purata ?? '—') + '</td>' +
+        '<td style="text-align:center; font-variant-numeric:tabular-nums' +
+          (s.pLulus != null && s.pLulus < 50 ? '; color:var(--absen); font-weight:700' : '') +
+          '">' + (s.pLulus != null ? s.pLulus + '%' : '—') + '</td>' +
+      '</tr>';
+    }).join('') +
+    '</tbody><tfoot><tr style="border-top:2px solid var(--garis)">' +
+      '<td></td><td><strong>TOTAL GPS</strong></td>' +
+      '<td colspan="' + (MG_GRED.length * 2) + '" class="kecil" style="text-align:right">' +
+        'jumlah dinilai →</td>' +
+      '<td style="text-align:center; font-variant-numeric:tabular-nums">' + thSemua + '</td>' +
+      '<td style="text-align:center; font-weight:700; font-variant-numeric:tabular-nums">' +
+        bilSemua + '</td>' +
+      '<td style="text-align:center; font-weight:700; font-variant-numeric:tabular-nums">' +
+        (totalGps ?? '—') + '</td>' +
+      '<td></td><td></td>' +
+    '</tr></tfoot></table>';
+
+  /* Nota: subjek yang kelasnya belum diisi memberi GPS atas sebahagian
+     murid sahaja. Tanpa ini pentadbir membaca 5.20 sebagai keputusan
+     subjek itu sedangkan ia keputusan satu kelas daripada enam. */
+  const belum = stat.filter(x => x.slotKosong).length;
+  if (belum) {
+    bekas.innerHTML +=
+      '<p class="hint" style="padding:12px 16px; margin:0">' +
+      '<strong>' + belum + ' subjek</strong> masih ada kelas yang belum diisi — ' +
+      'GPS dan peratusnya dikira atas murid yang sudah ada markah sahaja.</p>';
+  }
+}
+
+function ptSubjekCSV() {
+  const stat = ptSubjekStat();
+  if (!stat.length) return;
+
+  const kepala = ['SUBJEK'];
+  MG_GRED.forEach(g => kepala.push(g, '% ' + g));
+  kepala.push('TH', 'DINILAI', 'JUMLAH MURID', 'GPS', 'PURATA', '% LULUS',
+              'KELAS BELUM DIISI', 'JUMLAH KELAS');
+
+  const data = [kepala];
+  stat.forEach(x => {
+    const s = x.gred;
+    const bar = [x.subjek];
+    MG_GRED.forEach(g => bar.push(s[g], s.bil ? (s[g] / s.bil * 100).toFixed(1) : ''));
+    bar.push(s.th, s.bil, x.bilMurid, s.gps ?? '', s.purata ?? '', s.pLulus ?? '',
+             x.slotKosong, x.slot);
+    data.push(bar);
+  });
+
+  agMuatTurunCSV(data,
+    'analisa-subjek-' + (PT.pep ? PT.pep.nama : '') + '-' + MG.calYear + '.csv');
 }
 
 function kpi(label, nilai, nota, kelas) {
