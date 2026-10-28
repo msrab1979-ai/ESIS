@@ -217,11 +217,14 @@ function bina(penerima) {
   penerima.forEach(p => {
     (p.giliran || []).forEach(g => {
       if (g.no == null) return;
+      /* Gaya GABUNG: murid naik sekali, pada slaid anugerah utamanya */
+      if (agIkutSah(p.giliran, g)) return;
       const k = g.subId || g.sub;
       peta[k] = peta[k] || { anugerah: g.anugerah, sub: g.sub, orang: [] };
       peta[k].orang.push({
         nama: p.nama, tahun: p.tahun, kelas: p.kelas,
-        no: g.no, mc: g.mc, hadir: g.hadir
+        no: g.no, mc: g.mc, hadir: g.hadir,
+        lain: agPengikutGiliran(p.giliran, g).map(x => x.sub || x.anugerah)
       });
     });
   });
@@ -275,11 +278,14 @@ function lukis() {
     const o = papar[0];
     isi = '<div class="t-nama">' + agEsc(o.nama) + '</div>' +
           '<div class="t-kelas">' + agEsc(agDarjahKelas(o.tahun, o.kelas)) + '</div>' +
-          '<div class="t-gil">Giliran ' + o.no + '</div>';
+          '<div class="t-gil">Giliran ' + o.no + '</div>' +
+          (o.lain.length ? '<div class="t-sub" style="margin-top:9px">turut menerima: ' +
+            o.lain.map(agEsc).join(' · ') + '</div>' : '');
   } else {
     isi = '<div class="t-ramai">' + papar.map(o =>
       '<div class="org"><div class="nm">' + agEsc(o.nama) + '</div>' +
       '<div class="kl">' + agEsc(agDarjahKelas(o.tahun, o.kelas)) + ' · giliran ' + o.no + '</div>' +
+      (o.lain.length ? '<div class="kl">+ ' + o.lain.map(agEsc).join(' · ') + '</div>' : '') +
       '</div>').join('') + '</div>';
   }
 

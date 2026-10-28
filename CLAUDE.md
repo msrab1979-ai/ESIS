@@ -799,6 +799,25 @@ Kiraan tidak hilang: ia berpindah ke tajuk accordion (`70 giliran · 0 sudah nai
 
 Hadiah: status **"Simpan balik" → "Tidak hadir"** dalam jadual **dan** dropdown tapisan. Tapisan yang berkata lain daripada baris bermakna petugas tidak tahu itu benda sama.
 
+#### Gaya Giliran — A Asal · B Bebas · C Gabung (28 Okt 2026)
+
+Kad **Gaya Giliran** di atas Susunan Naik Pentas (tab 🎟️ Giliran & Tiket). **Tambahan, bukan ganti**: `MAJLIS.gayaGiliran` tiada / tidak dikenali = `'asal'`, dan gaya A berjalan pada **kod asal yang tidak disentuh** (`binaTurutan`/`beriNombor` hanya bercabang bila gaya ≠ asal).
+
+| Gaya | Medan | Kelakuan |
+|---|---|---|
+| A `asal` | — | anugerah `urutan` → array `a.sub` |
+| B `bebas` | `susunanPentas: [subId]` | satu senarai rata, sub merentas anugerah (seret / ↑↓ / Pindah) |
+| C `gabung` | `gabungAsas: 'asal'\|'bebas'`, `gabungKecuali: [anugerahId]` | murid naik **sekali** di anugerah pertamanya, terima semua serentak |
+
+- **Enjin di `anugerah-kongsi.js`** supaya semua panel membaca peraturan sama: `agSusunanSub`, `agBinaTurutan`, `agRancangNombor` (tulen), `agIkutSah` / `agUtamaGiliran` / `agPengikutGiliran` / `agBilNaik`.
+- **Gaya C: entri giliran KEKAL satu per anugerah** (meja hadiah kira hadiah satu per satu), tetapi **berkongsi `no`**. Entri utama tiada `ikut`; yang lain `ikut: <subId utama>`. Medan `ikut` hanya ditulis bila wujud — data gaya A/B sama tepat seperti dahulu.
+- **`agIkutSah`, bukan `g.ikut` mentah**: bila sub utama dibuang, pengikut mesti berdiri sendiri semula, jika tidak anugerahnya hilang dari MC dan tayangan.
+- Sub yang tiada dalam `susunanPentas` (ditambah kemudian) **disambung di hujung** dengan amaran, bukan hilang.
+- Panel: MC satu baris per nombor + "turut menerima", ✓ menanda utama **dan** pengikut (`tandaMC`). Peserta: murid hanya di baris utama, "naik pentas N kali" = `agBilNaik`. Hadiah: baris pengikut kekal, dipapar di bawah anugerah **utama** dengan "untuk: …". Tayang/PPTX: satu slaid utama, pengikut disenarai. Gaya ≠ asal: accordion petugas = blok **berturut-turut** (kunci `anId#n`), gaya A kekal `find`.
+- **Tukar gaya tidak menukar nombor.** Pratonton dalam kad memberi amaran bila nombor semasa tidak padan dengan gaya disimpan → Jana Semula.
+
+Oracle 20,000 kes (susunan + nombor + mod tambah + invarian 1…N tanpa jurang) — 0 beza; 5 mutasi ditangkap.
+
 #### Nombor giliran mesti berturutan tanpa jurang
 
 `beriNombor(true)` (🔁 Jana Semula) menomborkan 1…N mengikut `binaTurutan`; sub tanpa peserta dilangkau sendiri dan tidak memakan nombor.

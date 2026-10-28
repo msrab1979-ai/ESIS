@@ -224,12 +224,16 @@ async function muat(pertama, senyap) {
     penerima.forEach(p => {
       (p.giliran || []).forEach(g => {
         if (g.no == null) return;
+        /* Gaya GABUNG: pengikut bukan baris sendiri — murid naik SEKALI
+           pada baris anugerah utamanya, anugerah lain dibaca bersama. */
+        if (agIkutSah(p.giliran, g)) return;
         senarai.push({
           docId: p.docId, subId: g.subId, no: g.no,
           nama: p.nama, tahun: p.tahun, kelas: p.kelas,
           anugerah: g.anugerah, anugerahId: g.anugerahId,
           sub: g.sub, hadiah: g.hadiah || '',
-          hadir: g.hadir, mc: g.mc
+          hadir: g.hadir, mc: g.mc,
+          lain: agPengikutGiliran(p.giliran, g).map(x => x.sub || x.anugerah)
         });
       });
     });
@@ -354,11 +358,20 @@ function lukis() {
      Butang "✓ Tanda N" KEKAL pada aras SUB, bukan dipindah ke aras
      anugerah: menanda 70 murid sekali gus merentas enam darjah bukan
      gerakan yang MC buat, dan satu salah tekan memerlukan 70 pembatalan. */
+  /* Gaya ASAL: kumpul ikut anugerah (kelakuan lama). Gaya Bebas/Gabung:
+     blok BERTURUT-TURUT, supaya anugerah yang diselang-seli muncul
+     mengikut susunan sebenar naik pentas. */
+  const asal = agGaya(MAJLIS) === 'asal';
   const blok = [];
   grup.forEach((g, i) => {
     g._i = i;
-    let A = blok.find(x => x.anugerahId === g.anugerahId);
-    if (!A) { A = { anugerahId: g.anugerahId, anugerah: g.anugerah, sub: [] }; blok.push(A); }
+    let A = asal ? blok.find(x => x.anugerahId === g.anugerahId) : blok[blok.length - 1];
+    if (!A || A.anugerahId !== g.anugerahId) {
+      const ulang = blok.filter(x => x.anugerahId === g.anugerahId).length;
+      A = { anugerahId: g.anugerahId, anugerah: g.anugerah, sub: [],
+            kunci: asal || !ulang ? g.anugerahId : g.anugerahId + '#' + ulang };
+      blok.push(A);
+    }
     A.sub.push(g);
   });
 
@@ -392,10 +405,10 @@ function lukis() {
 
   $('senarai').innerHTML = blok.map(A => {
     const semua = A.sub.flatMap(x => x.baris);
-    const bukaAn = !!BUKA_AN[A.anugerahId];
+    const bukaAn = !!BUKA_AN[A.kunci];
     const satuSub = A.sub.length === 1;
     return '<div class="grup-kepala' + (bukaAn ? ' buka' : '') +
-        '" data-mc-an="' + agEsc(A.anugerahId) + '">' +
+        '" data-mc-an="' + agEsc(A.kunci) + '">' +
         '<span class="anak-panah">\u25b6</span>' +
         '<span class="an-nama">' + agEsc(A.anugerah) + '</span>' +
         '<span class="bil-kep">' + kiraTeks(semua) +
@@ -427,13 +440,18 @@ function baris(b) {
   const nota = st === 'absen'
     ? ' · <span class="pil absen">Tidak hadir — langkau</span>'
     : '';
+  /* gaya GABUNG: anugerah lain yang MC umumkan serentak */
+  const lain = (b.lain || []).length
+    ? '<div class="k">+ turut menerima: <strong>' +
+      b.lain.map(agEsc).join(' · ') + '</strong></div>'
+    : '';
 
   return '<li class="baris' + kelas + '" data-doc="' + agEsc(b.docId) +
       '" data-sub="' + agEsc(b.subId) + '">' +
     '<div class="baris-no">' + b.no + '</div>' +
     '<div class="baris-info">' +
       '<div class="n">' + agEsc(b.nama) + '</div>' +
-      '<div class="k">' + agEsc(agDarjahKelas(b.tahun, b.kelas)) + nota + '</div>' +
+      '<div class="k">' + agEsc(agDarjahKelas(b.tahun, b.kelas)) + nota + '</div>' + lain +
     '</div>' +
     '<div class="baris-butang">' +
       '<button class="b-tanda" data-tanda="1"' + (st === 'absen' ? ' disabled' : '') +
@@ -495,14 +513,23 @@ function tandaSatu(baris, nilai, tanpaLukis) {
   hantar(baris, nilai);
 }
 
+/* Tanda entri subId DAN pengikutnya (gaya GABUNG) — murid naik sekali,
+   jadi semua anugerah yang diterima serentak sudah diserah. Tanpa
+   pengikut (gaya Asal/Bebas) ini sama tepat dengan kod lama. */
+function tandaMC(gil, subId, nilai) {
+  const u = gil.find(g => g.subId === subId);
+  const ikut = new Set(u ? agPengikutGiliran(gil, u) : []);
+  return gil.map(g =>
+    g.subId === subId || ikut.has(g) ? { ...g, mc: nilai ? true : null } : g);
+}
+
 async function hantar(baris, nilai) {
   try {
     await agDb.runTransaction(async tx => {
       const ref = agDb.collection('anugerah_penerima').doc(baris.docId);
       const snap = await tx.get(ref);
       if (!snap.exists) throw new Error('Rekod tiada');
-      const gil = (snap.data().giliran || []).map(g =>
-        g.subId === baris.subId ? { ...g, mc: nilai ? true : null } : g);
+      const gil = tandaMC(snap.data().giliran || [], baris.subId, nilai);
       tx.update(ref, { giliran: gil });
     });
   } catch (e) {
@@ -521,8 +548,7 @@ async function cubaHantarSemula() {
         const ref = agDb.collection('anugerah_penerima').doc(t.docId);
         const snap = await tx.get(ref);
         if (!snap.exists) return;
-        const gil = (snap.data().giliran || []).map(g =>
-          g.subId === t.subId ? { ...g, mc: t.nilai ? true : null } : g);
+        const gil = tandaMC(snap.data().giliran || [], t.subId, t.nilai);
         tx.update(ref, { giliran: gil });
       });
     } catch (e) { MENUNGGU.push(t); }

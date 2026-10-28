@@ -764,8 +764,178 @@ function agEntriGiliran(o) {
     hadiah: o.hadiah || '',
     no: o.no,
     hadir: o.hadir === undefined ? null : o.hadir,
-    mc: o.mc === undefined ? null : o.mc
+    mc: o.mc === undefined ? null : o.mc,
+    /* `ikut` hanya wujud dalam gaya GABUNG — lihat agRancangNombor. Entri
+       gaya Asal/Bebas tidak membawanya langsung, supaya data mereka
+       kekal sama tepat dengan sebelum gaya giliran wujud. */
+    ...(o.ikut ? { ikut: o.ikut } : {})
   };
+}
+
+/* ==========================================================================
+   GAYA GILIRAN — tiga pilihan admin (tab 🎟️ Giliran & Tiket)
+   --------------------------------------------------------------------------
+   A 'asal'   — anugerah ikut `urutan` → sub ikut array a.sub. LALAI.
+   B 'bebas'  — satu senarai rata `MAJLIS.susunanPentas` (subId[]); sub dari
+                anugerah berbeza boleh diselang-seli.
+   C 'gabung' — murid naik SEKALI di tempat anugerah pertamanya dan terima
+                semua anugerahnya serentak. Susunan ikut A atau B
+                (`gabungAsas`). Anugerah dalam `gabungKecuali` naik sendiri.
+
+   🔴 Tiada medan / nilai tidak dikenali = 'asal'. Majlis sedia ada mesti
+      berkelakuan sama tepat seperti sebelum ciri ini wujud.
+
+   🔴 Gaya GABUNG: semua entri giliran seorang murid yang digabung
+      BERKONGSI nombor `no`. Entri utama (anugerah pertamanya dalam
+      susunan) tiada `ikut`; entri lain membawa `ikut: <subId utama>`.
+      Entri tetap satu per anugerah — meja hadiah masih mengira hadiah
+      satu per satu.
+   ========================================================================== */
+const AG_GAYA = ['asal', 'bebas', 'gabung'];
+
+function agGaya(majlis) {
+  const g = majlis && majlis.gayaGiliran;
+  return AG_GAYA.indexOf(g) >= 0 ? g : 'asal';
+}
+
+/* Adakah susunan rata (B) yang dipakai? */
+function agPakaiBebas(majlis) {
+  const g = agGaya(majlis);
+  return g === 'bebas' || (g === 'gabung' && majlis.gabungAsas === 'bebas');
+}
+
+/* Susunan sub ikut gaya → [{a, s}].
+   🔴 Sub yang belum ada dalam `susunanPentas` (ditambah selepas admin
+      menyusun) DISAMBUNG DI HUJUNG, bukan hilang — sub yang hilang
+      bermakna murid tidak pernah mendapat nombor. Id yang sudah tiada
+      dilangkau. */
+function agSusunanSub(majlis) {
+  const asal = [];
+  ((majlis && majlis.anugerah) || []).slice()
+    .sort((a, b) => (a.urutan || 0) - (b.urutan || 0))
+    .forEach(a => (a.sub || []).forEach(s => asal.push({ a, s })));
+  if (!agPakaiBebas(majlis)) return asal;
+
+  const ikutId = {};
+  asal.forEach(x => { ikutId[x.s.id] = x; });
+  const keluar = [];
+  const sudah = new Set();
+  (Array.isArray(majlis.susunanPentas) ? majlis.susunanPentas : []).forEach(id => {
+    const x = ikutId[id];
+    if (x && !sudah.has(id)) { keluar.push(x); sudah.add(id); }
+  });
+  asal.forEach(x => { if (!sudah.has(x.s.id)) keluar.push(x); });
+  return keluar;
+}
+
+/* Sub yang belum diletak admin dalam susunan bebas — untuk amaran. */
+function agSubBelumDisusun(majlis) {
+  if (!agPakaiBebas(majlis)) return [];
+  const ada = new Set(Array.isArray(majlis.susunanPentas) ? majlis.susunanPentas : []);
+  return agSusunanSub(majlis).filter(x => !ada.has(x.s.id));
+}
+
+/* Turutan naik pentas → [{p, a, s}]: susunan sub, murid ikut nama. */
+function agBinaTurutan(majlis, penerima) {
+  const turutan = [];
+  agSusunanSub(majlis).forEach(({ a, s }) => {
+    penerima
+      .filter(p => (p.anugerah || []).some(x => x.subId === s.id))
+      .sort((x, y) => String(x.nama).localeCompare(String(y.nama), 'ms'))
+      .forEach(p => turutan.push({ p, a, s }));
+  });
+  return turutan;
+}
+
+/* 🔴 Entri ini ikut entri utama yang MASIH WUJUD dengan nombor sama?
+      Selepas admin membuang sub utama, `ikut` menunjuk kepada entri yang
+      sudah tiada — entri itu mesti kembali berdiri sendiri, jika tidak
+      anugerahnya hilang dari MC dan tayangan. */
+function agIkutSah(gil, g) {
+  if (!g || !g.ikut) return false;
+  return (gil || []).some(x => x !== g && x.subId === g.ikut && !x.ikut && x.no === g.no);
+}
+
+/* Entri utama bagi g (dirinya sendiri jika ia bukan pengikut). */
+function agUtamaGiliran(gil, g) {
+  if (!agIkutSah(gil, g)) return g;
+  return gil.find(x => x.subId === g.ikut && !x.ikut && x.no === g.no) || g;
+}
+
+/* Entri yang ikut entri utama u (tidak termasuk u). */
+function agPengikutGiliran(gil, u) {
+  return (gil || []).filter(g => g !== u && g.ikut === u.subId && agIkutSah(gil, g));
+}
+
+/* Berapa kali murid naik pentas = entri yang bukan pengikut. */
+function agBilNaik(gil) {
+  return (gil || []).filter(g => !agIkutSah(gil, g)).length;
+}
+
+/* Rancang nombor giliran (fungsi tulen — tiada tulisan).
+   semua=true  → Jana Semula dari 1.
+   semua=false → kekalkan nombor sedia ada, beri nombor kepada yang belum.
+   Pulang { petaBaru: {docId: giliran[]}, tambah }.
+
+   🔴 Gaya GABUNG: murid mendapat SATU nombor pada anugerah pertamanya
+      (yang tidak dikecualikan); anugerah lain berkongsi nombor itu.
+      Mod tambah: anugerah baharu bagi murid yang sudah bernombor
+      menyertai nombor sedia ada, bukan nombor baharu di hujung. */
+function agRancangNombor(majlis, penerima, semua) {
+  const gaya = agGaya(majlis);
+  const gabung = gaya === 'gabung';
+  const kecuali = new Set(gabung ? (majlis.gabungKecuali || []) : []);
+  const turutan = agBinaTurutan(majlis, penerima);
+
+  let maks = 0;
+  penerima.forEach(p => (p.giliran || []).forEach(g => {
+    if (typeof g.no === 'number' && g.no > maks) maks = g.no;
+  }));
+
+  const petaBaru = {};
+  const utama = {};          // docId -> {no, subId}
+  let n = semua ? 0 : maks;
+  let tambah = 0;
+
+  /* mod tambah: entri utama sedia ada menjadi sauh untuk anugerah baharu */
+  if (gabung && !semua) {
+    turutan.forEach(({ p, a, s }) => {
+      if (kecuali.has(a.id) || utama[p.docId]) return;
+      const lama = (p.giliran || []).find(g => g.subId === s.id);
+      if (lama && lama.no != null && !agIkutSah(p.giliran, lama))
+        utama[p.docId] = { no: lama.no, subId: s.id };
+    });
+  }
+
+  turutan.forEach(({ p, a, s }) => {
+    petaBaru[p.docId] = petaBaru[p.docId] || [];
+    const lama = (p.giliran || []).find(g => g.subId === s.id);
+
+    if (!semua && lama && lama.no != null) {
+      petaBaru[p.docId].push(lama);
+      return;
+    }
+
+    const bolehGabung = gabung && !kecuali.has(a.id);
+    let no, ikut = null;
+    if (bolehGabung && utama[p.docId]) {
+      no = utama[p.docId].no;
+      ikut = utama[p.docId].subId;
+    } else {
+      no = ++n;
+      if (bolehGabung) utama[p.docId] = { no, subId: s.id };
+    }
+    tambah++;
+    petaBaru[p.docId].push(agEntriGiliran({
+      anugerahId: a.id, anugerah: a.nama,
+      subId: s.id, sub: s.nama, hadiah: s.hadiah || '',
+      no, ikut,
+      hadir: lama ? lama.hadir : null,
+      mc: lama ? lama.mc : null
+    }));
+  });
+
+  return { petaBaru, tambah };
 }
 
 /* ==========================================================================

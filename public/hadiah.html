@@ -188,11 +188,17 @@ async function muat(pertama, senyap) {
     penerima.forEach(p => {
       (p.giliran || []).forEach(g => {
         if (g.no == null) return;
+        /* 🔴 Gaya GABUNG: hadiah pengikut KEKAL satu baris sendiri (ia
+           hadiah berasingan di meja), tetapi dipapar di bawah anugerah
+           UTAMA — itulah masa murid itu naik, jadi itulah masa hadiahnya
+           perlu berada di pentas. `untuk` menamakan anugerah asalnya. */
+        const u = agUtamaGiliran(p.giliran, g);
         senarai.push({
           no: g.no, nama: p.nama, tahun: p.tahun, kelas: p.kelas,
-          anugerah: g.anugerah, anugerahId: g.anugerahId,
-          sub: g.sub, subId: g.subId,
-          hadiah: g.hadiah || '', hadir: g.hadir, mc: g.mc
+          anugerah: u.anugerah, anugerahId: u.anugerahId,
+          sub: u.sub, subId: u.subId,
+          hadiah: g.hadiah || '', hadir: g.hadir, mc: g.mc,
+          untuk: u !== g ? (g.sub || g.anugerah) : ''
         });
       });
     });
@@ -355,11 +361,19 @@ function lukisSenarai() {
      Nama murid yang tidak hadir kekal DICORET (bukan disembunyikan) —
      meja hadiah perlu tahu hadiah itu wujud dan perlu disimpan balik,
      bukan sekadar tidak nampak. */
+  /* Gaya ASAL: kumpul ikut anugerah (kelakuan lama). Gaya Bebas/Gabung:
+     blok BERTURUT-TURUT mengikut susunan sebenar naik pentas. */
+  const asal = agGaya(MAJLIS) === 'asal';
   const blok = [];
   tapis.forEach(b => {
     const anId = b.anugerahId || b.anugerah;
-    let A = blok.find(x => x.anugerahId === anId);
-    if (!A) { A = { anugerahId: anId, anugerah: b.anugerah, sub: [] }; blok.push(A); }
+    let A = asal ? blok.find(x => x.anugerahId === anId) : blok[blok.length - 1];
+    if (!A || A.anugerahId !== anId) {
+      const ulang = blok.filter(x => x.anugerahId === anId).length;
+      A = { anugerahId: anId, anugerah: b.anugerah, sub: [],
+            kunci: asal || !ulang ? anId : anId + '#' + ulang };
+      blok.push(A);
+    }
     const sId = b.subId || b.sub;
     let S = A.sub.find(x => x.subId === sId);
     if (!S) { S = { subId: sId, sub: b.sub, anugerah: b.anugerah, baris: [] }; A.sub.push(S); }
@@ -384,7 +398,9 @@ function lukisSenarai() {
       '<td class="nama-murid lajur-teks">' +
         (s === 'absen' ? '<s>' + agEsc(b.nama) + '</s>' : agEsc(b.nama)) + '</td>' +
       '<td>' + agEsc(agDarjahKelas(b.tahun, b.kelas)) + '</td>' +
-      '<td class="kecil lajur-teks">' + (agEsc(b.hadiah) || '<em>\u2014</em>') + '</td>' +
+      '<td class="kecil lajur-teks">' + (agEsc(b.hadiah) || '<em>\u2014</em>') +
+        (b.untuk ? '<div class="kecil" style="opacity:.75">untuk: ' + agEsc(b.untuk) + '</div>' : '') +
+      '</td>' +
       '<td>' + pil + '</td></tr>';
   };
 
@@ -396,7 +412,7 @@ function lukisSenarai() {
 
   $('senarai').innerHTML = blok.map(A => {
     const semua = A.sub.flatMap(x => x.baris);
-    const buka = !!BUKA_GIL_AN[A.anugerahId];
+    const buka = !!BUKA_GIL_AN[A.kunci];
     const satuSub = A.sub.length === 1;
     const dalam = A.sub.map(S => {
       if (satuSub) return jadual(S.baris);
@@ -410,7 +426,7 @@ function lukisSenarai() {
         '</div>' + (bukaSub ? jadual(S.baris) : '');
     }).join('');
     return '<div class="grup-kepala' + (buka ? ' buka' : '') +
-        '" data-gil-an="' + agEsc(A.anugerahId) + '">' +
+        '" data-gil-an="' + agEsc(A.kunci) + '">' +
         '<span class="anak-panah">\u25b6</span>' +
         '<span class="an-nama">' + agEsc(A.anugerah) + '</span>' +
         '<span class="bil-kep">' + kira(semua) +

@@ -96,12 +96,20 @@ function pxBinaSlaid(majlis, slaid, pilihan) {
     /* Nama dibahagi dua lajur apabila ramai, supaya saiz teks tidak
        perlu dikecilkan sehingga tidak terbaca dari belakang dewan. */
     const banyak = orang.length > 6;
-    const baris = orang.map(p => ({
-      teks: (p.no != null ? p.no + '.  ' : '') + p.nama +
-            (p.kelas ? '   (' + agDarjahKelas(p.tahun, p.kelas) + ')' : ''),
-      sz: banyak ? 1600 : (orang.length > 3 ? 2000 : 2400),
-      algn: 'ctr'
-    }));
+    const baris = [];
+    orang.forEach(p => {
+      const sz = banyak ? 1600 : (orang.length > 3 ? 2000 : 2400);
+      baris.push({
+        teks: (p.no != null ? p.no + '.  ' : '') + p.nama +
+              (p.kelas ? '   (' + agDarjahKelas(p.tahun, p.kelas) + ')' : ''),
+        sz, algn: 'ctr'
+      });
+      /* gaya GABUNG: anugerah lain yang diterima serentak */
+      if (p.lain && p.lain.length) baris.push({
+        teks: 'turut menerima: ' + p.lain.join(' · '),
+        sz: Math.round(sz * 0.6), i: true, warna: emas, algn: 'ctr'
+      });
+    });
 
     keluar.push(pxSlaid(
       pxLatar(2, latar) +
