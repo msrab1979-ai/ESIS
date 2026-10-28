@@ -327,7 +327,8 @@ async function agSubjekUntukDarjah(calYear, peperiksaan) {
  *   skopJenis    'darjah' | 'kelas' | 'sekolah'
  *   skopNilai    darjah word (EMPAT) atau kelas (4 INTEL) ikut skopJenis
  *   ambil        berapa orang teratas
- * @returns {Promise<{senarai:Array, jumMurid:number, tiadaMarkah:number}>}
+ * @returns {Promise<{senarai:Array, jumMurid:number, tiadaMarkah:number,
+ *                    tanpaMarkah:Array}>}
  */
 async function agKiraCalon(o) {
   await agMuatGred();
@@ -378,6 +379,12 @@ async function agKiraCalon(o) {
 
   const hasil = [];
   let tiadaMarkah = 0;
+  /* Murid dalam skop yang TIADA markah untuk dikira. Dipulangkan supaya
+     senarai pilihan boleh memaparkan SEMUA murid skop — yang tiada markah
+     diletak di bawah, tidak diranking, tetapi masih boleh ditanda. */
+  const tanpaMarkah = [];
+  const muridTanpa = m => ({ no_kp: m.no_kp, nama: m.nama, tahun: m.tahun,
+                             kelas: m.kelas, tiadaMarkah: true });
   let tiadaTeras = 0;          // ada markah, tetapi tiada satu pun subjek teras
   let takLengkap = 0;          // kurang daripada senarai teras darjah itu
   const terasDipakai = new Set();
@@ -394,7 +401,7 @@ async function agKiraCalon(o) {
       senarai.forEach(x => terasDipakai.add(x));
       const sebelum = rekod.length;
       rekod = rekod.filter(r => senarai.includes(String(r.subjek || '').trim().toUpperCase()));
-      if (sebelum && !rekod.length) { tiadaTeras++; return; }
+      if (sebelum && !rekod.length) { tiadaTeras++; tanpaMarkah.push(muridTanpa(m)); return; }
     }
 
     if (o.asas === 'subjek') {
@@ -419,7 +426,7 @@ async function agKiraCalon(o) {
       });
 
       const adaPep = senaraiPep.filter(x => ikutPep[x] != null);
-      if (!adaPep.length) { tiadaMarkah++; return; }
+      if (!adaPep.length) { tiadaMarkah++; tanpaMarkah.push(muridTanpa(m)); return; }
 
       const jum = adaPep.reduce((a, x) => a + ikutPep[x], 0);
       const purata = Math.round((jum / adaPep.length) * 100) / 100;
@@ -440,7 +447,7 @@ async function agKiraCalon(o) {
 
     /* asas gps / jumlah / purata — TH dibuang dahulu, bukan dikira 0 */
     let sah = rekod.filter(r => !agIsTH(r) && !isNaN(parseInt(r.markah)));
-    if (!sah.length) { tiadaMarkah++; return; }
+    if (!sah.length) { tiadaMarkah++; tanpaMarkah.push(muridTanpa(m)); return; }
 
     /* 🔴 BEBERAPA PEPERIKSAAN: satu baris per SUBJEK, bukan per rekod.
        Tanpa ini, rekod semua peperiksaan ditimbun jadi satu kolam dan
@@ -533,6 +540,8 @@ async function agKiraCalon(o) {
   return {
     senarai: hasil, jumMurid: kolam.length, tiadaMarkah,
     tiadaTeras, takLengkap,
+    tanpaMarkah: tanpaMarkah.sort((a, b) =>
+      String(a.nama).localeCompare(String(b.nama), 'ms')),
     senaraiPep,
     subjekTeras: Array.from(terasDipakai).sort()
   };

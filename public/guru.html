@@ -400,15 +400,12 @@ function senaraiMurid() {
   const k = $('f-kelas').value;
   const c = agPecahCarian($('f-cari').value);
 
+  /* SEMUA murid dalam skop dipapar, bukan calon teratas sahaja — yang
+     tiada markah diletak di bawah tanpa kedudukan. */
   if (CALON) {
-    const sb = subSemasa();
-    const had = sb && sb.paparSemua
-      ? CALON.senarai.length
-      : Math.max(((sb && sb.ambil) || 1) + 4, 10);
-    return CALON.senarai
+    return CALON.senarai.concat(CALON.tanpaMarkah || [])
       .filter(m => !k || String(m.kelas || '').toUpperCase() === k.toUpperCase())
-      .filter(m => agPadanCarian(c, m.nama, m.no_kp))
-      .slice(0, had);
+      .filter(m => agPadanCarian(c, m.nama, m.no_kp));
   }
 
   const w = $('f-darjah').value;
@@ -552,7 +549,7 @@ function lukisCalon() {
     '<span class="sym">\u25b8</span><div>Dikira daripada markah ESIS. ' +
     '<strong>' + ambil + ' teratas</strong> ditanda \u201cCadang\u201d \u2014 ' +
     'kotak TIDAK ditanda automatik, kau yang pilih.' +
-    (tiadaMarkah ? ' ' + tiadaMarkah + ' murid tiada markah dan tidak disenaraikan.' : '') +
+    (tiadaMarkah ? ' ' + tiadaMarkah + ' murid tiada markah \u2014 dipapar di bawah tanpa kedudukan.' : '') +
     '</div></div>';
 
   /* 🔴 Nama medan datang daripada agKiraCalon: `kedudukan` dan
@@ -577,7 +574,8 @@ function lukisCalon() {
         '<td>' + agEsc(agDarjahKelas(m.tahun, m.kelas)) + '</td>' +
         '<td>' + (m.nilai != null ? m.nilai : '\u2014') + '</td>' +
         '<td>' + agEsc(m.gredRingkas || '') + '</td>' +
-        '<td>' + (m.kurang
+        '<td>' + (m.tiadaMarkah ? '\u2014'
+            : m.kurang
             ? '<span class="pil tunggu" title="Markah tidak lengkap">' +
               m.bilSubjek + '/' + m.perluSubjek + '</span>'
             : m.bilSubjek) + '</td>' +
@@ -585,7 +583,8 @@ function lukisCalon() {
           ? (milikAdmin ? '<span class="pil tunggu">Ditambah admin</span>'
                         : '<span class="pil hadir">Sudah dipilih</span>')
           : TANDA.has(m.no_kp) ? '<span class="pil emas">Akan ditambah</span>'
-          : m.dalamTop ? '<span class="pil emas">Cadang</span>' : '') +
+          : m.dalamTop ? '<span class="pil emas">Cadang</span>'
+          : m.tiadaMarkah ? '<span class="pil tunggu">Tiada markah</span>' : '') +
         '</td></tr>';
     }).join('') + '</tbody></table></div>';
 

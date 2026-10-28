@@ -402,9 +402,17 @@ Tiga tempat perlu konsisten, dan dua daripadanya pernah rosak:
 2. **`baca()` dalam modal sub** membina objek **baharu** — setiap medan yang tiada kawalan dalam borang (`skopDarjah`, `paparSemua`, `peperiksaan`, `asas`) mesti disalin secara eksplisit, atau menekan Simpan memadamkannya secara senyap.
 3. **Jana semua** mengesan pendua mengikut darjah **dan** kelas; memadankan nama kelas sahaja melangkau lima daripada enam "BYTECH".
 
-#### `paparSemua` — ranking penuh, bukan calon teratas
+#### Senarai calon = SEMUA murid dalam skop (28 Okt 2026)
 
-Sub-anugerah dengan `paparSemua:true` memaparkan **setiap** murid dalam skop mengikut kedudukan, bukan `ambil+5`. Dipakai oleh Terbaik Dalam Kelas: guru kelas melihat kesemua tiga puluh murid yang dia kenal dan menandakan sendiri. Ranking dan lajur Status masih dikira — yang berubah hanyalah panjang senarai.
+**Setiap** sub-anugerah kini memaparkan **semua** murid dalam skopnya, dalam modal 👤 Pilih Murid (admin) **dan** mod ✨ Cadang borang guru (`guru.html`). Contoh: "BAHASA MELAYU — DARJAH 1" memapar setiap murid darjah 1, bukan 10 calon teratas. Admin/guru memilih sendiri.
+
+- Murid **ada markah** disusun ikut kedudukan; label "Cadang" masih menanda top-N. Tiada kotak ditanda automatik (peraturan di atas kekal).
+- Murid **tiada markah** (belum diisi / TH / tiada subjek teras) diletak **di bawah**, tanpa kedudukan, berlabel "Tiada markah" — tetapi **masih boleh ditanda**. `agKiraCalon` memulangkan mereka sebagai `tanpaMarkah[]` (`{no_kp,nama,tahun,kelas,tiadaMarkah:true}`, susun nama). `senarai` tidak berubah, jadi pemanggil lain tidak terjejas. Invarian: `senarai + tanpaMarkah` = setiap murid skop, tepat sekali (`tanpaMarkah.length === tiadaMarkah + tiadaTeras`).
+- Penerima tanpa markah yang disimpan dari modal admin ditulis `sumber:'manual', nilai:null, catatan:''`.
+- Kunci darjah borang guru (`luarSkopSub`) **kekal** — "semua" bermaksud semua dalam skop sub, bukan seluruh sekolah.
+- Medan `paparSemua` dan kotak `s-papar` dalam modal Ubah Sub kini **tiada kesan** pada dua skrin ini; dibiarkan supaya dokumen sub tidak disentuh.
+
+Disahkan: oracle 3,000 kes rawak `agKiraCalon` (semua asas × skop × satu/beberapa peperiksaan × teras) — 0 beza.
 
 #### Terbaik Dalam Kelas = enam anugerah, satu per darjah
 
