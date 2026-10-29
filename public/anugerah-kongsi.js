@@ -1220,6 +1220,27 @@ function agEsc(s) {
 
 /* 🔴 Cetakan papar DARJAH + KELAS, bukan kelas sahaja — "5 CELERON" dan
       "6 CELERON" dua kelas berbeza. */
+/* ---------- Penerima BUKAN MURID (contoh ibu bapa) ----------
+   Disimpan dalam anugerah_penerima yang SAMA dengan murid supaya giliran,
+   tiket, kad, MC, hadiah dan tayangan berfungsi tanpa laluan kedua.
+   `jenis:'luar'`, nama sahaja, tahun/kelas kosong. `no_kp` ialah id
+   rekaan HURUF SAHAJA — carian KP (≥4 digit) tidak akan terpadan. */
+function agAdalahLuar(p) {
+  return !!p && p.jenis === 'luar';
+}
+
+function agIdLuar() {
+  let t = '';
+  for (let i = 0; i < 12; i++) t += String.fromCharCode(65 + Math.floor(Math.random() * 26));
+  return 'LUAR_' + t;
+}
+
+/* Label kelas untuk senarai ADMIN. Tiket/kad/panel petugas memakai
+   agDarjahKelas terus — kosong bagi bukan murid (nama sahaja). */
+function agKelasPenerima(p) {
+  return agAdalahLuar(p) ? 'Bukan murid' : agDarjahKelas(p && p.tahun, p && p.kelas);
+}
+
 function agDarjahKelas(tahun, kelas) {
   const d = agWordDarjah(tahun);
   const k = String(kelas || '').trim();

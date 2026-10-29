@@ -46,6 +46,7 @@
 .kump-isi > li{padding-left:16px}
 .induk .tajuk-a{font-family:"Fraunces",serif; font-size:15.5px; font-weight:600}
 .induk .kanan{margin-left:auto; display:flex; gap:7px; align-items:center; flex-wrap:wrap}
+.pm-luar{padding:11px 13px; margin-bottom:13px; border:1px dashed var(--garis); border-radius:8px; background:var(--kertas-2)}
 .pilih-susun{font-size:12px; color:var(--neutral); display:inline-flex; gap:5px; align-items:center; cursor:auto}
 .pilih-susun select{font-size:12px; padding:3px 6px; border:1px solid var(--garis); border-radius:6px;
   background:var(--kertas); color:var(--teks); cursor:pointer}
@@ -722,6 +723,10 @@
         <div class="medan" style="width:100%">
           <label for="kj-ajak">Ayat jemputan</label>
           <input type="text" id="kj-ajak" placeholder="Dengan hormatnya mempelawa ibu bapa / penjaga kepada">
+        </div>
+        <div class="medan" style="width:100%;margin-top:11px">
+          <label for="kj-ajak-luar">Ayat jemputan — penerima bukan murid</label>
+          <input type="text" id="kj-ajak-luar" placeholder="Dengan hormatnya mempelawa">
         </div>
         <div class="medan" style="width:100%;margin-top:11px">
           <label for="kj-kaki">Nota kaki</label>
@@ -1540,7 +1545,7 @@ function lukisMuridSub(s, baris, dalamModal) {
           (b.no != null ? 'Giliran ' + b.no : '<span title="Belum bernombor — tekan Jana Semula">—</span>') +
           '</td>' : '') +
         '<td>' + agEsc(b.p.nama) + '</td>' +
-        '<td class="kls">' + agEsc(agDarjahKelas(b.p.tahun, b.p.kelas)) +
+        '<td class="kls">' + agEsc(agKelasPenerima(b.p)) +
           (luar ? ' ⚠ luar skop' : '') + '</td>' +
         '<td style="width:1%;white-space:nowrap">' +
           '<span class="pil ' + (guru ? 'hadir' : 'tunggu') + '">' +
@@ -1699,7 +1704,7 @@ function lukisSusunManual(s, baris, dalamModal) {
         '<td class="kls" style="width:1%" title="Nombor giliran">' +
           (b.no != null ? 'Giliran ' + b.no : '<span title="Belum bernombor">—</span>') + '</td>' +
         '<td>' + agEsc(b.p.nama) + '</td>' +
-        '<td class="kls">' + agEsc(agDarjahKelas(b.p.tahun, b.p.kelas)) +
+        '<td class="kls">' + agEsc(agKelasPenerima(b.p)) +
           (luar ? ' ⚠ luar skop' : '') + '</td>' +
         '<td style="width:1%;white-space:nowrap">' +
           '<span class="pil ' + (guru ? 'hadir' : 'tunggu') + '">' +
@@ -1824,6 +1829,7 @@ if (!window._msPasang) {
    darjah, jadi ia sentiasa lulus. */
 function luarSkopPenerima(s, p) {
   if (!s) return false;
+  if (agAdalahLuar(p)) return false;   // bukan murid: tiada darjah/kelas
   const U = x => String(x || '').toUpperCase();
   if (s.skopJenis === 'darjah')
     return !!U(s.skopNilai) && U(p.tahun) !== U(s.skopNilai);
@@ -3342,7 +3348,7 @@ function pmLukisSediaAda() {
         return '<tr><td class="num">' + (r ? '<strong>' + r.kedudukan + '</strong>'
             : (rank || an.sumber === 'manual') ? '—' : '<span class="kecil">Mengira…</span>') + '</td>' +
         '<td class="nama-murid lajur-teks">' + agEsc(p.nama) + '</td>' +
-        '<td>' + agEsc(agDarjahKelas(p.tahun, p.kelas)) + '</td>' +
+        '<td>' + agEsc(agKelasPenerima(p)) + '</td>' +
         '<td class="num">' + (r && r.nilai != null ? r.nilai : '—') + '</td>' +
         '<td style="width:86px"><button class="btn sunyi kecil" data-pm-buang="' +
           agEsc(p.no_kp) + '">Buang</button></td></tr>';
@@ -3611,7 +3617,24 @@ async function pmLukisManual() {
 
   PM.tandaM = new Set();
 
+  /* Anugerah manual boleh menerima orang yang TIADA dalam senarai murid
+     ESIS (contoh Anugerah Ibu Bapa Terbaik) — admin taip nama sahaja. */
+  const bolehLuar = PM.an.sumber === 'manual';
   $('pm-isi').innerHTML =
+    (bolehLuar
+      ? '<div class="pm-luar">' +
+          '<label for="pm-luar-nama" class="eyebrow" style="display:block;margin-bottom:5px">' +
+            '✏️ Nama bukan murid (tiada dalam ESIS)</label>' +
+          '<div class="baris-input" style="align-items:center">' +
+            '<input type="text" id="pm-luar-nama" style="flex:1 1 260px" ' +
+              'placeholder="Taip nama penuh, contoh: ENCIK AHMAD BIN ALI">' +
+            '<button class="btn emas kecil" id="pm-luar-tambah">➕ Tambah</button>' +
+          '</div>' +
+          '<div id="pm-luar-senarai"></div>' +
+          '<p class="hint" style="margin:6px 0 0">Untuk ibu bapa, guru atau komuniti. ' +
+            'Murid ESIS dipilih dari senarai di bawah.</p>' +
+        '</div>'
+      : '') +
     '<div class="baris-input">' +
       '<div class="medan"><label for="pm-darjah">Darjah</label><select id="pm-darjah">' +
         /* 🔴 Anugerah berskop SEKOLAH (contoh Kebitaraan Antarabangsa)
@@ -3736,8 +3759,82 @@ async function pmLukisManual() {
     } finally { b.disabled = false; }
   };
 
+  if (bolehLuar) {
+    const tambahLuar = async () => {
+      const el = $('pm-luar-nama'), b = $('pm-luar-tambah');
+      const nama = el.value.replace(/\s+/g, ' ').trim().toUpperCase();
+      if (!nama) { agToast('Taip nama dahulu', 'ralat'); el.focus(); return; }
+      /* Nama yang sama dengan murid ESIS hampir pasti salah pintu —
+         murid patut dipilih dari senarai supaya kelasnya ikut serta. */
+      const murid = (MURID_SEMUA || []).filter(m => String(m.nama).toUpperCase() === nama);
+      if (murid.length && !confirm(nama + ' ialah murid ESIS (' +
+          murid.map(m => agDarjahKelas(m.tahun, m.kelas)).join(', ') + ').\n\n' +
+          'Murid patut dipilih dari senarai di bawah. Tambah juga sebagai bukan murid?')) return;
+      b.disabled = true;
+      try {
+        const h = await tambahPenerimaLuar(nama, PM.an, PM.s);
+        await tambahKeSusunan(PM.an, PM.s, [h.kp]);
+        el.value = '';
+        pmLukisLuar();
+        pmLukisSusun();
+        agToast(nama + ' ditambah' + (h.guna ? ' (rekod sedia ada dalam majlis dipakai)' : ''), 'ok');
+      } catch (e) {
+        agToast(e.message, 'ralat');
+      } finally { b.disabled = false; el.focus(); }
+    };
+    $('pm-luar-tambah').onclick = tambahLuar;
+    $('pm-luar-nama').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); tambahLuar(); } };
+    pmLukisLuar();
+  }
+
   isiKelas();
   lukis();
+}
+
+/* Senarai bukan murid dalam sub yang sedang dibuka. Buang melalui
+   data-pm-buang — pendengar modal yang sama dengan murid. */
+function pmLukisLuar() {
+  const el = $('pm-luar-senarai');
+  if (!el || !PM) return;
+  const luar = pmSudahAda().filter(agAdalahLuar)
+    .sort((a, b) => String(a.nama).localeCompare(String(b.nama), 'ms'));
+  el.innerHTML = luar.length
+    ? '<table style="margin-top:8px"><tbody>' + luar.map(p =>
+        '<tr><td class="nama-murid">' + agEsc(p.nama) + '</td>' +
+        '<td class="kecil">Bukan murid</td>' +
+        '<td style="width:86px"><button class="btn sunyi kecil" data-pm-buang="' +
+          agEsc(p.no_kp) + '">Buang</button></td></tr>').join('') +
+      '</tbody></table>'
+    : '';
+}
+
+/* Tambah seorang penerima BUKAN MURID. Nama yang sama (huruf besar)
+   dalam majlis yang sama = orang yang sama: entri ditambah pada rekod
+   sedia ada, supaya dia memegang SATU tiket dan SATU kad, sama seperti
+   murid yang menang beberapa anugerah. */
+async function tambahPenerimaLuar(nama, an, s) {
+  const bersih = String(nama || '').replace(/\s+/g, ' ').trim().toUpperCase();
+  if (!bersih) throw new Error('Nama kosong');
+  const sedia = PENERIMA.find(p => agAdalahLuar(p) && String(p.nama).toUpperCase() === bersih);
+  if (sedia && (sedia.anugerah || []).some(x => x.subId === s.id))
+    throw new Error(bersih + ' sudah ada dalam sub ini');
+  const entri = { anugerahId: an.id, anugerah: an.nama, subId: s.id, sub: s.nama,
+                  sumber: 'manual', nilai: null, catatan: '' };
+  let kp;
+  if (sedia) {
+    kp = sedia.no_kp;
+    await agDb.collection('anugerah_penerima').doc(sedia.docId)
+      .update({ anugerah: firebase.firestore.FieldValue.arrayUnion(entri) });
+  } else {
+    kp = agIdLuar();
+    await agDb.collection('anugerah_penerima').doc(agIdPenerima(MAJLIS.id, kp)).set({
+      majlisId: MAJLIS.id, no_kp: kp, nama: bersih, tahun: '', kelas: '', jenis: 'luar',
+      anugerah: [entri], giliran: [],
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+  PENERIMA = await agMuatPenerima(MAJLIS.id);
+  return { kp, guna: !!sedia };
 }
 
 /* satu pendengar untuk kesemua kotak tanda & butang buang dalam modal */
@@ -3766,6 +3863,7 @@ $('bekas-modal').addEventListener('click', async e => {
     });
     PENERIMA = await agMuatPenerima(MAJLIS.id);
     pmLukisSusun();
+    pmLukisLuar();
     if (!$('pm-senarai')) pmLukisSediaAda();
     agToast('Dibuang', 'ok');
   } catch (err) {
@@ -4146,7 +4244,7 @@ function lukisSemak() {
       (x.nilai != null ? ' · ' + x.nilai : '') + '</span>').join(' ');
     return '<tr>' +
       '<td class="nama-murid lajur-teks">' + agEsc(p.nama) + '</td>' +
-      '<td>' + agEsc(agDarjahKelas(p.tahun, p.kelas)) + '</td>' +
+      '<td>' + agEsc(agKelasPenerima(p)) + '</td>' +
       '<td class="lajur-teks">' + pil + '</td>' +
       '<td class="num"' + (senarai.length > 1 ? ' style="font-weight:700"' : '') + '>' +
         senarai.length + '</td>' +
@@ -4187,7 +4285,7 @@ function modalBuangAnugerah(p) {
 
   bukaModal(
     '<div class="kad-kepala"><h3>Buang Anugerah</h3>' +
-      '<span class="sub">' + agEsc(p.nama) + ' · ' + agEsc(agDarjahKelas(p.tahun, p.kelas)) + '</span>' +
+      '<span class="sub">' + agEsc(p.nama) + ' · ' + agEsc(agKelasPenerima(p)) + '</span>' +
       '<button class="b-tutup" id="mx" aria-label="Tutup">×</button></div>' +
     '<div class="kad-isi">' +
       (senarai.length > 1
@@ -4261,7 +4359,7 @@ $('sk-pdf').onclick = async () => {
   if (!w) { agToast('Benarkan pop-up untuk mencetak', 'ralat'); return; }
 
   const baris = SK_BARIS.map(p =>
-    '<tr><td>' + agEsc(p.nama) + '</td><td>' + agEsc(agDarjahKelas(p.tahun, p.kelas)) + '</td>' +
+    '<tr><td>' + agEsc(p.nama) + '</td><td>' + agEsc(agKelasPenerima(p)) + '</td>' +
     '<td>' + (p.anugerah || []).map(x => agEsc(x.sub)).join('<br>') + '</td>' +
     '<td style="text-align:right">' + (p.anugerah || []).length + '</td></tr>').join('');
 
@@ -5224,6 +5322,7 @@ const KJ_LALAI = [
   { label: 'Tempat', nilai: '' }
 ];
 const KJ_AJAK_LALAI = 'Dengan hormatnya mempelawa ibu bapa / penjaga kepada';
+const KJ_AJAK_LUAR_LALAI = 'Dengan hormatnya mempelawa';
 const KJ_KAKI_LALAI = 'Sila hadir 15 minit awal. Tunjukkan kad ini di meja pendaftaran.';
 
 function kjBaris() {
@@ -5239,6 +5338,7 @@ function initKad() {
   if (!MAJLIS) return;
   MAJLIS.kadBaris = kjBaris();
   $('kj-ajak').value = MAJLIS.kadAjak || '';
+  $('kj-ajak-luar').value = MAJLIS.kadAjakLuar || '';
   $('kj-kaki').value = MAJLIS.kadKaki || '';
   lukisKjBaris();
   isiTapisKad();
@@ -5280,6 +5380,7 @@ $('b-kj-baris').addEventListener('click', () => {
 });
 
 $('kj-ajak').addEventListener('input', () => { MAJLIS.kadAjak = $('kj-ajak').value; lukisKad(); });
+$('kj-ajak-luar').addEventListener('input', () => { MAJLIS.kadAjakLuar = $('kj-ajak-luar').value; lukisKad(); });
 $('kj-kaki').addEventListener('input', () => { MAJLIS.kadKaki = $('kj-kaki').value; lukisKad(); });
 
 $('b-kj-simpan').addEventListener('click', async () => {
@@ -5288,6 +5389,7 @@ $('b-kj-simpan').addEventListener('click', async () => {
      hanya menjadi baris hantu yang admin tidak faham kemudian. */
   MAJLIS.kadBaris = (MAJLIS.kadBaris || []).filter(b => String(b.label || '').trim());
   MAJLIS.kadAjak = $('kj-ajak').value.trim();
+  MAJLIS.kadAjakLuar = $('kj-ajak-luar').value.trim();
   MAJLIS.kadKaki = $('kj-kaki').value.trim();
   const btn = $('b-kj-simpan');
   btn.disabled = true; btn.textContent = 'Menyimpan\u2026';
@@ -5385,7 +5487,8 @@ function lukisKad() {
       '<div class="sek">' + agEsc(MAJLIS.sekolah || '') + '</div>' +
       '<div class="tajuk">' + agEsc(MAJLIS.nama || '') + '</div>' +
       '<hr class="garis">' +
-      '<div class="ajak">' + agEsc(ajak) + '</div>' +
+      /* Bukan murid dijemput terus, bukan "ibu bapa kepada". */
+      '<div class="ajak">' + agEsc(agAdalahLuar(p) ? (MAJLIS.kadAjakLuar || KJ_AJAK_LUAR_LALAI) : ajak) + '</div>' +
       '<div class="nama">' + agEsc(p.nama || '') + '</div>' +
       '<div class="kelas">' + agEsc(agDarjahKelas(p.tahun, p.kelas)) + '</div>' +
       (baris.length

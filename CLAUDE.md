@@ -850,6 +850,19 @@ Pilihan ketiga dalam modal Ubah Anugerah: **Susun sendiri (admin seret)** = `a.s
 
 Oracle 20,000 kes `agSusunManual`/`agBelumDisusun` — 0 beza; 3 mutasi ditangkap. Diuji di Chrome dengan data dalam memori (`simpanMajlis` disekat): ↓, seret, murid baharu, giliran, modal, modal sub membawa medan.
 
+#### Penerima BUKAN MURID (29 Okt 2026)
+
+Untuk anugerah seperti **Anugerah Ibu Bapa Terbaik**: anugerah `sumber:'manual'` mendapat kotak **✏️ Nama bukan murid** di atas senarai murid dalam modal 👤 Pilih Murid. Admin taip **nama sahaja** (tiada KP/telefon — tidak disimpan kerana tidak diperlukan). Murid ESIS masih dipilih dari senarai seperti biasa.
+
+- **Koleksi SAMA** (`anugerah_penerima`), `jenis:'luar'`, `tahun:''`, `kelas:''`. Giliran, tiket, kad, MC, Peserta, Hadiah, tayangan, PPTX, Semak dan Susun sendiri berfungsi tanpa laluan baharu.
+- `no_kp` = `agIdLuar()` → `LUAR_` + 12 **huruf** (tiada digit, supaya carian KP ≥4 digit tidak terpadan secara tak sengaja).
+- **Nama sama (huruf besar, ruang dimampat) dalam majlis yang sama = orang yang sama**: entri ditambah pada rekod sedia ada (`tambahPenerimaLuar`), jadi dia memegang satu tiket dan satu kad. Pendua dalam sub yang sama ditolak.
+- Nama yang sama dengan murid ESIS → `confirm()` (murid patut dipilih dari senarai supaya kelasnya ikut).
+- `agKelasPenerima(p)` = "Bukan murid" untuk senarai **admin**; tiket/kad/panel petugas memakai `agDarjahKelas` → kosong (nama sahaja).
+- `luarSkopPenerima` sentiasa `false` untuk bukan murid (tiada darjah) — jadi 🔧 Betulkan tidak menyentuh mereka.
+- **Kad jemputan**: ayat berasingan `MAJLIS.kadAjakLuar` (lalai "Dengan hormatnya mempelawa") — bukan "ibu bapa / penjaga kepada".
+- Belum ada "Daftar Orang" untuk dipakai semula tahun berikutnya — nama ditaip setiap majlis.
+
 #### Nombor giliran mesti berturutan tanpa jurang
 
 `beriNombor(true)` (🔁 Jana Semula) menomborkan 1…N mengikut `binaTurutan`; sub tanpa peserta dilangkau sendiri dan tidak memakan nombor.
