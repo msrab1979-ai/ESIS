@@ -2298,13 +2298,7 @@ function pilStatusBorang(b) {
             '<span class="kanan">' +
               pilStatusBorang(bSub) +
               kiraan +
-              /* 🎤 Lencana hanya bila sub MENIMPA anugerah induk. */
-              (agNaikPentas(a, s) !== agNaikPentas(a, null)
-                ? (agNaikPentas(a, s)
-                  ? '<span class="pil hadir" title="Sub ini naik pentas walaupun anugerah tidak">🎤 Naik pentas</span>'
-                  : '<span class="pil" style="background:#e5e5e5;color:#555" ' +
-                    'title="Sub ini tiada dalam giliran, tiket, MC, sijil dan kad jemputan">🚫 Tidak naik pentas</span>')
-                : '') +
+              butangPentas(i, a, [s]) +
               lencanaSusun +
               /* 🔴 Hanya muncul bila ADA kerja untuk dibuat — butang
                  untuk sifar murid luar skop ialah bunyi bising pada
@@ -2369,7 +2363,8 @@ function pilStatusBorang(b) {
               '<span class="anak-panah">\u25b6</span>' +
               '<span class="nama-sub">' + agEsc(nama) + '</span>' +
               '<span class="kanan"><span class="kecil">' + senarai.length + ' darjah \u00b7 ' +
-                bilM + ' murid</span>' + pilKunci(a, senarai.map(([sb]) => sb)) + '</span>' +
+                bilM + ' murid</span>' + pilKunci(a, senarai.map(([sb]) => sb)) +
+                butangPentas(i, a, senarai.map(([sb]) => sb)) + '</span>' +
             '</div>' +
             '<ul class="kump-isi">' + senarai
               .sort(([x], [y]) => agWordDarjah(x.skopNilai) - agWordDarjah(y.skopNilai))
@@ -2405,6 +2400,7 @@ function pilStatusBorang(b) {
                 '<span class="kecil">' + senarai.length + ' kelas · ' +
                   bilMuridD + ' murid</span>' +
                 pilKunci(a, senarai.map(([sb]) => sb)) +
+                butangPentas(i, a, senarai.map(([sb]) => sb)) +
                 '<button class="btn ' + (bDarjah ? 'sunyi' : 'hijau') + ' kecil" ' +
                   'data-dj-borang="' + i + ',' + agEsc(w) + '">' +
                   (bDarjah ? '\ud83d\udd17 Borang' : '\ud83d\udcdd Bina Borang') + '</button>' +
@@ -2439,7 +2435,7 @@ function pilStatusBorang(b) {
             : '') +
           '<button class="btn sunyi kecil" data-sub-baru="' + i + '">➕ Sub</button>' +
           pilihSusunAnugerah(a, i) +
-          pilihPentasAnugerah(a, i) +
+          butangPentas(i, a, null) +
           '<button class="btn sunyi kecil" data-an-edit="' + i + '">Ubah</button>' +
           '<button class="btn sunyi kecil" data-an-buang="' + i + '">Buang</button>' +
         '</span>' +
@@ -2463,39 +2459,63 @@ function pilihSusunAnugerah(a, i) {
     '</select></label>';
 }
 
-/* 🎤 Dropdown "Pentas" pada baris anugerah — medan SAMA dengan modal
-   Ubah Anugerah (a.pentas). Tetapan per sub ada dalam modal Ubah Sub. */
-function pilihPentasAnugerah(a, i) {
-  const tidak = a.pentas === false;
-  return '<label class="pilih-susun" title="Tidak naik pentas = tiada dalam giliran, tiket, MC, ' +
-    'peserta, hadiah, tayang, sijil dan kad jemputan. Anugerah dan muridnya kekal di sini.">' +
-    '\ud83c\udfa4 Pentas: <select data-an-pentas="' + i + '"' +
-      (tidak ? ' style="background:#e5e5e5"' : '') + '>' +
-      '<option value="ya"' + (tidak ? '' : ' selected') + '>Naik pentas</option>' +
-      '<option value="tidak"' + (tidak ? ' selected' : '') + '>Tidak naik pentas</option>' +
-    '</select></label>';
+/* 🎤 Butang Naik pentas — SATU komponen untuk tiga aras dalam pokok:
+   anugerah (subList null = semua sub), kumpulan (subjek / darjah) dan
+   satu sub. Label = keadaan sekarang; klik = semua naik → semua tidak,
+   selain itu → semua naik. Aras atas menetapkan semua di bawahnya; aras
+   bawah memperhalusi. */
+function butangPentas(i, a, subList) {
+  const root = !subList;
+  const senarai = root ? (a.sub || []) : subList;
+  const n = senarai.length;
+  const naik = n ? senarai.filter(s => agNaikPentas(a, s)).length
+                 : (agNaikPentas(a, null) ? 1 : 0);
+  const jum = n || 1;
+  const semua = naik === jum, tiada = naik === 0;
+  const ids = root ? '*' : senarai.map(s => s.id).join('|');
+  const label = semua ? '🎤 Naik pentas'
+              : tiada ? '🚫 Tidak naik pentas'
+              : '🎤 ' + naik + '/' + jum + ' naik pentas';
+  const gaya = semua ? 'background:#e7f6ec;color:#1d6b3a;border-color:#9fd3b1'
+             : tiada ? 'background:#e5e5e5;color:#555;border-color:#bbb'
+             : 'background:#fff4d6;color:#8a5a00;border-color:#e8c46a';
+  return '<button class="btn kecil" style="' + gaya + '" data-pentas="' + i + '" ' +
+    'data-pentas-id="' + agEsc(ids) + '" title="' +
+    (semua ? 'Tekan untuk keluarkan dari giliran' : 'Tekan untuk masukkan ke giliran') +
+    ' — tidak naik pentas = tiada giliran, tiket, MC, peserta, hadiah, tayang, sijil, kad jemputan">' +
+    label + '</button>';
 }
 
-$('pokok-anugerah').addEventListener('change', async e => {
-  const sel = e.target.closest('select[data-an-pentas]');
-  if (!sel) return;
-  const a = (MAJLIS.anugerah || [])[parseInt(sel.dataset.anPentas)];
+/* Tetapkan naik pentas. ids '*' = seluruh anugerah: a.pentas ditetapkan
+   dan semua timpaan sub dibuang. Selain itu: s.pentas per sub — dibuang
+   bila sama dengan anugerah, supaya data kekal bersih. */
+async function setPentas(i, ids, nilai) {
+  const a = (MAJLIS.anugerah || [])[i];
   if (!a) return;
-  const ada = Object.prototype.hasOwnProperty.call(a, 'pentas');
-  const lama = a.pentas;
-  if (sel.value === 'tidak') a.pentas = false; else delete a.pentas;
-  sel.disabled = true;
+  const salinan = JSON.parse(JSON.stringify(a));
+  if (ids === '*') {
+    if (nilai) delete a.pentas; else a.pentas = false;
+    (a.sub || []).forEach(s => { delete s.pentas; });
+  } else {
+    const set = new Set(ids.split('|'));
+    const asal = agNaikPentas(a, null);
+    (a.sub || []).forEach(s => {
+      if (!set.has(s.id)) return;
+      if (nilai === asal) delete s.pentas; else s.pentas = nilai;
+    });
+  }
   try {
     await simpanMajlis();
-    agToast((a.pentas === false ? 'Tidak naik pentas' : 'Naik pentas') +
-      ' \u00b7 tekan \ud83d\udd01 Jana Semula di Giliran untuk kemas nombor', 'ok');
+    agToast((nilai ? '🎤 Naik pentas' : '🚫 Tidak naik pentas') +
+      ' · tekan 🔁 Jana Semula di Giliran untuk kemas nombor', 'ok');
   } catch (err) {
-    if (ada) a.pentas = lama; else delete a.pentas;
+    Object.keys(a).forEach(k => delete a[k]);
+    Object.assign(a, salinan);
     agToast('Gagal: ' + err.message, 'ralat');
   }
   lukisPokok();
   if ($('susun-amaran')) amaranPentas();
-});
+}
 
 $('pokok-anugerah').addEventListener('change', async e => {
   const sel = e.target.closest('select[data-an-susun]');
@@ -2530,7 +2550,22 @@ $('pokok-anugerah').addEventListener('change', async e => {
 $('pokok-anugerah').addEventListener('click', e => {
   /* Dropdown susunan duduk DI DALAM .induk — klik padanya tidak boleh
      menogol accordion anugerah. */
-  if (e.target.closest('select[data-an-susun],select[data-an-pentas]')) return;
+  if (e.target.closest('select[data-an-susun]')) return;
+  /* 🎤 Disemak sebelum togol — butang duduk dalam .induk / .kump-kepala / baris sub. */
+  const bPentas = e.target.closest('button[data-pentas]');
+  if (bPentas) {
+    e.stopPropagation();
+    const i = parseInt(bPentas.dataset.pentas);
+    const a = (MAJLIS.anugerah || [])[i];
+    if (!a) return;
+    const ids = bPentas.dataset.pentasId;
+    const senarai = ids === '*' ? (a.sub || [])
+      : (a.sub || []).filter(s => ids.split('|').includes(s.id));
+    const semuaNaik = senarai.length ? senarai.every(s => agNaikPentas(a, s)) : agNaikPentas(a, null);
+    bPentas.disabled = true;
+    setPentas(i, ids, !semuaNaik);
+    return;
+  }
   /* Disemak sebelum togol: butang ini duduk di dalam .induk / .kump-kepala. */
   const bKunci = e.target.closest('button[data-kunci-semua]');
   if (bKunci) {
@@ -3484,7 +3519,10 @@ function modalAnugerah(idx) {
     if (a.sumber === 'manual' && kad && kad.dataset.sumberKad === 'luar') a.calon = 'luar';
     else delete a.calon;
     a.asas = a.sumber === 'manual' ? null : $('a-asas').value;
-    if ($('a-pentas').value === 'tidak') a.pentas = false; else delete a.pentas;
+    /* 🎤 Aras anugerah menetapkan SEMUA sub — timpaan sub dibuang bila berubah. */
+    const pentasBaru = $('a-pentas').value !== 'tidak';
+    if (pentasBaru !== (a.pentas !== false)) (a.sub || []).forEach(s => { delete s.pentas; });
+    if (pentasBaru) delete a.pentas; else a.pentas = false;
     const susun = $('a-susun').value;
     if (susun === 'manual') a.susunMurid = 'manual';
     else if (a.sumber !== 'manual' && susun === 'kedudukan') a.susunMurid = 'kedudukan';

@@ -907,7 +907,7 @@ Untuk anugerah seperti **Anugerah Ibu Bapa Terbaik**: anugerah `sumber:'manual'`
 
 #### 🎤 Naik pentas Ya/Tidak (30 Okt 2026)
 
-`a.pentas === false` = anugerah tidak naik pentas; `s.pentas` (true/false) menimpa, tiada = ikut anugerah. **Lalai YA** (tiada medan) — majlis lama tidak berubah. Ditetapkan melalui dropdown **🎤 Pentas** pada baris anugerah dalam pokok, modal Ubah Anugerah, dan modal Ubah Sub (`baca()` membawa `pentas`).
+`a.pentas === false` = anugerah tidak naik pentas; `s.pentas` (true/false) menimpa, tiada = ikut anugerah. **Lalai YA** (tiada medan) — majlis lama tidak berubah. Ditetapkan melalui **butang 🎤 pada tiga aras pokok** (`butangPentas`/`setPentas`): baris anugerah (`*` = tetapkan `a.pentas` + buang semua timpaan sub), tajuk kumpulan subjek/darjah, dan baris sub. Label = keadaan (`🎤 Naik pentas` / `🚫 Tidak naik pentas` / `🎤 2/3 naik pentas`); klik: semua naik → semua tidak, selain itu → semua naik. `s.pentas` dibuang bila sama dengan anugerah. Juga dalam modal Ubah Anugerah (tukar aras anugerah membuang timpaan sub) dan Ubah Sub (`baca()` membawa `pentas`).
 
 - **Kekal** dalam Jenis Anugerah & Semak Penerima. **Keluar** dari giliran, tiket, MC, peserta, hadiah, tayang, PPTX, **sijil dan kad jemputan** (pengguna: sijil ✗, kad ✗).
 - Satu penapis: `agNaikPentas` dalam `agSusunanSub` (+ cabang gaya asal `binaTurutan`). Peserta & sijil ikut serta-merta; MC/hadiah/tayang membaca `giliran[]`, jadi perlu **🔁 Jana Semula** — `agBuangGiliranLuar` membuang entri giliran yang tiada dalam turutan, termasuk murid yang SEMUA anugerahnya tidak naik pentas (tiada dalam turutan langsung). `amaranPentas()` memberi amaran selagi nombor lama wujud. Tiket & PPTX admin menapis terus.
