@@ -114,6 +114,9 @@
 .susun-manual tr.ms-seret td{opacity:.45}
 .susun-manual tr.ms-sasar td{box-shadow:inset 0 2px 0 var(--emas, #b8860b)}
 .susun-manual .ms-anak{width:1%; white-space:nowrap}
+.susun-manual th{font-size:11px; font-weight:600; color:var(--neutral); text-align:left; padding:2px 8px 4px 0}
+.susun-manual .ms-ked{width:1%; white-space:nowrap; text-align:center; padding-right:14px; font-size:13.5px}
+.susun-manual.dikunci{background:#f3f6ef}
 .susun-manual .ms-anak button{border:1px solid var(--garis); background:var(--kertas); color:var(--teks);
   border-radius:5px; padding:0 7px; margin-right:3px; font-size:12px; line-height:1.6; cursor:pointer}
 .susun-manual .ms-anak button:disabled{opacity:.3; cursor:default}
@@ -1608,6 +1611,9 @@ async function semaiSusunanAnugerah(a) {
    ikut urutan diberi. PENERIMA mesti sudah dimuat semula. */
 async function tambahKeSusunan(a, s, kpBaru) {
   if (!agIkutManual(a) || !kpBaru.length) return;
+  /* Dikunci: jangan ubah susunan. Murid baharu di bawah dengan amaran
+     merah sehingga admin buka kunci dan menyusunnya. */
+  if (s.susunKunci) return;
   const baru = new Set(kpBaru);
   const asas = susunanSemasaSub(s).filter(kp => !baru.has(kp));
   const ada = new Set(penerimaSub(s.id).map(p => p.no_kp));
@@ -1668,49 +1674,71 @@ function susunTakPadanGiliran(s, baris) {
 function lukisSusunManual(s, baris, dalamModal) {
   const an = anugerahBagiSub(s.id);
   const auto = an && an.sumber !== 'manual';
+  const kunci = !!s.susunKunci;
   const belum = agBelumDisusun(s, baris.map(b => b.p)).length;
   const n = baris.length;
-  /* Kedudukan (maklumat sahaja) dikira di latar, sekali bagi setiap sub. */
+  /* Rank markah dikira di latar — hanya untuk petunjuk tetikus. */
   if (auto && !RANK_SUB[s.id] && !MS_RANK_CUBA.has(s.id)) {
     MS_RANK_CUBA.add(s.id);
     rankSub(an, s).then(r => { if (!r) MS_RANK_GAGAL.add(s.id); })
       .catch(() => MS_RANK_GAGAL.add(s.id))
       .then(() => segarPaparanSusun(s));
   }
-  return '<div class="murid-senarai susun-manual" data-ms-sub="' + agEsc(s.id) + '">' +
-    '<div class="ms-kepala"><span><strong>Susunan naik pentas — susun sendiri.</strong> ' +
-      'Seret ⠿ atau tekan ↑↓. Disimpan terus.</span>' +
-      (auto
-        ? '<button class="btn sunyi kecil" data-ms="rank" title="Ganti susunan dengan kedudukan dari markah">↺ Susun ikut kedudukan</button>'
-        : '<button class="btn sunyi kecil" data-ms="nama" title="Ganti susunan dengan abjad nama">↺ Susun ikut nama</button>') +
+  /* 🔴 SATU NOMBOR SAHAJA. Versi pertama memapar nombor susunan, rank
+     markah ("Kedudukan 6") DAN nombor giliran pada setiap baris — admin
+     tidak tahu yang mana kedudukan sebenar, dan perkataan "Kedudukan"
+     melekat pada nombor yang BUKAN keputusannya. Rank markah kini hanya
+     dalam `title` nama; giliran milik tab Giliran & Tiket. */
+  const petunjuk = p => {
+    if (agAdalahLuar(p)) return 'Bukan murid';
+    if (!auto) return '';
+    const r = RANK_SUB[s.id] && RANK_SUB[s.id][p.no_kp];
+    return r ? 'Rank markah ' + r.kedudukan + (r.nilai != null ? ' · ' + r.nilai : '')
+             : RANK_SUB[s.id] ? 'Tiada markah' : '';
+  };
+  return '<div class="murid-senarai susun-manual' + (kunci ? ' dikunci' : '') +
+      '" data-ms-sub="' + agEsc(s.id) + '">' +
+    '<div class="ms-kepala">' +
+      (kunci
+        ? '<span><strong>🔒 Susunan dikunci.</strong> Muktamad — tekan Buka kunci untuk mengubah.</span>' +
+          '<button class="btn sunyi kecil" data-ms="buka">🔓 Buka kunci</button>'
+        : '<span><strong>Susunan naik pentas — susun sendiri.</strong> Seret ⠿ atau tekan ↑↓. ' +
+            'Tekan 🔒 Kunci bila siap.</span>' +
+          '<span style="display:flex;gap:6px">' +
+          (auto
+            ? '<button class="btn sunyi kecil" data-ms="rank" title="Ganti susunan dengan kedudukan dari markah">↺ Susun ikut markah</button>'
+            : '<button class="btn sunyi kecil" data-ms="nama" title="Ganti susunan dengan abjad nama">↺ Susun ikut nama</button>') +
+          '<button class="btn emas kecil" data-ms="kunci">🔒 Kunci</button></span>') +
     '</div>' +
-    (belum ? '<div class="nota amaran ms-nota"><span class="sym">⚠</span><div>' +
-      '<strong>' + belum + ' murid belum disusun</strong> — diletak di bawah ikut nama. ' +
-      'Seret ke tempatnya, atau <button class="btn kecil" data-ms="sahkan">✓ Sahkan susunan ini</button></div></div>' : '') +
+    (belum ? '<div class="nota ' + (kunci ? 'ralat' : 'amaran') + ' ms-nota"><span class="sym">⚠</span><div>' +
+      '<strong>' + belum + ' penerima belum disusun</strong> — diletak di bawah ikut nama. ' +
+      (kunci ? 'Susunan dikunci: tekan <em>🔓 Buka kunci</em> untuk menyusunnya.'
+             : 'Seret ke tempatnya, atau <button class="btn kecil" data-ms="sahkan">✓ Sahkan susunan ini</button>') +
+      '</div></div>' : '') +
     (susunTakPadanGiliran(s, baris) ? '<div class="nota amaran ms-nota"><span class="sym">⚠</span><div>' +
       '<strong>Nombor giliran belum ikut susunan ini.</strong> Tekan <em>🔁 Jana Semula</em> di tab ' +
       'Giliran &amp; Tiket. Tiket yang sudah dicetak perlu dicetak semula.</div></div>' : '') +
-    '<table><tbody>' +
+    '<table><thead><tr>' + (kunci ? '' : '<th></th>') +
+      '<th class="ms-ked">Kedudukan</th><th>Nama</th><th>Kelas</th><th></th>' +
+      (kunci ? '' : '<th></th>') + '<th></th></tr></thead><tbody>' +
     baris.map((b, k) => {
       const luar = luarSkopPenerima(s, b.p);
       const guru = b.x && b.x.sumber === 'guru';
       const kp = agEsc(b.p.no_kp);
-      return '<tr draggable="true" data-ms-kp="' + kp + '"' + (luar ? ' class="luar"' : '') + '>' +
-        '<td class="pegang" title="Seret untuk susun">⠿</td>' +
-        '<td class="bil"><strong>' + (k + 1) + '</strong></td>' +
-        (auto ? '<td class="kls" style="width:1%" title="Kedudukan dari markah (maklumat sahaja)">' +
-          (b.kedudukan != null ? 'Kedudukan ' + b.kedudukan
-            : RANK_SUB[s.id] ? 'Tiada markah' : MS_RANK_GAGAL.has(s.id) ? '—' : 'Mengira…') + '</td>' : '') +
-        '<td class="kls" style="width:1%" title="Nombor giliran">' +
-          (b.no != null ? 'Giliran ' + b.no : '<span title="Belum bernombor">—</span>') + '</td>' +
-        '<td>' + agEsc(b.p.nama) + '</td>' +
+      const tip = petunjuk(b.p);
+      return '<tr' + (kunci ? '' : ' draggable="true"') + ' data-ms-kp="' + kp + '"' +
+          (luar ? ' class="luar"' : '') + '>' +
+        (kunci ? '' : '<td class="pegang" title="Seret untuk susun">⠿</td>') +
+        '<td class="ms-ked"><strong>' + (k + 1) + '</strong></td>' +
+        '<td' + (tip ? ' title="' + agEsc(tip) + '"' : '') + '>' + agEsc(b.p.nama) + '</td>' +
         '<td class="kls">' + agEsc(agKelasPenerima(b.p)) +
           (luar ? ' ⚠ luar skop' : '') + '</td>' +
         '<td style="width:1%;white-space:nowrap">' +
           '<span class="pil ' + (guru ? 'hadir' : 'tunggu') + '">' +
             agEsc(agLabelSumber(b.x)) + '</span></td>' +
-        '<td class="ms-anak"><button data-ms="naik" title="Naik"' + (k ? '' : ' disabled') + '>↑</button>' +
-          '<button data-ms="turun" title="Turun"' + (k < n - 1 ? '' : ' disabled') + '>↓</button></td>' +
+        (kunci ? '' :
+          '<td class="ms-anak"><button data-ms="naik" title="Naik"' + (k ? '' : ' disabled') + '>↑</button>' +
+          '<button data-ms="turun" title="Turun"' + (k < n - 1 ? '' : ' disabled') + '>↓</button></td>') +
         '<td class="buang"><button class="btn-buang-murid" ' +
           (dalamModal
             ? 'data-pm-buang="' + kp + '"'
@@ -1719,6 +1747,55 @@ function lukisSusunManual(s, baris, dalamModal) {
       '</tr>';
     }).join('') +
     '</tbody></table></div>';
+}
+
+/* Kunci / buka susunan satu atau beberapa sub. Susunan yang SEDANG
+   dipapar dibekukan (termasuk penerima yang belum disusun, di bawah
+   ikut nama) — apa yang admin lihat ketika menekan Kunci ialah apa
+   yang dikunci. */
+async function kunciSusunan(subList, kunci) {
+  const lama = subList.map(s => ({ s, k: s.susunKunci, m: s.susunKunciMasa, u: s.susunanMurid }));
+  subList.forEach(s => {
+    if (kunci) {
+      s.susunanMurid = susunanSemasaSub(s);
+      s.susunKunci = true;
+      s.susunKunciMasa = new Date().toISOString();
+    } else {
+      delete s.susunKunci; delete s.susunKunciMasa;
+    }
+  });
+  try {
+    await simpanMajlis();
+  } catch (e) {
+    lama.forEach(({ s, k, m, u }) => {
+      if (k === undefined) delete s.susunKunci; else s.susunKunci = k;
+      if (m === undefined) delete s.susunKunciMasa; else s.susunKunciMasa = m;
+      if (u === undefined) delete s.susunanMurid; else s.susunanMurid = u;
+    });
+    agToast('Gagal: ' + e.message, 'ralat');
+    return false;
+  }
+  lukisPokok();
+  if (PM && $('pm-susun')) pmLukisSusun();
+  return true;
+}
+
+/* Sub berpenerima dalam senarai, dan berapa yang dikunci. */
+function kiraKunci(subList) {
+  const ada = subList.filter(s => penerimaSub(s.id).length);
+  return { ada, kunci: ada.filter(s => s.susunKunci).length };
+}
+
+/* Pil kemajuan "🔒 3 / 6 dikunci" + butang Kunci semua (bila belum). */
+function pilKunci(a, subList) {
+  if (!agIkutManual(a)) return '';
+  const { ada, kunci } = kiraKunci(subList);
+  if (!ada.length) return '';
+  const siap = kunci === ada.length;
+  return '<span class="pil ' + (siap ? 'hadir' : 'tunggu') + '" title="Sub yang susunannya sudah dikunci">' +
+      '🔒 ' + kunci + ' / ' + ada.length + ' dikunci' + (siap ? ' ✓' : '') + '</span>' +
+    (siap ? '' : '<button class="btn sunyi kecil" data-kunci-semua="' +
+      agEsc(JSON.stringify(ada.filter(s => !s.susunKunci).map(s => s.id))) + '">🔒 Kunci semua</button>');
 }
 
 function subDariId(subId) {
@@ -1730,6 +1807,7 @@ async function jalanSusun(subId, fn) {
   if (MS_SIBUK) return;
   const { a, s } = subDariId(subId);
   if (!a || !s || !agIkutManual(a)) return;
+  if (s.susunKunci) { agToast('Susunan dikunci — tekan 🔓 Buka kunci dahulu', 'ralat'); return; }
   MS_SIBUK = true;
   try { await fn(a, s); } finally { MS_SIBUK = false; }
 }
@@ -1767,11 +1845,21 @@ if (!window._msPasang) {
       const i = susunanSemasaSub(s).indexOf(kp);
       return pindahMuridSusun(subId, i, tindakan === 'naik' ? i - 1 : i + 1);
     }
+    if (tindakan === 'kunci' || tindakan === 'buka') {
+      const { a, s } = subDariId(subId);
+      if (!a || !s || MS_SIBUK) return;
+      if (tindakan === 'buka' && !confirm('Buka kunci susunan "' + s.nama + '"?\n\n' +
+        'Susunan boleh diubah semula selepas ini.')) return;
+      MS_SIBUK = true;
+      return kunciSusunan([s], tindakan === 'kunci').then(ok => {
+        if (ok) agToast(tindakan === 'kunci' ? '🔒 ' + s.nama + ' dikunci' : '🔓 Kunci dibuka', 'ok');
+      }).finally(() => { MS_SIBUK = false; });
+    }
     if (tindakan === 'sahkan') return jalanSusun(subId, (a, s) =>
       simpanSusunanMurid(s, susunanSemasaSub(s), 'Susunan disahkan'));
     if (tindakan === 'nama' || tindakan === 'rank') return jalanSusun(subId, async (a, s) => {
       if (!confirm('Ganti susunan sub ini dengan susunan ikut ' +
-        (tindakan === 'rank' ? 'kedudukan dari markah' : 'nama') + '?\n\n' +
+        (tindakan === 'rank' ? 'markah' : 'nama') + '?\n\n' +
         'Susunan yang kau buat sendiri akan hilang.')) return;
       let rank = null;
       if (tindakan === 'rank') {
@@ -1781,7 +1869,7 @@ if (!window._msPasang) {
       }
       const susun = susunIkutRank(penerimaSub(s.id).map(p => ({ p })), rank).map(x => x.p.no_kp);
       await simpanSusunanMurid(s, susun,
-        tindakan === 'rank' ? 'Disusun ikut kedudukan' : 'Disusun ikut nama');
+        tindakan === 'rank' ? 'Disusun ikut markah' : 'Disusun ikut nama');
     });
   }, true);
 
@@ -1791,7 +1879,7 @@ if (!window._msPasang) {
 
   document.addEventListener('dragstart', e => {
     const tr = barisSeret(e.target);
-    if (!tr) return;
+    if (!tr || tr.getAttribute('draggable') !== 'true') return;
     const bekas = tr.closest('[data-ms-sub]');
     MS_SERET = { sub: bekas.dataset.msSub, kp: tr.dataset.msKp };
     tr.classList.add('ms-seret');
@@ -1946,7 +2034,9 @@ function pilStatusBorang(b) {
             : '<span class="kecil">0 murid</span>';
           /* Cara susun sekilas + jalan pintas ke jadual seret. */
           const lencanaSusun = agIkutManual(a)
-            ? '<span class="pil tunggu" title="Susunan naik pentas disusun sendiri oleh admin">✋ Sendiri</span>' +
+            ? (s.susunKunci && bil
+                ? '<span class="pil hadir" title="Susunan sudah dikunci">🔒 Dikunci</span>'
+                : '<span class="pil tunggu" title="Susunan naik pentas disusun sendiri oleh admin">✋ Sendiri</span>') +
               (bil ? '<button class="btn emas kecil" data-sub-susun="' + agEsc(kunciM) + '" ' +
                 'title="Buka senarai untuk seret / ↑↓">⠿ Susun</button>' : '')
             : agIkutKedudukan(a)
@@ -2027,7 +2117,7 @@ function pilStatusBorang(b) {
               '<span class="anak-panah">\u25b6</span>' +
               '<span class="nama-sub">' + agEsc(nama) + '</span>' +
               '<span class="kanan"><span class="kecil">' + senarai.length + ' darjah \u00b7 ' +
-                bilM + ' murid</span></span>' +
+                bilM + ' murid</span>' + pilKunci(a, senarai.map(([sb]) => sb)) + '</span>' +
             '</div>' +
             '<ul class="kump-isi">' + senarai
               .sort(([x], [y]) => agWordDarjah(x.skopNilai) - agWordDarjah(y.skopNilai))
@@ -2062,6 +2152,7 @@ function pilStatusBorang(b) {
                 pilStatusBorang(bDarjah) +
                 '<span class="kecil">' + senarai.length + ' kelas · ' +
                   bilMuridD + ' murid</span>' +
+                pilKunci(a, senarai.map(([sb]) => sb)) +
                 '<button class="btn ' + (bDarjah ? 'sunyi' : 'hijau') + ' kecil" ' +
                   'data-dj-borang="' + i + ',' + agEsc(w) + '">' +
                   (bDarjah ? '\ud83d\udd17 Borang' : '\ud83d\udcdd Bina Borang') + '</button>' +
@@ -2080,6 +2171,7 @@ function pilStatusBorang(b) {
         '<span class="tajuk-a">' + agEsc(a.nama) + '</span>' + pilSumber +
         '<span class="kanan">' +
           '<span class="kecil">' + sub.length + ' sub · ' + bilMurid + ' murid</span>' +
+          pilKunci(a, sub) +
           pilBorang +
           (luarAn ? '<button class="btn kecil" style="background:#b33;color:#fff;' +
             'border-color:#b33" data-an-betul="' + i + '" ' +
@@ -2112,7 +2204,7 @@ function pilihSusunAnugerah(a, i) {
     (v === nilai ? ' selected' : '') + '>' + label + '</option>';
   return '<label class="pilih-susun" title="Susunan murid naik pentas dalam setiap sub">Susunan: ' +
     '<select data-an-susun="' + i + '">' +
-      (a.sumber !== 'manual' ? op('kedudukan', 'Auto — ikut kedudukan') : '') +
+      (a.sumber !== 'manual' ? op('kedudukan', 'Auto — ikut markah') : '') +
       op('manual', 'Susun sendiri') +
       op('nama', 'Ikut nama') +
     '</select></label>';
@@ -2135,7 +2227,7 @@ $('pokok-anugerah').addEventListener('change', async e => {
     if (agIkutManual(a)) await semaiSusunanAnugerah(a);
     await simpanMajlis();
     POKOK_BUKA[a.id] = true;
-    agToast('Susunan: ' + ({ manual: 'susun sendiri', kedudukan: 'auto ikut kedudukan',
+    agToast('Susunan: ' + ({ manual: 'susun sendiri', kedudukan: 'auto ikut markah',
       nama: 'ikut nama' })[v] + ' · tekan 🔁 Jana Semula di Giliran bila siap', 'ok');
   } catch (err) {
     if (ada) a.susunMurid = lama; else delete a.susunMurid;
@@ -2152,6 +2244,24 @@ $('pokok-anugerah').addEventListener('click', e => {
   /* Dropdown susunan duduk DI DALAM .induk — klik padanya tidak boleh
      menogol accordion anugerah. */
   if (e.target.closest('select[data-an-susun]')) return;
+  /* Disemak sebelum togol: butang ini duduk di dalam .induk / .kump-kepala. */
+  const bKunci = e.target.closest('button[data-kunci-semua]');
+  if (bKunci) {
+    e.stopPropagation();
+    let ids = [];
+    try { ids = JSON.parse(bKunci.dataset.kunciSemua); } catch (err) { return; }
+    const subList = ids.map(id => subDariId(id).s).filter(Boolean);
+    if (!subList.length) return;
+    if (!confirm('Kunci susunan ' + subList.length + ' sub?\n\n' +
+      subList.slice(0, 8).map(x => '• ' + x.nama).join('\n') +
+      (subList.length > 8 ? '\n… dan ' + (subList.length - 8) + ' lagi' : '') +
+      '\n\nSusunan yang dipapar sekarang akan dibekukan.')) return;
+    bKunci.disabled = true;
+    kunciSusunan(subList, true).then(ok => {
+      if (ok) agToast('🔒 ' + subList.length + ' sub dikunci', 'ok');
+    });
+    return;
+  }
   const bSusun = e.target.closest('button[data-sub-susun]');
   if (bSusun) {
     const kunci = bSusun.dataset.subSusun;
@@ -2637,7 +2747,7 @@ function modalAnugerah(idx) {
            anugerah sedia ada tidak berubah. */
         '<div class="medan" id="kotak-susun"><label for="a-susun">Susunan murid naik pentas</label><select id="a-susun">' +
           '<option value="nama"' + (!a.susunMurid ? ' selected' : '') + '>Ikut nama</option>' +
-          '<option value="kedudukan"' + (a.susunMurid === 'kedudukan' ? ' selected' : '') + '>Ikut kedudukan (rank 1 dahulu)</option>' +
+          '<option value="kedudukan"' + (a.susunMurid === 'kedudukan' ? ' selected' : '') + '>Auto — ikut markah (rank 1 dahulu)</option>' +
           /* Susun sendiri: admin seret / ↑↓ dalam modal Pilih Murid atau
              senarai murid pokok. Disimpan pada sub (s.susunanMurid). */
           '<option value="manual"' + (a.susunMurid === 'manual' ? ' selected' : '') + '>Susun sendiri (admin seret)</option>' +
@@ -4012,6 +4122,7 @@ async function modalSub(iAn, jSub) {
     }
     /* Susunan naik pentas (susun sendiri) — tiada kawalan di sini. */
     if (Array.isArray(s.susunanMurid)) o.susunanMurid = s.susunanMurid;
+    if (s.susunKunci) { o.susunKunci = true; if (s.susunKunciMasa) o.susunKunciMasa = s.susunKunciMasa; }
     return o;
   }
 
@@ -5230,6 +5341,8 @@ async function pecahIkutDarjah(iAn) {
       /* Sub baharu tiada penerima; susunan lama tidak bermakna di sini.
          (Dibuang, bukan undefined — Firestore menolak undefined.) */
       delete baru[baru.length - 1].susunanMurid;
+      delete baru[baru.length - 1].susunKunci;
+      delete baru[baru.length - 1].susunKunciMasa;
     });
   });
 
