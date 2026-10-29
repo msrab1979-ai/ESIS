@@ -835,16 +835,113 @@ function agSubBelumDisusun(majlis) {
   return agSusunanSub(majlis).filter(x => !ada.has(x.s.id));
 }
 
-/* Turutan naik pentas → [{p, a, s}]: susunan sub, murid ikut nama. */
-function agBinaTurutan(majlis, penerima) {
+/* Turutan naik pentas → [{p, a, s}]: susunan sub, murid ikut nama —
+   ATAU ikut kedudukan bagi anugerah `susunMurid:'kedudukan'` bila
+   `kedudukan` ({subId: {no_kp: n}}, daripada agKiraKedudukanMajlis)
+   diberi. Tanpanya kelakuan sama tepat seperti dahulu. */
+function agBinaTurutan(majlis, penerima, kedudukan) {
   const turutan = [];
   agSusunanSub(majlis).forEach(({ a, s }) => {
-    penerima
-      .filter(p => (p.anugerah || []).some(x => x.subId === s.id))
-      .sort((x, y) => String(x.nama).localeCompare(String(y.nama), 'ms'))
-      .forEach(p => turutan.push({ p, a, s }));
+    agSusunMuridSub(
+      penerima.filter(p => (p.anugerah || []).some(x => x.subId === s.id)),
+      kedudukan && agIkutKedudukan(a) ? kedudukan[s.id] : null
+    ).forEach(p => turutan.push({ p, a, s }));
   });
   return turutan;
+}
+
+/* Susun murid dalam SATU sub. `rank` = {no_kp: kedudukan} atau kosong.
+   🔴 Rank dikira atas SEMUA murid skop, tetapi hanya yang DIPILIH naik
+      pentas — jadi rank 2, 5, 9 menjadi giliran pertama, kedua, ketiga
+      dalam sub itu. Seri / tiada rank (tambah manual, tiada markah) →
+      ikut nama; yang tiada rank sentiasa di bawah. */
+function agSusunMuridSub(senarai, rank) {
+  const r = p => {
+    const n = rank ? rank[p.no_kp] : null;
+    return typeof n === 'number' ? n : Infinity;
+  };
+  return senarai.slice().sort((x, y) => {
+    const rx = r(x), ry = r(y);
+    if (rx !== ry) return rx < ry ? -1 : 1;
+    return String(x.nama).localeCompare(String(y.nama), 'ms');
+  });
+}
+
+/* Anugerah yang giliran muridnya ikut kedudukan. Manual tiada ranking. */
+function agIkutKedudukan(a) {
+  return !!a && a.susunMurid === 'kedudukan' && a.sumber !== 'manual';
+}
+
+/* Kira kedudukan TERKINI bagi setiap sub yang berpenerima dalam anugerah
+   `susunMurid:'kedudukan'`. Dipanggil sebelum menomborkan giliran.
+   Pulang { peta: {subId: {no_kp: n}}, gagal: [nama sub] }.
+
+   🔴 Dikira semula dari markah setiap kali, BUKAN dibaca dari entri
+      penerima: murid yang ditambah guru melalui borang tidak membawa
+      rank langsung, dan markah boleh dibetulkan selepas calon dipilih.
+   🔴 Markah ditarik SEKALI bagi setiap peperiksaan (paksa), kemudian
+      setiap sub membaca cache — 38 kelas ialah 2 bacaan, bukan 38.
+   🔴 Peperiksaan dipilih sama seperti modal Pilih Murid:
+      sub > anugerah > ikut darjah > majlis. */
+async function agKiraKedudukanMajlis(majlis, penerima) {
+  const peta = {}, gagal = [];
+  const ada = new Set();
+  (penerima || []).forEach(p => (p.anugerah || []).forEach(x => ada.add(x.subId)));
+
+  const kerja = [];
+  for (const a of ((majlis && majlis.anugerah) || [])) {
+    if (!agIkutKedudukan(a)) continue;
+    for (const s of (a.sub || [])) {
+      if (!ada.has(s.id)) continue;
+      const pep = s.peperiksaan || a.peperiksaan ||
+        await agPepUntukDarjah(majlis, agDarjahSub(s)) || majlis.peperiksaan;
+      kerja.push({ a, s, pep });
+    }
+  }
+  if (!kerja.length) return { peta, gagal };
+
+  const pepUnik = new Set();
+  kerja.forEach(k => (Array.isArray(k.pep) ? k.pep : [k.pep])
+    .forEach(x => { if (x) pepUnik.add(x); }));
+  for (const nama of pepUnik) await agMuatMarkah(majlis.calYear, nama, true);
+
+  for (const { a, s, pep } of kerja) {
+    if (!pep) { gagal.push(s.nama || a.nama); continue; }
+    try {
+      const h = await agKiraCalon({
+        calYear: majlis.calYear, peperiksaan: pep,
+        asas: s.asas || a.asas || 'gps',
+        subjek: s.subjek || a.subjek,
+        skopJenis: s.skopJenis, skopNilai: s.skopNilai, skopDarjah: s.skopDarjah,
+        ambil: s.ambil || 1
+      });
+      const m = {};
+      h.senarai.forEach(x => { m[x.no_kp] = x.kedudukan; });
+      peta[s.id] = m;
+    } catch (e) {
+      gagal.push(s.nama || a.nama);
+    }
+  }
+  return { peta, gagal };
+}
+
+/* Kedudukan diandaikan daripada nombor giliran SEDIA ADA — untuk semakan
+   "nombor tidak padan" yang tidak patut membaca markah. Susunan murid
+   yang sudah dinomborkan dalam sub ikut-kedudukan dianggap betul. */
+function agKedudukanDariNombor(majlis, penerima) {
+  const peta = {};
+  ((majlis && majlis.anugerah) || []).forEach(a => {
+    if (!agIkutKedudukan(a)) return;
+    (a.sub || []).forEach(s => {
+      const m = {};
+      (penerima || []).forEach(p => {
+        const g = (p.giliran || []).find(x => x.subId === s.id);
+        if (g && typeof g.no === 'number') m[p.no_kp] = g.no;
+      });
+      peta[s.id] = m;
+    });
+  });
+  return peta;
 }
 
 /* 🔴 Entri ini ikut entri utama yang MASIH WUJUD dengan nombor sama?
@@ -881,11 +978,11 @@ function agBilNaik(gil) {
       (yang tidak dikecualikan); anugerah lain berkongsi nombor itu.
       Mod tambah: anugerah baharu bagi murid yang sudah bernombor
       menyertai nombor sedia ada, bukan nombor baharu di hujung. */
-function agRancangNombor(majlis, penerima, semua) {
+function agRancangNombor(majlis, penerima, semua, kedudukan) {
   const gaya = agGaya(majlis);
   const gabung = gaya === 'gabung';
   const kecuali = new Set(gabung ? (majlis.gabungKecuali || []) : []);
-  const turutan = agBinaTurutan(majlis, penerima);
+  const turutan = agBinaTurutan(majlis, penerima, kedudukan);
 
   let maks = 0;
   penerima.forEach(p => (p.giliran || []).forEach(g => {

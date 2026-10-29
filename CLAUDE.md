@@ -818,6 +818,20 @@ Kad **Gaya Giliran** di atas Susunan Naik Pentas (tab 🎟️ Giliran & Tiket). 
 
 Oracle 20,000 kes (susunan + nombor + mod tambah + invarian 1…N tanpa jurang) — 0 beza; 5 mutasi ditangkap.
 
+#### Susunan murid naik pentas — ikut nama ATAU ikut kedudukan (29 Okt 2026)
+
+Tetapan per anugerah dalam modal Ubah Anugerah: **Susunan murid naik pentas** = `Ikut nama` (lalai, tiada medan) atau `Ikut kedudukan` (`a.susunMurid:'kedudukan'`). Hanya anugerah `sumber:'auto'` — manual tiada ranking. Dipakai untuk Terbaik Dalam Kelas dan Terbaik Mata Pelajaran.
+
+- **Rank 1 naik dahulu.** Rank dikira atas semua murid skop, tetapi hanya yang **dipilih** naik pentas: rank 2, 5, 9 menjadi giliran pertama, kedua, ketiga dalam sub itu. Seri → ikut nama. Tiada rank (tambah manual / tiada markah) → di bawah, ikut nama.
+- **Rank dikira SEMULA dari markah semasa Beri Nombor / Jana Semula** (`agKiraKedudukanMajlis`), bukan dibaca dari entri penerima: penerima borang guru tidak membawa rank, dan markah boleh dibetulkan selepas calon dipilih. Markah ditarik sekali per peperiksaan (`paksa`), kemudian setiap sub membaca cache. Peperiksaan sama seperti modal Pilih Murid: sub > anugerah > ikut darjah > majlis.
+- **Gagal mengira = berhenti, tiada nombor ditukar** (`kedudukanUntukGiliran` pulang `null`). Jatuh balik ke abjad secara senyap memberi giliran yang kelihatan betul tetapi salah.
+- `agBinaTurutan(majlis, penerima, kedudukan)` / `agRancangNombor(..., kedudukan)` / `binaTurutan(kedudukan)` — tanpa hujah ketiga kelakuan sama tepat seperti dahulu. Rank hanya dipakai bila `agIkutKedudukan(a)`, walaupun peta membawa sub lain.
+- Pratonton Gaya Giliran tidak membaca markah: `agKedudukanDariNombor` menganggap susunan nombor sedia ada dalam sub ikut-kedudukan sebagai betul, supaya amaran "tidak padan" tidak menyala palsu.
+- **Peserta** kini menyusun murid dalam sub ikut **nombor giliran** (bukan nama) supaya sama dengan MC.
+- Nombor sedia ada tidak berubah sendiri — admin tekan 🔁 Jana Semula.
+
+Oracle 5,000 majlis rawak (3 gaya) — 0 beza; 4 mutasi ditangkap (buang pengawal, terbalik, seri tanpa nama, rancang lupa kedudukan).
+
 #### Nombor giliran mesti berturutan tanpa jurang
 
 `beriNombor(true)` (🔁 Jana Semula) menomborkan 1…N mengikut `binaTurutan`; sub tanpa peserta dilangkau sendiri dan tidak memakan nombor.

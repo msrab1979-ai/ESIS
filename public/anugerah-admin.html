@@ -2186,6 +2186,12 @@ function modalAnugerah(idx) {
           Object.keys(ASAS_LABEL).map(k =>
             '<option value="' + k + '"' + (a.asas === k ? ' selected' : '') + '>' + ASAS_LABEL[k] + '</option>').join('') +
         '</select></div>' +
+        /* Susunan murid DALAM setiap sub semasa naik pentas. Lalai nama —
+           anugerah sedia ada tidak berubah. */
+        '<div class="medan" id="kotak-susun"><label for="a-susun">Susunan murid naik pentas</label><select id="a-susun">' +
+          '<option value="nama"' + (a.susunMurid !== 'kedudukan' ? ' selected' : '') + '>Ikut nama</option>' +
+          '<option value="kedudukan"' + (a.susunMurid === 'kedudukan' ? ' selected' : '') + '>Ikut kedudukan (rank 1 dahulu)</option>' +
+        '</select></div>' +
       '</div>' +
       '<div id="kotak-subjek" style="margin-top:13px" hidden>' +
         '<label class="eyebrow" style="display:block;margin-bottom:6px">Subjek dinilai</label>' +
@@ -2253,6 +2259,7 @@ function modalAnugerah(idx) {
     const manual = $('a-sumber').value === 'manual';
     const ikutSubjek = $('a-asas').value === 'subjek';
     tunjuk($('kotak-asas'), !manual);
+    tunjuk($('kotak-susun'), !manual);
     tunjuk($('kotak-subjek'), !manual && ikutSubjek);
     /* Peperiksaan terpakai kepada SETIAP anugerah auto, bukan hanya yang
        menilai satu subjek — Terbaik Dalam Darjah dan Terbaik Dalam Aliran
@@ -2503,6 +2510,8 @@ function modalAnugerah(idx) {
     a.nama = nama;
     a.sumber = $('a-sumber').value;
     a.asas = a.sumber === 'manual' ? null : $('a-asas').value;
+    if (a.sumber !== 'manual' && $('a-susun').value === 'kedudukan') a.susunMurid = 'kedudukan';
+    else delete a.susunMurid;
 
     if (a.asas === 'subjek') {
       const sj = Array.from(document.querySelectorAll('.a-sj:checked')).map(x => x.value);
@@ -4056,7 +4065,10 @@ function lukisPratontonGaya() {
   const el = $('gaya-pratonton');
   if (!PENERIMA.length) { el.innerHTML = ''; return; }
 
-  const rancang = agRancangNombor(majlisDraf(d), PENERIMA, true).petaBaru;
+  /* Susunan murid dalam sub ikut-kedudukan diambil dari nombor sedia
+     ada — pratonton tidak membaca markah. */
+  const kedAda = agKedudukanDariNombor(MAJLIS, PENERIMA);
+  const rancang = agRancangNombor(majlisDraf(d), PENERIMA, true, kedAda).petaBaru;
   let bilGil = 0;
   const naik = new Set();
   let muridGabung = 0;
@@ -4081,7 +4093,7 @@ function lukisPratontonGaya() {
     const gayaSimpan = agGaya(MAJLIS);
     let tidakPadan = false;
     if (gayaSimpan !== 'asal') {
-      const simpan = agRancangNombor(MAJLIS, PENERIMA, true).petaBaru;
+      const simpan = agRancangNombor(MAJLIS, PENERIMA, true, kedAda).petaBaru;
       tidakPadan = PENERIMA.some(p => {
         const baru = simpan[p.docId] || [];
         return (p.giliran || []).some(g => {
@@ -4265,18 +4277,19 @@ $('susun-bebas').addEventListener('drop', e => {
 });
 
 /* ---------- beri nombor ---------- */
-/* Hierarki: ANUGERAH (ikut urutan) → SUB (ikut urutan) → MURID (abjad). */
-function binaTurutan() {
+/* Hierarki: ANUGERAH (ikut urutan) → SUB (ikut urutan) → MURID (abjad,
+   atau kedudukan bagi anugerah `susunMurid:'kedudukan'`). */
+function binaTurutan(kedudukan) {
   /* Gaya Bebas / Gabung → enjin kongsi. Gaya ASAL kekal pada kod asal di
      bawah, tidak disentuh. */
-  if (agGaya(MAJLIS) !== 'asal') return agBinaTurutan(MAJLIS, PENERIMA);
+  if (agGaya(MAJLIS) !== 'asal') return agBinaTurutan(MAJLIS, PENERIMA, kedudukan);
   const senarai = susunanAnugerah();
   const turutan = [];
   senarai.forEach(a => {
     (a.sub || []).forEach(s => {
-      const murid = PENERIMA
-        .filter(p => (p.anugerah || []).some(x => x.subId === s.id))
-        .sort((x, y) => x.nama.localeCompare(y.nama, 'ms'));
+      const murid = agSusunMuridSub(
+        PENERIMA.filter(p => (p.anugerah || []).some(x => x.subId === s.id)),
+        kedudukan && agIkutKedudukan(a) ? kedudukan[s.id] : null);
       murid.forEach(p => turutan.push({ p, a, s }));
     });
   });
@@ -4291,10 +4304,34 @@ $('b-jana-semula').addEventListener('click', () => {
   beriNombor(true);
 });
 
+/* Kedudukan terkini bagi anugerah ikut-kedudukan. null = gagal (sudah
+   diberitahu); {} = tiada anugerah sebegitu.
+   🔴 Gagal mengira = BERHENTI. Jatuh balik ke abjad secara senyap
+      menghasilkan giliran yang kelihatan betul tetapi salah susunan. */
+async function kedudukanUntukGiliran() {
+  if (!(MAJLIS.anugerah || []).some(agIkutKedudukan)) return {};
+  agToast('Mengira kedudukan dari markah ESIS…');
+  try {
+    const { peta, gagal } = await agKiraKedudukanMajlis(MAJLIS, PENERIMA);
+    if (gagal.length) {
+      agToast('Gagal mengira kedudukan: ' + gagal.slice(0, 3).join(', ') +
+        (gagal.length > 3 ? ' …' : '') + ' — tiada nombor ditukar', 'ralat');
+      return null;
+    }
+    return peta;
+  } catch (e) {
+    agToast('Gagal mengira kedudukan: ' + e.message + ' — tiada nombor ditukar', 'ralat');
+    return null;
+  }
+}
+
 async function beriNombor(semua) {
-  const turutan = binaTurutan();
+  if (!PENERIMA.length) { agToast('Tiada penerima', 'ralat'); return; }
+  const kedudukan = await kedudukanUntukGiliran();
+  if (!kedudukan) return;
+  const turutan = binaTurutan(kedudukan);
   if (!turutan.length) { agToast('Tiada penerima', 'ralat'); return; }
-  if (agGaya(MAJLIS) !== 'asal') return beriNomborGaya(semua);
+  if (agGaya(MAJLIS) !== 'asal') return beriNomborGaya(semua, kedudukan);
 
   /* nombor tertinggi yang sudah dipakai */
   let maks = 0;
@@ -4349,8 +4386,8 @@ async function beriNombor(semua) {
 
 /* Gaya Bebas / Gabung. Rancangan dibuat oleh agRancangNombor (fungsi
    tulen dalam anugerah-kongsi.js); tulisan sama seperti gaya asal. */
-async function beriNomborGaya(semua) {
-  const { petaBaru, tambah } = agRancangNombor(MAJLIS, PENERIMA, semua);
+async function beriNomborGaya(semua, kedudukan) {
+  const { petaBaru, tambah } = agRancangNombor(MAJLIS, PENERIMA, semua, kedudukan);
   if (!tambah) { agToast('Semua giliran sudah bernombor'); return; }
 
   const ops = Object.keys(petaBaru).map(docId => {

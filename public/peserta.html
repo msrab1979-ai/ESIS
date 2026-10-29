@@ -325,7 +325,7 @@ function lukis() {
 
      Peraturan diambil terus daripada binaTurutan() dalam anugerah-admin:
        anugerah ikut `urutan`  →  sub ikut susunan array a.sub
-       →  murid ikut nama dalam sub itu
+       →  murid ikut nombor giliran dalam sub itu
      Sub TIADA medan `urutan` — susunannya ialah susunan array itu sendiri.
      Jadi apa-apa perubahan susunan di Giliran terus terpakai di sini. */
   /* 🔴 DUA ARAS, kedua-duanya buka/tutup. Majlis ini ada 14 kumpulan
@@ -415,10 +415,18 @@ function kumpulIkutGiliran(tapis) {
       .filter(m => bolehPapar.has(m.docId))
       /* gaya GABUNG: murid naik sekali di anugerah utamanya sahaja */
       .filter(m => !agIkutSah(m.giliran, (m.giliran || []).find(x => x.subId === s.id)))
-      .sort((x, y) => String(x.nama).localeCompare(String(y.nama), 'ms'))
       .map(m => {
         const g = (m.giliran || []).find(x => x.subId === s.id);
         return { m: ikutDoc[m.docId] || m, no: g && g.no != null ? g.no : null };
+      })
+      /* Ikut NOMBOR GILIRAN — sama dengan MC. Sub yang disusun ikut
+         kedudukan tidak lagi abjad, jadi menyusun nama di sini akan
+         memberi pengurus peserta susunan berbeza daripada yang dipanggil.
+         Belum bernombor → di bawah, ikut nama. */
+      .sort((x, y) => {
+        const nx = x.no == null ? Infinity : x.no, ny = y.no == null ? Infinity : y.no;
+        if (nx !== ny) return nx < ny ? -1 : 1;
+        return String(x.m.nama).localeCompare(String(y.m.nama), 'ms');
       });
     if (!baris.length) return;
     /* Nama sub dalam aras dalam tidak perlu mengulang nama
