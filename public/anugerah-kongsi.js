@@ -722,6 +722,32 @@ async function agResetBorang(majlisId, kunci) {
   });
 }
 
+/* 🔒 TUTUP borang (single atau bundle). Berbeza daripada BATAL: pautan
+   masih hidup dan guru masih boleh MELIHAT senarainya, tetapi tidak boleh
+   menambah, membuang atau menghantar. Satu `update` untuk semua kunci —
+   satu dokumen majlis, jadi bundle sama ada berjaya semua atau tiada. */
+async function agTutupBorang(majlisId, kunciList, tutup) {
+  if (!kunciList.length) return;
+  const masa = new Date().toLocaleString('ms-MY', {
+    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+  });
+  const data = {};
+  kunciList.forEach(k => {
+    data['borangGuru.' + k + '.ditutup'] = !!tutup;
+    data['borangGuru.' + k + '.masaTutup'] = tutup ? masa : '';
+  });
+  await agDb.collection('anugerah_majlis').doc(majlisId).update(data);
+  return masa;
+}
+
+/* Status borang TERKINI dari Firestore — guru mungkin membuka halaman
+   sebelum admin menutupnya. null = borang sudah dibatalkan. */
+async function agStatusBorang(majlisId, kunci) {
+  const d = await agDb.collection('anugerah_majlis').doc(majlisId).get();
+  const peta = (d.exists && d.data().borangGuru) || {};
+  return peta[kunci] || null;
+}
+
 async function agTandaBorangDibuka(majlisId, kunci) {
   try {
     const masa = new Date().toLocaleString('ms-MY', {

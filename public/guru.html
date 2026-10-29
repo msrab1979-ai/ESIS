@@ -688,7 +688,7 @@ function kemasKira() {
   const baru = senarai.filter(m => TANDA.has(m.no_kp) && !entriMurid(m.no_kp)).length;
   $('kira').innerHTML = '<strong>' + baru + '</strong> akan ditambah · ' +
     senarai.length + ' murid dipapar';
-  $('b-simpan').disabled = !baru || sudahHantar();
+  $('b-simpan').disabled = !baru || sudahHantar() || ditutup();
   $('b-simpan').textContent = baru ? '💾 Simpan ' + baru + ' murid' : '💾 Simpan';
 }
 
@@ -740,6 +740,7 @@ $('b-simpan').addEventListener('click', async () => {
 
   const b = $('b-simpan');
   b.disabled = true; b.textContent = 'Menyimpan…';
+  if (!(await borangMasihBuka())) { b.textContent = '💾 Simpan'; return; }
   try {
     /* Satu batch, bukan satu tulisan setiap murid — satu kelas penuh
        ialah tiga puluh tulisan yang boleh gagal separuh jalan. */
@@ -823,6 +824,34 @@ function sudahHantar() {
   return !!(KONTEKS.borang && KONTEKS.borang.dihantar);
 }
 
+/* 🔒 Admin menutup borang: guru masih boleh melihat, tidak boleh mengubah. */
+function ditutup() {
+  return !!(KONTEKS.borang && KONTEKS.borang.ditutup);
+}
+
+/* 🔴 Disemak SEBELUM setiap tulisan, dari Firestore — bukan dari KONTEKS
+   yang dimuat ketika halaman dibuka. Admin boleh menutup borang ketika
+   guru sedang mengisi; kawalan yang hanya wujud dalam paparan bukan
+   kawalan. Pulang true jika boleh menulis. */
+async function borangMasihBuka() {
+  let b;
+  try { b = await agStatusBorang(KONTEKS.majlis.id, KONTEKS.kunci); }
+  catch (e) { agToast('Gagal menyemak status borang: ' + e.message, 'ralat'); return false; }
+  if (!b) {
+    alert('Borang ini sudah DIBATALKAN oleh admin. Tiada apa disimpan.');
+    return false;
+  }
+  KONTEKS.borang = Object.assign(KONTEKS.borang || {}, b);
+  if (b.ditutup || b.dihantar) {
+    lukisPilih();
+    alert(b.ditutup
+      ? 'Borang ini sudah DITUTUP oleh admin. Tiada apa disimpan.\n\nHubungi admin majlis jika perlu dibuka semula.'
+      : 'Borang ini sudah dihantar dan terkunci. Tiada apa disimpan.');
+    return false;
+  }
+  return true;
+}
+
 function lukisHantar() {
   const bekas = $('kotak-hantar');
   const banner = $('banner-hantar');
@@ -830,6 +859,18 @@ function lukisHantar() {
   const bil = bilDalamBorang();          // semua dalam skop borang ini
   const bilGuru = bilDipilihGuru();      // yang guru ini sendiri pilih
   const b = KONTEKS.borang || {};
+
+  if (ditutup()) {
+    banner.innerHTML = '<div class="nota ralat"><span class="sym">🔒</span><div>' +
+      '<strong>Borang ini ditutup oleh admin' +
+      (b.masaTutup ? ' (' + agEsc(b.masaTutup) + ')' : '') + '.</strong> ' +
+      'Senarai di bawah boleh dilihat tetapi tidak boleh diubah. ' +
+      'Hubungi admin majlis jika perlu dibuka semula.</div></div>';
+    bekas.innerHTML = '<div class="baris-input" style="align-items:center">' +
+      '<span class="kecil"><strong>' + bil + ' murid</strong> dalam senarai · borang ditutup</span></div>';
+    kemasModBaca();
+    return;
+  }
 
   if (sudahHantar()) {
     banner.innerHTML = '<div class="nota ok"><span class="sym">✓</span><div>' +
@@ -886,6 +927,7 @@ function lukisHantar() {
 
     const btn = $('b-hantar');
     btn.disabled = true; btn.textContent = 'Menghantar…';
+    if (!(await borangMasihBuka())) return;
     try {
       const masa = await agHantarBorang(KONTEKS.majlis.id, KONTEKS.kunci, senarai.length);
       KONTEKS.borang.dihantar = true;
@@ -904,7 +946,7 @@ function lukisHantar() {
 /* Baca-sahaja selepas dihantar — kawalan dimatikan, bukan disembunyikan,
    supaya guru nampak apa yang ada dan faham ia terkunci buat sementara. */
 function kemasModBaca() {
-  const baca = sudahHantar();
+  const baca = sudahHantar() || ditutup();
   ['b-simpan', 'b-semua', 'b-kosong', 'f-cari', 'b-cadang', 'b-senarai'].forEach(id => {
     const el = $(id); if (el) el.disabled = baca;
   });
@@ -915,7 +957,8 @@ function kemasModBaca() {
   });
   document.querySelectorAll('#senarai-pilih button[data-buang]').forEach(b => {
     b.disabled = baca;
-    b.title = baca ? 'Borang sudah dihantar \u2014 hubungi admin untuk membukanya semula' : '';
+    b.title = baca ? (ditutup() ? 'Borang ditutup oleh admin'
+      : 'Borang sudah dihantar \u2014 hubungi admin untuk membukanya semula') : '';
   });
 }
 
@@ -983,6 +1026,7 @@ $('senarai-pilih').addEventListener('click', async e => {
      kawalan yang hanya wujud dalam paparan bukan kawalan. */
   if (entri.sumber !== 'guru') { agToast('Hanya admin boleh membuang murid ini', 'ralat'); return; }
   if (!confirm('Buang ' + p.nama + ' daripada "' + entri.sub + '"?')) return;
+  if (!(await borangMasihBuka())) return;
 
   b.disabled = true; b.textContent = '…';
   try {

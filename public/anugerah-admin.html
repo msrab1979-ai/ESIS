@@ -49,6 +49,7 @@
 .pm-luar{padding:11px 13px; margin-bottom:13px; border:1px dashed var(--garis); border-radius:8px; background:var(--kertas-2)}
 .pm-luar > summary, .pm-blok-murid > summary{cursor:pointer; margin-bottom:6px}
 .pm-blok-murid{margin-top:4px}
+.pg-kump td{background:var(--kertas-2); padding-top:9px}
 .kad-sumber{display:grid; grid-template-columns:repeat(3,1fr); gap:9px}
 @media (max-width:640px){ .kad-sumber{grid-template-columns:1fr} }
 .kad-sumber button{display:flex; flex-direction:column; align-items:flex-start; gap:3px; text-align:left;
@@ -1990,6 +1991,8 @@ function lukisPokok() {
    supaya admin membaca kedua-duanya dengan mata yang sama. */
 function pilStatusBorang(b) {
   if (!b) return '';
+  if (b.ditutup) return '<span class="pil absen" title="' + agEsc(b.nama || '') +
+    ' \u2014 guru boleh melihat, tidak boleh mengubah">\ud83d\udd12 Ditutup</span>';
   return '<span class="pil ' +
       (b.dihantar ? 'hadir' : b.dibuka ? 'amaran' : 'tunggu') +
     '" title="' + agEsc(b.nama || '') + '">' +
@@ -2432,6 +2435,11 @@ function modalBorangGuru(iAn, jSub, darjah) {
       '<span class="sub">' + agEsc(label) + '</span>' +
       '<button class="b-tutup" id="mx" aria-label="Tutup">×</button></div>' +
     '<div class="kad-isi">' +
+      (b && b.ditutup
+        ? '<div class="nota ralat"><span class="sym">🔒</span><div><strong>Borang ditutup' +
+            (b.masaTutup ? ' ' + agEsc(b.masaTutup) : '') + '.</strong> Guru boleh membuka pautan ' +
+            'dan melihat senarainya, tetapi tidak boleh menambah, membuang atau menghantar.</div></div>'
+        : '') +
       (b
         ? '<div class="nota ' + (b.dihantar ? 'ok' : '') + '"><span class="sym">' +
             (b.dihantar ? '✓' : '▸') + '</span><div>' +
@@ -2486,6 +2494,8 @@ function modalBorangGuru(iAn, jSub, darjah) {
           (b ? '💾 Simpan perubahan' : '📝 Bina Borang') + '</button>' +
         (b && b.dihantar
           ? '<button class="btn" id="bg-reset">🔓 Buka Semula untuk Guru</button>' : '') +
+        (b ? '<button class="btn" id="bg-togol-tutup">' +
+            (b.ditutup ? '🔓 Buka borang' : '🔒 Tutup borang') + '</button>' : '') +
         (b ? '<button class="btn sunyi" id="bg-batal-borang">Batalkan borang</button>' : '') +
         '<button class="btn sunyi" id="bg-tutup">Tutup</button>' +
       '</div>' +
@@ -2525,7 +2535,9 @@ function modalBorangGuru(iAn, jSub, darjah) {
         dihantar: !!(lama && lama.dihantar),
         masaHantar: (lama && lama.masaHantar) || '',
         bilHantar: (lama && lama.bilHantar) || 0,
-        dibukaSemula: !!(lama && lama.dibukaSemula)
+        dibukaSemula: !!(lama && lama.dibukaSemula),
+        ditutup: !!(lama && lama.ditutup),
+        masaTutup: (lama && lama.masaTutup) || ''
       };
       await simpanMajlis();
       tutupModal(); lukisPokok(); lukisPetugas();
@@ -2552,6 +2564,12 @@ function modalBorangGuru(iAn, jSub, darjah) {
       btn.disabled = false; btn.textContent = '🔓 Buka Semula untuk Guru';
       agToast('Gagal: ' + e.message, 'ralat');
     }
+  };
+
+  if ($('bg-togol-tutup')) $('bg-togol-tutup').onclick = async () => {
+    const tutup = !b.ditutup;
+    const ok = await jalanTutupBorang([kunci], tutup, label);
+    if (ok) tutupModal();
   };
 
   if ($('bg-batal-borang')) $('bg-batal-borang').onclick = async () => {
@@ -2633,10 +2651,46 @@ function lukisBorangGuru() {
     return;
   }
 
-  bekas.innerHTML = '<div class="gulung"><table><thead><tr>' +
+  /* Kunci setiap baris — untuk butang single dan bundle. */
+  baris.forEach(r => {
+    r.kunci = r.darjah ? agKunciDarjah(r.a.id, r.darjah)
+      : agKunciBorang(r.a.id, r.sub && r.sub.id);
+  });
+  const bilTutup = baris.filter(r => r.b.ditutup).length;
+  const butangBundle = (senarai, teks) => {
+    const buka = senarai.filter(r => !r.b.ditutup).map(r => r.kunci);
+    const tutup = senarai.filter(r => r.b.ditutup).map(r => r.kunci);
+    return (buka.length ? '<button class="btn sunyi kecil" data-pg-tutup="' +
+        agEsc(JSON.stringify(buka)) + '" data-pg-label="' + agEsc(teks) + '">🔒 Tutup ' +
+        (senarai.length > 1 ? 'semua (' + buka.length + ')' : '') + '</button>' : '') +
+      (tutup.length ? '<button class="btn sunyi kecil" data-pg-buka="' +
+        agEsc(JSON.stringify(tutup)) + '" data-pg-label="' + agEsc(teks) + '">🔓 Buka ' +
+        (senarai.length > 1 ? 'semua (' + tutup.length + ')' : '') + '</button>' : '');
+  };
+
+  /* Kumpul ikut anugerah supaya BUNDLE boleh duduk pada tajuk kumpulan. */
+  const ikutAn = [];
+  baris.forEach(r => {
+    let g = ikutAn.find(x => x.a === r.a);
+    if (!g) ikutAn.push(g = { a: r.a, baris: [] });
+    g.baris.push(r);
+  });
+
+  bekas.innerHTML =
+    '<div class="baris-input" style="align-items:center;margin-bottom:9px">' +
+      '<span class="kecil">' + baris.length + ' borang · <strong>' + bilTutup + '</strong> ditutup</span>' +
+      '<span style="margin-left:auto;display:flex;gap:6px">' +
+        butangBundle(baris, 'SEMUA borang dalam majlis ini') + '</span>' +
+    '</div>' +
+    '<div class="gulung"><table><thead><tr>' +
       '<th>Anugerah</th><th>Guru</th><th>Pautan</th><th>Status</th><th></th>' +
     '</tr></thead><tbody>' +
-    baris.map(({ a, i, j, sub, darjah, label, b }) => {
+    ikutAn.map(g => (g.baris.length > 1
+      ? '<tr class="pg-kump"><td colspan="4"><strong>' + agEsc(g.a.nama) + '</strong> ' +
+          '<span class="kecil">· ' + g.baris.length + ' borang</span></td>' +
+        '<td style="white-space:nowrap">' + butangBundle(g.baris, 'semua borang ' + g.a.nama) + '</td></tr>'
+      : '') +
+    g.baris.map(({ a, i, j, sub, darjah, label, b, kunci }) => {
       const url = asas + 'guru.html?kod=' + encodeURIComponent(b.kod);
       /* Kiraan mesti sepadan dengan skop borang itu, bukan skop anugerah:
          borang sub yang melaporkan kiraan seluruh anugerah memberitahu
@@ -2673,7 +2727,10 @@ function lukisBorangGuru() {
         '<td class="nama-murid lajur-teks">' + agEsc(label) + ' ' + pilRisiko + '</td>' +
         '<td>' + (agEsc(b.nama) || '<em class="kecil">tiada nama</em>') + '</td>' +
         '<td class="lb-url">' + agEsc(url) + '</td>' +
-        '<td>' + (b.dihantar
+        '<td>' + (b.ditutup
+            ? '<span class="pil absen">🔒 Ditutup · ' + bil + ' murid</span>' +
+              (b.masaTutup ? '<div class="kecil">' + agEsc(b.masaTutup) + '</div>' : '')
+            : b.dihantar
             ? '<span class="pil hadir">✓ Dihantar · ' + bil + ' murid</span>' +
               (b.masaHantar ? '<div class="kecil">' + agEsc(b.masaHantar) + '</div>' : '')
             : b.dibuka
@@ -2681,14 +2738,47 @@ function lukisBorangGuru() {
               (b.dibukaSemula ? '<div class="kecil">dibuka semula</div>'
                 : b.masa ? '<div class="kecil">' + agEsc(b.masa) + '</div>' : '')
             : '<span class="pil tunggu">Belum dibuka</span>') + '</td>' +
-        '<td><button class="btn sunyi kecil" data-pg-urus="' + i +
+        '<td style="white-space:nowrap"><button class="btn sunyi kecil" data-pg-urus="' + i +
           (darjah ? ',@' + agEsc(darjah) : j == null ? '' : ',' + j) +
-          '">Urus</button></td>' +
+          '">Urus</button>' + butangBundle([{ b, kunci }], label) + '</td>' +
       '</tr>';
-    }).join('') + '</tbody></table></div>';
+    }).join('')).join('') + '</tbody></table></div>';
+}
+
+/* Satu laluan untuk single DAN bundle: modal Urus, butang baris,
+   butang kumpulan anugerah dan butang semua. */
+async function jalanTutupBorang(kunciList, tutup, label) {
+  if (!kunciList.length) return false;
+  const n = kunciList.length;
+  if (!confirm((tutup ? 'TUTUP ' : 'BUKA ') + (n > 1 ? n + ' borang' : 'borang') +
+      ' — ' + label + '?\n\n' +
+      (tutup
+        ? 'Guru masih boleh membuka pautan dan MELIHAT senarainya, tetapi tidak boleh ' +
+          'menambah, membuang atau menghantar. Murid yang sudah dipilih KEKAL.'
+        : 'Guru boleh mengisi semula borang ini.'))) return false;
+  try {
+    const masa = await agTutupBorang(MAJLIS.id, kunciList, tutup);
+    kunciList.forEach(k => {
+      const bb = (MAJLIS.borangGuru || {})[k];
+      if (bb) { bb.ditutup = tutup; bb.masaTutup = tutup ? masa : ''; }
+    });
+    lukisPokok(); lukisPetugas();
+    agToast((tutup ? '🔒 ' : '🔓 ') + n + ' borang ' + (tutup ? 'ditutup' : 'dibuka'), 'ok');
+    return true;
+  } catch (e) {
+    agToast('Gagal: ' + e.message, 'ralat');
+    return false;
+  }
 }
 
 $('borang-grid').addEventListener('click', e => {
+  const t = e.target.closest('button[data-pg-tutup],button[data-pg-buka]');
+  if (t) {
+    let senarai = [];
+    try { senarai = JSON.parse(t.dataset.pgTutup || t.dataset.pgBuka); } catch (err) { return; }
+    jalanTutupBorang(senarai, !!t.dataset.pgTutup, t.dataset.pgLabel || '');
+    return;
+  }
   const b = e.target.closest('button[data-pg-urus]');
   if (!b) return;
   const [iTeks, ekor] = (() => {

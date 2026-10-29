@@ -632,6 +632,14 @@ Tab **Link Petugas** memapar kedua-dua aras dalam **satu jadual** (`Anugerah —
 
 Disahkan 21 Okt 2026: oracle 123 kes (pusing-balik kunci termasuk subId yang mengandungi `::`, dan matriks skop induk/sub × peta borang × sub asing), 0 beza; tindihan induk+sub menghasilkan tepat satu borang per sub.
 
+#### 🔒 Tutup borang — single & bundle (29 Okt 2026)
+
+**Tutup ≠ Batal.** Batal memadam borang (pautan mati). Tutup (`borangGuru[k].ditutup`, `masaTutup`) mengekalkan pautan: guru boleh log masuk dan **melihat** senarainya, tetapi tidak boleh menambah, membuang atau menghantar. Murid yang sudah dipilih kekal.
+
+- **Satu laluan** `jalanTutupBorang(kunciList, tutup, label)` → `agTutupBorang` (satu `update` dokumen majlis untuk semua kunci — bundle berjaya semua atau tiada). Dipanggil oleh: butang dalam modal Urus, butang setiap baris (single), baris kumpulan anugerah dalam jadual Link Petugas (bundle per anugerah, bila >1 borang), dan butang di atas jadual (semua borang majlis).
+- `pilStatusBorang` dan lajur Status memapar **🔒 Ditutup** mengatasi status lain. Modal Urus `bg-simpan` membawa `ditutup`/`masaTutup` — menukar kata laluan tidak membuka borang.
+- **guru.html menyemak status SEGAR dari Firestore (`agStatusBorang`) sebelum setiap tulisan** — simpan, buang, hantar (`borangMasihBuka`). Admin boleh menutup ketika guru sedang mengisi; `KONTEKS` yang dimuat semasa halaman dibuka sudah lapuk. Borang dibatalkan → `null` → ditolak juga.
+
 #### Hantar = tanda siap, bukan pemindahan data
 
 Murid sudah berada dalam majlis sejak guru menekan **Simpan**. Butang **📤 Hantar kepada Admin** menandakan senarai itu **muktamad** — ia memberi admin perbezaan antara "guru masih memilih" dan "guru sudah siap, jangan tunggu lagi". Tiada kelulusan, tiada barisan menunggu, tiada salinan kedua.
