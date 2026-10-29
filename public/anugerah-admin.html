@@ -367,6 +367,67 @@
   @page{size:A4; margin:8mm}
 }
 
+/* ---------- 🎓 Sijil ---------- */
+.sj-templat-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:13px}
+.sj-tp{border:1px solid var(--garis-halus); border-radius:10px; overflow:hidden; background:var(--kertas-2); display:flex; flex-direction:column}
+.sj-tp > img,.sj-tp-kosong{width:100%; height:150px; object-fit:contain; background:var(--kertas-3); display:block;
+  border-bottom:1px solid var(--garis-halus)}
+.sj-tp-kosong{display:flex; align-items:center; justify-content:center; color:var(--neutral); font-size:12.5px}
+.sj-tp .isi{padding:10px 12px; display:flex; flex-direction:column; gap:6px; flex:1}
+.sj-tp .tindakan{display:flex; gap:5px; flex-wrap:wrap; margin-top:auto; padding-top:4px}
+.sj-alat{display:flex; flex-wrap:wrap; gap:7px; align-items:center; margin-bottom:12px}
+.sj-alat select{width:auto}
+.sj-alat-ruang{flex:1 1 10px}
+.sj-editor{display:grid; grid-template-columns:minmax(0, 1fr) 320px; gap:15px; align-items:start}
+@media (max-width:980px){ .sj-editor{grid-template-columns:1fr} }
+.sj-kanvas{background:var(--kertas-3); border:1px solid var(--garis-halus); border-radius:9px; padding:12px;
+  user-select:none; touch-action:none; min-width:0}
+.sj-skala{position:relative; overflow:hidden; box-shadow:0 4px 18px rgba(0,0,0,.18); background:#fff}
+.sj-skala > .sj-hal{position:absolute; left:0; top:0; transform-origin:0 0}
+.sj-kanvas .sj-el{cursor:move}
+.sj-kanvas .sj-el:hover{outline:0.35mm dashed rgba(138,106,31,.75)}
+.sj-kanvas .sj-el.pilih{outline:0.5mm solid #B9913A}
+.sj-kanvas .sj-t.kosong{opacity:.45}
+.sj-g.kosong{border:0.4mm dashed #8A91A1; display:flex; align-items:center; justify-content:center; text-align:center;
+  font:600 8pt/1.3 "Public Sans",sans-serif; color:#5C6475; background:rgba(255,255,255,.65)}
+.sj-pegang{position:absolute; right:-2mm; top:50%; width:3mm; height:6mm; margin-top:-3mm; background:#B9913A;
+  border:0.4mm solid #fff; border-radius:1mm; cursor:ew-resize; box-shadow:0 0 0 0.2mm rgba(0,0,0,.3)}
+.sj-pandu{position:absolute; top:0; bottom:0; width:0; border-left:0.4mm dashed #D33; pointer-events:none}
+.sj-sifat{border:1px solid var(--garis-halus); border-radius:9px; background:var(--kertas-2); padding:12px 13px;
+  display:flex; flex-direction:column; gap:10px; position:sticky; top:10px; max-height:calc(100vh - 20px); overflow:auto}
+.sj-sifat label{display:block; font-size:11.5px; font-weight:600; color:var(--neutral); margin-bottom:3px}
+.sj-sifat input:not([type=checkbox]),.sj-sifat select,.sj-sifat textarea{width:100%; box-sizing:border-box}
+.sj-sifat input[type=color]{height:34px; padding:2px; border:1px solid var(--garis); border-radius:7px; background:var(--kertas-2)}
+.sj-sifat .sj-cek{display:flex; gap:7px; align-items:flex-start; font-weight:500; color:var(--tinta); font-size:12.5px; margin:0}
+.sj-dua{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.sj-tiga{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px}
+.sj-cip{display:flex; flex-wrap:wrap; gap:4px}
+.sj-cip button{font:600 11px/1 "Public Sans",sans-serif; padding:5px 7px; border-radius:99px; border:1px solid var(--garis);
+  background:var(--kertas); color:var(--tinta); cursor:pointer}
+.sj-cip button:hover{border-color:var(--emas); color:var(--emas)}
+.sj-tog{display:flex; gap:4px}
+.sj-tog button{flex:1; padding:7px 4px; border:1px solid var(--garis); background:var(--kertas); color:var(--tinta);
+  border-radius:7px; cursor:pointer; font-size:12.5px}
+.sj-tog button.on{background:var(--emas); border-color:var(--emas); color:#fff}
+.sj-senarai-el{display:flex; flex-direction:column; gap:3px}
+.sj-senarai-el button{text-align:left; padding:7px 9px; border:1px solid var(--garis-halus); border-radius:7px;
+  background:var(--kertas); color:var(--tinta); cursor:pointer; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.sj-senarai-el button:hover{border-color:var(--emas)}
+.sj-pt-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:13px}
+.sj-pt{border:1px solid var(--garis-halus); border-radius:9px; padding:12px; display:flex; flex-direction:column; gap:8px; background:var(--kertas)}
+.sj-pt .medan input{width:100%; box-sizing:border-box}
+.sj-ttd{height:74px; border:1px dashed var(--garis); border-radius:7px; display:flex; align-items:center; justify-content:center;
+  background:#fff; color:#8A91A1; font-size:12px}
+.sj-ttd img{max-height:66px; max-width:100%}
+.sj-peta-an{border-bottom:1px solid var(--garis-halus); padding:4px 0}
+.sj-peta-an:last-child{border-bottom:none}
+.sj-peta-baris{display:flex; align-items:center; gap:10px; padding:6px 0; flex-wrap:wrap}
+.sj-peta-baris .nm{flex:1 1 260px; font-weight:600; font-size:13.5px}
+.sj-peta-baris.sub .nm{font-weight:500; font-size:13px}
+.sj-peta-baris select{flex:0 1 280px}
+.sj-peta-an details{margin:0 0 6px 18px}
+.sj-peta-an summary{cursor:pointer; font-size:12.5px; color:var(--neutral); padding:3px 0}
+
 /* Senarai kotak tanda peperiksaan (modal anugerah, mod "gabung") —
    menggantikan dua dropdown tetap supaya 3+ peperiksaan boleh digabung. */
 .pep-grid{
@@ -401,6 +462,7 @@
       <button role="tab" aria-selected="false" data-t="semak">📋 Semak Penerima</button>
       <button role="tab" aria-selected="false" data-t="giliran">🎟️ Giliran &amp; Tiket</button>
       <button role="tab" aria-selected="false" data-t="kad">💌 Kad Jemputan</button>
+      <button role="tab" aria-selected="false" data-t="sijil">🎓 Sijil</button>
       <button role="tab" aria-selected="false" data-t="petugas">🔗 Link Petugas</button>
     </nav>
   </div>
@@ -776,6 +838,110 @@
     </div>
   </section>
 
+  <!-- ============ TAB : SIJIL ============ -->
+  <section class="panel" id="p-sijil" hidden>
+    <div class="nota">
+      <span class="sym">▸</span>
+      <div><strong>Satu sijil bagi setiap anugerah.</strong> Murid yang menang tiga anugerah mendapat
+      tiga sijil. Muat naik gambar sijil kosong (A4, contohnya dari Canva), kemudian seret nama,
+      kelas, anugerah dan tandatangan ke tempatnya. Data diisi sendiri daripada senarai penerima.</div>
+    </div>
+
+    <div class="kad">
+      <div class="kad-kepala">
+        <span class="langkah-no">1</span><h3>Templat Sijil</h3>
+        <span class="sub">Gambar latar + kedudukan setiap item</span>
+        <div class="kanan">
+          <button class="btn sunyi kecil" id="sj-b-salin">📥 Salin dari majlis lain</button>
+          <button class="btn emas kecil" id="sj-b-baru">➕ Templat baharu</button>
+        </div>
+      </div>
+      <div class="kad-isi" id="sj-templat"></div>
+    </div>
+
+    <div class="kad" id="sj-kad-editor" hidden>
+      <div class="kad-kepala">
+        <h3>Editor</h3>
+        <input type="text" id="sj-e-nama" style="max-width:260px" aria-label="Nama templat">
+        <span class="sub" id="sj-e-status" style="color:var(--amaran)"></span>
+      </div>
+      <div class="kad-isi">
+        <div class="sj-alat" id="sj-e-alat">
+          <button class="btn sunyi kecil" id="sj-e-teks">➕ Teks</button>
+          <select id="sj-e-kod" aria-label="Tambah medan data"></select>
+          <select id="sj-e-blok" aria-label="Tambah blok pentadbir">
+            <option value="">➕ Blok tandatangan…</option>
+            <option value="1">Pentadbir 1</option>
+            <option value="2">Pentadbir 2</option>
+            <option value="3">Pentadbir 3</option>
+          </select>
+          <button class="btn sunyi kecil" id="sj-e-gambar">➕ Gambar / cop</button>
+          <button class="btn sunyi kecil" id="sj-e-latar">🖼 Tukar gambar</button>
+          <span class="sj-alat-ruang"></span>
+          <label class="hint" style="margin:0" for="sj-e-contoh">Pratonton</label>
+          <select id="sj-e-contoh" style="max-width:280px"></select>
+          <button class="btn sunyi kecil" id="sj-e-undo" title="Buat asal (Ctrl/⌘+Z)">↶</button>
+          <button class="btn emas kecil" id="sj-e-simpan">💾 Simpan</button>
+          <button class="btn sunyi kecil" id="sj-e-tutup">✕ Tutup</button>
+        </div>
+        <div class="sj-editor">
+          <div class="sj-kanvas" id="sj-kanvas"></div>
+          <div class="sj-sifat" id="sj-sifat"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="kad">
+      <div class="kad-kepala">
+        <span class="langkah-no">2</span><h3>Pentadbir &amp; Tandatangan</h3>
+        <span class="sub">Kod {p1_nama} {p1_jawatan} · berkongsi untuk semua templat</span>
+        <div class="kanan">
+          <span class="hint" id="sj-pt-status" style="margin:0;color:var(--amaran)"></span>
+          <button class="btn sunyi kecil" id="sj-pt-esis">📥 Ambil dari slip ESIS</button>
+          <button class="btn emas kecil" id="sj-pt-simpan">💾 Simpan</button>
+        </div>
+      </div>
+      <div class="kad-isi" id="sj-pentadbir"></div>
+    </div>
+
+    <div class="kad" id="sj-kad-peta" hidden>
+      <div class="kad-kepala">
+        <span class="langkah-no">3</span><h3>Templat ikut Anugerah</h3>
+        <span class="sub">Sub &gt; anugerah &gt; lalai · disimpan terus</span>
+      </div>
+      <div class="kad-isi" id="sj-peta"></div>
+    </div>
+
+    <div class="kad">
+      <div class="kad-kepala">
+        <span class="langkah-no">4</span><h3>Cetak Sijil</h3>
+        <span class="sub">Dialog cetak → Simpan sebagai PDF atau terus ke pencetak</span>
+        <div class="kanan"><button class="btn emas kecil" id="sj-c-cetak">🖨 Cetak</button></div>
+      </div>
+      <div class="kad-isi" style="padding-bottom:4px">
+        <div class="baris-input">
+          <div class="medan" style="flex:1 1 220px"><label for="sj-c-anugerah">Anugerah</label>
+            <select id="sj-c-anugerah"></select></div>
+          <div class="medan"><label for="sj-c-darjah">Darjah</label>
+            <select id="sj-c-darjah"></select></div>
+          <div class="medan"><label for="sj-c-kelas">Kelas</label>
+            <select id="sj-c-kelas"></select></div>
+          <div class="medan" style="flex:1 1 170px"><label for="sj-c-cari">Cari</label>
+            <input type="text" id="sj-c-cari" placeholder="Nama atau no. KP…"></div>
+          <div class="medan"><label for="sj-c-susun">Susunan</label>
+            <select id="sj-c-susun">
+              <option value="giliran">Ikut giliran pentas</option>
+              <option value="kelas">Ikut kelas &amp; nama</option>
+            </select></div>
+          <div class="medan" style="flex:none;align-self:flex-end">
+            <button class="btn sunyi kecil" id="sj-c-kosong">Buang tapisan</button></div>
+        </div>
+        <p class="hint" style="margin:7px 0 0" id="sj-c-kira"></p>
+      </div>
+      <div class="kad-isi" id="sj-cetak"></div>
+    </div>
+  </section>
+
   <!-- ============ TAB 7 : PETUGAS ============ -->
   <section class="panel" id="p-petugas" hidden>
     <div class="nota">
@@ -941,6 +1107,7 @@ function tukarTab(nama) {
   if (nama === 'semak') initSemak();
   if (nama === 'giliran') lukisGiliran();
   if (nama === 'kad') initKad();
+  if (nama === 'sijil') sjInit();
   if (nama === 'petugas') lukisPetugas();
 }
 
@@ -6365,5 +6532,6 @@ async function resetTanda(medan, label) {
 if (sessionStorage.getItem('ag_admin') === '1') mulaPanel();
 else $('sari').textContent = 'Masukkan kata laluan untuk mula.';
 </script>
+<script src="anugerah-sijil.js"></script>
 </body>
 </html>

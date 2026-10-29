@@ -440,6 +440,22 @@ Tab **Giliran & Tiket** → "Susunan Naik Pentas" ialah **accordion dua aras**: 
 
 Disahkan 21 Okt 2026 pada majlis sebenar (15 anugerah, 92 sub): accordion buka 38 kelas, ↓ dan seret-jauh kedua-duanya ditulis ke Firestore dan dipulihkan selepas ujian; seret sub→anugerah dan sub silang-induk kedua-duanya ditolak tanpa mengubah susunan. Oracle 280 kes `splice` (termasuk indeks di luar julat), 0 beza.
 
+#### 🎓 Sijil (tab, `anugerah-sijil.js`) — 29 Okt 2026
+
+Tab ke-8 dalam `anugerah-admin.html`; kod dalam fail berasingan `anugerah-sijil.js` (dimuat **selepas** skrip utama, guna globalnya: `MAJLIS`, `PENERIMA`, `$`, `bukaModal`, `simpanMajlis`, `susunanAnugerah`). Fungsi `sj*`, DOM id `sj-`.
+
+**Satu sijil satu ANUGERAH** (bukan satu seorang seperti tiket) — murid menang 3 = 3 sijil. Senarai = `agBinaTurutan` disusun ikut nombor giliran; pilihan "ikut kelas & nama" untuk diedar guru kelas.
+
+`MAJLIS.sijil = {templat:[{id,nama,gambarUrl,orientasi:'L'|'P',medan:[]}], lalai, peta:{anId | 'anId::subId': templatId}, pentadbir:[{nama,jawatan,ttdUrl}×3]}`. Keutamaan templat: **sub > anugerah > lalai**. Peta disimpan pada majlis, **bukan pada objek sub** — `baca()` modal sub membina objek baharu dan akan memadamnya.
+
+- **Ditulis dengan `update({sijil})`, BUKAN `set(merge)`** — merge menggabung `peta` secara mendalam, jadi kunci yang dibuang hidup semula. `not-found` (majlis belum disimpan) → `simpanMajlis()`.
+- **Satu pelukis** (`sjIsiHalaman`/`sjHtmlMedan`) untuk editor, pratonton dan cetakan. Halaman dilukis dalam **mm sebenar**; editor hanya `transform:scale`, jadi seretan = cetakan. Kedudukan `x,y,w` mm (penjuru kiri-atas).
+- **Cetak = dialog cetak pelayar dalam tetingkap baharu**, bukan jsPDF: font Google (Great Vibes dll.) tanpa benam TTF, `<img>` Storage tanpa CORS. `@page` bernama L/P margin 0; tinggi 209.6mm (tepat 210mm boleh memberi halaman kosong). Tunggu stylesheet → gambar → `document.fonts.load` **sebelum** auto-kecil.
+- **Auto-kecil font** `sjMuatkanSatu` (0.25pt, min 8pt) — pengajaran `_slipTeksMuat`. Tidak terpakai pada medan `balut`. Editor memapar amaran bila dikecilkan / masih tak muat.
+- Teks = ayat bebas + `{kod}` (`SJ_KOD`). Kod salah eja **kekal kelihatan**. Mana-mana kod kosong → medan disembunyikan (lalai `sembunyiKosong`) — bukan murid tiada kelas/KP. Dalam editor ia dilukis pudar supaya masih boleh diseret.
+- Gambar dikecilkan dalam pelayar sebelum muat naik ke `public/sijil/` (templat 3508px JPEG, tandatangan/cop 1200px PNG telus) — had `storage.rules` 5MB. Storage SDK dimuat malas.
+- **Tetapan slip ESIS (nama GB, jawatan, tandatangan) disimpan dalam `localStorage` pelayar (`slipTemplateSettings`), BUKAN Firestore.** "📥 Ambil dari slip ESIS" hanya berfungsi di komputer tempat slip disetkan; selepas Simpan, sijil berdiri sendiri.
+
 ### Borang serahan guru (`public/guru.html`)
 
 Sebahagian anugerah bukan milik admin: Tokoh NILAM diketahui oleh guru pusat sumber, Sahsiah Terpuji oleh guru disiplin. Admin menyerahkan anugerah itu dengan butang hijau **📝 Bina Borang** dalam pokok Jenis Anugerah; guru mendapat borangnya sendiri dan tidak pernah melihat majlis selebihnya.

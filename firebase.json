@@ -35,7 +35,7 @@
         ]
       },
       {
-        "source": "/anugerah-{kongsi,pptx}.{js,css}",
+        "source": "/anugerah-{kongsi,pptx,sijil}.{js,css}",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
         ]
