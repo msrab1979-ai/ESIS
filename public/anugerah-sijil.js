@@ -6,7 +6,8 @@
    susunanAnugerah) dan anugerah-kongsi.js.
 
    MAJLIS.sijil = {
-     templat:   [{ id, nama, gambarUrl, orientasi:'L'|'P', medan:[...] }],
+     templat:   [{ id, nama, gambarUrl, orientasi:'L'|'P', kertasBercetak, medan:[...] }],
+     laras:     { x, y }   // anjak cetakan (mm) — pencetak tersasar
      lalai:     templatId,
      peta:      { anugerahId: templatId, 'anugerahId::subId': templatId },
      pentadbir: [{ nama, jawatan, ttdUrl } × 3],
@@ -116,6 +117,7 @@ function sjSj() {
   if (!sj.peta || typeof sj.peta !== 'object') sj.peta = {};
   if (!Array.isArray(sj.pentadbir)) sj.pentadbir = [];
   while (sj.pentadbir.length < 3) sj.pentadbir.push({ nama: '', jawatan: '', ttdUrl: '' });
+  if (!sj.laras || typeof sj.laras !== 'object') sj.laras = { x: 0, y: 0 };
   if (!sj.siri || typeof sj.siri !== 'object') sj.siri = { awalan: '', digit: 3, akhiran: '' };
   if (!sj.templat.some(t => t.id === sj.lalai)) sj.lalai = sj.templat[0] ? sj.templat[0].id : '';
   return sj;
@@ -314,13 +316,17 @@ function sjHtmlMedan(m, data, editor) {
     ' style="' + gaya + '"><span>' + (agEsc(teks) || '&nbsp;') + '</span>' + pegang + '</div>';
 }
 
-function sjIsiHalaman(t, data, editor) {
-  return (t.gambarUrl ? '<img class="sj-latar" src="' + agEsc(t.gambarUrl) + '" alt="" draggable="false">' : '') +
+/* `cetak` = halaman untuk pencetak. Templat `kertasBercetak`: gambar latar
+   hanya mock up untuk menyusun teks — sijil sebenar sudah bercetak,
+   jadi gambar TIDAK dicetak dan hanya teks/tandatangan yang keluar. */
+function sjIsiHalaman(t, data, editor, cetak) {
+  const latar = t.gambarUrl && !(cetak && t.kertasBercetak);
+  return (latar ? '<img class="sj-latar" src="' + agEsc(t.gambarUrl) + '" alt="" draggable="false">' : '') +
     (t.medan || []).map(m => sjHtmlMedan(m, data, editor)).join('');
 }
 function sjOrientasi(t) { return t && t.orientasi === 'P' ? 'P' : 'L'; }
 function sjHalaman(t, data) {
-  return '<div class="sj-hal ' + sjOrientasi(t) + '">' + sjIsiHalaman(t, data, false) + '</div>';
+  return '<div class="sj-hal ' + sjOrientasi(t) + '"><div class="sj-isi">' + sjIsiHalaman(t, data, false, true) + '</div></div>';
 }
 
 /* 🔴 Auto-kecil font — teks tidak dibaluti, jadi yang terlalu panjang
@@ -455,6 +461,7 @@ function sjInit() {
   sjLukisTemplat();
   sjLukisPentadbir();
   sjLukisSiri();
+  sjLukisLaras();
   sjLukisPeta();
   sjIsiTapisCetak();
   sjLukisCetak();
@@ -485,7 +492,10 @@ function sjLukisTemplat() {
         '<strong>' + agEsc(t.nama || 'Templat') + '</strong>' +
         '<span class="hint" style="margin:0">' + (sjOrientasi(t) === 'L' ? 'Melintang' : 'Menegak') + ' · ' +
           (t.medan || []).length + ' item · ' + (guna[t.id] || 0) + ' sijil</span>' +
-        (lalai ? '<span class="pil emas" style="align-self:flex-start">⭐ Lalai</span>' : '') +
+        '<div style="display:flex;gap:5px;flex-wrap:wrap">' +
+          (lalai ? '<span class="pil emas">⭐ Lalai</span>' : '') +
+          (t.kertasBercetak ? '<span class="pil tunggu" title="Gambar latar tidak dicetak">📄 Teks sahaja</span>' : '') +
+        '</div>' +
         '<div class="tindakan">' +
           '<button class="btn emas kecil" data-sj-ubah="' + agEsc(t.id) + '">✏️ Ubah</button>' +
           (lalai ? '' : '<button class="btn sunyi kecil" data-sj-lalai="' + agEsc(t.id) + '">⭐ Jadikan lalai</button>') +
@@ -612,6 +622,7 @@ $('sj-b-salin').addEventListener('click', () => {
 });
 
 function sjLukisSemuaKecualiEditor() {
+  sjLukisLaras();
   sjLukisTemplat();
   sjLukisPentadbir();
   sjLukisSiri();
@@ -791,6 +802,7 @@ function sjMedan(id) { return SJ_DRAF && SJ_DRAF.medan.find(m => m.id === id); }
 function sjLukisEditor() {
   tunjuk($('sj-kad-editor'), true);
   $('sj-e-nama').value = SJ_DRAF.nama || '';
+  $('sj-e-bercetak').checked = !!SJ_DRAF.kertasBercetak;
   /* Pratonton: lalai = murid dengan nama paling panjang — kes paling
      sukar untuk muat, jadi admin melihatnya dahulu. */
   const semua = sjSemuaSijil();
@@ -832,7 +844,9 @@ function sjLukisKanvas() {
       '<div class="sj-hal ' + o + '" id="sj-hal" style="transform:scale(' + SJ_SKALA + ')">' +
         sjIsiHalaman(SJ_DRAF, sjDataPratonton(), true) +
         '<div class="sj-pandu" id="sj-pandu" style="left:' + (W / 2) + 'mm" hidden></div>' +
-      '</div></div>';
+      '</div>' +
+      (SJ_DRAF.kertasBercetak ? '<div class="sj-label-latar">📄 Gambar latar tidak dicetak — teks sahaja</div>' : '') +
+    '</div>';
   sjMuatkan(bekas);
   sjTungguFon(document, [SJ_DRAF]).then(() => {
     if ($('sj-hal')) { sjMuatkan($('sj-kanvas')); sjNotaKecil(); }
@@ -1027,6 +1041,11 @@ $('sj-e-alat').addEventListener('change', e => {
   if (e.target.id === 'sj-e-blok' && e.target.value) {
     sjTambah(sjBlokPentadbir(Number(e.target.value), o, W / 2 - 40, H - 52));
     e.target.value = '';
+  }
+  if (e.target.id === 'sj-e-bercetak') {
+    SJ_DRAF.kertasBercetak = e.target.checked;
+    SJ_UBAH = true;
+    sjLukisKanvas(); sjTanda();
   }
   if (e.target.id === 'sj-e-contoh') {
     SJ_CONTOH = e.target.value;
@@ -1440,6 +1459,7 @@ function sjPratonton(it) {
     '<div class="kad-isi" style="display:flex;justify-content:center">' +
       '<div class="sj-skala" id="sj-pratonton" style="width:' + lebar + 'px;height:' + (H * SJ_PX_MM * k) + 'px">' +
         '<div class="sj-hal ' + o + '" style="transform:scale(' + k + ')">' + sjIsiHalaman(it.templat, sjData(it), false) + '</div>' +
+        (it.templat.kertasBercetak ? '<div class="sj-label-latar">📄 Gambar latar tidak dicetak — teks sahaja</div>' : '') +
       '</div></div>', 'luas');
   $('sj-px').onclick = tutupModal;
   const akar = $('sj-pratonton');
@@ -1460,6 +1480,8 @@ async function sjCetak(senarai) {
   if (!w) { agToast('Benarkan pop-up untuk mencetak', 'ralat'); return; }
 
   const pertama = sjOrientasi(boleh[0].templat) === 'P' ? 'portrait' : 'landscape';
+  const laras = sjSj().laras;
+  const ax = sjNum(laras.x, 0), ay = sjNum(laras.y, 0);
   const templatList = Array.from(new Set(boleh.map(it => it.templat)));
   w.document.write(
     '<!doctype html><html lang="ms"><head><meta charset="utf-8">' +
@@ -1469,6 +1491,9 @@ async function sjCetak(senarai) {
       '@page{size:A4 ' + pertama + ';margin:0}' +
       '@page L{size:A4 landscape;margin:0}@page P{size:A4 portrait;margin:0}' +
       'html,body{margin:0;padding:0}' +
+      /* Anjak semua item sekali gus — gambar latar tidak dianjak supaya
+         semakan atas kertas biasa kekal pada kedudukan sebenar halaman. */
+      '.sj-isi{position:absolute;left:0;top:0;width:100%;height:100%;transform:translate(' + ax + 'mm,' + ay + 'mm)}' +
       '.sj-hal{break-after:page;page-break-after:always}.sj-hal:last-child{break-after:auto;page-break-after:auto}' +
       '.sj-hal.L{page:L;height:209.6mm}.sj-hal.P{page:P;height:296.6mm}' +
       '.sj-tunggu{font:600 15px system-ui,sans-serif;padding:30px;text-align:center}' +
@@ -1606,4 +1631,22 @@ $('sj-c-segar').addEventListener('click', async () => {
   } finally {
     b.disabled = false; b.textContent = '🔄 Segar semula';
   }
+});
+
+/* ---------- Laras pencetak ---------- */
+function sjLukisLaras() {
+  const l = sjSj().laras;
+  $('sj-laras-x').value = sjNum(l.x, 0);
+  $('sj-laras-y').value = sjNum(l.y, 0);
+}
+
+$('sj-laras').addEventListener('change', async e => {
+  if (!e.target.matches('input')) return;
+  const sj = sjSj();
+  const lama = sj.laras;
+  const baca = id => { const n = Number($(id).value); return isFinite(n) ? Math.max(-30, Math.min(30, n)) : 0; };
+  sj.laras = { x: baca('sj-laras-x'), y: baca('sj-laras-y') };
+  try { await sjTulis(); agToast('Anjakan cetakan disimpan', 'ok'); }
+  catch (er) { sj.laras = lama; agToast('Gagal menyimpan: ' + er.message, 'ralat'); }
+  sjLukisLaras();
 });

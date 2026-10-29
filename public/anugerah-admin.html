@@ -392,6 +392,10 @@
   font:600 8pt/1.3 "Public Sans",sans-serif; color:#5C6475; background:rgba(255,255,255,.65)}
 .sj-pegang{position:absolute; right:-2mm; top:50%; width:3mm; height:6mm; margin-top:-3mm; background:#B9913A;
   border:0.4mm solid #fff; border-radius:1mm; cursor:ew-resize; box-shadow:0 0 0 0.2mm rgba(0,0,0,.3)}
+.sj-label-latar{position:absolute; right:8px; bottom:8px; background:rgba(22,35,58,.85); color:#fff;
+  font:600 11.5px/1.3 "Public Sans",sans-serif; padding:5px 9px; border-radius:6px; pointer-events:none}
+.sj-cek-alat{display:flex; gap:6px; align-items:center; font-size:12.5px; font-weight:600; color:var(--tinta);
+  padding:5px 9px; border:1px solid var(--garis); border-radius:8px; background:var(--kertas); cursor:pointer}
 .sj-pandu{position:absolute; top:0; bottom:0; width:0; border-left:0.4mm dashed #D33; pointer-events:none}
 .sj-sifat{border:1px solid var(--garis-halus); border-radius:9px; background:var(--kertas-2); padding:12px 13px;
   display:flex; flex-direction:column; gap:10px; position:sticky; top:10px; max-height:calc(100vh - 20px); overflow:auto}
@@ -877,6 +881,8 @@
           </select>
           <button class="btn sunyi kecil" id="sj-e-gambar">➕ Gambar / cop</button>
           <button class="btn sunyi kecil" id="sj-e-latar">🖼 Tukar gambar</button>
+          <label class="sj-cek-alat" title="Sijil sebenar sudah bercetak — gambar ini hanya mock up untuk menyusun teks">
+            <input type="checkbox" id="sj-e-bercetak"> 📄 Kertas sudah bercetak — cetak teks sahaja</label>
           <span class="sj-alat-ruang"></span>
           <label class="hint" style="margin:0" for="sj-e-contoh">Pratonton</label>
           <select id="sj-e-contoh" style="max-width:280px"></select>
@@ -967,6 +973,15 @@
             <button class="btn sunyi kecil" id="sj-c-kosong">Buang tapisan</button></div>
         </div>
         <p class="hint" style="margin:7px 0 0" id="sj-c-kira"></p>
+        <div class="baris-input" id="sj-laras" style="margin-top:9px;align-items:flex-end">
+          <div class="medan" style="flex:0 0 120px"><label for="sj-laras-x">Anjak ke kanan (mm)</label>
+            <input type="number" step="0.5" id="sj-laras-x"></div>
+          <div class="medan" style="flex:0 0 120px"><label for="sj-laras-y">Anjak ke bawah (mm)</label>
+            <input type="number" step="0.5" id="sj-laras-y"></div>
+          <p class="hint" style="margin:0 0 6px;flex:1 1 300px">Untuk kertas sijil bercetak: cetak <strong>satu</strong> sijil (🖨 pada baris)
+            di atas kertas A4 biasa, tindih dengan sijil sebenar dan suluh ke cahaya. Kalau teks tersasar,
+            masukkan anjakan di sini (nilai negatif = ke kiri / ke atas). Semua item beralih sekali gus.</p>
+        </div>
       </div>
       <div class="kad-isi" id="sj-cetak"></div>
     </div>
