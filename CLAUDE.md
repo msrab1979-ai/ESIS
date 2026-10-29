@@ -828,7 +828,9 @@ Tetapan per anugerah dalam modal Ubah Anugerah: **Susunan murid naik pentas** = 
 - `agBinaTurutan(majlis, penerima, kedudukan)` / `agRancangNombor(..., kedudukan)` / `binaTurutan(kedudukan)` — tanpa hujah ketiga kelakuan sama tepat seperti dahulu. Rank hanya dipakai bila `agIkutKedudukan(a)`, walaupun peta membawa sub lain.
 - Pratonton Gaya Giliran tidak membaca markah: `agKedudukanDariNombor` menganggap susunan nombor sedia ada dalam sub ikut-kedudukan sebagai betul, supaya amaran "tidak padan" tidak menyala palsu.
 - **Peserta** kini menyusun murid dalam sub ikut **nombor giliran** (bukan nama) supaya sama dengan MC.
-- **Senarai murid dalam pokok Jenis Anugerah** (`agMuridSub`/`lukisMuridSub`) bagi anugerah ikut-kedudukan disusun ikut **nombor giliran** dan memapar lajur `#no`; belum bernombor → bawah, ikut nama. Rank tidak dikira di sini (akan membaca markah setiap lukisan). Anugerah ikut-nama tidak berubah.
+- **Modal 👤 Pilih Murid — senarai "N murid sudah dipilih"** (`pmLukisSediaAda`) kini disusun ikut **Kedudukan** (nombor sama dengan lajur Kedudukan jadual ⚡ Cadang Calon) dengan lajur Kedudukan + nilai asas. Untuk SEMUA anugerah auto, bukan hanya ikut-kedudukan. Sebelum ini ia dalam susunan dokumen Firestore.
+- **Senarai murid dalam pokok Jenis Anugerah** (`agMuridSub`/`lukisMuridSub`) bagi anugerah ikut-kedudukan disusun ikut **Kedudukan** dan memapar `Kedudukan N` + `Giliran N`, supaya admin nampak sama ada giliran perlu Jana Semula. Anugerah ikut-nama tidak berubah.
+- Cache `RANK_SUB[subId] = {no_kp: {kedudukan, nilai}}` diisi oleh `pmCadang` (sudah dikira) atau `rankSub(an, s)` (latar, bila senarai dibuka). Markah dicache per peperiksaan, jadi membuka banyak kelas tidak membaca Firestore berulang. ⚡ Cadang menyegarkannya.
 - Nombor sedia ada tidak berubah sendiri — admin tekan 🔁 Jana Semula.
 
 Oracle 5,000 majlis rawak (3 gaya) — 0 beza; 4 mutasi ditangkap (buang pengawal, terbalik, seri tanpa nama, rancang lupa kedudukan).

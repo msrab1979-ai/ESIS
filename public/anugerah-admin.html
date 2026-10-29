@@ -1401,29 +1401,77 @@ let MURID_BUKA = {};        // sub mana senarai muridnya terbuka
       darjah lain ialah tepat bagaimana masalah itu tersembunyi selama ini.
    ========================================================================== */
 
+/* Kedudukan murid dalam sub, SAMA dengan lajur "Kedudukan" dalam jadual
+   ⚡ Cadang Calon (agKiraCalon). subId -> {no_kp: {kedudukan, nilai}}.
+   Diisi oleh pmCadang (percuma — sudah dikira) atau rankSub(); markah
+   dicache per peperiksaan oleh agMuatMarkah, jadi 38 kelas = 2 bacaan. */
+let RANK_SUB = {};
+
+function simpanRankSub(subId, hasil) {
+  const m = {};
+  (hasil.senarai || []).forEach(h => { m[h.no_kp] = { kedudukan: h.kedudukan, nilai: h.nilai }; });
+  RANK_SUB[subId] = m;
+  return m;
+}
+
+async function rankSub(an, s) {
+  if (RANK_SUB[s.id]) return RANK_SUB[s.id];
+  const pep = s.peperiksaan || an.peperiksaan ||
+    await agPepUntukDarjah(MAJLIS, agDarjahSub(s)) || MAJLIS.peperiksaan;
+  if (!pep) return null;
+  const h = await agKiraCalon({
+    calYear: MAJLIS.calYear, peperiksaan: pep,
+    asas: s.asas || an.asas || 'gps',
+    subjek: s.subjek || an.subjek,
+    skopJenis: s.skopJenis, skopNilai: s.skopNilai, skopDarjah: s.skopDarjah,
+    ambil: s.ambil || 1
+  });
+  return simpanRankSub(s.id, h);
+}
+
+/* Susun baris {p} ikut kedudukan; tiada kedudukan → bawah, ikut nama. */
+function susunIkutRank(baris, rank) {
+  const r = b => (rank && rank[b.p.no_kp]) ? rank[b.p.no_kp].kedudukan : Infinity;
+  return baris.sort((a, b) => {
+    const ra = r(a), rb = r(b);
+    if (ra !== rb) return ra < rb ? -1 : 1;
+    return String(a.p.nama).localeCompare(String(b.p.nama), 'ms');
+  });
+}
+
 /* Murid sub ini, mengikut nama. Memulangkan entri + murid bersama supaya
    pemanggil tidak perlu mencari dua kali.
-   🔴 Anugerah `susunMurid:'kedudukan'`: ikut NOMBOR GILIRAN, kerana
-      selepas Jana Semula nombor itu ialah susunan rank — dan susunan yang
-      MC panggil. Rank sendiri tidak disimpan; mengira dari markah di sini
-      akan membaca Firestore setiap kali pokok dilukis. Belum bernombor →
-      di bawah, ikut nama. */
+   🔴 Anugerah `susunMurid:'kedudukan'`: ikut KEDUDUKAN dari markah (sama
+      dengan jadual Cadang Calon dan susunan giliran). Rank dikira bila
+      senarai dibuka (bukaRankPokok) — sebelum siap, ikut nama. */
 function agMuridSub(subId) {
-  const ikutNo = agIkutKedudukan(anugerahBagiSub(subId));
-  return PENERIMA
+  const an = anugerahBagiSub(subId);
+  const rank = agIkutKedudukan(an) ? RANK_SUB[subId] : null;
+  const baris = PENERIMA
     .filter(p => (p.anugerah || []).some(x => x.subId === subId))
     .map(p => {
       const g = (p.giliran || []).find(x => x.subId === subId);
+      const r = rank && rank[p.no_kp];
       return { p, x: (p.anugerah || []).find(x => x.subId === subId),
-               no: g && typeof g.no === 'number' ? g.no : null };
-    })
-    .sort((a, b) => {
-      if (ikutNo) {
-        const na = a.no == null ? Infinity : a.no, nb = b.no == null ? Infinity : b.no;
-        if (na !== nb) return na < nb ? -1 : 1;
-      }
-      return String(a.p.nama).localeCompare(String(b.p.nama), 'ms');
+               no: g && typeof g.no === 'number' ? g.no : null,
+               kedudukan: r ? r.kedudukan : null };
     });
+  return rank ? susunIkutRank(baris, rank)
+    : baris.sort((a, b) => String(a.p.nama).localeCompare(String(b.p.nama), 'ms'));
+}
+
+/* Kira rank sub dalam pokok, kemudian lukis semula senarai itu sahaja
+   (bukan seluruh pokok — ia akan menutup accordion lain). */
+function bukaRankPokok(li, sub) {
+  const an = anugerahBagiSub(sub.id);
+  if (!agIkutKedudukan(an) || RANK_SUB[sub.id]) return;
+  rankSub(an, sub).then(() => {
+    if (!li.isConnected) return;
+    const lama = li.querySelector(':scope > .murid-senarai');
+    if (!lama) return;
+    lama.remove();
+    li.insertAdjacentHTML('beforeend', lukisMuridSub(sub, agMuridSub(sub.id)));
+  }).catch(e => agToast('Gagal mengira kedudukan: ' + e.message, 'ralat'));
 }
 
 function anugerahBagiSub(subId) {
@@ -1460,8 +1508,11 @@ function lukisMuridSub(s, baris) {
       const guru = b.x && b.x.sumber === 'guru';
       return '<tr' + (luar ? ' class="luar"' : '') + '>' +
         '<td class="bil">' + (n + 1) + '</td>' +
-        (ikutNo ? '<td class="kls" style="width:1%" title="Nombor giliran">' +
-          (b.no != null ? '#' + b.no : '<span title="Belum bernombor — tekan Jana Semula">—</span>') +
+        (ikutNo ? '<td class="kls" style="width:1%" title="Kedudukan dari markah">' +
+          (b.kedudukan != null ? 'Kedudukan ' + b.kedudukan
+            : RANK_SUB[s.id] ? 'Tiada markah' : 'Mengira…') + '</td>' +
+          '<td class="kls" style="width:1%" title="Nombor giliran">' +
+          (b.no != null ? 'Giliran ' + b.no : '<span title="Belum bernombor — tekan Jana Semula">—</span>') +
           '</td>' : '') +
         '<td>' + agEsc(b.p.nama) + '</td>' +
         '<td class="kls">' + agEsc(agDarjahKelas(b.p.tahun, b.p.kelas)) +
@@ -1794,8 +1845,10 @@ $('pokok-anugerah').addEventListener('click', e => {
     if (MURID_BUKA[kunci]) {
       const [i, j] = cariSubDariKunci(kunci);
       const sub = i >= 0 && (MAJLIS.anugerah[i].sub || [])[j];
-      if (sub && li) li.insertAdjacentHTML('beforeend',
-        lukisMuridSub(sub, agMuridSub(sub.id)));
+      if (sub && li) {
+        li.insertAdjacentHTML('beforeend', lukisMuridSub(sub, agMuridSub(sub.id)));
+        bukaRankPokok(li, sub);
+      }
     }
     b.setAttribute('aria-expanded', String(!!MURID_BUKA[kunci]));
     return;
@@ -2857,17 +2910,38 @@ if (!window._pmLainPasang) {
   });
 }
 
+/* 🔴 Murid yang sudah dipilih disusun ikut KEDUDUKAN — nombor yang sama
+   dengan lajur Kedudukan dalam jadual ⚡ Cadang Calon. Tanpa ini senarai
+   keluar dalam susunan dokumen Firestore, dan admin tidak dapat melihat
+   siapa terbaik di antara yang dipilih. Rank dikira di latar; sebelum
+   siap senarai dipapar ikut nama dengan "Mengira…". */
 function pmLukisSediaAda() {
-  const ada = pmSudahAda();
+  const { an, s } = PM;
+  const rank = RANK_SUB[s.id] || null;
+  const ada = susunIkutRank(pmSudahAda().map(p => ({ p })), rank).map(b => b.p);
+  if (ada.length && !rank && an.sumber !== 'manual') {
+    rankSub(an, s).then(() => {
+      if (PM && PM.s === s && !PM.hasil && $('pm-isi')) pmLukisSediaAda();
+    }).catch(e => agToast('Gagal mengira kedudukan: ' + e.message, 'ralat'));
+  }
+  const asasNama = ASAS_LABEL[s.asas || an.asas] || 'Nilai';
   $('pm-isi').innerHTML = ada.length
     ? '<p class="hint" style="margin:0 0 9px"><strong>' + ada.length + ' murid</strong> sudah ' +
-        'dipilih untuk anugerah ini. Tekan ⚡ untuk mengira semula dari markah, ' +
+        'dipilih untuk anugerah ini, disusun ikut kedudukan. Tekan ⚡ untuk mengira semula dari markah, ' +
         'atau ➕ untuk menambah seorang secara manual.</p>' +
-      '<div class="gulung" style="max-height:300px;overflow:auto"><table><tbody>' +
-      ada.map(p => '<tr><td class="nama-murid lajur-teks">' + agEsc(p.nama) + '</td>' +
+      '<div class="gulung" style="max-height:300px;overflow:auto"><table>' +
+      '<thead><tr><th class="num">Kedudukan</th><th>Nama</th><th>Kelas</th>' +
+        '<th class="num">' + agEsc(asasNama) + '</th><th></th></tr></thead><tbody>' +
+      ada.map(p => {
+        const r = rank && rank[p.no_kp];
+        return '<tr><td class="num">' + (r ? '<strong>' + r.kedudukan + '</strong>'
+            : (rank || an.sumber === 'manual') ? '—' : '<span class="kecil">Mengira…</span>') + '</td>' +
+        '<td class="nama-murid lajur-teks">' + agEsc(p.nama) + '</td>' +
         '<td>' + agEsc(agDarjahKelas(p.tahun, p.kelas)) + '</td>' +
+        '<td class="num">' + (r && r.nilai != null ? r.nilai : '—') + '</td>' +
         '<td style="width:86px"><button class="btn sunyi kecil" data-pm-buang="' +
-          agEsc(p.no_kp) + '">Buang</button></td></tr>').join('') +
+          agEsc(p.no_kp) + '">Buang</button></td></tr>';
+      }).join('') +
       '</tbody></table></div>'
     : '<p class="hint" style="margin:0">Belum ada murid. Tekan <strong>⚡ Cadang Calon</strong> ' +
       'untuk membiarkan markah ESIS mencadangkan, atau <strong>➕ Tambah Manual</strong> ' +
@@ -2897,6 +2971,7 @@ async function pmCadang(paksa) {
       ambil: s.ambil || 1,
       paksa: paksa === true
     });
+    simpanRankSub(s.id, PM.hasil);
     PM.tanda = new Set();
     pmLukisCalon();
   } catch (e) {
