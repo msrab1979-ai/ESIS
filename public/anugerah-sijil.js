@@ -12,6 +12,7 @@
      peta:      { anugerahId: templatId, 'anugerahId::subId': templatId },
      pentadbir: [{ nama, jawatan, ttdUrl } × 3],
      siri:      { awalan, digit, akhiran }   // format {no_siri}
+     nama:      { anugerahId: '…', 'anugerahId::subId': '…' }  // nama pada sijil
    }
    medan = { id, jenis:'teks'|'gambar', x, y, w   (mm, penjuru kiri-atas)
              teks  : ayat bebas + {kod}  ·  font, pt, bold, italic, warna,
@@ -72,6 +73,8 @@ const SJ_KOD = [
   ['darjah_kelas', 'Darjah + kelas', '4 INTEL'],
   ['anugerah', 'Anugerah', 'ANUGERAH TERBAIK MATA PELAJARAN'],
   ['sub', 'Sub-anugerah', 'SAINS — TAHUN 4'],
+  ['anugerah_asal', 'Anugerah (nama ESIS)', 'ANUGERAH TERBAIK MATA PELAJARAN'],
+  ['sub_asal', 'Sub-anugerah (nama ESIS)', 'SAINS — TAHUN 4'],
   ['nilai', 'Nilai (markah/GPS)', '92.5'],
   ['giliran', 'No. giliran', '12'],
   ['no_siri', 'No. siri sijil', '012'],
@@ -119,6 +122,7 @@ function sjSj() {
   while (sj.pentadbir.length < 3) sj.pentadbir.push({ nama: '', jawatan: '', ttdUrl: '' });
   if (!sj.laras || typeof sj.laras !== 'object') sj.laras = { x: 0, y: 0 };
   if (!sj.siri || typeof sj.siri !== 'object') sj.siri = { awalan: '', digit: 3, akhiran: '' };
+  if (!sj.nama || typeof sj.nama !== 'object') sj.nama = {};
   if (!sj.templat.some(t => t.id === sj.lalai)) sj.lalai = sj.templat[0] ? sj.templat[0].id : '';
   return sj;
 }
@@ -156,14 +160,19 @@ function sjData(it) {
   const luar = agAdalahLuar(p);
   const pt = sjSj().pentadbir;
   const g = (p.giliran || []).find(e => e.subId === x.subId);
+  const anAsal = x.anugerah || (a && a.nama) || '';
+  const subAsal = x.sub || (s && s.nama) || '';
+  const nm = sjSj().nama;
   const d = {
     nama: p.nama || '',
     no_kp: luar ? '' : sjFormatKP(p.no_kp),
     darjah: luar ? '' : String(agWordDarjah(p.tahun) || ''),
     kelas: luar ? '' : String(p.kelas || ''),
     darjah_kelas: luar ? '' : agDarjahKelas(p.tahun, p.kelas),
-    anugerah: x.anugerah || (a && a.nama) || '',
-    sub: x.sub || (s && s.nama) || '',
+    anugerah: (a && nm[a.id]) || anAsal,
+    sub: (a && s && nm[a.id + '::' + s.id]) || subAsal,
+    anugerah_asal: anAsal,
+    sub_asal: subAsal,
     nilai: x.nilai == null ? '' : String(x.nilai),
     giliran: g && g.no != null ? String(g.no) : '',
     no_siri: '',
@@ -463,6 +472,7 @@ function sjInit() {
   sjLukisSiri();
   sjLukisLaras();
   sjLukisPeta();
+  sjLukisNama();
   sjIsiTapisCetak();
   sjLukisCetak();
   if (SJ_DRAF) sjLukisEditor();
@@ -627,6 +637,7 @@ function sjLukisSemuaKecualiEditor() {
   sjLukisPentadbir();
   sjLukisSiri();
   sjLukisPeta();
+  sjLukisNama();
   sjIsiTapisCetak();
   sjLukisCetak();
 }
@@ -1327,6 +1338,63 @@ $('sj-peta').addEventListener('change', async e => {
   sjLukisPeta();
   sjLukisTemplat();
   sjLukisCetak();
+});
+
+/* ---------- Kad: Nama pada sijil ----------
+   Timpa {anugerah} / {sub} untuk SIJIL sahaja. Kosong = nama ESIS.
+   Tiket, MC, slaid, Giliran dan Semak kekal dengan nama ESIS supaya
+   petugas majlis membaca nama yang sama dengan pokok anugerah.
+   Kunci sama bentuk dengan `peta` dan disimpan pada majlis, BUKAN pada
+   objek sub — baca() modal sub membina objek baharu dan akan memadamnya. */
+const SJ_NAMA_BUKA = new Set();
+
+function sjLukisNama() {
+  const bekas = $('sj-nama');
+  const nm = sjSj().nama;
+  const senarai = susunanAnugerah();
+  if (!senarai.length) { bekas.innerHTML = '<p class="hint">Belum ada anugerah.</p>'; return; }
+  const input = (k, asal) => '<input type="text" data-sj-nama="' + agEsc(k) + '" value="' + agEsc(nm[k] || '') +
+    '" placeholder="' + agEsc(asal) + '" title="Kosong = ' + agEsc(asal) + '">';
+  bekas.innerHTML = senarai.map(a => {
+    const subs = a.sub || [];
+    const bil = subs.filter(s => nm[a.id + '::' + s.id]).length;
+    return '<div class="sj-peta-an">' +
+      '<div class="sj-peta-baris"><span class="nm">' + agEsc(a.nama) + '</span>' + input(a.id, a.nama) + '</div>' +
+      (subs.length
+        ? '<details data-sj-nama-buka="' + agEsc(a.id) + '"' + (SJ_NAMA_BUKA.has(a.id) ? ' open' : '') + '>' +
+            '<summary>' + subs.length + ' sub' + (bil ? ' · ' + bil + ' dinamakan semula' : '') + '</summary>' +
+            subs.map(s => '<div class="sj-peta-baris sub"><span class="nm">' + agEsc(s.nama) + '</span>' +
+              input(a.id + '::' + s.id, s.nama) + '</div>').join('') +
+          '</details>'
+        : '') +
+    '</div>';
+  }).join('');
+}
+
+$('sj-nama').addEventListener('toggle', e => {
+  const d = e.target.closest && e.target.closest('details[data-sj-nama-buka]');
+  if (!d) return;
+  if (d.open) SJ_NAMA_BUKA.add(d.dataset.sjNamaBuka); else SJ_NAMA_BUKA.delete(d.dataset.sjNamaBuka);
+}, true);
+
+$('sj-nama').addEventListener('change', async e => {
+  const el = e.target.closest('input[data-sj-nama]');
+  if (!el) return;
+  const nm = sjSj().nama;
+  const k = el.dataset.sjNama;
+  const lama = nm[k];
+  const baru = el.value.replace(/\s+/g, ' ').trim();
+  if ((lama || '') === baru) return;
+  if (baru) nm[k] = baru; else delete nm[k];
+  try {
+    await sjTulis();
+    agToast(baru ? 'Nama pada sijil disimpan' : 'Kembali ke nama ESIS', 'ok');
+  } catch (er) {
+    if (lama) nm[k] = lama; else delete nm[k];
+    agToast('Gagal menyimpan: ' + er.message, 'ralat');
+  }
+  sjLukisNama();
+  if (SJ_DRAF) sjLukisKanvas();
 });
 
 /* ==========================================================================
