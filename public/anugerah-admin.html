@@ -2298,6 +2298,13 @@ function pilStatusBorang(b) {
             '<span class="kanan">' +
               pilStatusBorang(bSub) +
               kiraan +
+              /* 🎤 Lencana hanya bila sub MENIMPA anugerah induk. */
+              (agNaikPentas(a, s) !== agNaikPentas(a, null)
+                ? (agNaikPentas(a, s)
+                  ? '<span class="pil hadir" title="Sub ini naik pentas walaupun anugerah tidak">🎤 Naik pentas</span>'
+                  : '<span class="pil" style="background:#e5e5e5;color:#555" ' +
+                    'title="Sub ini tiada dalam giliran, tiket, MC, sijil dan kad jemputan">🚫 Tidak naik pentas</span>')
+                : '') +
               lencanaSusun +
               /* 🔴 Hanya muncul bila ADA kerja untuk dibuat — butang
                  untuk sifar murid luar skop ialah bunyi bising pada
@@ -2432,6 +2439,7 @@ function pilStatusBorang(b) {
             : '') +
           '<button class="btn sunyi kecil" data-sub-baru="' + i + '">➕ Sub</button>' +
           pilihSusunAnugerah(a, i) +
+          pilihPentasAnugerah(a, i) +
           '<button class="btn sunyi kecil" data-an-edit="' + i + '">Ubah</button>' +
           '<button class="btn sunyi kecil" data-an-buang="' + i + '">Buang</button>' +
         '</span>' +
@@ -2454,6 +2462,40 @@ function pilihSusunAnugerah(a, i) {
       op('nama', 'Ikut nama') +
     '</select></label>';
 }
+
+/* 🎤 Dropdown "Pentas" pada baris anugerah — medan SAMA dengan modal
+   Ubah Anugerah (a.pentas). Tetapan per sub ada dalam modal Ubah Sub. */
+function pilihPentasAnugerah(a, i) {
+  const tidak = a.pentas === false;
+  return '<label class="pilih-susun" title="Tidak naik pentas = tiada dalam giliran, tiket, MC, ' +
+    'peserta, hadiah, tayang, sijil dan kad jemputan. Anugerah dan muridnya kekal di sini.">' +
+    '\ud83c\udfa4 Pentas: <select data-an-pentas="' + i + '"' +
+      (tidak ? ' style="background:#e5e5e5"' : '') + '>' +
+      '<option value="ya"' + (tidak ? '' : ' selected') + '>Naik pentas</option>' +
+      '<option value="tidak"' + (tidak ? ' selected' : '') + '>Tidak naik pentas</option>' +
+    '</select></label>';
+}
+
+$('pokok-anugerah').addEventListener('change', async e => {
+  const sel = e.target.closest('select[data-an-pentas]');
+  if (!sel) return;
+  const a = (MAJLIS.anugerah || [])[parseInt(sel.dataset.anPentas)];
+  if (!a) return;
+  const ada = Object.prototype.hasOwnProperty.call(a, 'pentas');
+  const lama = a.pentas;
+  if (sel.value === 'tidak') a.pentas = false; else delete a.pentas;
+  sel.disabled = true;
+  try {
+    await simpanMajlis();
+    agToast((a.pentas === false ? 'Tidak naik pentas' : 'Naik pentas') +
+      ' \u00b7 tekan \ud83d\udd01 Jana Semula di Giliran untuk kemas nombor', 'ok');
+  } catch (err) {
+    if (ada) a.pentas = lama; else delete a.pentas;
+    agToast('Gagal: ' + err.message, 'ralat');
+  }
+  lukisPokok();
+  if ($('susun-amaran')) amaranPentas();
+});
 
 $('pokok-anugerah').addEventListener('change', async e => {
   const sel = e.target.closest('select[data-an-susun]');
@@ -2488,7 +2530,7 @@ $('pokok-anugerah').addEventListener('change', async e => {
 $('pokok-anugerah').addEventListener('click', e => {
   /* Dropdown susunan duduk DI DALAM .induk — klik padanya tidak boleh
      menogol accordion anugerah. */
-  if (e.target.closest('select[data-an-susun]')) return;
+  if (e.target.closest('select[data-an-susun],select[data-an-pentas]')) return;
   /* Disemak sebelum togol: butang ini duduk di dalam .induk / .kump-kepala. */
   const bKunci = e.target.closest('button[data-kunci-semua]');
   if (bKunci) {
@@ -3103,6 +3145,11 @@ function modalAnugerah(idx) {
              senarai murid pokok. Disimpan pada sub (s.susunanMurid). */
           '<option value="manual"' + (a.susunMurid === 'manual' ? ' selected' : '') + '>Susun sendiri (admin seret)</option>' +
         '</select></div>' +
+        /* 🎤 Lalai naik pentas (tiada medan). */
+        '<div class="medan"><label for="a-pentas">🎤 Naik pentas</label><select id="a-pentas">' +
+          '<option value="ya"' + (a.pentas === false ? '' : ' selected') + '>Ya — dalam giliran</option>' +
+          '<option value="tidak"' + (a.pentas === false ? ' selected' : '') + '>Tidak — tiada giliran, tiket, sijil, kad</option>' +
+        '</select></div>' +
       '</div>' +
       '<div id="kotak-subjek" style="margin-top:13px" hidden>' +
         '<label class="eyebrow" style="display:block;margin-bottom:6px">Subjek dinilai</label>' +
@@ -3437,6 +3484,7 @@ function modalAnugerah(idx) {
     if (a.sumber === 'manual' && kad && kad.dataset.sumberKad === 'luar') a.calon = 'luar';
     else delete a.calon;
     a.asas = a.sumber === 'manual' ? null : $('a-asas').value;
+    if ($('a-pentas').value === 'tidak') a.pentas = false; else delete a.pentas;
     const susun = $('a-susun').value;
     if (susun === 'manual') a.susunMurid = 'manual';
     else if (a.sumber !== 'manual' && susun === 'kedudukan') a.susunMurid = 'kedudukan';
@@ -4379,6 +4427,14 @@ async function modalSub(iAn, jSub) {
         '<input type="text" id="s-nama2" value="' + agEsc(s.nama) + '" placeholder="Terbaik Darjah 4"></div>' +
       '<div class="medan" style="width:100%;margin-top:13px"><label for="s-hadiah">Hadiah</label>' +
         '<input type="text" id="s-hadiah" value="' + agEsc(s.hadiah || '') + '" placeholder="Trofi + sijil"></div>' +
+      /* 🎤 Tiada pilihan = ikut anugerah induk. */
+      '<div class="medan" style="width:100%;margin-top:13px"><label for="s-pentas">🎤 Naik pentas</label>' +
+        '<select id="s-pentas">' +
+          '<option value=""' + (typeof s.pentas !== 'boolean' ? ' selected' : '') + '>Ikut anugerah (' +
+            (an.pentas === false ? 'tidak naik pentas' : 'naik pentas') + ')</option>' +
+          '<option value="ya"' + (s.pentas === true ? ' selected' : '') + '>Ya — naik pentas</option>' +
+          '<option value="tidak"' + (s.pentas === false ? ' selected' : '') + '>Tidak — tiada giliran, tiket, sijil, kad</option>' +
+        '</select></div>' +
       (manual || (an.asas !== 'subjek') ? '' :
       '<div class="medan" style="width:100%;margin-top:13px">' +
         '<label for="s-subjek">Subjek untuk sub-anugerah ini</label>' +
@@ -4494,6 +4550,8 @@ async function modalSub(iAn, jSub) {
     } else {
       o.skopJenis = 'sekolah'; o.skopNilai = ''; o.ambil = 1;
     }
+    const vp = $('s-pentas') ? $('s-pentas').value : '';
+    if (vp === 'ya') o.pentas = true; else if (vp === 'tidak') o.pentas = false;
     /* Susunan naik pentas (susun sendiri) — tiada kawalan di sini. */
     if (Array.isArray(s.susunanMurid)) o.susunanMurid = s.susunanMurid;
     if (s.susunKunci) { o.susunKunci = true; if (s.susunKunciMasa) o.susunKunciMasa = s.susunKunciMasa; }
@@ -4883,12 +4941,27 @@ function lukisGiliran() {
       ? kad(tanpaNombor, 'Belum bernombor', 'tekan Beri Nombor', 'bahaya')
       : kad(bilGil, 'Tiket siap', '4 sehelai A4', 'ok'));
 
-  /* susunan anugerah + sub */
+  /* susunan anugerah + sub.
+     🎤 Anugerah yang tiada satu pun sub naik pentas dikumpul di bawah,
+     tanpa seret/↑↓. Indeks `i` kekal indeks SEBENAR dalam
+     susunanAnugerah() (pindahAnugerah memakainya), dan ↑↓ melompat
+     terus ke anugerah naik pentas jiran supaya tidak "bertukar" dengan
+     baris yang tidak kelihatan. */
   const senarai = susunanAnugerah();
+  const idxPentas = [], tanpaPentas = [];
+  senarai.forEach((a, i) => (agAnugerahNaikPentas(a) ? idxPentas : tanpaPentas).push(i));
 
-  $('susun-anugerah').innerHTML = senarai.length
-    ? senarai.map((a, i) => barisSusunAnugerah(a, i, senarai.length)).join('')
-    : '<p class="hint">Belum ada anugerah.</p>';
+  $('susun-anugerah').innerHTML = (senarai.length
+    ? idxPentas.map((i, k) => barisSusunAnugerah(senarai[i], i, k, idxPentas)).join('') ||
+      '<p class="hint">Tiada anugerah naik pentas.</p>'
+    : '<p class="hint">Belum ada anugerah.</p>') +
+    (tanpaPentas.length
+      ? '<div class="nota" style="margin:12px 0 0;opacity:.85"><span class="sym">🚫</span><div>' +
+        '<strong>Tidak naik pentas (' + tanpaPentas.length + ')</strong> \u2014 tiada dalam giliran, ' +
+        'tiket, MC, sijil dan kad jemputan. Tukar di 🏆 Jenis Anugerah \u2192 <em>Pentas</em>.<br>' +
+        tanpaPentas.map(i => agEsc(senarai[i].nama)).join(' \u00b7 ') + '</div></div>'
+      : '');
+  amaranPentas();
 
   lukisGaya();
   lukisBebas();
@@ -4928,10 +5001,15 @@ function ringkasGiliran(a, s) {
   };
 }
 
-function barisSusunAnugerah(a, i, jum) {
+function barisSusunAnugerah(a, i, k, idxPentas) {
   const r = ringkasGiliran(a, null);
   const sub = a.sub || [];
   const buka = SGIL_BUKA[a.id] ? ' buka' : '';
+  const keAtas = idxPentas[k - 1], keBawah = idxPentas[k + 1];
+  /* 🎤 Sub tidak naik pentas dipapar kelabu tanpa seret/↑↓; ↑↓ sub naik
+     pentas melompat ke jiran naik pentas (indeks sebenar dalam a.sub). */
+  const jPentas = [];
+  sub.forEach((s, j) => { if (agNaikPentas(a, s)) jPentas.push(j); });
 
   /* 🔴 Susunan sub ialah susunan ARRAY a.sub — binaTurutan membacanya
      dengan .forEach dan sub TIADA medan urutan. Jadi indeks di sini ialah
@@ -4939,15 +5017,26 @@ function barisSusunAnugerah(a, i, jum) {
   const barisSub = sub.length
     ? sub.map((s, j) => {
         const rs = ringkasGiliran(a, s);
+        if (!agNaikPentas(a, s)) {
+          return '<div class="sgil-baris" style="opacity:.55">' +
+            '<span class="pemegang"></span>' +
+            '<span class="s-nama">' + agEsc(s.nama || '(tanpa nama)') + '</span>' +
+            '<span class="s-bil">' + rs.bil + ' murid · 🚫 tidak naik pentas</span>' +
+          '</div>';
+        }
+        const p = jPentas.indexOf(j);
+        const jA = jPentas[p - 1], jB = jPentas[p + 1];
         return '<div class="seret sgil-baris" draggable="true" ' +
             'data-sub-a="' + i + '" data-sub-j="' + j + '">' +
           '<span class="pemegang">⣿</span>' +
           '<span class="s-nama">' + agEsc(s.nama || '(tanpa nama)') + '</span>' +
           '<span class="s-bil">' + rs.bil + ' murid · ' + rs.julat + '</span>' +
           '<button class="btn sunyi kecil" data-snaik="' + i + '_' + j + '" ' +
-            'title="Naik"' + (j === 0 ? ' disabled' : '') + '>↑</button>' +
+            'data-ke="' + (jA == null ? '' : jA) + '" ' +
+            'title="Naik"' + (jA == null ? ' disabled' : '') + '>↑</button>' +
           '<button class="btn sunyi kecil" data-sturun="' + i + '_' + j + '" ' +
-            'title="Turun"' + (j === sub.length - 1 ? ' disabled' : '') + '>↓</button>' +
+            'data-ke="' + (jB == null ? '' : jB) + '" ' +
+            'title="Turun"' + (jB == null ? ' disabled' : '') + '>↓</button>' +
         '</div>';
       }).join('')
     : '<p class="hint">Tiada sub-anugerah.</p>';
@@ -4958,10 +5047,12 @@ function barisSusunAnugerah(a, i, jum) {
       '<span class="anak-panah">▶</span>' +
       '<span class="s-nama">' + agEsc(a.nama) + '</span>' +
       '<span class="s-bil">' + sub.length + ' sub · ' + r.bil + ' anugerah · ' + r.julat + '</span>' +
-      '<button class="btn sunyi kecil" data-naik="' + i + '" title="Naik"' +
-        (i === 0 ? ' disabled' : '') + '>↑</button>' +
-      '<button class="btn sunyi kecil" data-turun="' + i + '" title="Turun"' +
-        (i === jum - 1 ? ' disabled' : '') + '>↓</button>' +
+      '<button class="btn sunyi kecil" data-naik="' + i + '" data-ke="' +
+        (keAtas == null ? '' : keAtas) + '" title="Naik"' +
+        (keAtas == null ? ' disabled' : '') + '>↑</button>' +
+      '<button class="btn sunyi kecil" data-turun="' + i + '" data-ke="' +
+        (keBawah == null ? '' : keBawah) + '" title="Turun"' +
+        (keBawah == null ? ' disabled' : '') + '>↓</button>' +
     '</div>' +
     '<div class="sgil-sub">' + barisSub + '</div>' +
   '</div>';
@@ -4976,6 +5067,23 @@ function kad(angka, label, kecil, jenis) {
 
 /* Blok mana yang terbuka — bertahan merentas lukisGiliran(). */
 const SGIL_BUKA = {};
+
+/* 🎤 Set subId naik pentas bagi majlis semasa. */
+function subPentasSemasa() { return agSubPentas(MAJLIS); }
+
+/* 🎤 Masih ada nombor giliran milik anugerah yang kini tidak naik pentas. */
+function amaranPentas() {
+  if (!$('susun-amaran')) return;
+  const set = subPentasSemasa();
+  const bil = PENERIMA.reduce((n, p) =>
+    n + (p.giliran || []).filter(g => g.no != null && !set.has(g.subId)).length, 0);
+  if (!bil) return;
+  $('susun-amaran').innerHTML =
+    '<div class="nota amaran" style="margin:15px 0 0"><span class="sym">⚠</span><div>' +
+    '<strong>' + bil + ' nombor giliran masih milik anugerah yang TIDAK naik pentas.</strong> ' +
+    'Ia masih muncul dalam MC, hadiah, tayang dan tiket sehingga kau tekan ' +
+    '<em>🔁 Jana Semula</em> \u2014 nombor 1\u2026N akan disusun semula tanpa anugerah itu.</div></div>';
+}
 
 /* 🔴 Menyusun semula memapar AMARAN, bukan menukar nombor. */
 function amaranSusun() {
@@ -5028,11 +5136,13 @@ $('susun-anugerah').addEventListener('click', e => {
   if (b) {
     if (b.disabled) return;
     const d = b.dataset;
-    if (d.naik !== undefined)  { pindahAnugerah(+d.naik, +d.naik - 1); return; }
-    if (d.turun !== undefined) { pindahAnugerah(+d.turun, +d.turun + 1); return; }
-    const naik = d.snaik !== undefined;
-    const bhg = (naik ? d.snaik : d.sturun).split('_');
-    pindahSub(+bhg[0], +bhg[1], +bhg[1] + (naik ? -1 : 1));
+    /* data-ke = indeks jiran yang NAIK PENTAS (baris tidak naik pentas
+       dilangkau). */
+    if (d.ke === '') return;
+    if (d.naik !== undefined)  { pindahAnugerah(+d.naik, +d.ke); return; }
+    if (d.turun !== undefined) { pindahAnugerah(+d.turun, +d.ke); return; }
+    const bhg = (d.snaik !== undefined ? d.snaik : d.sturun).split('_');
+    pindahSub(+bhg[0], +bhg[1], +d.ke);
     return;
   }
 
@@ -5384,6 +5494,7 @@ function binaTurutan(kedudukan) {
   const turutan = [];
   senarai.forEach(a => {
     (a.sub || []).forEach(s => {
+      if (!agNaikPentas(a, s)) return;   /* 🎤 tidak naik pentas */
       const murid = agSusunMuridDalamSub(a, s,
         PENERIMA.filter(p => (p.anugerah || []).some(x => x.subId === s.id)),
         kedudukan);
@@ -5427,7 +5538,11 @@ async function beriNombor(semua) {
   const kedudukan = await kedudukanUntukGiliran();
   if (!kedudukan) return;
   const turutan = binaTurutan(kedudukan);
-  if (!turutan.length) { agToast('Tiada penerima', 'ralat'); return; }
+  /* Turutan kosong masih perlu diteruskan bila ada nombor lama — semua
+     anugerah mungkin baru ditanda tidak naik pentas. */
+  if (!turutan.length && !PENERIMA.some(p => (p.giliran || []).length)) {
+    agToast('Tiada penerima naik pentas', 'ralat'); return;
+  }
   if (agGaya(MAJLIS) !== 'asal') return beriNomborGaya(semua, kedudukan);
 
   /* nombor tertinggi yang sudah dipakai */
@@ -5459,7 +5574,8 @@ async function beriNombor(semua) {
     }));
   });
 
-  if (!tambah) { agToast('Semua giliran sudah bernombor'); return; }
+  const buang = agBuangGiliranLuar(PENERIMA, petaBaru);
+  if (!tambah && !buang) { agToast('Semua giliran sudah bernombor'); return; }
 
   /* 🔴 Dipecah pada RESET_CHUNK (400) — Firestore menghadkan 500
      operasi satu batch. Majlis ini 105 murid, jadi satu batch belum
@@ -5477,15 +5593,16 @@ async function beriNombor(semua) {
     PENERIMA = await agMuatPenerima(MAJLIS.id);
     $('susun-amaran').innerHTML = '';
     lukisGiliran(); kemasSari();
-    agToast(tambah + ' nombor giliran ditetapkan', 'ok');
+    agToast(tambah + ' nombor giliran ditetapkan' +
+      (buang ? ' \u00b7 ' + buang + ' giliran tidak naik pentas dibuang' : ''), 'ok');
   } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
 }
 
 /* Gaya Bebas / Gabung. Rancangan dibuat oleh agRancangNombor (fungsi
    tulen dalam anugerah-kongsi.js); tulisan sama seperti gaya asal. */
 async function beriNomborGaya(semua, kedudukan) {
-  const { petaBaru, tambah } = agRancangNombor(MAJLIS, PENERIMA, semua, kedudukan);
-  if (!tambah) { agToast('Semua giliran sudah bernombor'); return; }
+  const { petaBaru, tambah, buang } = agRancangNombor(MAJLIS, PENERIMA, semua, kedudukan);
+  if (!tambah && !buang) { agToast('Semua giliran sudah bernombor'); return; }
 
   const ops = Object.keys(petaBaru).map(docId => {
     const p = PENERIMA.find(x => x.docId === docId);
@@ -5502,7 +5619,8 @@ async function beriNomborGaya(semua, kedudukan) {
     const naik = new Set();
     Object.keys(petaBaru).forEach(d => petaBaru[d].forEach(g => naik.add(g.no)));
     agToast(tambah + ' giliran ditetapkan' +
-      (agGaya(MAJLIS) === 'gabung' ? ' \u00b7 ' + naik.size + ' kali naik pentas' : ''), 'ok');
+      (agGaya(MAJLIS) === 'gabung' ? ' \u00b7 ' + naik.size + ' kali naik pentas' : '') +
+      (buang ? ' \u00b7 ' + buang + ' giliran tidak naik pentas dibuang' : ''), 'ok');
   } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
 }
 
@@ -5547,12 +5665,13 @@ function lukisTiket() {
   const cCari = agPecahCarian($('t-cari') ? $('t-cari').value : '');
 
   const ikutMurid = {};
+  const pentas = subPentasSemasa();   /* 🎤 tiada tiket untuk anugerah tidak naik pentas */
   PENERIMA.forEach(p => {
     if (cDarjah && String(p.tahun || '').toUpperCase() !== cDarjah) return;
     if (cKelas && String(p.kelas || '').toUpperCase() !== cKelas) return;
     if (!agPadanCarian(cCari, p.nama, p.no_kp)) return;
     (p.giliran || []).forEach(g => {
-      if (g.no == null) return;
+      if (g.no == null || !pentas.has(g.subId)) return;
       if (sel.value && g.anugerahId !== sel.value) return;
       (ikutMurid[p.docId] = ikutMurid[p.docId] || { p, gil: [] }).gil.push(g);
     });
@@ -5752,8 +5871,9 @@ async function pecahIkutDarjah(iAn) {
    ========================================================================== */
 function binaSlaidPPTX() {
   const peta = {};
+  const pentas = subPentasSemasa();   /* 🎤 */
   PENERIMA.forEach(p => (p.giliran || []).forEach(g => {
-    if (g.no == null) return;
+    if (g.no == null || !pentas.has(g.subId)) return;
     /* Gaya GABUNG: pengikut tidak mendapat slaid sendiri — murid itu
        naik pada slaid anugerah utamanya, dengan anugerah lain disenarai. */
     if (agIkutSah(p.giliran, g)) return;
@@ -5888,9 +6008,16 @@ $('b-kj-simpan').addEventListener('click', async () => {
   finally { btn.disabled = false; btn.textContent = '\ud83d\udcbe Simpan'; }
 });
 
+/* 🎤 Kad jemputan hanya untuk murid yang naik pentas — murid yang
+   semua anugerahnya tidak naik pentas tidak dijemput (30 Okt 2026). */
+function kjPenerima() {
+  const set = subPentasSemasa();
+  return PENERIMA.filter(p => agPenerimaPentas(p, set));
+}
+
 /* ---------- tapisan (corak sama seperti tiket) ---------- */
 function isiTapisKad() {
-  const ada = PENERIMA.filter(p => (p.anugerah || []).length);
+  const ada = kjPenerima();
   const simpanD = $('kj-darjah').value, simpanK = $('kj-kelas').value;
   const darjahAda = Array.from(new Set(ada.map(p => p.tahun).filter(Boolean)))
     .sort((a, b) => agWordDarjah(a) - agWordDarjah(b));
@@ -5903,7 +6030,7 @@ function isiTapisKad() {
 }
 
 function isiKelasKad(ada) {
-  const senarai = ada || PENERIMA.filter(p => (p.anugerah || []).length);
+  const senarai = ada || kjPenerima();
   const w = $('kj-darjah').value;
   const kelasAda = Array.from(new Set(senarai
     .filter(p => !w || String(p.tahun || '').toUpperCase() === w)
@@ -5932,14 +6059,13 @@ function lukisKad() {
   /* 🔴 SATU KAD SEORANG MURID. Kad disusun ikut NAMA, bukan nombor
      giliran \u2014 ia diedar oleh guru kelas mengikut senarai kelas, bukan
      dipanggil mengikut turutan pentas seperti tiket. */
-  const senarai = PENERIMA
-    .filter(p => (p.anugerah || []).length)
+  const senarai = kjPenerima()
     .filter(p => !cD || String(p.tahun || '').toUpperCase() === cD)
     .filter(p => !cK || String(p.kelas || '').toUpperCase() === cK)
     .filter(p => agPadanCarian(cC, p.nama, p.no_kp))
     .sort((a, b) => String(a.nama).localeCompare(String(b.nama), 'ms'));
 
-  const jumSemua = PENERIMA.filter(p => (p.anugerah || []).length).length;
+  const jumSemua = kjPenerima().length;
   const adaTapis = !!(cD || cK || !cC.kosong);
   $('kj-kira').innerHTML = !jumSemua ? ''
     : '<strong>' + senarai.length + '</strong> kad dipapar' +

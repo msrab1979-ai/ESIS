@@ -835,11 +835,45 @@ function agPakaiBebas(majlis) {
       menyusun) DISAMBUNG DI HUJUNG, bukan hilang — sub yang hilang
       bermakna murid tidak pernah mendapat nombor. Id yang sudah tiada
       dilangkau. */
+/* 🎤 Naik pentas. LALAI YA — anugerah/sub lama tiada medan ini dan mesti
+   kekal dalam giliran seperti dahulu. `a.pentas === false` = seluruh
+   anugerah tidak naik pentas; `s.pentas` (true/false) MENIMPA anugerah,
+   tiada = ikut anugerah.
+   Anugerah tidak naik pentas KEKAL dalam Jenis Anugerah & Semak Penerima,
+   tetapi tiada giliran, tiket, MC, peserta, hadiah, tayang, sijil atau
+   kad jemputan (keputusan pengguna 30 Okt 2026). */
+function agNaikPentas(a, s) {
+  if (s && typeof s.pentas === 'boolean') return s.pentas;
+  return !(a && a.pentas === false);
+}
+
+/* Ada sekurang-kurangnya satu sub naik pentas (anugerah tanpa sub ikut
+   tetapannya sendiri). */
+function agAnugerahNaikPentas(a) {
+  const sub = (a && a.sub) || [];
+  return sub.length ? sub.some(s => agNaikPentas(a, s)) : agNaikPentas(a, null);
+}
+
+/* Set subId yang naik pentas — untuk menapis penerima / entri giliran. */
+function agSubPentas(majlis) {
+  const set = new Set();
+  ((majlis && majlis.anugerah) || []).forEach(a =>
+    (a.sub || []).forEach(s => { if (agNaikPentas(a, s)) set.add(s.id); }));
+  return set;
+}
+
+/* Murid yang memegang sekurang-kurangnya satu anugerah naik pentas. */
+function agPenerimaPentas(p, subPentas) {
+  return (p.anugerah || []).some(x => subPentas.has(x.subId));
+}
+
 function agSusunanSub(majlis) {
   const asal = [];
   ((majlis && majlis.anugerah) || []).slice()
     .sort((a, b) => (a.urutan || 0) - (b.urutan || 0))
-    .forEach(a => (a.sub || []).forEach(s => asal.push({ a, s })));
+    .forEach(a => (a.sub || []).forEach(s => {
+      if (agNaikPentas(a, s)) asal.push({ a, s });
+    }));
   if (!agPakaiBebas(majlis)) return asal;
 
   const ikutId = {};
@@ -1097,7 +1131,26 @@ function agRancangNombor(majlis, penerima, semua, kedudukan) {
     }));
   });
 
-  return { petaBaru, tambah };
+  const buang = agBuangGiliranLuar(penerima, petaBaru);
+  return { petaBaru, tambah, buang };
+}
+
+/* 🎤 Entri giliran yang tiada lagi dalam turutan (anugerah ditanda TIDAK
+   naik pentas, atau sub dibuang) dikeluarkan. Murid yang SEMUA anugerahnya
+   tidak naik pentas tiada dalam turutan langsung — tanpa ini nombor lama
+   mereka kekal dan terus muncul dalam MC, hadiah, tayang dan tiket.
+   Mengisi petaBaru[docId] (mungkin []) dan memulangkan bilangan dibuang. */
+function agBuangGiliranLuar(penerima, petaBaru) {
+  let buang = 0;
+  penerima.forEach(p => {
+    const lama = (p.giliran || []).length;
+    const baru = (petaBaru[p.docId] || []).length;
+    if (lama > baru) {
+      buang += lama - baru;
+      petaBaru[p.docId] = petaBaru[p.docId] || [];
+    }
+  });
+  return buang;
 }
 
 /* ==========================================================================
