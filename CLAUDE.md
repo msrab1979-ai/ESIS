@@ -845,6 +845,7 @@ Pilihan ketiga dalam modal Ubah Anugerah: **Susun sendiri (admin seret)** = `a.s
 - **Susunan permulaan** (`semaiSusunanAnugerah`) semasa tukar ke Susun sendiri: ikut kedudukan bila anugerah auto, jika tidak nama. Susunan sedia ada **dikekalkan** — tukar ke auto dan balik tidak memadam kerja admin.
 - Murid dipilih dalam modal → **disambung di hujung** (`tambahKeSusunan`). Murid dari borang guru → di bawah + amaran "N murid belum disusun" dengan butang ✓ Sahkan.
 - Butang ↺ Susun ikut kedudukan / nama (dengan `confirm`) menggantikan susunan.
+- **Dropdown "Susunan:" pada baris anugerah (root) dalam pokok** (`pilihSusunAnugerah`, `select[data-an-susun]`): Auto — ikut kedudukan / Susun sendiri / Ikut nama, simpan terus pada `change`, pulih nilai lama bila gagal. Medan sama dengan modal Ubah Anugerah. Klik pada select **disemak dahulu** dalam pendengar klik pokok — ia duduk di dalam `.induk` dan akan menogol accordion. Baris sub memapar lencana `✋ Sendiri` / `🔢 Auto` dan butang **⠿ Susun** (`data-sub-susun`) yang membuka jadual seret di tempat.
 - **Nombor giliran TIDAK berubah sendiri.** `susunTakPadanGiliran` memapar amaran dalam jadual itu sendiri (entri pengikut gaya C dilangkau) sehingga admin tekan 🔁 Jana Semula. Peserta/MC/Hadiah/tiket/PPTX ikut nombor giliran, jadi semuanya sync selepas itu.
 
 Oracle 20,000 kes `agSusunManual`/`agBelumDisusun` — 0 beza; 3 mutasi ditangkap. Diuji di Chrome dengan data dalam memori (`simpanMajlis` disekat): ↓, seret, murid baharu, giliran, modal, modal sub membawa medan.

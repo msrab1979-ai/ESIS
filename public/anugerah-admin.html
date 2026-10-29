@@ -46,6 +46,9 @@
 .kump-isi > li{padding-left:16px}
 .induk .tajuk-a{font-family:"Fraunces",serif; font-size:15.5px; font-weight:600}
 .induk .kanan{margin-left:auto; display:flex; gap:7px; align-items:center; flex-wrap:wrap}
+.pilih-susun{font-size:12px; color:var(--neutral); display:inline-flex; gap:5px; align-items:center; cursor:auto}
+.pilih-susun select{font-size:12px; padding:3px 6px; border:1px solid var(--garis); border-radius:6px;
+  background:var(--kertas); color:var(--teks); cursor:pointer}
 .anak{list-style:none; margin:0; padding:0 0 5px; background:var(--kertas-3)}
 .anak li{
   display:flex; align-items:center; gap:10px; padding:8px 16px 8px 40px;
@@ -1935,6 +1938,14 @@ function pilStatusBorang(b) {
               (bilLuar ? '<span class="pil amaran" title="Murid ini bukan dalam skop ' +
                 'sub-anugerah ini">\u26a0 ' + bilLuar + ' luar skop</span>' : '')
             : '<span class="kecil">0 murid</span>';
+          /* Cara susun sekilas + jalan pintas ke jadual seret. */
+          const lencanaSusun = agIkutManual(a)
+            ? '<span class="pil tunggu" title="Susunan naik pentas disusun sendiri oleh admin">✋ Sendiri</span>' +
+              (bil ? '<button class="btn emas kecil" data-sub-susun="' + agEsc(kunciM) + '" ' +
+                'title="Buka senarai untuk seret / ↑↓">⠿ Susun</button>' : '')
+            : agIkutKedudukan(a)
+            ? '<span class="pil emas" title="Susunan naik pentas ikut kedudukan dari markah">🔢 Auto</span>'
+            : '';
 
           /* li sentiasa block + baris dalam div sendiri: senarai murid
              mesti duduk DI BAWAH baris, bukan di sebelahnya (li ialah
@@ -1946,6 +1957,7 @@ function pilStatusBorang(b) {
             '<span class="kanan">' +
               pilStatusBorang(bSub) +
               kiraan +
+              lencanaSusun +
               /* 🔴 Hanya muncul bila ADA kerja untuk dibuat — butang
                  untuk sifar murid luar skop ialah bunyi bising pada
                  setiap baris, dan admin berhenti membacanya. */
@@ -2076,6 +2088,7 @@ function pilStatusBorang(b) {
               'title="Pecah setiap subjek kepada satu sub per darjah">⚡ Pecah ikut darjah</button>'
             : '') +
           '<button class="btn sunyi kecil" data-sub-baru="' + i + '">➕ Sub</button>' +
+          pilihSusunAnugerah(a, i) +
           '<button class="btn sunyi kecil" data-an-edit="' + i + '">Ubah</button>' +
           '<button class="btn sunyi kecil" data-an-buang="' + i + '">Buang</button>' +
         '</span>' +
@@ -2084,7 +2097,71 @@ function pilStatusBorang(b) {
   }).join('');
 }
 
+/* Dropdown "Susunan" pada baris anugerah (root). Medan SAMA dengan
+   dropdown dalam modal Ubah Anugerah (a.susunMurid), jadi kedua-duanya
+   sentiasa sepadan. Anugerah manual tiada markah → tiada pilihan Auto. */
+function pilihSusunAnugerah(a, i) {
+  const v = agIkutManual(a) ? 'manual' : agIkutKedudukan(a) ? 'kedudukan' : 'nama';
+  const op = (nilai, label) => '<option value="' + nilai + '"' +
+    (v === nilai ? ' selected' : '') + '>' + label + '</option>';
+  return '<label class="pilih-susun" title="Susunan murid naik pentas dalam setiap sub">Susunan: ' +
+    '<select data-an-susun="' + i + '">' +
+      (a.sumber !== 'manual' ? op('kedudukan', 'Auto — ikut kedudukan') : '') +
+      op('manual', 'Susun sendiri') +
+      op('nama', 'Ikut nama') +
+    '</select></label>';
+}
+
+$('pokok-anugerah').addEventListener('change', async e => {
+  const sel = e.target.closest('select[data-an-susun]');
+  if (!sel) return;
+  const a = (MAJLIS.anugerah || [])[parseInt(sel.dataset.anSusun)];
+  if (!a) return;
+  const ada = Object.prototype.hasOwnProperty.call(a, 'susunMurid');
+  const lama = a.susunMurid;
+  const lamaSub = (a.sub || []).map(x => x.susunanMurid);
+  const v = sel.value;
+  if (v === 'manual') a.susunMurid = 'manual';
+  else if (v === 'kedudukan' && a.sumber !== 'manual') a.susunMurid = 'kedudukan';
+  else delete a.susunMurid;
+  sel.disabled = true;
+  try {
+    if (agIkutManual(a)) await semaiSusunanAnugerah(a);
+    await simpanMajlis();
+    POKOK_BUKA[a.id] = true;
+    agToast('Susunan: ' + ({ manual: 'susun sendiri', kedudukan: 'auto ikut kedudukan',
+      nama: 'ikut nama' })[v] + ' · tekan 🔁 Jana Semula di Giliran bila siap', 'ok');
+  } catch (err) {
+    if (ada) a.susunMurid = lama; else delete a.susunMurid;
+    (a.sub || []).forEach((x, k) => {
+      if (lamaSub[k] === undefined) delete x.susunanMurid; else x.susunanMurid = lamaSub[k];
+    });
+    agToast('Gagal: ' + err.message, 'ralat');
+  }
+  lukisPokok();
+  if ($('susun-amaran')) amaranSusun();
+});
+
 $('pokok-anugerah').addEventListener('click', e => {
+  /* Dropdown susunan duduk DI DALAM .induk — klik padanya tidak boleh
+     menogol accordion anugerah. */
+  if (e.target.closest('select[data-an-susun]')) return;
+  const bSusun = e.target.closest('button[data-sub-susun]');
+  if (bSusun) {
+    const kunci = bSusun.dataset.subSusun;
+    const li = bSusun.closest('li');
+    MURID_BUKA[kunci] = true;
+    const tog = li && li.querySelector('button[data-murid-togol]');
+    if (tog) tog.setAttribute('aria-expanded', 'true');
+    const [i, j] = cariSubDariKunci(kunci);
+    const sub = i >= 0 && (MAJLIS.anugerah[i].sub || [])[j];
+    if (sub && li && !li.querySelector(':scope > .murid-senarai')) {
+      li.insertAdjacentHTML('beforeend', lukisMuridSub(sub, agMuridSub(sub.id)));
+    }
+    const el = li && li.querySelector(':scope > .murid-senarai');
+    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    return;
+  }
   const b = e.target.closest('button[data-an-edit],button[data-an-buang],button[data-sub-baru],' +
     'button[data-sub-edit],button[data-sub-buang],button[data-sub-pilih],' +
     'button[data-sub-borang],button[data-sub-reset],button[data-an-reset],' +
