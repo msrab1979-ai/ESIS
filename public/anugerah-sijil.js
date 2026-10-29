@@ -1550,3 +1550,60 @@ $('sj-siri-simpan').addEventListener('click', async () => {
     agToast('Gagal menyimpan: ' + er.message, 'ralat');
   }
 });
+
+/* ---------- 🔄 Segar semula ----------
+   PENERIMA dimuat semula oleh setiap tindakan dalam pelayar INI, tetapi
+   murid dari borang guru dan kerja admin lain di komputer lain tidak
+   masuk sehingga halaman dimuat semula — dan pada hari majlis itu
+   bermakna sijil dicetak daripada senarai lapuk tanpa disedari.
+   Majlis dibaca segar (templat, anugerah, gaya) DAN penerima, kemudian
+   perbezaan dilaporkan supaya admin tahu sama ada ada apa-apa berubah.
+   Draf editor yang belum disimpan tidak disentuh. */
+function sjPetaNo() {
+  const m = new Map();
+  sjSemuaSijil().forEach(it => m.set(it.p.no_kp + '|' + it.s.id, it.no));
+  return m;
+}
+
+$('sj-c-segar').addEventListener('click', async () => {
+  if (!MAJLIS) return;
+  const b = $('sj-c-segar');
+  b.disabled = true; b.textContent = 'Memuat…';
+  const sebelum = sjPetaNo();
+  const id = MAJLIS.id;
+  try {
+    const [snap, penerima] = await Promise.all([
+      agDb.collection('anugerah_majlis').doc(id).get(),
+      agMuatPenerima(id)
+    ]);
+    if (!MAJLIS || MAJLIS.id !== id) return;   // admin bertukar majlis semasa memuat
+    if (snap.exists) {
+      const segar = snap.data();
+      Object.keys(MAJLIS).forEach(k => { if (k !== 'id' && !(k in segar)) delete MAJLIS[k]; });
+      Object.assign(MAJLIS, segar, { id });
+    }
+    PENERIMA = penerima;
+    if (typeof kemasSari === 'function') kemasSari();
+
+    const selepas = sjPetaNo();
+    let baharu = 0, dibuang = 0, nombor = 0;
+    selepas.forEach((no, k) => {
+      if (!sebelum.has(k)) baharu++;
+      else if (sebelum.get(k) !== no) nombor++;
+    });
+    sebelum.forEach((no, k) => { if (!selepas.has(k)) dibuang++; });
+
+    sjLukisSemuaKecualiEditor();
+    if (SJ_DRAF) sjLukisKanvas();
+    const ubah = [];
+    if (baharu) ubah.push('+' + baharu + ' sijil baharu');
+    if (dibuang) ubah.push(dibuang + ' sijil dibuang');
+    if (nombor) ubah.push(nombor + ' nombor giliran berubah');
+    agToast(ubah.length ? 'Dikemas kini: ' + ubah.join(', ') : 'Sudah terkini — tiada perubahan', 'ok');
+  } catch (er) {
+    console.error(er);
+    agToast('Gagal memuat: ' + er.message, 'ralat');
+  } finally {
+    b.disabled = false; b.textContent = '🔄 Segar semula';
+  }
+});
