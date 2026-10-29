@@ -47,6 +47,18 @@
 .induk .tajuk-a{font-family:"Fraunces",serif; font-size:15.5px; font-weight:600}
 .induk .kanan{margin-left:auto; display:flex; gap:7px; align-items:center; flex-wrap:wrap}
 .pm-luar{padding:11px 13px; margin-bottom:13px; border:1px dashed var(--garis); border-radius:8px; background:var(--kertas-2)}
+.pm-luar > summary, .pm-blok-murid > summary{cursor:pointer; margin-bottom:6px}
+.pm-blok-murid{margin-top:4px}
+.kad-sumber{display:grid; grid-template-columns:repeat(3,1fr); gap:9px}
+@media (max-width:640px){ .kad-sumber{grid-template-columns:1fr} }
+.kad-sumber button{display:flex; flex-direction:column; align-items:flex-start; gap:3px; text-align:left;
+  padding:11px 12px; border:1.5px solid var(--garis); border-radius:9px; background:var(--kertas);
+  color:var(--teks); cursor:pointer; font:inherit}
+.kad-sumber button:hover{border-color:var(--emas, #9a7b2c)}
+.kad-sumber button.pilih{border-color:var(--emas, #9a7b2c); background:#fbf5e6; box-shadow:0 0 0 2px rgba(154,123,44,.18)}
+.kad-sumber .ikon{font-size:19px; line-height:1}
+.kad-sumber strong{font-size:13.5px}
+.kad-sumber .hurai{font-size:11.5px; color:var(--neutral); line-height:1.35}
 .pilih-susun{font-size:12px; color:var(--neutral); display:inline-flex; gap:5px; align-items:center; cursor:auto}
 .pilih-susun select{font-size:12px; padding:3px 6px; border:1px solid var(--garis); border-radius:6px;
   background:var(--kertas); color:var(--teks); cursor:pointer}
@@ -1970,7 +1982,8 @@ function lukisPokok() {
     const pilBorang = pilStatusBorang(borang);
 
     const pilSumber = a.sumber === 'manual'
-      ? '<span class="pil tunggu">Manual</span>'
+      ? (a.calon === 'luar' ? '<span class="pil tunggu">✏️ Bukan dalam ESIS</span>'
+                            : '<span class="pil tunggu">👤 Pilih murid</span>')
       : '<span class="pil emas">Auto · ' + agEsc(ASAS_LABEL[a.asas] || 'GPS') + '</span>' + pilPep;
 
     /* Lencana status borang \u2014 satu bentuk untuk aras anugerah DAN aras sub,
@@ -2722,6 +2735,12 @@ function bacaPepAnugerah() {
   return tanda.filter((x, i, arr) => x && arr.indexOf(x) === i);
 }
 
+function kadSumber(nilai, ikon, tajuk, hurai, pilih) {
+  return '<button type="button" class="' + (pilih ? 'pilih' : '') + '" data-sumber-kad="' + nilai + '">' +
+    '<span class="ikon">' + ikon + '</span><strong>' + agEsc(tajuk) + '</strong>' +
+    '<span class="hurai">' + agEsc(hurai) + '</span></button>';
+}
+
 function modalAnugerah(idx) {
   const baru = idx < 0;
   const a = baru
@@ -2734,8 +2753,20 @@ function modalAnugerah(idx) {
     '<div class="kad-isi">' +
       '<div class="medan" style="width:100%"><label for="a-nama">Nama anugerah</label>' +
         '<input type="text" id="a-nama" value="' + agEsc(a.nama) + '" placeholder="Terbaik Darjah"></div>' +
+      /* Tiga pintu, dua nilai data: kad 2 dan 3 kedua-duanya sumber
+         'manual'; kad 3 menambah `calon:'luar'` yang hanya menentukan apa
+         yang admin nampak DAHULU dalam modal Pilih Murid. */
+      '<label class="eyebrow" style="display:block;margin:15px 0 7px">Penerima anugerah ini</label>' +
+      '<div class="kad-sumber">' +
+        kadSumber('auto', '📊', 'Auto dari ESIS', 'Sistem cadang calon ikut markah — contoh Terbaik Dalam Kelas',
+          a.sumber !== 'manual') +
+        kadSumber('murid', '👤', 'Pilih murid', 'Admin tanda murid ESIS, tapis ikut darjah & kelas — contoh Kehadiran Penuh',
+          a.sumber === 'manual' && a.calon !== 'luar') +
+        kadSumber('luar', '✏️', 'Bukan dalam ESIS', 'Taip nama — ibu bapa, guru, komuniti',
+          a.sumber === 'manual' && a.calon === 'luar') +
+      '</div>' +
       '<div class="baris-input" style="margin-top:13px">' +
-        '<div class="medan"><label for="a-sumber">Sumber calon</label><select id="a-sumber">' +
+        '<div class="medan" hidden><label for="a-sumber">Sumber calon</label><select id="a-sumber">' +
           '<option value="auto"' + (a.sumber !== 'manual' ? ' selected' : '') + '>Auto dari markah ESIS</option>' +
           '<option value="manual"' + (a.sumber === 'manual' ? ' selected' : '') + '>Manual sahaja</option>' +
         '</select></div>' +
@@ -2804,7 +2835,7 @@ function modalAnugerah(idx) {
           '</div>' +
         '</div>' +
         '<p class="hint" style="margin:7px 0 0" id="a-pnota"></p></div>' +
-      '<div class="nota" style="margin:15px 0 0"><span class="sym">▸</span><div>' +
+      '<div class="nota" id="a-nota-th" style="margin:15px 0 0"><span class="sym">▸</span><div>' +
         '<strong>Murid tidak hadir (TH) dikecualikan.</strong> Ikut peraturan ESIS — TH keluar dari ' +
         'pengangka <em>dan</em> penyebut, jadi murid yang tak sempat duduk satu kertas tidak jatuh ' +
         'ranking kerana markah 0 yang tak pernah wujud.</div></div>' +
@@ -2832,7 +2863,16 @@ function modalAnugerah(idx) {
     /* Subjek dikira (kecuali Jawi dan sebagainya) hanya bermakna bagi
        asas yang menjumlahkan beberapa subjek. */
     tunjuk($('kotak-teras'), !manual && !ikutSubjek);
+    tunjuk($('a-nota-th'), !manual);   // TH hanya bermakna bila ada markah
   }
+  document.querySelectorAll('.kad-sumber [data-sumber-kad]').forEach(k => {
+    k.onclick = () => {
+      document.querySelectorAll('.kad-sumber [data-sumber-kad]')
+        .forEach(x => x.classList.toggle('pilih', x === k));
+      $('a-sumber').value = k.dataset.sumberKad === 'auto' ? 'auto' : 'manual';
+      kemasPapar();
+    };
+  });
   $('a-sumber').addEventListener('change', kemasPapar);
   $('a-asas').addEventListener('change', kemasPapar);
   kemasPapar();
@@ -3073,6 +3113,9 @@ function modalAnugerah(idx) {
     if (!nama) { agToast('Nama anugerah tidak boleh kosong', 'ralat'); return; }
     a.nama = nama;
     a.sumber = $('a-sumber').value;
+    const kad = document.querySelector('.kad-sumber .pilih');
+    if (a.sumber === 'manual' && kad && kad.dataset.sumberKad === 'luar') a.calon = 'luar';
+    else delete a.calon;
     a.asas = a.sumber === 'manual' ? null : $('a-asas').value;
     const susun = $('a-susun').value;
     if (susun === 'manual') a.susunMurid = 'manual';
@@ -3212,7 +3255,9 @@ async function modalPilihMurid(iAn, jSub) {
     '<div class="kad-isi" style="padding-bottom:9px">' +
       '<div style="padding:10px 13px; background:var(--kertas-3); border-radius:8px; font-size:13px">' +
         (an.sumber === 'manual'
-          ? '<span class="pil tunggu">Manual</span> Tiada data dalam ESIS — pilih murid sendiri.'
+          ? (an.calon === 'luar'
+              ? '<span class="pil tunggu">✏️ Bukan dalam ESIS</span> Taip nama penerima di bawah.'
+              : '<span class="pil tunggu">👤 Pilih murid</span> Tanda murid ESIS — tapis ikut darjah & kelas.')
           : '<span class="pil emas">Auto</span> Top <strong>' + (sb.ambil || 1) + '</strong> ikut <strong>' +
             agEsc(ASAS_LABEL[sb.asas || an.asas] || '') + '</strong> dalam ' + skop) +
         '<br><span class="kecil">Hadiah: ' +
@@ -3730,11 +3775,17 @@ async function pmLukisManual() {
   /* Anugerah manual boleh menerima orang yang TIADA dalam senarai murid
      ESIS (contoh Anugerah Ibu Bapa Terbaik) — admin taip nama sahaja. */
   const bolehLuar = PM.an.sumber === 'manual';
+  /* Kad 3 (calon:'luar') → kotak nama terbuka, senarai murid dilipat.
+     Kad 2 → sebaliknya. Kedua-duanya kekal ada: satu anugerah boleh
+     mencampur murid dan nama luar. Dilipat dibuka sendiri bila sudah
+     ada isi, supaya tiada penerima tersembunyi. */
+  const utamaLuar = PM.an.calon === 'luar';
+  const adaLuar = pmSudahAda().some(agAdalahLuar);
+  const adaMurid = pmSudahAda().some(p => !agAdalahLuar(p));
   $('pm-isi').innerHTML =
     (bolehLuar
-      ? '<div class="pm-luar">' +
-          '<label for="pm-luar-nama" class="eyebrow" style="display:block;margin-bottom:5px">' +
-            '✏️ Nama bukan murid (tiada dalam ESIS)</label>' +
+      ? '<details class="pm-luar"' + (utamaLuar || adaLuar ? ' open' : '') + '>' +
+          '<summary class="eyebrow">✏️ Nama bukan murid (tiada dalam ESIS)</summary>' +
           '<div class="baris-input" style="align-items:center">' +
             '<input type="text" id="pm-luar-nama" style="flex:1 1 260px" ' +
               'placeholder="Taip nama penuh, contoh: ENCIK AHMAD BIN ALI">' +
@@ -3743,8 +3794,10 @@ async function pmLukisManual() {
           '<div id="pm-luar-senarai"></div>' +
           '<p class="hint" style="margin:6px 0 0">Untuk ibu bapa, guru atau komuniti. ' +
             'Murid ESIS dipilih dari senarai di bawah.</p>' +
-        '</div>'
+        '</details>'
       : '') +
+    (utamaLuar ? '<details class="pm-blok-murid"' + (adaMurid ? ' open' : '') + '>' +
+      '<summary class="eyebrow">👤 Tambah murid ESIS juga</summary>' : '') +
     '<div class="baris-input">' +
       '<div class="medan"><label for="pm-darjah">Darjah</label><select id="pm-darjah">' +
         /* 🔴 Anugerah berskop SEKOLAH (contoh Kebitaraan Antarabangsa)
@@ -3771,7 +3824,8 @@ async function pmLukisManual() {
       '<button class="btn emas" id="pm-simpanM">💾 Simpan murid ditanda</button>' +
       (PM.an.sumber === 'manual' ? '' :
         '<button class="btn sunyi" id="pm-kembali">← Kembali ke senarai</button>') +
-    '</div>';
+    '</div>' +
+    (utamaLuar ? '</details>' : '');
 
   function isiKelas() {
     const w = $('pm-darjah').value;

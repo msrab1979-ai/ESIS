@@ -865,6 +865,7 @@ Untuk anugerah seperti **Anugerah Ibu Bapa Terbaik**: anugerah `sumber:'manual'`
 - `luarSkopPenerima` sentiasa `false` untuk bukan murid (tiada darjah) — jadi 🔧 Betulkan tidak menyentuh mereka.
 - **Kad jemputan**: ayat berasingan `MAJLIS.kadAjakLuar` (lalai "Dengan hormatnya mempelawa") — bukan "ibu bapa / penjaga kepada".
 - Belum ada "Daftar Orang" untuk dipakai semula tahun berikutnya — nama ditaip setiap majlis.
+- **Tiga kad semasa cipta/ubah anugerah** (`kadSumber`, `.kad-sumber`): 📊 **Auto dari ESIS** (`sumber:'auto'`) · 👤 **Pilih murid** (`sumber:'manual'`) · ✏️ **Bukan dalam ESIS** (`sumber:'manual'` + `calon:'luar'`). `<select id="a-sumber">` kekal tersorok sebagai nilai sebenar supaya semua semakan `sumber === 'manual'` sedia ada tidak berubah — **jangan tambah nilai `sumber` baharu**. `calon:'luar'` hanya menentukan apa yang dibuka DAHULU dalam modal Pilih Murid: kotak nama terbuka + senarai murid dilipat (`details.pm-blok-murid`); kad 👤 sebaliknya. Bahagian dilipat dibuka sendiri bila sudah ada isi. Nota TH disorok untuk anugerah manual.
 
 #### Nombor giliran mesti berturutan tanpa jurang
 
