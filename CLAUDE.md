@@ -454,6 +454,7 @@ Tab ke-8 dalam `anugerah-admin.html`; kod dalam fail berasingan `anugerah-sijil.
 - **Auto-kecil font** `sjMuatkanSatu` (0.25pt, min 8pt) — pengajaran `_slipTeksMuat`. Tidak terpakai pada medan `balut`. Editor memapar amaran bila dikecilkan / masih tak muat.
 - Teks = ayat bebas + `{kod}` (`SJ_KOD`). Kod salah eja **kekal kelihatan**. Mana-mana kod kosong → medan disembunyikan (lalai `sembunyiKosong`) — bukan murid tiada kelas/KP. Dalam editor ia dilukis pudar supaya masih boleh diseret.
 - Gambar dikecilkan dalam pelayar sebelum muat naik ke `public/sijil/` (templat 3508px JPEG, tandatangan/cop 1200px PNG telus) — had `storage.rules` 5MB. Storage SDK dimuat malas.
+- **`{no_siri}` = nombor GILIRAN anugerah itu, diformat** (`sjNoSiri`, `MAJLIS.sijil.siri = {awalan, digit, akhiran}`; awalan/akhiran boleh bawa `{tahun}`). Bukan nombor kedua — satu nombor supaya sijil sepadan dengan tiket. Tiada giliran → kosong → disorok. Pakai atau tidak = admin letak item itu dalam templat atau tidak. Gaya C: pengikut berkongsi `no` utama, jadi siri sama (pengguna pilih tanpa huruf A/B/C, 29 Okt 2026). Jana Semula selepas cetak = siri tidak lagi sepadan.
 - **Tetapan slip ESIS (nama GB, jawatan, tandatangan) disimpan dalam `localStorage` pelayar (`slipTemplateSettings`), BUKAN Firestore.** "📥 Ambil dari slip ESIS" hanya berfungsi di komputer tempat slip disetkan; selepas Simpan, sijil berdiri sendiri.
 
 ### Borang serahan guru (`public/guru.html`)

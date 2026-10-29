@@ -9,7 +9,8 @@
      templat:   [{ id, nama, gambarUrl, orientasi:'L'|'P', medan:[...] }],
      lalai:     templatId,
      peta:      { anugerahId: templatId, 'anugerahId::subId': templatId },
-     pentadbir: [{ nama, jawatan, ttdUrl } × 3]
+     pentadbir: [{ nama, jawatan, ttdUrl } × 3],
+     siri:      { awalan, digit, akhiran }   // format {no_siri}
    }
    medan = { id, jenis:'teks'|'gambar', x, y, w   (mm, penjuru kiri-atas)
              teks  : ayat bebas + {kod}  ·  font, pt, bold, italic, warna,
@@ -72,6 +73,7 @@ const SJ_KOD = [
   ['sub', 'Sub-anugerah', 'SAINS — TAHUN 4'],
   ['nilai', 'Nilai (markah/GPS)', '92.5'],
   ['giliran', 'No. giliran', '12'],
+  ['no_siri', 'No. siri sijil', '012'],
   ['majlis', 'Nama majlis', 'MAJLIS ANUGERAH KECEMERLANGAN 2026'],
   ['tarikh', 'Tarikh majlis', '12 November 2026'],
   ['sekolah', 'Sekolah', 'SK SULTAN ISMAIL'],
@@ -114,6 +116,7 @@ function sjSj() {
   if (!sj.peta || typeof sj.peta !== 'object') sj.peta = {};
   if (!Array.isArray(sj.pentadbir)) sj.pentadbir = [];
   while (sj.pentadbir.length < 3) sj.pentadbir.push({ nama: '', jawatan: '', ttdUrl: '' });
+  if (!sj.siri || typeof sj.siri !== 'object') sj.siri = { awalan: '', digit: 3, akhiran: '' };
   if (!sj.templat.some(t => t.id === sj.lalai)) sj.lalai = sj.templat[0] ? sj.templat[0].id : '';
   return sj;
 }
@@ -161,13 +164,29 @@ function sjData(it) {
     sub: x.sub || (s && s.nama) || '',
     nilai: x.nilai == null ? '' : String(x.nilai),
     giliran: g && g.no != null ? String(g.no) : '',
+    no_siri: '',
     majlis: MAJLIS.nama || '',
     tarikh: MAJLIS.tarikh || '',
     sekolah: MAJLIS.sekolah || '',
     tahun: String(MAJLIS.calYear || '')
   };
   sjIsiPentadbir(d, pt);
+  d.no_siri = sjNoSiri(d.giliran, d);
   return d;
+}
+
+/* 🔴 No. siri = nombor GILIRAN anugerah itu, diformat. Bukan nombor
+   kedua yang dijana sendiri — satu nombor sahaja supaya sijil sentiasa
+   sepadan dengan tiket. Tiada giliran → kosong → item disembunyikan.
+   Awalan/akhiran boleh membawa kod lain, contohnya {tahun}. */
+function sjNoSiri(giliran, data, siri) {
+  const g = String(giliran == null ? '' : giliran).trim();
+  if (!g) return '';
+  const f = siri || sjSj().siri;
+  const digit = Math.max(0, Math.min(6, Number(f.digit) || 0));
+  const no = /^\d+$/.test(g) && digit ? g.padStart(digit, '0') : g;
+  const luar = Object.assign({}, data, { no_siri: '' });
+  return sjGanti(f.awalan, luar).teks + no + sjGanti(f.akhiran, luar).teks;
 }
 
 function sjIsiPentadbir(d, pt) {
@@ -185,7 +204,9 @@ function sjDataContoh() {
   if (MAJLIS.tarikh) d.tarikh = MAJLIS.tarikh;
   if (MAJLIS.sekolah) d.sekolah = MAJLIS.sekolah;
   if (MAJLIS.calYear) d.tahun = String(MAJLIS.calYear);
-  return sjIsiPentadbir(d, sjSj().pentadbir);
+  sjIsiPentadbir(d, sjSj().pentadbir);
+  d.no_siri = sjNoSiri(d.giliran, d);
+  return d;
 }
 
 /* Semua sijil majlis, dalam turutan naik pentas (nombor giliran bila ada). */
@@ -430,6 +451,7 @@ function sjInit() {
   if (SJ_DRAF && SJ_DRAF_MAJLIS !== MAJLIS.id) sjTutupEditor(true);
   sjLukisTemplat();
   sjLukisPentadbir();
+  sjLukisSiri();
   sjLukisPeta();
   sjIsiTapisCetak();
   sjLukisCetak();
@@ -589,6 +611,7 @@ $('sj-b-salin').addEventListener('click', () => {
 function sjLukisSemuaKecualiEditor() {
   sjLukisTemplat();
   sjLukisPentadbir();
+  sjLukisSiri();
   sjLukisPeta();
   sjIsiTapisCetak();
   sjLukisCetak();
@@ -1479,3 +1502,48 @@ async function sjCetak(senarai) {
 /* Dropdown "Medan data" dalam bar alat — dari SJ_KOD, satu sumber. */
 $('sj-e-kod').innerHTML = '<option value="">➕ Medan data…</option>' +
   SJ_KOD.map(([k, l]) => '<option value="' + k + '">' + agEsc(l) + '  {' + k + '}</option>').join('');
+
+/* ---------- Kad: format No. Siri ---------- */
+function sjLukisSiri() {
+  const f = sjSj().siri;
+  $('sj-siri-awalan').value = f.awalan || '';
+  $('sj-siri-akhiran').value = f.akhiran || '';
+  $('sj-siri-digit').value = String(Number(f.digit) || 0);
+  sjContohSiri();
+}
+
+function sjBacaSiri() {
+  return {
+    awalan: $('sj-siri-awalan').value,
+    digit: Number($('sj-siri-digit').value) || 0,
+    akhiran: $('sj-siri-akhiran').value
+  };
+}
+
+function sjContohSiri() {
+  const f = sjBacaSiri();
+  const d = sjDataContoh();
+  $('sj-siri-contoh').innerHTML = 'Contoh: giliran 7 → <strong>' + agEsc(sjNoSiri('7', d, f)) +
+    '</strong> · giliran 112 → <strong>' + agEsc(sjNoSiri('112', d, f)) + '</strong>';
+}
+
+$('sj-siri').addEventListener('input', () => {
+  sjContohSiri();
+  $('sj-siri-status').textContent = 'Belum disimpan';
+});
+$('sj-siri').addEventListener('change', sjContohSiri);
+
+$('sj-siri-simpan').addEventListener('click', async () => {
+  const sj = sjSj();
+  const lama = sj.siri;
+  sj.siri = sjBacaSiri();
+  try {
+    await sjTulis();
+    $('sj-siri-status').textContent = '';
+    agToast('Format No. Siri disimpan', 'ok');
+    if (SJ_DRAF) sjLukisKanvas();
+  } catch (er) {
+    sj.siri = lama;
+    agToast('Gagal menyimpan: ' + er.message, 'ralat');
+  }
+});

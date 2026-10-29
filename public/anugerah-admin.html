@@ -904,9 +904,39 @@
       <div class="kad-isi" id="sj-pentadbir"></div>
     </div>
 
+    <div class="kad">
+      <div class="kad-kepala">
+        <span class="langkah-no">3</span><h3>No. Siri Sijil</h3>
+        <span class="sub">Kod {no_siri} = nombor giliran anugerah itu · pakai hanya jika item ini diletak dalam templat</span>
+        <div class="kanan">
+          <span class="hint" id="sj-siri-status" style="margin:0;color:var(--amaran)"></span>
+          <button class="btn emas kecil" id="sj-siri-simpan">💾 Simpan</button>
+        </div>
+      </div>
+      <div class="kad-isi" id="sj-siri">
+        <div class="baris-input">
+          <div class="medan" style="flex:1 1 200px"><label for="sj-siri-awalan">Awalan</label>
+            <input type="text" id="sj-siri-awalan" placeholder="contoh: AKK/{tahun}/"></div>
+          <div class="medan"><label for="sj-siri-digit">Bilangan digit</label>
+            <select id="sj-siri-digit">
+              <option value="0">Ikut nombor (7, 112)</option>
+              <option value="2">2 digit (07)</option>
+              <option value="3">3 digit (007)</option>
+              <option value="4">4 digit (0007)</option>
+            </select></div>
+          <div class="medan" style="flex:1 1 140px"><label for="sj-siri-akhiran">Akhiran</label>
+            <input type="text" id="sj-siri-akhiran" placeholder="contoh: -SKSI"></div>
+        </div>
+        <p class="hint" style="margin:8px 0 0" id="sj-siri-contoh"></p>
+        <p class="hint" style="margin:4px 0 0">Untuk letak dalam sijil: Editor → <strong>➕ Medan data</strong> →
+          <em>No. siri sijil</em>, kemudian seret dan ubah gaya seperti teks lain. Boleh juga taip
+          <code>No. Siri: {no_siri}</code>. Murid tanpa nombor giliran → No. Siri tidak dicetak.</p>
+      </div>
+    </div>
+
     <div class="kad" id="sj-kad-peta" hidden>
       <div class="kad-kepala">
-        <span class="langkah-no">3</span><h3>Templat ikut Anugerah</h3>
+        <span class="langkah-no">4</span><h3>Templat ikut Anugerah</h3>
         <span class="sub">Sub &gt; anugerah &gt; lalai · disimpan terus</span>
       </div>
       <div class="kad-isi" id="sj-peta"></div>
@@ -914,7 +944,7 @@
 
     <div class="kad">
       <div class="kad-kepala">
-        <span class="langkah-no">4</span><h3>Cetak Sijil</h3>
+        <span class="langkah-no">5</span><h3>Cetak Sijil</h3>
         <span class="sub">Dialog cetak → Simpan sebagai PDF atau terus ke pencetak</span>
         <div class="kanan"><button class="btn emas kecil" id="sj-c-cetak">🖨 Cetak</button></div>
       </div>
