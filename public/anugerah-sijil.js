@@ -230,9 +230,12 @@ function sjSemuaSijil() {
 /* ==========================================================================
    PELUKIS HALAMAN — satu untuk editor dan cetakan
    ========================================================================== */
+/* 🔴 Petikan TUNGGAL. Nilai ini masuk ke dalam atribut style="…";
+   petikan berganda menamatkan atribut itu pada font-family, dan setiap
+   gaya selepasnya (bold, italic, warna, jajaran) hilang tanpa ralat. */
 function sjFonCss(nama) {
   const f = SJ_FON.find(x => x[0] === nama) || SJ_FON[0];
-  return '"' + f[0] + '", ' + f[1];
+  return "'" + f[0] + "', " + f[1];
 }
 function sjWarna(w) { return /^#[0-9a-f]{6}$/i.test(String(w || '')) ? w : '#000000'; }
 function sjNum(v, lalai) { const n = Number(v); return isFinite(n) ? n : lalai; }
