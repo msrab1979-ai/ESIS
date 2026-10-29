@@ -1713,19 +1713,19 @@ function lukisSusunManual(s, baris, dalamModal) {
       '" data-ms-sub="' + agEsc(s.id) + '">' +
     '<div class="ms-kepala">' +
       (kunci
-        ? '<span><strong>🔒 Susunan dikunci.</strong> Muktamad — tekan Buka kunci untuk mengubah.</span>' +
-          '<button class="btn sunyi kecil" data-ms="buka">🔓 Buka kunci</button>'
+        ? '<span><strong>📌 Susunan dikunci.</strong> Muktamad — tekan Buka kunci susunan untuk mengubah.</span>' +
+          '<button class="btn sunyi kecil" data-ms="buka">Buka kunci susunan</button>'
         : '<span><strong>Susunan naik pentas — susun sendiri.</strong> Seret ⠿ atau tekan ↑↓. ' +
-            'Tekan 🔒 Kunci bila siap.</span>' +
+            'Tekan 📌 Kunci susunan bila siap.</span>' +
           '<span style="display:flex;gap:6px">' +
           (auto
             ? '<button class="btn sunyi kecil" data-ms="rank" title="Ganti susunan dengan kedudukan dari markah">↺ Susun ikut markah</button>'
             : '<button class="btn sunyi kecil" data-ms="nama" title="Ganti susunan dengan abjad nama">↺ Susun ikut nama</button>') +
-          '<button class="btn emas kecil" data-ms="kunci">🔒 Kunci</button></span>') +
+          '<button class="btn emas kecil" data-ms="kunci">📌 Kunci susunan</button></span>') +
     '</div>' +
     (belum ? '<div class="nota ' + (kunci ? 'ralat' : 'amaran') + ' ms-nota"><span class="sym">⚠</span><div>' +
       '<strong>' + belum + ' penerima belum disusun</strong> — diletak di bawah ikut nama. ' +
-      (kunci ? 'Susunan dikunci: tekan <em>🔓 Buka kunci</em> untuk menyusunnya.'
+      (kunci ? 'Susunan dikunci: tekan <em>Buka kunci susunan</em> untuk menyusunnya.'
              : 'Seret ke tempatnya, atau <button class="btn kecil" data-ms="sahkan">✓ Sahkan susunan ini</button>') +
       '</div></div>' : '') +
     (susunTakPadanGiliran(s, baris) ? '<div class="nota amaran ms-nota"><span class="sym">⚠</span><div>' +
@@ -1806,9 +1806,9 @@ function pilKunci(a, subList) {
   if (!ada.length) return '';
   const siap = kunci === ada.length;
   return '<span class="pil ' + (siap ? 'hadir' : 'tunggu') + '" title="Sub yang susunannya sudah dikunci">' +
-      '🔒 ' + kunci + ' / ' + ada.length + ' dikunci' + (siap ? ' ✓' : '') + '</span>' +
+      '📌 ' + kunci + ' / ' + ada.length + ' susunan dikunci' + (siap ? ' ✓' : '') + '</span>' +
     (siap ? '' : '<button class="btn sunyi kecil" data-kunci-semua="' +
-      agEsc(JSON.stringify(ada.filter(s => !s.susunKunci).map(s => s.id))) + '">🔒 Kunci semua</button>');
+      agEsc(JSON.stringify(ada.filter(s => !s.susunKunci).map(s => s.id))) + '">📌 Kunci semua susunan</button>');
 }
 
 function subDariId(subId) {
@@ -1820,7 +1820,7 @@ async function jalanSusun(subId, fn) {
   if (MS_SIBUK) return;
   const { a, s } = subDariId(subId);
   if (!a || !s || !agIkutManual(a)) return;
-  if (s.susunKunci) { agToast('Susunan dikunci — tekan 🔓 Buka kunci dahulu', 'ralat'); return; }
+  if (s.susunKunci) { agToast('Susunan dikunci — tekan Buka kunci susunan dahulu', 'ralat'); return; }
   MS_SIBUK = true;
   try { await fn(a, s); } finally { MS_SIBUK = false; }
 }
@@ -1861,11 +1861,11 @@ if (!window._msPasang) {
     if (tindakan === 'kunci' || tindakan === 'buka') {
       const { a, s } = subDariId(subId);
       if (!a || !s || MS_SIBUK) return;
-      if (tindakan === 'buka' && !confirm('Buka kunci susunan "' + s.nama + '"?\n\n' +
+      if (tindakan === 'buka' && !confirm('Buka kunci SUSUNAN MURID "' + s.nama + '"?\n\n' +
         'Susunan boleh diubah semula selepas ini.')) return;
       MS_SIBUK = true;
       return kunciSusunan([s], tindakan === 'kunci').then(ok => {
-        if (ok) agToast(tindakan === 'kunci' ? '🔒 ' + s.nama + ' dikunci' : '🔓 Kunci dibuka', 'ok');
+        if (ok) agToast(tindakan === 'kunci' ? '📌 Susunan ' + s.nama + ' dikunci' : 'Kunci susunan dibuka', 'ok');
       }).finally(() => { MS_SIBUK = false; });
     }
     if (tindakan === 'sahkan') return jalanSusun(subId, (a, s) =>
@@ -1992,7 +1992,7 @@ function lukisPokok() {
 function pilStatusBorang(b) {
   if (!b) return '';
   if (b.ditutup) return '<span class="pil absen" title="' + agEsc(b.nama || '') +
-    ' \u2014 guru boleh melihat, tidak boleh mengubah">\ud83d\udd12 Ditutup</span>';
+    ' \u2014 guru boleh melihat, tidak boleh mengubah">\ud83d\udd12 Borang dikunci</span>';
   return '<span class="pil ' +
       (b.dihantar ? 'hadir' : b.dibuka ? 'amaran' : 'tunggu') +
     '" title="' + agEsc(b.nama || '') + '">' +
@@ -2051,7 +2051,7 @@ function pilStatusBorang(b) {
           /* Cara susun sekilas + jalan pintas ke jadual seret. */
           const lencanaSusun = agIkutManual(a)
             ? (s.susunKunci && bil
-                ? '<span class="pil hadir" title="Susunan sudah dikunci">🔒 Dikunci</span>'
+                ? '<span class="pil hadir" title="Susunan murid naik pentas sudah dikunci">📌 Susunan dikunci</span>'
                 : '<span class="pil tunggu" title="Susunan naik pentas disusun sendiri oleh admin">✋ Sendiri</span>') +
               (bil ? '<button class="btn emas kecil" data-sub-susun="' + agEsc(kunciM) + '" ' +
                 'title="Buka senarai untuk seret / ↑↓">⠿ Susun</button>' : '')
@@ -2268,13 +2268,14 @@ $('pokok-anugerah').addEventListener('click', e => {
     try { ids = JSON.parse(bKunci.dataset.kunciSemua); } catch (err) { return; }
     const subList = ids.map(id => subDariId(id).s).filter(Boolean);
     if (!subList.length) return;
-    if (!confirm('Kunci susunan ' + subList.length + ' sub?\n\n' +
+    if (!confirm('📌 KUNCI SUSUNAN MURID NAIK PENTAS — ' + subList.length + ' sub?\n\n' +
+      '(Ini BUKAN borang guru. Borang guru dikunci di tab Link Petugas.)\n\n' +
       subList.slice(0, 8).map(x => '• ' + x.nama).join('\n') +
       (subList.length > 8 ? '\n… dan ' + (subList.length - 8) + ' lagi' : '') +
       '\n\nSusunan yang dipapar sekarang akan dibekukan.')) return;
     bKunci.disabled = true;
     kunciSusunan(subList, true).then(ok => {
-      if (ok) agToast('🔒 ' + subList.length + ' sub dikunci', 'ok');
+      if (ok) agToast('📌 Susunan ' + subList.length + ' sub dikunci', 'ok');
     });
     return;
   }
@@ -2436,7 +2437,7 @@ function modalBorangGuru(iAn, jSub, darjah) {
       '<button class="b-tutup" id="mx" aria-label="Tutup">×</button></div>' +
     '<div class="kad-isi">' +
       (b && b.ditutup
-        ? '<div class="nota ralat"><span class="sym">🔒</span><div><strong>Borang ditutup' +
+        ? '<div class="nota ralat"><span class="sym">🔒</span><div><strong>Borang dikunci' +
             (b.masaTutup ? ' ' + agEsc(b.masaTutup) : '') + '.</strong> Guru boleh membuka pautan ' +
             'dan melihat senarainya, tetapi tidak boleh menambah, membuang atau menghantar.</div></div>'
         : '') +
@@ -2495,7 +2496,7 @@ function modalBorangGuru(iAn, jSub, darjah) {
         (b && b.dihantar
           ? '<button class="btn" id="bg-reset">🔓 Buka Semula untuk Guru</button>' : '') +
         (b ? '<button class="btn" id="bg-togol-tutup">' +
-            (b.ditutup ? '🔓 Buka borang' : '🔒 Tutup borang') + '</button>' : '') +
+            (b.ditutup ? '🔓 Buka kunci borang' : '🔒 Kunci borang') + '</button>' : '') +
         (b ? '<button class="btn sunyi" id="bg-batal-borang">Batalkan borang</button>' : '') +
         '<button class="btn sunyi" id="bg-tutup">Tutup</button>' +
       '</div>' +
@@ -2661,11 +2662,11 @@ function lukisBorangGuru() {
     const buka = senarai.filter(r => !r.b.ditutup).map(r => r.kunci);
     const tutup = senarai.filter(r => r.b.ditutup).map(r => r.kunci);
     return (buka.length ? '<button class="btn sunyi kecil" data-pg-tutup="' +
-        agEsc(JSON.stringify(buka)) + '" data-pg-label="' + agEsc(teks) + '">🔒 Tutup ' +
-        (senarai.length > 1 ? 'semua (' + buka.length + ')' : '') + '</button>' : '') +
+        agEsc(JSON.stringify(buka)) + '" data-pg-label="' + agEsc(teks) + '">' +
+        (senarai.length > 1 ? '🔒 Kunci semua borang (' + buka.length + ')' : '🔒 Kunci borang') + '</button>' : '') +
       (tutup.length ? '<button class="btn sunyi kecil" data-pg-buka="' +
-        agEsc(JSON.stringify(tutup)) + '" data-pg-label="' + agEsc(teks) + '">🔓 Buka ' +
-        (senarai.length > 1 ? 'semua (' + tutup.length + ')' : '') + '</button>' : '');
+        agEsc(JSON.stringify(tutup)) + '" data-pg-label="' + agEsc(teks) + '">' +
+        (senarai.length > 1 ? '🔓 Buka semua borang (' + tutup.length + ')' : '🔓 Buka borang') + '</button>' : '');
   };
 
   /* Kumpul ikut anugerah supaya BUNDLE boleh duduk pada tajuk kumpulan. */
@@ -2678,7 +2679,7 @@ function lukisBorangGuru() {
 
   bekas.innerHTML =
     '<div class="baris-input" style="align-items:center;margin-bottom:9px">' +
-      '<span class="kecil">' + baris.length + ' borang · <strong>' + bilTutup + '</strong> ditutup</span>' +
+      '<span class="kecil">' + baris.length + ' borang · <strong>' + bilTutup + '</strong> dikunci</span>' +
       '<span style="margin-left:auto;display:flex;gap:6px">' +
         butangBundle(baris, 'SEMUA borang dalam majlis ini') + '</span>' +
     '</div>' +
@@ -2728,7 +2729,7 @@ function lukisBorangGuru() {
         '<td>' + (agEsc(b.nama) || '<em class="kecil">tiada nama</em>') + '</td>' +
         '<td class="lb-url">' + agEsc(url) + '</td>' +
         '<td>' + (b.ditutup
-            ? '<span class="pil absen">🔒 Ditutup · ' + bil + ' murid</span>' +
+            ? '<span class="pil absen">🔒 Borang dikunci · ' + bil + ' murid</span>' +
               (b.masaTutup ? '<div class="kecil">' + agEsc(b.masaTutup) + '</div>' : '')
             : b.dihantar
             ? '<span class="pil hadir">✓ Dihantar · ' + bil + ' murid</span>' +
@@ -2750,7 +2751,7 @@ function lukisBorangGuru() {
 async function jalanTutupBorang(kunciList, tutup, label) {
   if (!kunciList.length) return false;
   const n = kunciList.length;
-  if (!confirm((tutup ? 'TUTUP ' : 'BUKA ') + (n > 1 ? n + ' borang' : 'borang') +
+  if (!confirm((tutup ? '🔒 KUNCI ' : '🔓 BUKA KUNCI ') + (n > 1 ? n + ' borang guru' : 'borang guru') +
       ' — ' + label + '?\n\n' +
       (tutup
         ? 'Guru masih boleh membuka pautan dan MELIHAT senarainya, tetapi tidak boleh ' +
@@ -2763,7 +2764,7 @@ async function jalanTutupBorang(kunciList, tutup, label) {
       if (bb) { bb.ditutup = tutup; bb.masaTutup = tutup ? masa : ''; }
     });
     lukisPokok(); lukisPetugas();
-    agToast((tutup ? '🔒 ' : '🔓 ') + n + ' borang ' + (tutup ? 'ditutup' : 'dibuka'), 'ok');
+    agToast((tutup ? '🔒 ' : '🔓 ') + n + ' borang ' + (tutup ? 'dikunci' : 'dibuka kunci'), 'ok');
     return true;
   } catch (e) {
     agToast('Gagal: ' + e.message, 'ralat');

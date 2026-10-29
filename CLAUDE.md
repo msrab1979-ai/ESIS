@@ -632,7 +632,9 @@ Tab **Link Petugas** memapar kedua-dua aras dalam **satu jadual** (`Anugerah —
 
 Disahkan 21 Okt 2026: oracle 123 kes (pusing-balik kunci termasuk subId yang mengandungi `::`, dan matriks skop induk/sub × peta borang × sub asing), 0 beza; tindihan induk+sub menghasilkan tepat satu borang per sub.
 
-#### 🔒 Tutup borang — single & bundle (29 Okt 2026)
+#### 🔒 Kunci borang — single & bundle (29 Okt 2026)
+
+**Label (jangan campur):** borang guru = **🔒 Kunci borang** (tab Link Petugas); susunan murid = **📌 Kunci susunan** (tab Jenis Anugerah). Asalnya kedua-duanya 🔒 "Kunci semua" dan admin tertekan kunci susunan 28 kelas sangka ia kunci borang. Medan data kekal `ditutup` / `susunKunci`.
 
 **Tutup ≠ Batal.** Batal memadam borang (pautan mati). Tutup (`borangGuru[k].ditutup`, `masaTutup`) mengekalkan pautan: guru boleh log masuk dan **melihat** senarainya, tetapi tidak boleh menambah, membuang atau menghantar. Murid yang sudah dipilih kekal.
 

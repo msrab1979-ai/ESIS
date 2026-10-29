@@ -845,7 +845,7 @@ async function borangMasihBuka() {
   if (b.ditutup || b.dihantar) {
     lukisPilih();
     alert(b.ditutup
-      ? 'Borang ini sudah DITUTUP oleh admin. Tiada apa disimpan.\n\nHubungi admin majlis jika perlu dibuka semula.'
+      ? 'Borang ini sudah DIKUNCI oleh admin. Tiada apa disimpan.\n\nHubungi admin majlis jika perlu dibuka semula.'
       : 'Borang ini sudah dihantar dan terkunci. Tiada apa disimpan.');
     return false;
   }
@@ -862,12 +862,12 @@ function lukisHantar() {
 
   if (ditutup()) {
     banner.innerHTML = '<div class="nota ralat"><span class="sym">🔒</span><div>' +
-      '<strong>Borang ini ditutup oleh admin' +
+      '<strong>Borang ini dikunci oleh admin' +
       (b.masaTutup ? ' (' + agEsc(b.masaTutup) + ')' : '') + '.</strong> ' +
       'Senarai di bawah boleh dilihat tetapi tidak boleh diubah. ' +
       'Hubungi admin majlis jika perlu dibuka semula.</div></div>';
     bekas.innerHTML = '<div class="baris-input" style="align-items:center">' +
-      '<span class="kecil"><strong>' + bil + ' murid</strong> dalam senarai · borang ditutup</span></div>';
+      '<span class="kecil"><strong>' + bil + ' murid</strong> dalam senarai · borang dikunci</span></div>';
     kemasModBaca();
     return;
   }
@@ -957,7 +957,7 @@ function kemasModBaca() {
   });
   document.querySelectorAll('#senarai-pilih button[data-buang]').forEach(b => {
     b.disabled = baca;
-    b.title = baca ? (ditutup() ? 'Borang ditutup oleh admin'
+    b.title = baca ? (ditutup() ? 'Borang dikunci oleh admin'
       : 'Borang sudah dihantar \u2014 hubungi admin untuk membukanya semula') : '';
   });
 }
