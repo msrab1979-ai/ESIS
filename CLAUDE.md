@@ -460,6 +460,8 @@ Tab ke-8 dalam `anugerah-admin.html`; kod dalam fail berasingan `anugerah-sijil.
 - **🔄 Segar semula** (kad Cetak) membaca segar dokumen majlis + `anugerah_penerima`, dikemas **di tempat** (`Object.assign(MAJLIS, …)` — `SENARAI_MAJLIS` memegang rujukan yang sama), dan melapor beza `+N baharu / N dibuang / N nombor berubah` (kunci `no_kp|subId`). Perlu kerana borang guru & admin lain tidak sampai ke pelayar ini tanpa muat semula. Draf editor tidak disentuh.
 - **Tetapan slip ESIS (nama GB, jawatan, tandatangan) disimpan dalam `localStorage` pelayar (`slipTemplateSettings`), BUKAN Firestore.** "📥 Ambil dari slip ESIS" hanya berfungsi di komputer tempat slip disetkan; selepas Simpan, sijil berdiri sendiri.
 
+**Belum dibina / diketahui (29 Okt 2026):** item teks dengan `teks:""` tidak kelihatan langsung dalam editor (pengguna pernah menyimpan item `{no_siri}` yang kosong tanpa sedar — punca kosong belum dikenal pasti; cadangan label "(teks kosong)" dalam editor sahaja belum diluluskan). Gaya C: semua sijil seorang murid berkongsi No. Siri (cadangan akhiran -A/-B belum diluluskan). ✕ Buang tandatangan tidak memadam fail di Storage.
+
 ### Borang serahan guru (`public/guru.html`)
 
 Sebahagian anugerah bukan milik admin: Tokoh NILAM diketahui oleh guru pusat sumber, Sahsiah Terpuji oleh guru disiplin. Admin menyerahkan anugerah itu dengan butang hijau **📝 Bina Borang** dalam pokok Jenis Anugerah; guru mendapat borangnya sendiri dan tidak pernah melihat majlis selebihnya.
