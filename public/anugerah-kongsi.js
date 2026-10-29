@@ -842,12 +842,51 @@ function agSubBelumDisusun(majlis) {
 function agBinaTurutan(majlis, penerima, kedudukan) {
   const turutan = [];
   agSusunanSub(majlis).forEach(({ a, s }) => {
-    agSusunMuridSub(
+    agSusunMuridDalamSub(a, s,
       penerima.filter(p => (p.anugerah || []).some(x => x.subId === s.id)),
-      kedudukan && agIkutKedudukan(a) ? kedudukan[s.id] : null
+      kedudukan
     ).forEach(p => turutan.push({ p, a, s }));
   });
   return turutan;
+}
+
+/* 🔴 SATU-SATUNYA tempat yang memutuskan susunan murid dalam satu sub.
+      Giliran (gaya A/B/C), senarai pokok dan modal Pilih Murid semuanya
+      memanggil ini — dua peraturan bermakna dua susunan berbeza.
+   Susun sendiri → s.susunanMurid; ikut kedudukan → rank; lain → nama. */
+function agSusunMuridDalamSub(a, s, senarai, kedudukan) {
+  if (agIkutManual(a)) return agSusunManual(senarai, s && s.susunanMurid);
+  return agSusunMuridSub(senarai,
+    kedudukan && agIkutKedudukan(a) ? kedudukan[s.id] : null);
+}
+
+/* Anugerah yang susunan muridnya disusun sendiri oleh admin. Terpakai
+   kepada SEMUA sumber, termasuk manual (tiada ranking). */
+function agIkutManual(a) {
+  return !!a && a.susunMurid === 'manual';
+}
+
+/* Susun ikut `susunan` ([no_kp], disimpan pada sub). Murid yang TIADA
+   dalam susunan (ditambah selepas admin menyusun, contohnya melalui
+   borang guru) diletak DI BAWAH ikut nama — tidak pernah hilang.
+   no_kp dalam susunan yang bukan lagi penerima diabaikan. */
+function agSusunManual(senarai, susunan) {
+  const idx = new Map();
+  (Array.isArray(susunan) ? susunan : []).forEach((kp, i) => {
+    if (!idx.has(kp)) idx.set(kp, i);
+  });
+  const r = p => idx.has(p.no_kp) ? idx.get(p.no_kp) : Infinity;
+  return senarai.slice().sort((x, y) => {
+    const rx = r(x), ry = r(y);
+    if (rx !== ry) return rx < ry ? -1 : 1;
+    return String(x.nama).localeCompare(String(y.nama), 'ms');
+  });
+}
+
+/* Penerima sub yang belum diletak dalam susunan sendiri — untuk amaran. */
+function agBelumDisusun(s, senarai) {
+  const ada = new Set(Array.isArray(s && s.susunanMurid) ? s.susunanMurid : []);
+  return senarai.filter(p => !ada.has(p.no_kp));
 }
 
 /* Susun murid dalam SATU sub. `rank` = {no_kp: kedudukan} atau kosong.

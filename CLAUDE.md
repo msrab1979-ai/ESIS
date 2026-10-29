@@ -835,6 +835,20 @@ Tetapan per anugerah dalam modal Ubah Anugerah: **Susunan murid naik pentas** = 
 
 Oracle 5,000 majlis rawak (3 gaya) — 0 beza; 4 mutasi ditangkap (buang pengawal, terbalik, seri tanpa nama, rancang lupa kedudukan).
 
+#### Susunan murid naik pentas — Susun sendiri (29 Okt 2026)
+
+Pilihan ketiga dalam modal Ubah Anugerah: **Susun sendiri (admin seret)** = `a.susunMurid:'manual'`. Terpakai kepada **semua** anugerah, termasuk `sumber:'manual'` (pilihan "Ikut kedudukan" disorok untuk anugerah manual). Namanya sengaja bukan "Manual" — "Manual sahaja" sudah bermaksud *sumber* anugerah.
+
+- **Disimpan pada SUB**: `s.susunanMurid = [no_kp...]` dalam dokumen majlis. Medan berasingan daripada susunan sub (array `a.sub`), jadi `binaTurutan` tidak terjejas. `baca()` modal sub **membawa** medan ini; ⚡ Pecah ikut darjah **membuangnya** (sub baharu tiada penerima; `delete`, bukan `undefined` — Firestore menolak `undefined`).
+- **Satu enjin**: `agSusunMuridDalamSub(a, s, senarai, kedudukan)` dalam `anugerah-kongsi.js` memutuskan susunan murid dalam satu sub untuk **semua** gaya giliran (A/B/C), pokok dan modal. `agSusunManual` = ikut susunan; murid tiada dalam susunan → **di bawah ikut nama** (tidak pernah hilang); no_kp basi diabaikan.
+- **Dua pintu, satu jadual**: senarai murid pokok Jenis Anugerah dan blok `#pm-susun` dalam modal 👤 Pilih Murid kedua-duanya melukis `lukisSusunManual` dan menulis melalui `simpanSusunanMurid` (simpan terus, pulih nilai lama bila gagal). `segarPaparanSusun(s)` melukis semula di mana-mana ia terbuka. Pendengar klik/seret **peringkat dokumen** (`window._msPasang`), klik dalam fasa *capture* supaya togol pokok tidak menangkapnya. Seret hanya dalam sub yang sama.
+- **Susunan permulaan** (`semaiSusunanAnugerah`) semasa tukar ke Susun sendiri: ikut kedudukan bila anugerah auto, jika tidak nama. Susunan sedia ada **dikekalkan** — tukar ke auto dan balik tidak memadam kerja admin.
+- Murid dipilih dalam modal → **disambung di hujung** (`tambahKeSusunan`). Murid dari borang guru → di bawah + amaran "N murid belum disusun" dengan butang ✓ Sahkan.
+- Butang ↺ Susun ikut kedudukan / nama (dengan `confirm`) menggantikan susunan.
+- **Nombor giliran TIDAK berubah sendiri.** `susunTakPadanGiliran` memapar amaran dalam jadual itu sendiri (entri pengikut gaya C dilangkau) sehingga admin tekan 🔁 Jana Semula. Peserta/MC/Hadiah/tiket/PPTX ikut nombor giliran, jadi semuanya sync selepas itu.
+
+Oracle 20,000 kes `agSusunManual`/`agBelumDisusun` — 0 beza; 3 mutasi ditangkap. Diuji di Chrome dengan data dalam memori (`simpanMajlis` disekat): ↓, seret, murid baharu, giliran, modal, modal sub membawa medan.
+
 #### Nombor giliran mesti berturutan tanpa jurang
 
 `beriNombor(true)` (🔁 Jana Semula) menomborkan 1…N mengikut `binaTurutan`; sub tanpa peserta dilangkau sendiri dan tidak memakan nombor.
