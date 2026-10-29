@@ -828,6 +828,7 @@ Tetapan per anugerah dalam modal Ubah Anugerah: **Susunan murid naik pentas** = 
 - `agBinaTurutan(majlis, penerima, kedudukan)` / `agRancangNombor(..., kedudukan)` / `binaTurutan(kedudukan)` — tanpa hujah ketiga kelakuan sama tepat seperti dahulu. Rank hanya dipakai bila `agIkutKedudukan(a)`, walaupun peta membawa sub lain.
 - Pratonton Gaya Giliran tidak membaca markah: `agKedudukanDariNombor` menganggap susunan nombor sedia ada dalam sub ikut-kedudukan sebagai betul, supaya amaran "tidak padan" tidak menyala palsu.
 - **Peserta** kini menyusun murid dalam sub ikut **nombor giliran** (bukan nama) supaya sama dengan MC.
+- **Senarai murid dalam pokok Jenis Anugerah** (`agMuridSub`/`lukisMuridSub`) bagi anugerah ikut-kedudukan disusun ikut **nombor giliran** dan memapar lajur `#no`; belum bernombor → bawah, ikut nama. Rank tidak dikira di sini (akan membaca markah setiap lukisan). Anugerah ikut-nama tidak berubah.
 - Nombor sedia ada tidak berubah sendiri — admin tekan 🔁 Jana Semula.
 
 Oracle 5,000 majlis rawak (3 gaya) — 0 beza; 4 mutasi ditangkap (buang pengawal, terbalik, seri tanpa nama, rancang lupa kedudukan).

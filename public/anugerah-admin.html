@@ -1402,12 +1402,32 @@ let MURID_BUKA = {};        // sub mana senarai muridnya terbuka
    ========================================================================== */
 
 /* Murid sub ini, mengikut nama. Memulangkan entri + murid bersama supaya
-   pemanggil tidak perlu mencari dua kali. */
+   pemanggil tidak perlu mencari dua kali.
+   🔴 Anugerah `susunMurid:'kedudukan'`: ikut NOMBOR GILIRAN, kerana
+      selepas Jana Semula nombor itu ialah susunan rank — dan susunan yang
+      MC panggil. Rank sendiri tidak disimpan; mengira dari markah di sini
+      akan membaca Firestore setiap kali pokok dilukis. Belum bernombor →
+      di bawah, ikut nama. */
 function agMuridSub(subId) {
+  const ikutNo = agIkutKedudukan(anugerahBagiSub(subId));
   return PENERIMA
     .filter(p => (p.anugerah || []).some(x => x.subId === subId))
-    .map(p => ({ p, x: (p.anugerah || []).find(x => x.subId === subId) }))
-    .sort((a, b) => String(a.p.nama).localeCompare(String(b.p.nama), 'ms'));
+    .map(p => {
+      const g = (p.giliran || []).find(x => x.subId === subId);
+      return { p, x: (p.anugerah || []).find(x => x.subId === subId),
+               no: g && typeof g.no === 'number' ? g.no : null };
+    })
+    .sort((a, b) => {
+      if (ikutNo) {
+        const na = a.no == null ? Infinity : a.no, nb = b.no == null ? Infinity : b.no;
+        if (na !== nb) return na < nb ? -1 : 1;
+      }
+      return String(a.p.nama).localeCompare(String(b.p.nama), 'ms');
+    });
+}
+
+function anugerahBagiSub(subId) {
+  return (MAJLIS.anugerah || []).find(a => (a.sub || []).some(s => s.id === subId)) || null;
 }
 
 /* Label sumber: "Admin" atau nama guru yang menghantar borang. */
@@ -1431,12 +1451,18 @@ function cariSubDariKunci(kunci) {
 
 function lukisMuridSub(s, baris) {
   if (!baris.length) return '';
+  /* Ikut kedudukan: nombor giliran dipapar supaya admin nampak sebab
+     susunannya bukan abjad. */
+  const ikutNo = agIkutKedudukan(anugerahBagiSub(s.id));
   return '<div class="murid-senarai"><table><tbody>' +
     baris.map((b, n) => {
       const luar = luarSkopPenerima(s, b.p);
       const guru = b.x && b.x.sumber === 'guru';
       return '<tr' + (luar ? ' class="luar"' : '') + '>' +
         '<td class="bil">' + (n + 1) + '</td>' +
+        (ikutNo ? '<td class="kls" style="width:1%" title="Nombor giliran">' +
+          (b.no != null ? '#' + b.no : '<span title="Belum bernombor — tekan Jana Semula">—</span>') +
+          '</td>' : '') +
         '<td>' + agEsc(b.p.nama) + '</td>' +
         '<td class="kls">' + agEsc(agDarjahKelas(b.p.tahun, b.p.kelas)) +
           (luar ? ' ⚠ luar skop' : '') + '</td>' +
