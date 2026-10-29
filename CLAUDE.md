@@ -460,6 +460,12 @@ Tab ke-8 dalam `anugerah-admin.html`; kod dalam fail berasingan `anugerah-sijil.
 - **🔄 Segar semula** (kad Cetak) membaca segar dokumen majlis + `anugerah_penerima`, dikemas **di tempat** (`Object.assign(MAJLIS, …)` — `SENARAI_MAJLIS` memegang rujukan yang sama), dan melapor beza `+N baharu / N dibuang / N nombor berubah` (kunci `no_kp|subId`). Perlu kerana borang guru & admin lain tidak sampai ke pelayar ini tanpa muat semula. Draf editor tidak disentuh.
 - **Tetapan slip ESIS (nama GB, jawatan, tandatangan) disimpan dalam `localStorage` pelayar (`slipTemplateSettings`), BUKAN Firestore.** "📥 Ambil dari slip ESIS" hanya berfungsi di komputer tempat slip disetkan; selepas Simpan, sijil berdiri sendiri.
 
+- **Kad 5 · Nama pada Sijil** (30 Okt 2026, `sjLukisNama`, DOM `sj-nama`) — dua tetapan per anugerah/sub, **sijil sahaja**: tiket, MC, slaid, Giliran dan Semak kekal dengan nama ESIS.
+  - `MAJLIS.sijil.nama{}` menimpa `{anugerah}` / `{sub}`. Kosong = nama ESIS. Kod `{anugerah_asal}` / `{sub_asal}` sentiasa nama ESIS. Ini juga mengatasi nama lapuk: `x.anugerah`/`x.sub` pada penerima ialah salinan semasa murid dipilih.
+  - `MAJLIS.sijil.papar{}` = `'kedua'|'an'|'sub'`, keutamaan **sub > anugerah > kedua** (`sjModPapar`/`sjPapar`). Nilai yang disorok **dikosongkan** dalam `sjData`, jadi item hilang melalui `sembunyiKosong` — pelukis tidak berubah. Syarat: `{anugerah}` dan `{sub}` mesti **dua item berasingan**.
+  - Tanpa pilihan, sub yang namanya sama dengan anugerah (selepas timpa, huruf besar, ruang dimampat) disorok supaya tidak tercetak dua kali; `'kedua'` eksplisit menang.
+  - Kedua-dua peta berkunci `anId` / `anId::subId` seperti `peta`, disimpan pada majlis (bukan objek sub). Disimpan terus pada `change`. Diluluskan pengguna 30 Okt 2026.
+
 **Belum dibina / diketahui (29 Okt 2026):** item teks dengan `teks:""` tidak kelihatan langsung dalam editor (pengguna pernah menyimpan item `{no_siri}` yang kosong tanpa sedar — punca kosong belum dikenal pasti; cadangan label "(teks kosong)" dalam editor sahaja belum diluluskan). Gaya C: semua sijil seorang murid berkongsi No. Siri (cadangan akhiran -A/-B belum diluluskan). ✕ Buang tandatangan tidak memadam fail di Storage.
 
 ### Borang serahan guru (`public/guru.html`)
