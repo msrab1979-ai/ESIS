@@ -430,6 +430,7 @@
 .sj-peta-baris.sub .nm{font-weight:500; font-size:13px}
 .sj-peta-baris select{flex:0 1 280px}
 .sj-peta-baris input[data-sj-nama]{flex:0 1 340px}
+.sj-peta-baris select[data-sj-papar]{flex:0 1 170px}
 .sj-peta-an details{margin:0 0 6px 18px}
 .sj-peta-an summary{cursor:pointer; font-size:12.5px; color:var(--neutral); padding:3px 0}
 
@@ -957,6 +958,9 @@
       <div class="kad-isi">
         <p class="hint" style="margin:0 0 6px">Contoh: <em>ANUGERAH SAHSIAH</em> → <strong>ANUGERAH MURID BAIK</strong>.
           Tiket, MC, slaid dan Giliran kekal dengan nama ESIS. Kod <code>{anugerah_asal}</code> / <code>{sub_asal}</code> sentiasa memberi nama ESIS.</p>
+        <p class="hint" style="margin:0 0 6px"><strong>Papar</strong>: pilih <em>Anugerah sahaja</em> / <em>Sub sahaja</em> untuk menyorok satu baris.
+          Letak <code>{anugerah}</code> dan <code>{sub}</code> sebagai <strong>dua item berasingan</strong> dalam templat — item yang kosong disorok.
+          Sub yang namanya sama dengan anugerah disorok sendiri (pilih <em>Kedua-dua</em> untuk paparkan juga).</p>
         <div id="sj-nama"></div>
       </div>
     </div>

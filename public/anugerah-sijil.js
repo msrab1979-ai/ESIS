@@ -13,6 +13,7 @@
      pentadbir: [{ nama, jawatan, ttdUrl } × 3],
      siri:      { awalan, digit, akhiran }   // format {no_siri}
      nama:      { anugerahId: '…', 'anugerahId::subId': '…' }  // nama pada sijil
+     papar:     { anugerahId | 'anugerahId::subId': 'kedua'|'an'|'sub' }
    }
    medan = { id, jenis:'teks'|'gambar', x, y, w   (mm, penjuru kiri-atas)
              teks  : ayat bebas + {kod}  ·  font, pt, bold, italic, warna,
@@ -123,6 +124,7 @@ function sjSj() {
   if (!sj.laras || typeof sj.laras !== 'object') sj.laras = { x: 0, y: 0 };
   if (!sj.siri || typeof sj.siri !== 'object') sj.siri = { awalan: '', digit: 3, akhiran: '' };
   if (!sj.nama || typeof sj.nama !== 'object') sj.nama = {};
+  if (!sj.papar || typeof sj.papar !== 'object') sj.papar = {};
   if (!sj.templat.some(t => t.id === sj.lalai)) sj.lalai = sj.templat[0] ? sj.templat[0].id : '';
   return sj;
 }
@@ -181,8 +183,28 @@ function sjData(it) {
     sekolah: MAJLIS.sekolah || '',
     tahun: String(MAJLIS.calYear || '')
   };
+  sjPapar(d, a, s);
   sjIsiPentadbir(d, pt);
   d.no_siri = sjNoSiri(d.giliran, d);
+  return d;
+}
+
+/* Papar: sub > anugerah > 'kedua'. Nilai yang disorok dikosongkan, jadi
+   item teks yang membawanya hilang melalui sembunyiKosong — pelukis
+   tidak perlu tahu apa-apa. Tanpa pilihan, sub yang namanya sama dengan
+   anugerah (KEHADIRAN PENUH › KEHADIRAN PENUH) disorok supaya nama itu
+   tidak tercetak dua kali. Pilihan 'kedua' yang ditetapkan admin menang. */
+function sjModPapar(anId, subId) {
+  const p = sjSj().papar;
+  return p[anId + '::' + subId] || p[anId] || '';
+}
+function sjPapar(d, a, s) {
+  if (!a || !s) return d;
+  const mod = sjModPapar(a.id, s.id);
+  const sama = x => String(x || '').replace(/\s+/g, ' ').trim().toUpperCase();
+  if (mod === 'an') d.sub = '';
+  else if (mod === 'sub') d.anugerah = '';
+  else if (!mod && sama(d.sub) === sama(d.anugerah)) d.sub = '';
   return d;
 }
 
@@ -1353,18 +1375,24 @@ function sjLukisNama() {
   const nm = sjSj().nama;
   const senarai = susunanAnugerah();
   if (!senarai.length) { bekas.innerHTML = '<p class="hint">Belum ada anugerah.</p>'; return; }
+  const pp = sjSj().papar;
+  const pilih = (k, sub) => '<select data-sj-papar="' + agEsc(k) + '" title="Apa yang dicetak pada sijil">' +
+    [['', sub ? '— ikut anugerah —' : 'Kedua-dua'], ...(sub ? [['kedua', 'Kedua-dua']] : []),
+     ['an', 'Anugerah sahaja'], ['sub', 'Sub sahaja']]
+      .map(([v, l]) => '<option value="' + v + '"' + ((pp[k] || '') === v ? ' selected' : '') + '>' + l + '</option>').join('') +
+    '</select>';
   const input = (k, asal) => '<input type="text" data-sj-nama="' + agEsc(k) + '" value="' + agEsc(nm[k] || '') +
     '" placeholder="' + agEsc(asal) + '" title="Kosong = ' + agEsc(asal) + '">';
   bekas.innerHTML = senarai.map(a => {
     const subs = a.sub || [];
-    const bil = subs.filter(s => nm[a.id + '::' + s.id]).length;
+    const bil = subs.filter(s => nm[a.id + '::' + s.id] || pp[a.id + '::' + s.id]).length;
     return '<div class="sj-peta-an">' +
-      '<div class="sj-peta-baris"><span class="nm">' + agEsc(a.nama) + '</span>' + input(a.id, a.nama) + '</div>' +
+      '<div class="sj-peta-baris"><span class="nm">' + agEsc(a.nama) + '</span>' + input(a.id, a.nama) + pilih(a.id, false) + '</div>' +
       (subs.length
         ? '<details data-sj-nama-buka="' + agEsc(a.id) + '"' + (SJ_NAMA_BUKA.has(a.id) ? ' open' : '') + '>' +
-            '<summary>' + subs.length + ' sub' + (bil ? ' · ' + bil + ' dinamakan semula' : '') + '</summary>' +
+            '<summary>' + subs.length + ' sub' + (bil ? ' · ' + bil + ' diubah' : '') + '</summary>' +
             subs.map(s => '<div class="sj-peta-baris sub"><span class="nm">' + agEsc(s.nama) + '</span>' +
-              input(a.id + '::' + s.id, s.nama) + '</div>').join('') +
+              input(a.id + '::' + s.id, s.nama) + pilih(a.id + '::' + s.id, true) + '</div>').join('') +
           '</details>'
         : '') +
     '</div>';
@@ -1378,6 +1406,21 @@ $('sj-nama').addEventListener('toggle', e => {
 }, true);
 
 $('sj-nama').addEventListener('change', async e => {
+  const sel = e.target.closest('select[data-sj-papar]');
+  if (sel) {
+    const pp = sjSj().papar;
+    const k = sel.dataset.sjPapar;
+    const lama = pp[k];
+    if (sel.value) pp[k] = sel.value; else delete pp[k];
+    try { await sjTulis(); agToast('Paparan sijil disimpan', 'ok'); }
+    catch (er) {
+      if (lama) pp[k] = lama; else delete pp[k];
+      agToast('Gagal menyimpan: ' + er.message, 'ralat');
+    }
+    sjLukisNama();
+    if (SJ_DRAF) sjLukisKanvas();
+    return;
+  }
   const el = e.target.closest('input[data-sj-nama]');
   if (!el) return;
   const nm = sjSj().nama;
