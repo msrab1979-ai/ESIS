@@ -905,6 +905,14 @@ Untuk anugerah seperti **Anugerah Ibu Bapa Terbaik**: anugerah `sumber:'manual'`
 - Belum ada "Daftar Orang" untuk dipakai semula tahun berikutnya — nama ditaip setiap majlis.
 - **Tiga kad semasa cipta/ubah anugerah** (`kadSumber`, `.kad-sumber`): 📊 **Auto dari ESIS** (`sumber:'auto'`) · 👤 **Pilih murid** (`sumber:'manual'`) · ✏️ **Bukan dalam ESIS** (`sumber:'manual'` + `calon:'luar'`). `<select id="a-sumber">` kekal tersorok sebagai nilai sebenar supaya semua semakan `sumber === 'manual'` sedia ada tidak berubah — **jangan tambah nilai `sumber` baharu**. `calon:'luar'` hanya menentukan apa yang dibuka DAHULU dalam modal Pilih Murid: kotak nama terbuka + senarai murid dilipat (`details.pm-blok-murid`); kad 👤 sebaliknya. Bahagian dilipat dibuka sendiri bila sudah ada isi. Nota TH disorok untuk anugerah manual.
 
+#### 🎤 Naik pentas Ya/Tidak (30 Okt 2026)
+
+`a.pentas === false` = anugerah tidak naik pentas; `s.pentas` (true/false) menimpa, tiada = ikut anugerah. **Lalai YA** (tiada medan) — majlis lama tidak berubah. Ditetapkan melalui dropdown **🎤 Pentas** pada baris anugerah dalam pokok, modal Ubah Anugerah, dan modal Ubah Sub (`baca()` membawa `pentas`).
+
+- **Kekal** dalam Jenis Anugerah & Semak Penerima. **Keluar** dari giliran, tiket, MC, peserta, hadiah, tayang, PPTX, **sijil dan kad jemputan** (pengguna: sijil ✗, kad ✗).
+- Satu penapis: `agNaikPentas` dalam `agSusunanSub` (+ cabang gaya asal `binaTurutan`). Peserta & sijil ikut serta-merta; MC/hadiah/tayang membaca `giliran[]`, jadi perlu **🔁 Jana Semula** — `agBuangGiliranLuar` membuang entri giliran yang tiada dalam turutan, termasuk murid yang SEMUA anugerahnya tidak naik pentas (tiada dalam turutan langsung). `amaranPentas()` memberi amaran selagi nombor lama wujud. Tiket & PPTX admin menapis terus.
+- Senarai Susunan Naik Pentas: anugerah tidak naik pentas dikumpul dalam nota kelabu di bawah; sub tidak naik pentas kelabu tanpa seret. ↑↓ membawa `data-ke` = indeks jiran naik pentas (indeks sebenar), supaya tidak bertukar dengan baris tersorok.
+
 #### Nombor giliran mesti berturutan tanpa jurang
 
 `beriNombor(true)` (🔁 Jana Semula) menomborkan 1…N mengikut `binaTurutan`; sub tanpa peserta dilangkau sendiri dan tidak memakan nombor.
