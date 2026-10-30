@@ -5519,13 +5519,19 @@ function lukisBebas() {
         '<span class="pb-no">' + (k + 1) + '</span>' +
         '<span class="s-nama">' + agEsc(s.nama || '(tanpa nama)') +
           '<span class="pb-an">' + agEsc(a.nama) + '</span></span>' +
-        '<span class="s-bil">' + r.bil + ' murid · ' + r.julat + '</span>' +
+        '<span class="s-bil">' + r.julat + '</span>' +
+        (r.bil
+          ? '<button class="btn sunyi kecil" data-sgil-murid="' + agEsc(s.id) + '" ' +
+            'title="Tunjuk murid ikut susunan naik pentas">' + r.bil + ' murid ' +
+            (SGIL_MURID[s.id] ? '▴' : '▾') + '</button>'
+          : '<span class="s-bil">0 murid</span>') +
         '<button class="btn sunyi kecil" data-pb-naik="' + k + '" title="Naik"' +
           (k === 0 ? ' disabled' : '') + '>↑</button>' +
         '<button class="btn sunyi kecil" data-pb-turun="' + k + '" title="Turun"' +
           (k === jum - 1 ? ' disabled' : '') + '>↓</button>' +
         '<button class="btn sunyi kecil" data-pb-pindah="' + k + '" title="Pindah ke kedudukan">Pindah</button>' +
-      '</div>';
+      '</div>' +
+      (SGIL_MURID[s.id] ? senaraiMuridSusun(a, s) : '');
     }).join('') : '<p class="hint">Belum ada sub-anugerah.</p>');
 }
 
@@ -5548,6 +5554,13 @@ async function pindahBebas(i, j) {
 }
 
 $('susun-bebas').addEventListener('click', e => {
+  const bm = e.target.closest('button[data-sgil-murid]');
+  if (bm) {
+    const id = bm.dataset.sgilMurid;
+    SGIL_MURID[id] = !SGIL_MURID[id];
+    lukisGiliran();
+    return;
+  }
   const b = e.target.closest('button[data-pb-naik],button[data-pb-turun],button[data-pb-pindah]');
   if (!b || b.disabled) return;
   const d = b.dataset;
