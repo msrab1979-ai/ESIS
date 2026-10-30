@@ -925,6 +925,15 @@ MC, Hadiah, Slaid (tayang + PPTX), tiket dan sijil semuanya ikut **nombor gilira
 
 Oracle 3,000 majlis rawak (3 gaya, sub tidak naik pentas, susun manual): tiada nombor → `belum` = turutan; selepas jana → 0/0; terbalikkan susunan → `lapuk>0` tepat bila rancangan berubah. 0 gagal.
 
+#### 🤫 Anugerah rahsia — tidak dicetak pada tiket (30 Okt 2026)
+
+Untuk anugerah kejutan (contoh Tokoh Murid). `a.rahsia === true` / `s.rahsia` (boolean, menimpa) — `agRahsia(a, s)`, `agSubRahsia(majlis)` dalam `anugerah-kongsi.js`. **Lalai TIDAK rahsia** (tiada medan).
+
+- **Hanya tiket murid** (`lukisTiket`) menapisnya. Giliran, MC, Peserta, Hadiah, tayang, PPTX, sijil dan kad jemputan **tidak berubah** — keputusan pengguna. Kad jemputan tidak menyebut anugerah, jadi rahsia kekal.
+- Murid yang **semua** anugerahnya rahsia → **tiada tiket langsung** (keputusan pengguna). `#t-kira` menyebut bilangan anugerah rahsia yang tidak dicetak.
+- Butang `butangRahsia`/`setRahsia` di pokok — corak sama dengan 🎤: baris anugerah + tajuk kumpulan **sentiasa**; baris sub **hanya bila sub itu rahsia** (107 butang "🎟️ Dalam tiket" ialah bunyi). Modal Ubah Sub ada `#s-rahsia`, dan `baca()` membawanya.
+- Nombor giliran **tidak** disentuh — tiada Jana Semula diperlukan.
+
 #### Nombor giliran mesti berturutan tanpa jurang
 
 `beriNombor(true)` (🔁 Jana Semula) menomborkan 1…N mengikut `binaTurutan`; sub tanpa peserta dilangkau sendiri dan tidak memakan nombor.

@@ -2306,6 +2306,7 @@ function pilStatusBorang(b) {
               pilStatusBorang(bSub) +
               kiraan +
               butangPentas(i, a, [s]) +
+              (agRahsia(a, s) ? butangRahsia(i, a, [s]) : '') +
               lencanaSusun +
               /* 🔴 Hanya muncul bila ADA kerja untuk dibuat — butang
                  untuk sifar murid luar skop ialah bunyi bising pada
@@ -2371,7 +2372,8 @@ function pilStatusBorang(b) {
               '<span class="nama-sub">' + agEsc(nama) + '</span>' +
               '<span class="kanan"><span class="kecil">' + senarai.length + ' darjah \u00b7 ' +
                 bilM + ' murid</span>' + pilKunci(a, senarai.map(([sb]) => sb)) +
-                butangPentas(i, a, senarai.map(([sb]) => sb)) + '</span>' +
+                butangPentas(i, a, senarai.map(([sb]) => sb)) +
+                butangRahsia(i, a, senarai.map(([sb]) => sb)) + '</span>' +
             '</div>' +
             '<ul class="kump-isi">' + senarai
               .sort(([x], [y]) => agWordDarjah(x.skopNilai) - agWordDarjah(y.skopNilai))
@@ -2408,6 +2410,7 @@ function pilStatusBorang(b) {
                   bilMuridD + ' murid</span>' +
                 pilKunci(a, senarai.map(([sb]) => sb)) +
                 butangPentas(i, a, senarai.map(([sb]) => sb)) +
+                butangRahsia(i, a, senarai.map(([sb]) => sb)) +
                 '<button class="btn ' + (bDarjah ? 'sunyi' : 'hijau') + ' kecil" ' +
                   'data-dj-borang="' + i + ',' + agEsc(w) + '">' +
                   (bDarjah ? '\ud83d\udd17 Borang' : '\ud83d\udcdd Bina Borang') + '</button>' +
@@ -2443,6 +2446,7 @@ function pilStatusBorang(b) {
           '<button class="btn sunyi kecil" data-sub-baru="' + i + '">➕ Sub</button>' +
           pilihSusunAnugerah(a, i) +
           butangPentas(i, a, null) +
+          butangRahsia(i, a, null) +
           '<button class="btn sunyi kecil" data-an-edit="' + i + '">Ubah</button>' +
           '<button class="btn sunyi kecil" data-an-buang="' + i + '">Buang</button>' +
         '</span>' +
@@ -2491,6 +2495,56 @@ function butangPentas(i, a, subList) {
     (semua ? 'Tekan untuk keluarkan dari giliran' : 'Tekan untuk masukkan ke giliran') +
     ' — tidak naik pentas = tiada giliran, tiket, MC, peserta, hadiah, tayang, sijil, kad jemputan">' +
     label + '</button>';
+}
+
+/* 🤫 Butang Rahsia tiket — corak sama dengan butangPentas. Label =
+   keadaan; klik = semua rahsia → semua tidak, selain itu → semua rahsia.
+   Pada baris SUB ia hanya dipapar bila sub itu rahsia (107 sub dengan
+   butang "🎟️ Tiket" ialah bunyi bising); sub tunggal boleh ditetapkan
+   melalui kumpulan, anugerah, atau modal Ubah Sub. */
+function butangRahsia(i, a, subList) {
+  const root = !subList;
+  const senarai = root ? (a.sub || []) : subList;
+  const n = senarai.length;
+  const r = n ? senarai.filter(s => agRahsia(a, s)).length : (agRahsia(a, null) ? 1 : 0);
+  const jum = n || 1;
+  const semua = r === jum, tiada = r === 0;
+  const ids = root ? '*' : senarai.map(s => s.id).join('|');
+  const label = semua ? '🤫 Rahsia' : tiada ? '🎟️ Dalam tiket' : '🤫 ' + r + '/' + jum + ' rahsia';
+  const gaya = semua ? 'background:#efe6fb;color:#5b2d91;border-color:#c7a8ec'
+             : tiada ? '' : 'background:#fff4d6;color:#8a5a00;border-color:#e8c46a';
+  return '<button class="btn ' + (tiada ? 'sunyi ' : '') + 'kecil"' +
+    (gaya ? ' style="' + gaya + '"' : '') + ' data-rahsia="' + i + '" ' +
+    'data-rahsia-id="' + agEsc(ids) + '" title="' +
+    (semua ? 'Rahsia — TIDAK dicetak pada tiket murid. Tekan untuk cetak semula pada tiket'
+           : 'Tekan untuk jadikan RAHSIA — tidak dicetak pada tiket murid') +
+    '. Kekal dalam giliran, MC, peserta, hadiah, slaid, sijil.">' + label + '</button>';
+}
+
+async function setRahsia(i, ids, nilai) {
+  const a = (MAJLIS.anugerah || [])[i];
+  if (!a) return;
+  const salinan = JSON.parse(JSON.stringify(a));
+  if (ids === '*') {
+    if (nilai) a.rahsia = true; else delete a.rahsia;
+    (a.sub || []).forEach(s => { delete s.rahsia; });
+  } else {
+    const set = new Set(ids.split('|'));
+    const asal = agRahsia(a, null);
+    (a.sub || []).forEach(s => {
+      if (!set.has(s.id)) return;
+      if (nilai === asal) delete s.rahsia; else s.rahsia = nilai;
+    });
+  }
+  try {
+    await simpanMajlis();
+    agToast(nilai ? '🤫 Rahsia · tidak dicetak pada tiket murid' : '🎟️ Dicetak pada tiket murid', 'ok');
+  } catch (err) {
+    Object.keys(a).forEach(k => delete a[k]);
+    Object.assign(a, salinan);
+    agToast('Gagal: ' + err.message, 'ralat');
+  }
+  lukisPokok();
 }
 
 /* Tetapkan naik pentas. ids '*' = seluruh anugerah: a.pentas ditetapkan
@@ -2559,6 +2613,21 @@ $('pokok-anugerah').addEventListener('click', e => {
      menogol accordion anugerah. */
   if (e.target.closest('select[data-an-susun]')) return;
   /* 🎤 Disemak sebelum togol — butang duduk dalam .induk / .kump-kepala / baris sub. */
+  /* 🤫 Disemak sebelum togol — sebab sama dengan butang 🎤. */
+  const bRahsia = e.target.closest('button[data-rahsia]');
+  if (bRahsia) {
+    e.stopPropagation();
+    const i = parseInt(bRahsia.dataset.rahsia);
+    const a = (MAJLIS.anugerah || [])[i];
+    if (!a) return;
+    const ids = bRahsia.dataset.rahsiaId;
+    const senarai = ids === '*' ? (a.sub || [])
+      : (a.sub || []).filter(s => ids.split('|').includes(s.id));
+    const semua = senarai.length ? senarai.every(s => agRahsia(a, s)) : agRahsia(a, null);
+    bRahsia.disabled = true;
+    setRahsia(i, ids, !semua);
+    return;
+  }
   const bPentas = e.target.closest('button[data-pentas]');
   if (bPentas) {
     e.stopPropagation();
@@ -4487,6 +4556,14 @@ async function modalSub(iAn, jSub) {
           '<option value="ya"' + (s.pentas === true ? ' selected' : '') + '>Ya — naik pentas</option>' +
           '<option value="tidak"' + (s.pentas === false ? ' selected' : '') + '>Tidak — tiada giliran, tiket, sijil, kad</option>' +
         '</select></div>' +
+      /* 🤫 Tiada pilihan = ikut anugerah induk. */
+      '<div class="medan" style="width:100%;margin-top:13px"><label for="s-rahsia">🤫 Pada tiket murid</label>' +
+        '<select id="s-rahsia">' +
+          '<option value=""' + (typeof s.rahsia !== 'boolean' ? ' selected' : '') + '>Ikut anugerah (' +
+            (an.rahsia === true ? 'rahsia' : 'dicetak') + ')</option>' +
+          '<option value="tidak"' + (s.rahsia === false ? ' selected' : '') + '>Dicetak pada tiket</option>' +
+          '<option value="ya"' + (s.rahsia === true ? ' selected' : '') + '>Rahsia — tidak dicetak pada tiket</option>' +
+        '</select></div>' +
       (manual || (an.asas !== 'subjek') ? '' :
       '<div class="medan" style="width:100%;margin-top:13px">' +
         '<label for="s-subjek">Subjek untuk sub-anugerah ini</label>' +
@@ -4604,6 +4681,8 @@ async function modalSub(iAn, jSub) {
     }
     const vp = $('s-pentas') ? $('s-pentas').value : '';
     if (vp === 'ya') o.pentas = true; else if (vp === 'tidak') o.pentas = false;
+    const vr = $('s-rahsia') ? $('s-rahsia').value : '';
+    if (vr === 'ya') o.rahsia = true; else if (vr === 'tidak') o.rahsia = false;
     /* Susunan naik pentas (susun sendiri) — tiada kawalan di sini. */
     if (Array.isArray(s.susunanMurid)) o.susunanMurid = s.susunanMurid;
     if (s.susunKunci) { o.susunKunci = true; if (s.susunKunciMasa) o.susunKunciMasa = s.susunKunciMasa; }
@@ -5848,12 +5927,17 @@ function lukisTiket() {
 
   const ikutMurid = {};
   const pentas = subPentasSemasa();   /* 🎤 tiada tiket untuk anugerah tidak naik pentas */
+  const rahsia = agSubRahsia(MAJLIS);
+  let bilRahsia = 0;
   PENERIMA.forEach(p => {
     if (cDarjah && String(p.tahun || '').toUpperCase() !== cDarjah) return;
     if (cKelas && String(p.kelas || '').toUpperCase() !== cKelas) return;
     if (!agPadanCarian(cCari, p.nama, p.no_kp)) return;
     (p.giliran || []).forEach(g => {
       if (g.no == null || !pentas.has(g.subId)) return;
+      /* 🤫 Rahsia: tiada pada tiket. Murid yang SEMUA anugerahnya rahsia
+         tiada tiket langsung (keputusan pengguna 30 Okt 2026). */
+      if (rahsia.has(g.subId)) { bilRahsia++; return; }
       if (sel.value && g.anugerahId !== sel.value) return;
       (ikutMurid[p.docId] = ikutMurid[p.docId] || { p, gil: [] }).gil.push(g);
     });
@@ -5875,7 +5959,8 @@ function lukisTiket() {
         (adaTapis ? ' daripada ' + Object.keys(PENERIMA.reduce((o, p) =>
             ((p.giliran || []).some(g => g.no != null) ? (o[p.docId] = 1, o) : o), {})).length +
           ' murid bernombor' : '') +
-        ' \u00b7 cetakan mengikut tapisan ini';
+        ' \u00b7 cetakan mengikut tapisan ini' +
+        (bilRahsia ? ' \u00b7 🤫 <strong>' + bilRahsia + '</strong> anugerah rahsia tidak dicetak' : '');
   }
 
   if (!semua.length) {

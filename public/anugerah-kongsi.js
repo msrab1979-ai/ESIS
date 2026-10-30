@@ -862,6 +862,22 @@ function agSubPentas(majlis) {
   return set;
 }
 
+/* 🤫 Anugerah RAHSIA — tidak dicetak pada TIKET murid (kejutan, contoh
+   Tokoh Murid). Kekal dalam giliran, MC, peserta, hadiah, slaid, sijil
+   dan kad jemputan (kad tidak menyebut anugerah). Lalai TIDAK rahsia
+   (tiada medan). `s.rahsia` (boolean) menimpa `a.rahsia`. */
+function agRahsia(a, s) {
+  if (s && typeof s.rahsia === 'boolean') return s.rahsia;
+  return !!(a && a.rahsia === true);
+}
+
+function agSubRahsia(majlis) {
+  const set = new Set();
+  ((majlis && majlis.anugerah) || []).forEach(a =>
+    (a.sub || []).forEach(s => { if (agRahsia(a, s)) set.add(s.id); }));
+  return set;
+}
+
 /* Murid yang memegang sekurang-kurangnya satu anugerah naik pentas. */
 function agPenerimaPentas(p, subPentas) {
   return (p.anugerah || []).some(x => subPentas.has(x.subId));
