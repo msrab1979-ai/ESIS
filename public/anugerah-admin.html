@@ -3617,6 +3617,13 @@ function modalAnugerah(idx) {
 
 async function buangAnugerah(idx) {
   const a = MAJLIS.anugerah[idx];
+  /* 🔴 Baca SEGAR dahulu. PENERIMA dalam memori boleh lapuk (borang guru,
+     admin lain, tab lain) — kiraan 0 daripada senarai lapuk dahulu
+     melangkau pembersihan dan meninggalkan entri YATIM yang menunjuk
+     kepada anugerah yang sudah tiada (kes SIMPOSIUM B&K, 30 Okt 2026). */
+  try { PENERIMA = await agMuatPenerima(MAJLIS.id); } catch (e) {
+    agToast('Gagal membaca penerima: ' + e.message + ' — tiada apa dibuang', 'ralat'); return;
+  }
   const kena = PENERIMA.filter(p => (p.anugerah || []).some(x => x.anugerahId === a.id)).length;
   if (kena) {
     if (!confirm('"' + a.nama + '" ada ' + kena + ' murid.\n\n' +
@@ -3627,7 +3634,7 @@ async function buangAnugerah(idx) {
   MAJLIS.anugerah.splice(idx, 1);
   try {
     await simpanMajlis();
-    if (kena) await buangAnugerahDariPenerima(x => x.anugerahId === a.id);
+    await buangAnugerahDariPenerima(x => x.anugerahId === a.id);
     lukisPokok(); kemasSari(); agToast('Dibuang', 'ok');
   } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
 }
@@ -4653,13 +4660,17 @@ async function modalSub(iAn, jSub) {
 async function buangSub(iAn, jSub) {
   const an = MAJLIS.anugerah[iAn];
   const s = an.sub[jSub];
+  /* Baca segar — sebab sama dengan buangAnugerah. */
+  try { PENERIMA = await agMuatPenerima(MAJLIS.id); } catch (e) {
+    agToast('Gagal membaca penerima: ' + e.message + ' — tiada apa dibuang', 'ralat'); return;
+  }
   const kena = PENERIMA.filter(p => (p.anugerah || []).some(x => x.subId === s.id)).length;
   if (!confirm('Buang "' + s.nama + '"?' + (kena ? '\n\n' + kena + ' murid akan ditanggalkan.' : ''))) return;
 
   an.sub.splice(jSub, 1);
   try {
     await simpanMajlis();
-    if (kena) await buangAnugerahDariPenerima(x => x.subId === s.id);
+    await buangAnugerahDariPenerima(x => x.subId === s.id);
     lukisPokok(); kemasSari(); agToast('Dibuang', 'ok');
   } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
 }
@@ -4670,22 +4681,10 @@ async function buangSub(iAn, jSub) {
    nombor giliran DIBIARKAN sampai admin menekan Jana Semula sendiri —
    ibu bapa sudah nampak nombor anak mereka.                             */
 async function buangAnugerahDariPenerima(padan) {
-  const batch = agDb.batch();
-  let n = 0;
-  PENERIMA.forEach(p => {
-    const kekal = (p.anugerah || []).filter(x => !padan(x));
-    if (kekal.length === (p.anugerah || []).length) return;
-    const ref = agDb.collection('anugerah_penerima').doc(p.docId);
-    if (!kekal.length) { batch.delete(ref); }
-    else {
-      batch.update(ref, {
-        anugerah: kekal,
-        giliran: (p.giliran || []).filter(g => !padan(g))
-      });
-    }
-    n++;
-  });
-  if (n) await batch.commit();
+  /* Enjin sama dengan 🧹 (resetOps + resetTulisPukal, dipecah 400) —
+     versi lama satu batch akan pecah melebihi 500 murid. */
+  const { ops } = resetOps(x => padan(x));
+  if (ops.length) await resetTulisPukal(ops);
   PENERIMA = await agMuatPenerima(MAJLIS.id);
 }
 
@@ -4976,7 +4975,11 @@ $('sk-pdf').onclick = async () => {
 function lukisGiliran() {
   const bilGil = PENERIMA.reduce((j, p) => j + (p.giliran || []).length, 0);
   const bilAnugerah = PENERIMA.reduce((j, p) => j + (p.anugerah || []).length, 0);
-  const tanpaNombor = bilAnugerah - bilGil;
+  /* 🔴 Bukan bilAnugerah − bilGil: entri YATIM (sub sudah dibuang) dan
+     anugerah tidak naik pentas tidak pernah boleh bernombor, jadi tolakan
+     itu memberi "1 belum bernombor" yang Beri Nombor tidak dapat
+     selesaikan. Kini sama dengan apa yang Beri Nombor benar-benar isi. */
+  const tanpaNombor = semakNomborSemasa().belum;
 
   $('giliran-kpi').innerHTML =
     kad(bilGil, 'Giliran', 'bernombor') +
@@ -5170,6 +5173,34 @@ function semakNomborSemasa() {
   return r;
 }
 
+/* Entri anugerah yang menunjuk kepada sub yang TIADA lagi dalam majlis. */
+function subWujudSemasa() {
+  const set = new Set();
+  (MAJLIS.anugerah || []).forEach(a => (a.sub || []).forEach(s => set.add(s.id)));
+  return set;
+}
+function entriYatim() {
+  const ada = subWujudSemasa();
+  const out = [];
+  PENERIMA.forEach(p => (p.anugerah || []).forEach(x => {
+    if (!ada.has(x.subId)) out.push({ p, x });
+  }));
+  return out;
+}
+
+function htmlAmaranYatim() {
+  const y = entriYatim();
+  if (!y.length) return '';
+  return '<div class="nota amaran" style="margin:15px 0 0"><span class="sym">⚠</span><div>' +
+    '<strong>' + y.length + ' anugerah YATIM</strong> — murid masih memegang anugerah yang ' +
+    'sub-nya sudah dibuang. Ia tidak boleh diberi nombor dan tidak naik pentas:<br>' +
+    y.map(({ p, x }) => agEsc(p.nama) + ' — <em>' + agEsc(x.sub || x.anugerah || x.subId) + '</em>')
+      .join('<br>') +
+    '<div class="baris-input" style="margin-top:8px">' +
+      '<button class="btn sunyi kecil" data-buang-yatim>🧹 Buang ' + y.length + ' entri yatim</button>' +
+    '</div></div></div>';
+}
+
 function htmlAmaranNombor(r, tempat) {
   if (!r.lapuk && !r.belum) return '';
   const kesan = tempat === 'tiket'
@@ -5195,6 +5226,7 @@ function lukisAmaranNombor() {
   const r = semakNomborSemasa();
   [['susun-amaran', 'susun'], ['tiket-amaran', 'tiket'], ['petugas-amaran', 'petugas']]
     .forEach(([id, t]) => { if ($(id)) $(id).innerHTML = htmlAmaranNombor(r, t); });
+  if ($('susun-amaran')) $('susun-amaran').innerHTML += htmlAmaranYatim();
   return r;
 }
 
@@ -5206,6 +5238,11 @@ function amaranSusun() { lukisAmaranNombor(); }
 document.addEventListener('click', e => {
   if (e.target.closest('[data-amaran-jana]')) $('b-jana-semula').click();
   else if (e.target.closest('[data-amaran-beri]')) beriNombor(false);
+  else if (e.target.closest('[data-buang-yatim]')) {
+    /* Enjin sama dengan 🧹 — resetOps menapis anugerah[] DAN giliran[]. */
+    const ada = subWujudSemasa();
+    resetJalan('anugerah yatim (sub sudah dibuang)', x => !ada.has(x.subId));
+  }
 });
 
 /* Sebelum cetak tiket / muat turun slaid: nombor lapuk = tanya dahulu. */
