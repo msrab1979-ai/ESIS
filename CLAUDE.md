@@ -951,7 +951,7 @@ Untuk anugerah kejutan (contoh Tokoh Murid). `a.rahsia === true` / `s.rahsia` (b
 Butang **🖨 Skrip MC (PDF)** dalam kad Susunan Naik Pentas (admin) dan **🖨 Cetak** dalam `mc.html`. Satu enjin dalam `anugerah-kongsi.js`: `agKiraSkripMC(penerima)` (kiraan) + `agCetakSkripMC(w, majlis, penerima)` (dialog cetak pelayar, A4). Penerima dibaca **segar**; tetingkap dibuka **sebelum** `await` (pop-up selepas await disekat).
 
 - Satu baris = satu **nombor giliran disimpan** (pengikut gaya C = "turut menerima", bukan baris). Dikumpul anugerah › sub berturut-turut ikut nombor. Kotak ☐ untuk MC tanda tangan; "naik kali ke-2 dari 3"; tidak hadir dicoret.
-- Kiraan: **Jumlah giliran** = nombor unik · **Jumlah murid** = orang berbeza yang ada ≥1 nombor · **Murid naik >1** · **Anugerah diserahkan** (termasuk pengikut). Penerima tanpa nombor dilapor berasingan, tidak dikira. Amaran nombor berulang / jurang.
+- **Tiga angka sahaja** (pengguna: label lain mengelirukan) — dalam PDF dan kepala senarai `mc.html`: **Jumlah tiket dikeluarkan** (`bilTiket`, peraturan sama dgn `lukisTiket`: ≥1 nombor pada sub naik pentas bukan 🤫 rahsia) · **Jumlah semua murid** (`bilMurid`, orang berbeza dgn ≥1 nombor) · **Jumlah murid lebih dari 1 anugerah** (`bilUlang`, `giliran[]` bernombor > 1, termasuk pengikut gaya C). Amaran nombor berulang / jurang kekal.
 - **KPI tab Giliran berbeza maksud**: "Giliran" = semua entri `giliran[]` (termasuk pengikut gaya C), "Murid" = semua penerima (termasuk yang tidak naik pentas). Skrip MC ialah angka naik pentas yang tepat.
 
 #### Nombor giliran mesti berturutan tanpa jurang

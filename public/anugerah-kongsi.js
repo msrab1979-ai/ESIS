@@ -1365,12 +1365,19 @@ function agDarjahSub(sub) {
      bilGiliran  = nombor unik (berapa kali nama dipanggil ke pentas)
      bilMurid    = orang berbeza yang memegang sekurang-kurangnya satu nombor
      bilAnugerah = semua anugerah yang diserah di pentas (termasuk pengikut)
-     bilUlang    = murid yang naik pentas lebih sekali
+     bilUlang    = murid yang memegang LEBIH DARI 1 anugerah bernombor
+     bilTiket    = murid yang dapat tiket — sama peraturan dgn lukisTiket:
+                   ada ≥1 nombor pada sub naik pentas yang BUKAN 🤫 rahsia
      tanpaPentas = penerima yang TIADA nombor langsung (tidak naik pentas /
                    belum bernombor) — tidak dikira dalam bilMurid
      pendua / jurang = nombor yang dipegang >1 baris / nombor 1..maks yang tiada */
-function agKiraSkripMC(penerima) {
+function agKiraSkripMC(penerima, majlis) {
   const baris = [];
+  const rahsia = agSubRahsia(majlis);
+  const pentas = new Set();
+  ((majlis && majlis.anugerah) || []).forEach(a =>
+    (a.sub || []).forEach(s => { if (agNaikPentas(a, s)) pentas.add(s.id); }));
+  let bilTiket = 0;
   const muridAda = new Set();
   let bilAnugerah = 0, tanpaPentas = 0, bilUlang = 0;
   (penerima || []).forEach(p => {
@@ -1379,7 +1386,8 @@ function agKiraSkripMC(penerima) {
     muridAda.add(p.docId);
     bilAnugerah += gil.length;
     const utama = gil.filter(g => !agIkutSah(gil, g)).sort((a, b) => a.no - b.no);
-    if (utama.length > 1) bilUlang++;
+    if (gil.length > 1) bilUlang++;
+    if (gil.some(g => pentas.has(g.subId) && !rahsia.has(g.subId))) bilTiket++;
     utama.forEach((g, i) => baris.push({
       no: g.no, nama: p.nama || '', tahun: p.tahun, kelas: p.kelas, luar: agAdalahLuar(p),
       anugerahId: g.anugerahId || g.anugerah, anugerah: g.anugerah || '', sub: g.sub || '',
@@ -1399,7 +1407,7 @@ function agKiraSkripMC(penerima) {
   const pendua = nombor.filter(n => kiraNo[n] > 1).sort((a, b) => a - b);
 
   return { baris, bilGiliran: nombor.length, bilBaris: baris.length, bilMurid: muridAda.size,
-           bilAnugerah, bilUlang, tanpaPentas, maks, jurang, pendua };
+           bilAnugerah, bilUlang, bilTiket, tanpaPentas, maks, jurang, pendua };
 }
 
 /* Cetak melalui dialog cetak pelayar (Simpan sebagai PDF dari situ) —
@@ -1407,7 +1415,7 @@ function agKiraSkripMC(penerima) {
    `w` = tetingkap yang SUDAH dibuka oleh pemanggil secara serentak dengan
    klik (pop-up yang dibuka selepas `await` disekat pelayar). */
 function agCetakSkripMC(w, majlis, penerima) {
-  const r = agKiraSkripMC(penerima);
+  const r = agKiraSkripMC(penerima, majlis);
   const E = agEsc;
   const kelasOf = b => b.luar ? '' : agDarjahKelas(b.tahun, b.kelas);
   const subNama = b => {
@@ -1460,16 +1468,12 @@ function agCetakSkripMC(w, majlis, penerima) {
   const kpi = (n, l) => '<div class="k"><div class="n">' + n + '</div><div class="l">' + l + '</div></div>';
   const ringkasan =
     '<div class="kpi">' +
-      kpi(r.bilGiliran, 'Jumlah giliran<br>(nombor 1–' + r.maks + ')') +
-      kpi(r.bilMurid, 'Jumlah murid<br>naik pentas') +
-      kpi(r.bilUlang, 'Murid naik<br>lebih sekali') +
-      kpi(r.bilAnugerah, 'Jumlah anugerah<br>diserahkan') +
+      kpi(r.bilTiket, 'Jumlah tiket<br>dikeluarkan') +
+      kpi(r.bilMurid, 'Jumlah<br>semua murid') +
+      kpi(r.bilUlang, 'Jumlah murid<br>lebih dari 1 anugerah') +
     '</div>' +
-    (r.bilAnugerah !== r.bilGiliran
-      ? '<p class="ket">Anugerah diserahkan (' + r.bilAnugerah + ') melebihi giliran (' + r.bilGiliran +
-        ') kerana ' + (r.bilAnugerah - r.bilGiliran) + ' anugerah diterima serentak dalam giliran yang sama.</p>' : '') +
-    (r.tanpaPentas
-      ? '<p class="ket">' + r.tanpaPentas + ' penerima lain tiada nombor giliran (tidak naik pentas / belum bernombor) — tidak dikira di atas.</p>' : '') +
+    (r.bilTiket !== r.bilMurid
+      ? '<p class="ket">' + (r.bilMurid - r.bilTiket) + ' murid tiada tiket kerana anugerahnya rahsia.</p>' : '') +
     (amaran.length ? '<p class="amaran">⚠ ' + amaran.join(' · ') + '</p>' : '');
 
   const tarikh = new Date().toLocaleString('ms-MY', { dateStyle: 'medium', timeStyle: 'short' });
@@ -1506,7 +1510,8 @@ function agCetakSkripMC(w, majlis, penerima) {
     (r.baris.length
       ? '<table><thead><tr><th></th><th style="text-align:right">No</th><th>Nama</th><th>Kelas</th><th>Catatan</th></tr></thead>' +
         '<tbody>' + html + '</tbody></table>' +
-        '<div class="akhir">JUMLAH: ' + r.bilGiliran + ' giliran · ' + r.bilMurid + ' murid</div>'
+        '<div class="akhir">Jumlah tiket dikeluarkan: ' + r.bilTiket + ' · Jumlah semua murid: ' + r.bilMurid +
+          ' · Murid lebih dari 1 anugerah: ' + r.bilUlang + '</div>'
       : '<p style="margin-top:20px;text-align:center">Belum ada giliran bernombor. Tekan 🔢 Beri Nombor dahulu.</p>') +
     '</body></html>');
   w.document.close();

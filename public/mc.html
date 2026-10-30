@@ -137,6 +137,7 @@
 let MAJLIS = null;
 let BARIS = [];          // [{docId, no, nama, tahun, kelas, anugerah, sub, hadiah, hadir, mc}]
 const MENUNGGU = [];
+let KIRA = null;           // agKiraSkripMC — tiket / murid / >1 anugerah
 let TERTUNDA = null;       // data baharu yang menunggu MC menekan muat
 /* Blok mana terbuka — kekal antara lukisan supaya menanda ✓ (yang
    melukis semula) tidak menutup blok yang MC sedang baca. */
@@ -239,6 +240,7 @@ async function muat(pertama, senyap) {
       });
     });
     senarai.sort((a, b) => a.no - b.no);
+    senarai.kira = agKiraSkripMC(penerima, MAJLIS);
 
     /* 🔴 Muat berkala MESTI menghormati baris gilir luar talian.
        Tanpa ini, muat 25s yang berikutnya membaca DB (yang belum menerima
@@ -259,6 +261,7 @@ async function muat(pertama, senyap) {
     }
 
     BARIS = senarai;
+    KIRA = senarai.kira;
     TERTUNDA = null;
     tandaPerlu(false);
 
@@ -279,6 +282,7 @@ async function muat(pertama, senyap) {
 $('b-muat').addEventListener('click', () => {
   if (TERTUNDA) {
     BARIS = TERTUNDA;
+    KIRA = TERTUNDA.kira;
     TERTUNDA = null;
     tandaPerlu(false);
     isiDropdownAnugerah();
@@ -344,7 +348,10 @@ function lukis() {
     return true;
   });
 
-  $('senarai-sub').textContent = BARIS.length + ' giliran';
+  $('senarai-sub').textContent = KIRA
+    ? KIRA.bilTiket + ' tiket dikeluarkan \u00b7 ' + KIRA.bilMurid + ' murid \u00b7 ' +
+      KIRA.bilUlang + ' murid lebih dari 1 anugerah'
+    : BARIS.length + ' giliran';
   $('tapis-kira').textContent = tapis.length === BARIS.length
     ? '' : 'papar ' + tapis.length + ' dari ' + BARIS.length;
 

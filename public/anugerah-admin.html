@@ -6198,7 +6198,7 @@ $('b-skrip-mc').addEventListener('click', async () => {
   try {
     const penerima = await agMuatPenerima(MAJLIS.id);
     const r = agCetakSkripMC(w, MAJLIS, penerima);
-    agToast(r.bilGiliran + ' giliran · ' + r.bilMurid + ' murid', 'ok');
+    agToast(r.bilTiket + ' tiket · ' + r.bilMurid + ' murid · ' + r.bilUlang + ' murid lebih dari 1 anugerah', 'ok');
   } catch (e) {
     w.close();
     agToast('Gagal: ' + e.message, 'ralat');
