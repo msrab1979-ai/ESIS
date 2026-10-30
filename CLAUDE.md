@@ -414,6 +414,17 @@ Tiga tempat perlu konsisten, dan dua daripadanya pernah rosak:
 
 Disahkan: oracle 3,000 kes rawak `agKiraCalon` (semua asas × skop × satu/beberapa peperiksaan × teras) — 0 beza.
 
+#### 📋 Papar N teratas (30 Okt 2026)
+
+`s.paparTop` (nombor, per sub; `a.paparTop` sebagai lalai) — `agPaparTop(a, s)` / `agTapisTop(senarai, n)` dalam `anugerah-kongsi.js`. **Tiada / 0 = semua murid skop** (peraturan 28 Okt di atas kekal untuk sub tanpa medan ini).
+
+- Ditetapkan admin dalam **Ubah Sub → 📋 Papar berapa teratas** (menggantikan kotak `s-papar` "Papar semua" yang tiada kesan; `paparSemua` lama tetap dibawa oleh `baca()`). ⚡ Jana semua menyalin `paparTop`.
+- **Dua skrin, satu penapis**: modal admin `pmLukisCalon` dan borang guru `senaraiMurid()` (mod CALON) kedua-duanya memanggil `agTapisTop`. Murid luar top N **dan** murid tiada markah disorok; **seri pada nilai kedudukan ke-N ikut sekali**.
+- **Berasingan daripada `ambil`** (label "Cadang") — keputusan pengguna. Contoh: ambil 3, papar 20.
+- Borang guru: sub dengan `paparTop` **terus dibuka dalam mod ranking** (`CALON_MEMUAT` mengelak kiraan berganda) dan butang senarai penuh abjad (`b-senarai`) **disorok** — ia akan memapar murid luar top N.
+
+Oracle 20,000 kes `agTapisTop` (termasuk seri, n > panjang, n = 0) — 0 beza.
+
 #### Terbaik Dalam Kelas = enam anugerah, satu per darjah
 
 Pokok hanya dua aras, jadi tiga aras (anugerah › darjah › kelas) dibuat sebagai **enam anugerah** — `ANUGERAH TERBAIK DALAM KELAS — DARJAH 1` hingga `6` — masing-masing dengan kelas darjah itu sebagai sub. Nama sub ialah `1 INTEL`, `2 INTEL` dan seterusnya: nombor darjah menjadikannya unik, jadi tiada pengulangan dalam senarai.

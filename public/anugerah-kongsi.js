@@ -862,6 +862,24 @@ function agSubPentas(majlis) {
   return set;
 }
 
+/* 📋 PAPAR N TERATAS — berapa calon ranking dipapar dalam borang guru
+   (✨ Cadang) DAN modal admin 👤 Pilih Murid. Satu nombor, dua skrin.
+   Berasingan daripada `ambil` (berapa ditanda "Cadang").
+   Tiada / 0 = SEMUA murid skop (kelakuan sedia ada, termasuk murid tiada
+   markah di bawah). Bila ditetapkan: murid luar top N DAN murid tiada
+   markah disorok. Seri pada nilai kedudukan ke-N ikut sekali. */
+function agPaparTop(a, s) {
+  const n = parseInt((s && s.paparTop) || (a && a.paparTop), 10);
+  return n > 0 ? n : 0;
+}
+
+function agTapisTop(senarai, n) {
+  const l = senarai || [];
+  if (!(n > 0) || l.length <= n) return l.slice();
+  const batas = l[n - 1].nilai;
+  return l.filter((h, i) => i < n || (batas != null && h.nilai === batas));
+}
+
 /* 🤫 Anugerah RAHSIA — tidak dicetak pada TIKET murid (kejutan, contoh
    Tokoh Murid). Kekal dalam giliran, MC, peserta, hadiah, slaid, sijil
    dan kad jemputan (kad tidak menyebut anugerah). Lalai TIDAK rahsia

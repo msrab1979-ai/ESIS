@@ -403,7 +403,9 @@ function senaraiMurid() {
   /* SEMUA murid dalam skop dipapar, bukan calon teratas sahaja — yang
      tiada markah diletak di bawah tanpa kedudukan. */
   if (CALON) {
-    return CALON.senarai.concat(CALON.tanpaMarkah || [])
+    /* 📋 Papar N teratas (admin, Ubah Sub) — sama dengan modal admin. */
+    const nTop = agPaparTop(KONTEKS.anugerah, subSemasa());
+    return (nTop ? agTapisTop(CALON.senarai, nTop) : CALON.senarai.concat(CALON.tanpaMarkah || []))
       .filter(m => !k || String(m.kelas || '').toUpperCase() === k.toUpperCase())
       .filter(m => agPadanCarian(c, m.nama, m.no_kp));
   }
@@ -478,6 +480,7 @@ function entriMurid(kp) {
       kedua-duanya akan menyimpang pada pembetulan seterusnya.
    ========================================================================== */
 let CALON = null;      // hasil agKiraCalon, atau null = mod senarai penuh
+let CALON_MEMUAT = false;
 
 /* Sub automatik sahaja boleh dicadangkan: `manual` bermakna tiada data
    dalam ESIS untuk diranking (Kehadiran Penuh, Sahsiah). */
@@ -491,7 +494,9 @@ function bolehCadang() {
 function kemasButangCadang() {
   const boleh = bolehCadang();
   tunjuk($('b-cadang'), boleh && !CALON);
-  tunjuk($('b-senarai'), boleh && !!CALON);
+  /* 📋 Sub dengan "Papar N teratas": senarai penuh abjad disorok —
+     ia akan memapar murid luar top N yang admin mahu sorok. */
+  tunjuk($('b-senarai'), boleh && !!CALON && !agPaparTop(KONTEKS.anugerah, subSemasa()));
 }
 
 async function guruCadang(paksa) {
@@ -547,9 +552,13 @@ function lukisCalon() {
 
   $('cadang-nota').innerHTML = '<div class="nota" style="margin:10px 0 0">' +
     '<span class="sym">\u25b8</span><div>Dikira daripada markah ESIS. ' +
+    (agPaparTop(KONTEKS.anugerah, s)
+      ? '\ud83d\udccb <strong>' + agPaparTop(KONTEKS.anugerah, s) + ' teratas</strong> dipapar (ditetapkan admin). '
+      : '') +
     '<strong>' + ambil + ' teratas</strong> ditanda \u201cCadang\u201d \u2014 ' +
     'kotak TIDAK ditanda automatik, kau yang pilih.' +
-    (tiadaMarkah ? ' ' + tiadaMarkah + ' murid tiada markah \u2014 dipapar di bawah tanpa kedudukan.' : '') +
+    (tiadaMarkah && !agPaparTop(KONTEKS.anugerah, s)
+      ? ' ' + tiadaMarkah + ' murid tiada markah \u2014 dipapar di bawah tanpa kedudukan.' : '') +
     '</div></div>';
 
   /* 🔴 Nama medan datang daripada agKiraCalon: `kedudukan` dan
@@ -654,6 +663,14 @@ function lukis() {
   lukisPapanSkop(s);          // sebelum cabang CALON — kedua-dua mod perlukannya
 
   if (CALON) return lukisCalon();
+  /* 📋 Sub dengan "Papar N teratas" terus dibuka dalam mod ranking. */
+  if (bolehCadang() && agPaparTop(KONTEKS.anugerah, s)) {
+    if (!CALON_MEMUAT) {
+      CALON_MEMUAT = true;
+      guruCadang(false).finally(() => { CALON_MEMUAT = false; });
+    }
+    return;
+  }
   $('cadang-nota').innerHTML = '';
 
   bekas.innerHTML = senarai.length
