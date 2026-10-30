@@ -869,7 +869,10 @@ function agSubPentas(majlis) {
    markah di bawah). Bila ditetapkan: murid luar top N DAN murid tiada
    markah disorok. Seri pada nilai kedudukan ke-N ikut sekali. */
 function agPaparTop(a, s) {
-  const n = parseInt((s && s.paparTop) || (a && a.paparTop), 10);
+  /* Sub menimpa anugerah (master). Sub 0 = SEMUA walaupun master ada
+     nombor; sub tiada medan = ikut master. */
+  const adaSub = s && s.paparTop != null && s.paparTop !== '';
+  const n = parseInt(adaSub ? s.paparTop : (a && a.paparTop), 10);
   return n > 0 ? n : 0;
 }
 

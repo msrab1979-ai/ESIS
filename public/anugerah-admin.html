@@ -3256,6 +3256,11 @@ function modalAnugerah(idx) {
              senarai murid pokok. Disimpan pada sub (s.susunanMurid). */
           '<option value="manual"' + (a.susunMurid === 'manual' ? ' selected' : '') + '>Susun sendiri (admin seret)</option>' +
         '</select></div>' +
+        /* 📋 Lalai Papar N teratas bagi SEMUA sub — sub boleh menimpa. */
+        '<div class="medan" id="kotak-papar-top"><label for="a-papar-top">📋 Papar berapa teratas</label>' +
+          '<input type="number" id="a-papar-top" min="1" max="500" placeholder="Semua" value="' +
+            (a.paparTop || '') + '" style="min-width:92px" ' +
+            'title="Lalai untuk semua sub (borang guru + Pilih Murid). Kosong = semua murid. Sub boleh tetapkan nombor sendiri."></div>' +
         /* 🎤 Lalai naik pentas (tiada medan). */
         '<div class="medan"><label for="a-pentas">🎤 Naik pentas</label><select id="a-pentas">' +
           '<option value="ya"' + (a.pentas === false ? '' : ' selected') + '>Ya — dalam giliran</option>' +
@@ -3328,6 +3333,7 @@ function modalAnugerah(idx) {
     const manual = $('a-sumber').value === 'manual';
     const ikutSubjek = $('a-asas').value === 'subjek';
     tunjuk($('kotak-asas'), !manual);
+    if ($('kotak-papar-top')) tunjuk($('kotak-papar-top'), !manual);
     /* Susunan murid terpakai kepada SEMUA anugerah — anugerah manual juga
        boleh disusun sendiri. Hanya "ikut kedudukan" perlu markah. */
     const opKed = $('a-susun').querySelector('option[value="kedudukan"]');
@@ -3599,6 +3605,9 @@ function modalAnugerah(idx) {
     const pentasBaru = $('a-pentas').value !== 'tidak';
     if (pentasBaru !== (a.pentas !== false)) (a.sub || []).forEach(s => { delete s.pentas; });
     if (pentasBaru) delete a.pentas; else a.pentas = false;
+    /* 📋 Lalai semua sub. Timpaan sub (s.paparTop) dikekalkan. */
+    const nTopA = parseInt($('a-papar-top') ? $('a-papar-top').value : '', 10);
+    if (a.sumber !== 'manual' && nTopA > 0) a.paparTop = nTopA; else delete a.paparTop;
     const susun = $('a-susun').value;
     if (susun === 'manual') a.susunMurid = 'manual';
     else if (a.sumber !== 'manual' && susun === 'kedudukan') a.susunMurid = 'kedudukan';
@@ -4591,10 +4600,13 @@ async function modalSub(iAn, jSub) {
       /* 📋 Menggantikan kotak "Papar semua murid" (tiada kesan sejak
          28 Okt). Kosong = semua murid skop. */
       '<div class="medan" style="margin-top:13px"><label for="s-papar-top">📋 Papar berapa teratas</label>' +
-        '<input type="number" id="s-papar-top" min="1" max="500" placeholder="Semua" value="' +
-          (s.paparTop || '') + '" style="min-width:92px">' +
+        '<input type="number" id="s-papar-top" min="0" max="500" placeholder="' +
+          (an.paparTop ? 'Ikut anugerah (' + an.paparTop + ')' : 'Ikut anugerah (semua)') + '" value="' +
+          (s.paparTop != null && s.paparTop !== '' ? s.paparTop : '') + '" style="min-width:150px">' +
         '<p class="hint" style="margin:4px 0 0">Bilangan murid ranking yang dipapar dalam borang guru ' +
-          'dan 👤 Pilih Murid (contoh 10 atau 20). Kosong = semua murid. Berbeza daripada ' +
+          'dan 👤 Pilih Murid (contoh 10 atau 20). <strong>Kosong = ikut anugerah</strong>' +
+          (an.paparTop ? ' (' + an.paparTop + ' teratas)' : ' (semua murid)') +
+          ' · <strong>0 = semua murid</strong>. Berbeza daripada ' +
           '<em>Ambil berapa</em> (bilangan ditanda “Cadang”).</p></div>') +
       '<div class="baris-input" style="margin-top:16px">' +
         '<button class="btn emas" id="s-simpan">💾 Simpan</button>' +
@@ -4682,8 +4694,9 @@ async function modalSub(iAn, jSub) {
          dibiarkan tercicir — `baca()` membina objek baharu, jadi apa
          yang tidak disalin akan hilang apabila admin menekan Simpan. */
       if (s.paparSemua) o.paparSemua = true;      /* medan lama, tiada kesan */
+      /* Kosong = ikut anugerah (tiada medan); 0 = semua; N = timpa. */
       const nTop = parseInt($('s-papar-top') ? $('s-papar-top').value : '', 10);
-      if (nTop > 0) o.paparTop = nTop;
+      if (nTop >= 0) o.paparTop = nTop;
       if (s.peperiksaan) o.peperiksaan = s.peperiksaan;
       if (s.asas) o.asas = s.asas;
     } else {
@@ -4734,7 +4747,7 @@ async function modalSub(iAn, jSub) {
       };
       if (x.darjah) baru.skopDarjah = x.darjah;
       if (asas.paparSemua) baru.paparSemua = true;
-      if (asas.paparTop) baru.paparTop = asas.paparTop;
+      if (asas.paparTop != null) baru.paparTop = asas.paparTop;
       an.sub.push(baru);
       tambah++;
     });

@@ -418,6 +418,7 @@ Disahkan: oracle 3,000 kes rawak `agKiraCalon` (semua asas × skop × satu/beber
 
 `s.paparTop` (nombor, per sub; `a.paparTop` sebagai lalai) — `agPaparTop(a, s)` / `agTapisTop(senarai, n)` dalam `anugerah-kongsi.js`. **Tiada / 0 = semua murid skop** (peraturan 28 Okt di atas kekal untuk sub tanpa medan ini).
 
+- **Master + sub**: **Ubah Anugerah → 📋 Papar berapa teratas** = `a.paparTop`, lalai SEMUA sub (auto sahaja; manual dibuang). Sub: **kosong = ikut anugerah** (tiada medan), **0 = semua** (timpa master), N = timpa. `agPaparTop` menyemak `s.paparTop != null` — jangan tukar kepada `s.paparTop ||`, itu menjadikan 0 jatuh ke master.
 - Ditetapkan admin dalam **Ubah Sub → 📋 Papar berapa teratas** (menggantikan kotak `s-papar` "Papar semua" yang tiada kesan; `paparSemua` lama tetap dibawa oleh `baca()`). ⚡ Jana semua menyalin `paparTop`.
 - **Dua skrin, satu penapis**: modal admin `pmLukisCalon` dan borang guru `senaraiMurid()` (mod CALON) kedua-duanya memanggil `agTapisTop`. Murid luar top N **dan** murid tiada markah disorok; **seri pada nilai kedudukan ke-N ikut sekali**.
 - **Berasingan daripada `ambil`** (label "Cadang") — keputusan pengguna. Contoh: ambil 3, papar 20.
