@@ -763,6 +763,7 @@
           <button class="btn sunyi kecil" id="b-cetak-tiket">🖨 Cetak</button>
         </div>
       </div>
+      <div id="tiket-amaran" style="padding:0 19px"></div>
       <div class="kad-isi" id="tiket-tapis" style="padding-bottom:4px">
         <div class="baris-input">
           <div class="medan"><label for="t-darjah">Darjah</label>
@@ -1006,6 +1007,7 @@
 
   <!-- ============ TAB 7 : PETUGAS ============ -->
   <section class="panel" id="p-petugas" hidden>
+    <div id="petugas-amaran"></div>
     <div class="nota">
       <span class="sym">▸</span>
       <div><strong>Kod rahsia dalam URL, bukan akaun.</strong> Setiap peranan ada kod sendiri —
@@ -5109,27 +5111,68 @@ const SGIL_BUKA = {};
 /* 🎤 Set subId naik pentas bagi majlis semasa. */
 function subPentasSemasa() { return agSubPentas(MAJLIS); }
 
-/* 🎤 Masih ada nombor giliran milik anugerah yang kini tidak naik pentas. */
-function amaranPentas() {
-  if (!$('susun-amaran')) return;
+/* 🔴 AMARAN NOMBOR LAPUK — satu semakan, tiga tempat (Susunan Naik Pentas,
+      Tiket Giliran, Link Petugas). Dikira semula setiap kali dilukis, jadi
+      ia KEKAL selagi nombor tidak sepadan — bukan hanya sejurus selepas
+      seret, dan tidak hilang bila halaman dimuat semula.
+      MC, hadiah, tayang, tiket dan sijil semuanya ikut nombor DISIMPAN;
+      nombor tidak pernah ditukar sendiri kerana tiket mungkin sudah dicetak. */
+function semakNomborSemasa() {
+  if (!MAJLIS) return { lapuk: 0, belum: 0, luar: 0 };
+  const r = agSemakNombor(MAJLIS, PENERIMA);
   const set = subPentasSemasa();
-  const bil = PENERIMA.reduce((n, p) =>
+  r.luar = PENERIMA.reduce((n, p) =>
     n + (p.giliran || []).filter(g => g.no != null && !set.has(g.subId)).length, 0);
-  if (!bil) return;
-  $('susun-amaran').innerHTML =
-    '<div class="nota amaran" style="margin:15px 0 0"><span class="sym">⚠</span><div>' +
-    '<strong>' + bil + ' nombor giliran masih milik anugerah yang TIDAK naik pentas.</strong> ' +
-    'Ia masih muncul dalam MC, hadiah, tayang dan tiket sehingga kau tekan ' +
-    '<em>🔁 Jana Semula</em> \u2014 nombor 1\u2026N akan disusun semula tanpa anugerah itu.</div></div>';
+  return r;
 }
 
-/* 🔴 Menyusun semula memapar AMARAN, bukan menukar nombor. */
-function amaranSusun() {
-  $('susun-amaran').innerHTML =
-    '<div class="nota amaran" style="margin:15px 0 0"><span class="sym">⚠</span><div>' +
-    '<strong>Susunan berubah tetapi nombor giliran KEKAL.</strong> Ini amaran, bukan tindakan. ' +
-    'Nombor hanya berubah bila kau tekan <em>Jana Semula</em> sendiri — tiket yang sudah ' +
-    'dicetak dan diedar tidak boleh ditukar oleh sistem.</div></div>';
+function htmlAmaranNombor(r, tempat) {
+  if (!r.lapuk && !r.belum) return '';
+  const kesan = tempat === 'tiket'
+    ? 'Tiket yang dicetak sekarang akan membawa nombor LAMA.'
+    : tempat === 'petugas'
+      ? 'MC, Pengurus Peserta, Pengurus Hadiah dan Slaid masih ikut nombor LAMA.'
+      : 'MC, hadiah, slaid, tiket dan sijil masih ikut nombor LAMA.';
+  const bits = [];
+  if (r.lapuk) bits.push('<strong>' + r.lapuk + ' nombor giliran tidak sepadan dengan Susunan Naik Pentas.</strong>' +
+    (r.luar ? ' (' + r.luar + ' daripadanya milik anugerah yang tidak naik pentas.)' : ''));
+  if (r.belum) bits.push('<strong>' + r.belum + ' anugerah belum bernombor.</strong>');
+  return '<div class="nota amaran" style="margin:15px 0 0;border-color:var(--bahaya,#b3261e)">' +
+    '<span class="sym">⚠</span><div>' + bits.join(' ') + ' ' + kesan +
+    '<div class="baris-input" style="margin-top:8px">' +
+      (r.lapuk
+        ? '<button class="btn kecil" data-amaran-jana style="background:var(--bahaya,#b3261e);' +
+          'color:#fff;border-color:var(--bahaya,#b3261e)">🔁 Jana Semula sekarang</button>'
+        : '<button class="btn emas kecil" data-amaran-beri>🔢 Beri Nombor sekarang</button>') +
+    '</div></div></div>';
+}
+
+function lukisAmaranNombor() {
+  const r = semakNomborSemasa();
+  [['susun-amaran', 'susun'], ['tiket-amaran', 'tiket'], ['petugas-amaran', 'petugas']]
+    .forEach(([id, t]) => { if ($(id)) $(id).innerHTML = htmlAmaranNombor(r, t); });
+  return r;
+}
+
+/* Nama lama dikekalkan — banyak pemanggil. */
+function amaranPentas() { lukisAmaranNombor(); }
+function amaranSusun() { lukisAmaranNombor(); }
+
+/* Satu pendengar peringkat dokumen: banner dilukis semula berkali-kali. */
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-amaran-jana]')) $('b-jana-semula').click();
+  else if (e.target.closest('[data-amaran-beri]')) beriNombor(false);
+});
+
+/* Sebelum cetak tiket / muat turun slaid: nombor lapuk = tanya dahulu. */
+function sahkanNomborSebelum(apa) {
+  const r = lukisAmaranNombor();
+  if (!r.lapuk && !r.belum) return true;
+  return confirm('⚠ Nombor giliran belum dikemas kini.\n\n' +
+    (r.lapuk ? r.lapuk + ' nombor tidak sepadan dengan Susunan Naik Pentas.\n' : '') +
+    (r.belum ? r.belum + ' anugerah belum bernombor.\n' : '') +
+    '\n' + apa + ' akan membawa nombor LAMA. Tekan Batal, kemudian ' +
+    (r.lapuk ? '🔁 Jana Semula' : '🔢 Beri Nombor') + ' dahulu.\n\nTeruskan juga?');
 }
 
 /* Pindah anugerah ke-i ke kedudukan ke-j. Susun semula (splice), bukan tukar
@@ -5807,7 +5850,9 @@ $('b-t-kosong').addEventListener('click', () => {
   isiKelasTiket(); $('t-kelas').value = ''; $('t-cari').value = '';
   lukisTiket();
 });
-$('b-cetak-tiket').addEventListener('click', () => window.print());
+$('b-cetak-tiket').addEventListener('click', () => {
+  if (sahkanNomborSebelum('Tiket')) window.print();
+});
 
 /* Cipta satu sub berskop sekolah dengan nama anugerah, kemudian terus
    buka modal Pilih Murid. Untuk anugerah yang memang hanya mahu satu
@@ -5931,6 +5976,7 @@ function binaSlaidPPTX() {
 
 $('b-pptx').addEventListener('click', async () => {
   if (!MAJLIS) return;
+  if (!sahkanNomborSebelum('Slaid PPTX')) return;
   const slaid = binaSlaidPPTX();
   if (!slaid.length) {
     agToast('Tiada slaid \u2014 beri nombor giliran dahulu', 'ralat'); return;
@@ -6233,6 +6279,7 @@ function lukisResetStatus() {
 }
 
 function lukisPetugas() {
+  lukisAmaranNombor();
   const mod = MAJLIS.modPetugas = MAJLIS.modPetugas || {};
   const asas = location.href.replace(/[^/]*$/, '');
 

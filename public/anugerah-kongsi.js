@@ -1153,6 +1153,35 @@ function agBuangGiliranLuar(penerima, petaBaru) {
   return buang;
 }
 
+/* 🔴 Nombor giliran yang DISIMPAN masih sepadan dengan Susunan Naik Pentas
+      semasa? MC, hadiah, tayang, tiket dan sijil semuanya ikut nombor
+      disimpan — admin yang menyeret susunan tanpa Jana Semula meninggalkan
+      mereka pada susunan lama tanpa sesiapa sedar.
+   Bandingan = apa yang Jana Semula AKAN tulis. Sub ikut-kedudukan memakai
+   susunan nombor sedia ada (tidak membaca markah), jadi tiada amaran palsu.
+   → { lapuk: entri bernombor yang akan berubah/dibuang,
+       belum: anugerah naik pentas yang belum bernombor } */
+function agSemakNombor(majlis, penerima) {
+  const hasil = { lapuk: 0, belum: 0 };
+  if (!majlis || !(penerima || []).length) return hasil;
+  const ked = agKedudukanDariNombor(majlis, penerima);
+  const rancang = agRancangNombor(majlis, penerima, true, ked).petaBaru;
+  penerima.forEach(p => {
+    const baru = rancang[p.docId] || [];
+    const gil = p.giliran || [];
+    gil.forEach(g => {
+      if (g.no == null) return;
+      const b = baru.find(x => x.subId === g.subId);
+      if (!b || b.no !== g.no || (b.ikut || null) !== (g.ikut || null)) hasil.lapuk++;
+    });
+    baru.forEach(b => {
+      const g = gil.find(x => x.subId === b.subId);
+      if (!g || g.no == null) hasil.belum++;
+    });
+  });
+  return hasil;
+}
+
 /* ==========================================================================
    CARIAN NAMA
    --------------------------------------------------------------------------

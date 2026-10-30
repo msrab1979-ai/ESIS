@@ -913,6 +913,16 @@ Untuk anugerah seperti **Anugerah Ibu Bapa Terbaik**: anugerah `sumber:'manual'`
 - Satu penapis: `agNaikPentas` dalam `agSusunanSub` (+ cabang gaya asal `binaTurutan`). Peserta & sijil ikut serta-merta; MC/hadiah/tayang membaca `giliran[]`, jadi perlu **🔁 Jana Semula** — `agBuangGiliranLuar` membuang entri giliran yang tiada dalam turutan, termasuk murid yang SEMUA anugerahnya tidak naik pentas (tiada dalam turutan langsung). `amaranPentas()` memberi amaran selagi nombor lama wujud. Tiket & PPTX admin menapis terus.
 - Senarai Susunan Naik Pentas: anugerah tidak naik pentas dikumpul dalam nota kelabu di bawah; sub tidak naik pentas kelabu tanpa seret. ↑↓ membawa `data-ke` = indeks jiran naik pentas (indeks sebenar), supaya tidak bertukar dengan baris tersorok.
 
+#### Amaran nombor lapuk (30 Okt 2026)
+
+MC, Hadiah, Slaid (tayang + PPTX), tiket dan sijil semuanya ikut **nombor giliran DISIMPAN**, bukan susunan admin secara terus. Menyeret Susunan Naik Pentas tidak menukar nombor (tiket mungkin sudah dicetak), jadi `agSemakNombor(majlis, penerima)` (`anugerah-kongsi.js`) membandingkan nombor sedia ada dengan apa yang Jana Semula **akan** tulis → `{lapuk, belum}`. Sub ikut-kedudukan memakai `agKedudukanDariNombor` (tiada bacaan markah, tiada amaran palsu).
+
+- `lukisAmaranNombor()` melukis banner merah + butang 🔁 Jana Semula / 🔢 Beri Nombor di **tiga** tempat: `#susun-amaran`, `#tiket-amaran`, `#petugas-amaran` (tab Link Petugas). Dikira semula setiap lukisan, jadi ia **kekal** selagi tidak sepadan, termasuk selepas muat semula. `amaranSusun`/`amaranPentas` kini memanggilnya.
+- Cetak tiket & muat turun PPTX: `sahkanNomborSebelum()` → `confirm` bila lapuk.
+- **Peserta** menyusun blok sub ikut nombor giliran terkecil (`kumpulIkutGiliran`), bukan `agSusunanSub` terus — dahulu ia mengikut susunan baharu sementara MC memanggil nombor lama.
+
+Oracle 3,000 majlis rawak (3 gaya, sub tidak naik pentas, susun manual): tiada nombor → `belum` = turutan; selepas jana → 0/0; terbalikkan susunan → `lapuk>0` tepat bila rancangan berubah. 0 gagal.
+
 #### Nombor giliran mesti berturutan tanpa jurang
 
 `beriNombor(true)` (🔁 Jana Semula) menomborkan 1…N mengikut `binaTurutan`; sub tanpa peserta dilangkau sendiri dan tidak memakan nombor.

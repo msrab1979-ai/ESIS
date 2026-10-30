@@ -327,7 +327,9 @@ function lukis() {
        anugerah ikut `urutan`  →  sub ikut susunan array a.sub
        →  murid ikut nombor giliran dalam sub itu
      Sub TIADA medan `urutan` — susunannya ialah susunan array itu sendiri.
-     Jadi apa-apa perubahan susunan di Giliran terus terpakai di sini. */
+     Kemudian blok disusun ikut NOMBOR GILIRAN (kumpulIkutGiliran), jadi
+     perubahan susunan terpakai di sini selepas admin tekan Jana Semula —
+     serentak dengan MC, hadiah dan slaid. */
   /* 🔴 DUA ARAS, kedua-duanya buka/tutup. Majlis ini ada 14 kumpulan
      sub yang berisi; terbuka semuanya ia senarai 110 baris yang
      pengurus peserta perlu tatal untuk mencari satu anugerah.
@@ -441,6 +443,17 @@ function kumpulIkutGiliran(tapis) {
     keluar.push({ anId: a.id, anNama: a.nama, subNama,
                   kunci: a.id + '|' + s.id, baris });
   });
+
+  /* 🔴 Blok disusun ikut NOMBOR GILIRAN terkecil — sama dengan MC, hadiah
+     dan slaid. Kalau admin menyeret Susunan Naik Pentas tanpa Jana Semula,
+     panel ini dahulu mengikut susunan BAHARU sementara MC memanggil ikut
+     nombor LAMA. Sub tanpa nombor kekal di bawah, ikut susunan admin. */
+  const noMin = g => {
+    const n = g.baris.map(b => b.no).filter(x => typeof x === 'number');
+    return n.length ? Math.min.apply(null, n) : Infinity;
+  };
+  keluar.forEach((g, i) => { g._i = i; g._no = noMin(g); });
+  keluar.sort((x, y) => x._no !== y._no ? (x._no < y._no ? -1 : 1) : x._i - y._i);
 
   /* Murid tanpa anugerah langsung tidak muncul dalam gelung di atas;
      ia keadaan tidak normal, jadi ia dipaparkan dan bukan disenyapkan. */
