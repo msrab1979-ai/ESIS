@@ -219,6 +219,11 @@
 .seret.sgil-baris .s-nama{font-weight:500; font-size:12.5px}
 .seret.sgil-baris .s-bil{font-size:11.5px}
 .sgil-sub .hint{margin:0; font-size:12px}
+.sgil-murid{margin:-2px 0 7px 22px; padding:7px 11px; border-left:3px solid var(--garis-halus); font-size:12.5px}
+.sgil-murid ol{margin:0; padding-left:22px}
+.sgil-murid li{padding:2px 0}
+.sgil-murid .m-nama{font-weight:500}
+.sgil-murid .m-kelas{color:var(--tinta-lembut,#666); font-size:11.5px}
 /* Gaya Giliran */
 .gaya-pilih{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px}
 .gaya-kad{display:flex; flex-direction:column; gap:4px; border:1.5px solid var(--garis-halus);
@@ -5066,18 +5071,25 @@ function barisSusunAnugerah(a, i, k, idxPentas) {
         }
         const p = jPentas.indexOf(j);
         const jA = jPentas[p - 1], jB = jPentas[p + 1];
+        const bukaM = !!SGIL_MURID[s.id];
         return '<div class="seret sgil-baris" draggable="true" ' +
             'data-sub-a="' + i + '" data-sub-j="' + j + '">' +
           '<span class="pemegang">⣿</span>' +
           '<span class="s-nama">' + agEsc(s.nama || '(tanpa nama)') + '</span>' +
-          '<span class="s-bil">' + rs.bil + ' murid · ' + rs.julat + '</span>' +
+          '<span class="s-bil">' + rs.julat + '</span>' +
+          (rs.bil
+            ? '<button class="btn sunyi kecil" data-sgil-murid="' + agEsc(s.id) + '" ' +
+              'title="Tunjuk murid ikut susunan naik pentas">' + rs.bil + ' murid ' +
+              (bukaM ? '▴' : '▾') + '</button>'
+            : '<span class="s-bil">0 murid</span>') +
           '<button class="btn sunyi kecil" data-snaik="' + i + '_' + j + '" ' +
             'data-ke="' + (jA == null ? '' : jA) + '" ' +
             'title="Naik"' + (jA == null ? ' disabled' : '') + '>↑</button>' +
           '<button class="btn sunyi kecil" data-sturun="' + i + '_' + j + '" ' +
             'data-ke="' + (jB == null ? '' : jB) + '" ' +
             'title="Turun"' + (jB == null ? ' disabled' : '') + '>↓</button>' +
-        '</div>';
+        '</div>' +
+        (bukaM ? senaraiMuridSusun(a, s) : '');
       }).join('')
     : '<p class="hint">Tiada sub-anugerah.</p>';
 
@@ -5107,6 +5119,38 @@ function kad(angka, label, kecil, jenis) {
 
 /* Blok mana yang terbuka — bertahan merentas lukisGiliran(). */
 const SGIL_BUKA = {};
+/* Sub mana yang senarai muridnya terbuka (subId → true). */
+const SGIL_MURID = {};
+
+/* 🔴 Senarai murid satu sub dalam Susunan Naik Pentas — untuk admin
+      menyemak siapa dipilih dan siapa naik dahulu.
+   Susunan = apa yang Jana Semula AKAN hasilkan (enjin sama: binaTurutan
+   gaya A / agBinaTurutan gaya B/C). Sub ikut-kedudukan memakai susunan
+   nombor sedia ada — markah tidak dibaca di sini.
+   Nombor dipapar ialah nombor giliran DISIMPAN (yang MC panggil); bila
+   Jana Semula akan menukarnya, nombor baharu ditunjuk di sebelah. */
+function senaraiMuridSusun(a, s) {
+  const ked = agKedudukanDariNombor(MAJLIS, PENERIMA);
+  const rancang = agRancangNombor(MAJLIS, PENERIMA, true, ked).petaBaru;
+  const murid = binaTurutan(ked).filter(x => x.s.id === s.id).map(x => x.p);
+  if (!murid.length) return '<div class="sgil-murid"><p class="hint">Tiada murid.</p></div>';
+  const cara = agIkutManual(a) ? 'susun sendiri (admin)'
+    : agIkutKedudukan(a) ? 'ikut markah (kedudukan)' : 'ikut nama';
+  return '<div class="sgil-murid"><p class="hint" style="margin:0 0 5px">Susunan murid: <strong>' +
+    cara + '</strong></p><ol>' + murid.map(p => {
+      const g = (p.giliran || []).find(x => x.subId === s.id);
+      const b = (rancang[p.docId] || []).find(x => x.subId === s.id);
+      const noLama = g && g.no != null ? g.no : null;
+      const noBaru = b ? b.no : null;
+      let gil;
+      if (noLama == null) gil = '<span class="pil absen">belum bernombor</span>';
+      else gil = '<span class="pil tunggu">giliran ' + noLama + '</span>' +
+        (noBaru != null && noBaru !== noLama
+          ? ' <span class="pil absen" title="Selepas Jana Semula">→ ' + noBaru + '</span>' : '');
+      return '<li><span class="m-nama">' + agEsc(p.nama) + '</span> ' +
+        '<span class="m-kelas">' + agEsc(agKelasPenerima(p)) + '</span> ' + gil + '</li>';
+    }).join('') + '</ol></div>';
+}
 
 /* 🎤 Set subId naik pentas bagi majlis semasa. */
 function subPentasSemasa() { return agSubPentas(MAJLIS); }
@@ -5213,6 +5257,13 @@ async function pindahSub(iA, j, k) {
 $('susun-anugerah').addEventListener('click', e => {
   /* Butang disemak DAHULU: ia lebih dalam daripada .sgil-induk, jadi
      menekan ↑ tidak boleh mencetuskan togol accordion. */
+  const bm = e.target.closest('button[data-sgil-murid]');
+  if (bm) {
+    const id = bm.dataset.sgilMurid;
+    SGIL_MURID[id] = !SGIL_MURID[id];
+    lukisGiliran();
+    return;
+  }
   const b = e.target.closest('button[data-naik],button[data-turun],button[data-snaik],button[data-sturun]');
   if (b) {
     if (b.disabled) return;
