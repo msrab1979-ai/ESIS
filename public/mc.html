@@ -96,7 +96,8 @@
       <div class="kad-kepala">
         <h3>Giliran Naik Pentas</h3>
         <span class="sub" id="senarai-sub"></span>
-        <div class="kanan"><button class="btn sunyi kecil" id="b-muat">🔄 Muat</button></div>
+        <div class="kanan"><button class="btn sunyi kecil" id="b-cetak">🖨 Cetak</button>
+          <button class="btn sunyi kecil" id="b-muat">🔄 Muat</button></div>
       </div>
       <div class="tapis-bar">
         <input type="text" id="t-cari" placeholder="Cari nama atau nombor giliran…">
@@ -290,6 +291,20 @@ $('b-muat').addEventListener('click', () => {
 });
 document.addEventListener('click', e => {
   if (e.target.closest('#b-cuba-lagi')) muat(true);
+});
+
+/* 🖨 Cetak SEMUA giliran (bukan ikut tapisan skrin), dibaca segar —
+   enjin sama dengan butang Skrip MC di panel admin. */
+$('b-cetak').addEventListener('click', async () => {
+  const w = window.open('', '_blank');
+  if (!w) { agToast('Benarkan pop-up untuk mencetak', 'ralat'); return; }
+  w.document.write('<p style="font:14px system-ui;padding:20px">Memuatkan senarai giliran…</p>');
+  try {
+    agCetakSkripMC(w, MAJLIS, await agMuatPenerima(MAJLIS.id));
+  } catch (e) {
+    w.close();
+    agToast('Gagal: ' + e.message, 'ralat');
+  }
 });
 
 function kemasSari() {

@@ -740,6 +740,7 @@
           <button class="btn sunyi kecil" id="b-jana-semula">🔁 Jana Semula</button>
           <button class="btn emas kecil" id="b-beri-nombor">🔢 Beri Nombor</button>
           <button class="btn sunyi kecil" id="b-pptx">📽 Muat Turun Slaid (PPTX)</button>
+          <button class="btn sunyi kecil" id="b-skrip-mc">🖨 Skrip MC (PDF)</button>
         </div>
       </div>
       <div class="kad-isi">
@@ -6183,6 +6184,26 @@ function binaSlaidPPTX() {
     return s;
   }).sort((a, b) => a.noMin - b.noMin);
 }
+
+/* 🖨 Skrip MC — senarai ikut nombor giliran DISIMPAN, untuk dicetak.
+   Penerima dibaca SEGAR supaya kiraan murid/giliran tepat walaupun borang
+   guru atau admin lain menulis selepas halaman ini dibuka. Tetingkap
+   dibuka SEBELUM await — pop-up selepas await disekat pelayar. */
+$('b-skrip-mc').addEventListener('click', async () => {
+  if (!MAJLIS) return;
+  if (!sahkanNomborSebelum('Skrip MC')) return;
+  const w = window.open('', '_blank');
+  if (!w) { agToast('Benarkan pop-up untuk mencetak', 'ralat'); return; }
+  w.document.write('<p style="font:14px system-ui;padding:20px">Memuatkan senarai giliran…</p>');
+  try {
+    const penerima = await agMuatPenerima(MAJLIS.id);
+    const r = agCetakSkripMC(w, MAJLIS, penerima);
+    agToast(r.bilGiliran + ' giliran · ' + r.bilMurid + ' murid', 'ok');
+  } catch (e) {
+    w.close();
+    agToast('Gagal: ' + e.message, 'ralat');
+  }
+});
 
 $('b-pptx').addEventListener('click', async () => {
   if (!MAJLIS) return;

@@ -1357,6 +1357,163 @@ function agDarjahSub(sub) {
   return 0;
 }
 
+/* ---------- 🖨 Skrip MC (cetak) ----------
+   🔴 Satu baris = satu NOMBOR GILIRAN DISIMPAN, sama seperti panel MC.
+      Pengikut gaya GABUNG bukan baris sendiri (berkongsi nombor utama) —
+      ia disenarai sebagai "turut menerima" pada baris utamanya.
+   Kiraan dibuat di sini SAHAJA supaya kertas MC dan skrin tidak berbeza:
+     bilGiliran  = nombor unik (berapa kali nama dipanggil ke pentas)
+     bilMurid    = orang berbeza yang memegang sekurang-kurangnya satu nombor
+     bilAnugerah = semua anugerah yang diserah di pentas (termasuk pengikut)
+     bilUlang    = murid yang naik pentas lebih sekali
+     tanpaPentas = penerima yang TIADA nombor langsung (tidak naik pentas /
+                   belum bernombor) — tidak dikira dalam bilMurid
+     pendua / jurang = nombor yang dipegang >1 baris / nombor 1..maks yang tiada */
+function agKiraSkripMC(penerima) {
+  const baris = [];
+  const muridAda = new Set();
+  let bilAnugerah = 0, tanpaPentas = 0, bilUlang = 0;
+  (penerima || []).forEach(p => {
+    const gil = (p.giliran || []).filter(g => g.no != null);
+    if (!gil.length) { tanpaPentas++; return; }
+    muridAda.add(p.docId);
+    bilAnugerah += gil.length;
+    const utama = gil.filter(g => !agIkutSah(gil, g)).sort((a, b) => a.no - b.no);
+    if (utama.length > 1) bilUlang++;
+    utama.forEach((g, i) => baris.push({
+      no: g.no, nama: p.nama || '', tahun: p.tahun, kelas: p.kelas, luar: agAdalahLuar(p),
+      anugerahId: g.anugerahId || g.anugerah, anugerah: g.anugerah || '', sub: g.sub || '',
+      hadiah: g.hadiah || '', hadir: g.hadir,
+      kali: i + 1, daripada: utama.length,
+      lain: agPengikutGiliran(gil, g).map(x => x.sub || x.anugerah)
+    }));
+  });
+  baris.sort((a, b) => a.no - b.no || String(a.nama).localeCompare(String(b.nama)));
+
+  const kiraNo = {};
+  baris.forEach(b => { kiraNo[b.no] = (kiraNo[b.no] || 0) + 1; });
+  const nombor = Object.keys(kiraNo).map(Number);
+  const maks = nombor.length ? Math.max(...nombor) : 0;
+  const jurang = [];
+  for (let n = 1; n <= maks; n++) if (!kiraNo[n]) jurang.push(n);
+  const pendua = nombor.filter(n => kiraNo[n] > 1).sort((a, b) => a - b);
+
+  return { baris, bilGiliran: nombor.length, bilBaris: baris.length, bilMurid: muridAda.size,
+           bilAnugerah, bilUlang, tanpaPentas, maks, jurang, pendua };
+}
+
+/* Cetak melalui dialog cetak pelayar (Simpan sebagai PDF dari situ) —
+   sama seperti sijil & Semak Penerima; tiada pustaka PDF dimuat.
+   `w` = tetingkap yang SUDAH dibuka oleh pemanggil secara serentak dengan
+   klik (pop-up yang dibuka selepas `await` disekat pelayar). */
+function agCetakSkripMC(w, majlis, penerima) {
+  const r = agKiraSkripMC(penerima);
+  const E = agEsc;
+  const kelasOf = b => b.luar ? '' : agDarjahKelas(b.tahun, b.kelas);
+  const subNama = b => {
+    const nA = String(b.anugerah).toUpperCase().replace(/^ANUGERAH\s+/, '');
+    let n = String(b.sub || b.anugerah);
+    if (n.toUpperCase() === String(b.anugerah).toUpperCase()) return '';
+    if (n.toUpperCase().startsWith(nA + ' — ')) n = n.slice(nA.length + 3);
+    return n;
+  };
+
+  /* blok BERTURUT-TURUT ikut nombor (anugerah › sub) — itulah susunan
+     sebenar MC membaca, dalam ketiga-tiga gaya giliran. */
+  let html = '', anAkhir = null, subAkhir = null;
+  const bilDalam = (i, kunci) => {
+    let n = 0;
+    for (let k = i; k < r.baris.length && kunci(r.baris[k]); k++) n++;
+    return n;
+  };
+  r.baris.forEach((b, i) => {
+    if (b.anugerahId !== anAkhir) {
+      anAkhir = b.anugerahId; subAkhir = null;
+      const n = bilDalam(i, x => x.anugerahId === b.anugerahId);
+      html += '<tr class="an"><td colspan="5">' + E(b.anugerah) +
+        '<span class="bil">' + n + ' giliran</span></td></tr>';
+    }
+    if (b.sub !== subAkhir) {
+      subAkhir = b.sub;
+      const sn = subNama(b);
+      if (sn || b.hadiah) {
+        const n = bilDalam(i, x => x.anugerahId === b.anugerahId && x.sub === b.sub);
+        html += '<tr class="sub"><td colspan="5">' + E(sn || b.anugerah) +
+          (b.hadiah ? ' <span class="hadiah">· ' + E(b.hadiah) + '</span>' : '') +
+          '<span class="bil">' + n + '</span></td></tr>';
+      }
+    }
+    const nota = [];
+    if (b.daripada > 1) nota.push('naik kali ke-' + b.kali + ' dari ' + b.daripada);
+    if (b.lain.length) nota.push('+ turut menerima: ' + b.lain.map(E).join(' · '));
+    if (b.hadir === false) nota.push('<b>TIDAK HADIR</b>');
+    html += '<tr class="m' + (b.hadir === false ? ' absen' : '') + '">' +
+      '<td class="kotak">☐</td><td class="no">' + b.no + '</td>' +
+      '<td class="nama">' + E(b.nama) + '</td><td class="kls">' + E(kelasOf(b)) + '</td>' +
+      '<td class="nota">' + nota.join('<br>') + '</td></tr>';
+  });
+
+  const amaran = [];
+  if (r.pendua.length) amaran.push('Nombor berulang: ' + r.pendua.join(', '));
+  if (r.jurang.length) amaran.push('Nombor tiada (jurang): ' + r.jurang.slice(0, 30).join(', ') +
+    (r.jurang.length > 30 ? ' … (+' + (r.jurang.length - 30) + ')' : ''));
+  const kpi = (n, l) => '<div class="k"><div class="n">' + n + '</div><div class="l">' + l + '</div></div>';
+  const ringkasan =
+    '<div class="kpi">' +
+      kpi(r.bilGiliran, 'Jumlah giliran<br>(nombor 1–' + r.maks + ')') +
+      kpi(r.bilMurid, 'Jumlah murid<br>naik pentas') +
+      kpi(r.bilUlang, 'Murid naik<br>lebih sekali') +
+      kpi(r.bilAnugerah, 'Jumlah anugerah<br>diserahkan') +
+    '</div>' +
+    (r.bilAnugerah !== r.bilGiliran
+      ? '<p class="ket">Anugerah diserahkan (' + r.bilAnugerah + ') melebihi giliran (' + r.bilGiliran +
+        ') kerana ' + (r.bilAnugerah - r.bilGiliran) + ' anugerah diterima serentak dalam giliran yang sama.</p>' : '') +
+    (r.tanpaPentas
+      ? '<p class="ket">' + r.tanpaPentas + ' penerima lain tiada nombor giliran (tidak naik pentas / belum bernombor) — tidak dikira di atas.</p>' : '') +
+    (amaran.length ? '<p class="amaran">⚠ ' + amaran.join(' · ') + '</p>' : '');
+
+  const tarikh = new Date().toLocaleString('ms-MY', { dateStyle: 'medium', timeStyle: 'short' });
+  w.document.open();
+  w.document.write('<!doctype html><html lang="ms"><head><meta charset="utf-8">' +
+    '<title>Skrip MC — ' + E(majlis.nama || 'Majlis') + '</title><style>' +
+    '@page{size:A4 portrait;margin:12mm 11mm 14mm}' +
+    'body{font:11.5px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;color:#111;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.kepala{text-align:center;border-bottom:2px solid #111;padding-bottom:7px;margin-bottom:9px}' +
+    '.kepala .s{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#333}' +
+    '.kepala h1{font-size:17px;margin:2px 0}.kepala .t{font-size:12.5px;font-weight:700;letter-spacing:.06em}' +
+    '.kepala .d{font-size:10px;color:#555;margin-top:2px}' +
+    '.kpi{display:flex;gap:7px;margin:0 0 6px}.k{flex:1;border:1.5px solid #111;border-radius:5px;padding:5px 4px;text-align:center}' +
+    '.k .n{font-size:21px;font-weight:800;line-height:1.1}.k .l{font-size:9.5px;text-transform:uppercase;color:#333}' +
+    '.ket{margin:3px 0;font-size:10px;color:#444}.amaran{margin:4px 0;padding:4px 7px;border:1.5px solid #900;color:#900;font-weight:700;font-size:10.5px}' +
+    'table{border-collapse:collapse;width:100%;margin-top:8px}' +
+    'thead th{font-size:9.5px;text-transform:uppercase;text-align:left;border-bottom:1.5px solid #111;padding:4px 5px}' +
+    'td{padding:4px 5px;border-bottom:1px solid #CCC;vertical-align:top}' +
+    'tr{page-break-inside:avoid;break-inside:avoid}' +
+    'tr.an td{background:#E4E4E4;font-weight:800;font-size:12px;border-top:1.5px solid #111;padding:5px}' +
+    'tr.sub td{background:#F3F3F3;font-weight:700;font-size:11px;padding:3px 5px 3px 14px}' +
+    '.bil{float:right;font-weight:600;font-size:10px;color:#444}.hadiah{font-weight:500;color:#444}' +
+    'td.kotak{width:16px;font-size:14px;line-height:1;text-align:center}' +
+    'td.no{width:34px;font-weight:800;font-size:14px;text-align:right}' +
+    'td.nama{font-weight:700;font-size:12.5px}td.kls{width:88px;white-space:nowrap}' +
+    'td.nota{width:190px;font-size:10px;color:#333}tr.absen td{color:#888;text-decoration:line-through}tr.absen td.nota{text-decoration:none}' +
+    '.akhir{margin-top:10px;border-top:2px solid #111;padding-top:5px;font-weight:700;text-align:right}' +
+    '</style></head><body>' +
+    '<div class="kepala">' + (majlis.sekolah ? '<div class="s">' + E(majlis.sekolah) + '</div>' : '') +
+      '<h1>' + E(majlis.nama || 'Majlis Anugerah') + '</h1>' +
+      '<div class="t">SKRIP MC — SENARAI GILIRAN NAIK PENTAS</div>' +
+      '<div class="d">' + (majlis.tarikh ? E(majlis.tarikh) + ' · ' : '') + 'dicetak ' + E(tarikh) + '</div></div>' +
+    ringkasan +
+    (r.baris.length
+      ? '<table><thead><tr><th></th><th style="text-align:right">No</th><th>Nama</th><th>Kelas</th><th>Catatan</th></tr></thead>' +
+        '<tbody>' + html + '</tbody></table>' +
+        '<div class="akhir">JUMLAH: ' + r.bilGiliran + ' giliran · ' + r.bilMurid + ' murid</div>'
+      : '<p style="margin-top:20px;text-align:center">Belum ada giliran bernombor. Tekan 🔢 Beri Nombor dahulu.</p>') +
+    '</body></html>');
+  w.document.close();
+  setTimeout(() => { w.focus(); w.print(); }, 400);
+  return r;
+}
+
 /* ---------- papar ---------- */
 function agEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g,
