@@ -1273,6 +1273,10 @@ Bentuk yang diluluskan, dari atas:
 
 **Isu sedia ada yang BELUM dibetulkan:** `slipTemplate.namaSekolah` kosong, jadi slip mencetak nilai lalai `SEKOLAH KEBANGSAAN` dan bukan `SK SULTAN ISMAIL`. Nama sebenar ada di `settings/systemSettings.tajuk` (tempat logo diambil juga). Jatuh-balik ke medan itu telah dicadangkan tetapi **belum diluluskan** — jangan laksana tanpa diminta.
 
+#### Satu murid = satu muka surat A4 (31 Okt 2026, diluluskan pengguna)
+
+Jadual markah dahulu bersaiz tetap (font 10, padding 2.5 ≈ 9mm sebaris) dengan `margin.bottom: 55` — **≥13 subjek melimpah ke muka surat 2**, dan `if (yPos > 240) yPos = 235` boleh menindih tandatangan atas jadual. Kini sebelum `autoTable`, `binaSlipBlobMurid` mengira `tinggiBawah` (kedudukan + tandatangan + nama/jawatan GB) → `hadJadual = 278 − tinggiBawah`, menganggar tinggi jadual (`kiraTinggi`, ambil kira nama subjek berbalut via `splitTextToSize`), dan bila tak muat kecilkan **padding dahulu, baru font** (min font 7, padding 0.6). Subjek sedikit = saiz asal tidak berubah. Clamp 235 dibuang; `margin.bottom: 12` supaya anggaran, bukan margin, yang menjaga ruang. Diuji jsPDF sebenar: 8–25 subjek × logo/jata/alamat × TTD × kedudukan — 48/48 satu muka surat.
+
 #### `_slipTeksMuat` — auto-kecilkan font supaya teks muat
 
 `pdf.text()` jsPDF **tidak memotong dan tidak membaluti**: teks yang melebihi ruangnya terus mencetak melepasi tepi kertas dan hilang, tanpa amaran dan tanpa ralat. Guru tidak perasan sampai ibu bapa bertanya kenapa nama anaknya terpotong.

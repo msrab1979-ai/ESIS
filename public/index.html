@@ -6949,6 +6949,47 @@
                     footRows.push(['', 'PERATUS MARKAH', purataPeratus, '']);
                 }
 
+                // ── Muatkan dalam SATU muka surat A4 ──
+                // Baris jadual tetap (font 10, padding 2.5 ≈ 9mm) melimpah ke
+                // muka surat 2 bila subjek ≥ 13. Kira dahulu ruang di antara
+                // NAMA/KELAS dan blok tandatangan, kemudian kecilkan padding
+                // dahulu, baru font, sehingga muat. Subjek sedikit = saiz asal.
+                const bilRank = (showClassRank ? 1 : 0) + (showYearRank ? 1 : 0);
+                const tinggiBawah = 8
+                    + (bilRank ? bilRank * 6.5 + 6 : 0)
+                    + (ttdData ? 22 : 0)
+                    + (slipSettings.namaGuruBesar ? 5 : 0)
+                    + (slipSettings.jawatan ? 5 : 0);
+                const hadJadual = 278 - tinggiBawah;   // baris akhir GB ≤ 278mm (tarikh cetak 285)
+                const ruangJadual = hadJadual - yPos - 3;   // 3mm selamat untuk anggaran
+                const LEBAR_SUBJEK = 170 - 15 - 28 - 22;
+                const kiraTinggi = (fs, pad, minH) => {
+                    const satuBaris = fs * 0.3528 * 1.15;
+                    const baris = h => Math.max(minH, h * satuBaris + 2 * pad);
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(fs);
+                    let t = baris(1) * (1 + footRows.length);   // tajuk + footer
+                    tableData.forEach(r => {
+                        t += baris(pdf.splitTextToSize(String(r[1]), LEBAR_SUBJEK - 2 * pad).length);
+                    });
+                    return t;
+                };
+                let fsJadual = 10, padJadual = 2.5, minHJadual = 7;
+                if (kiraTinggi(fsJadual, padJadual, minHJadual) > ruangJadual) {
+                    minHJadual = 0;
+                    let jumpa = false;
+                    for (let fs = 10; fs >= 7 && !jumpa; fs -= 0.5) {
+                        for (let pad = (fs === 10 ? 2.25 : 1.2); pad >= 0.6; pad -= 0.15) {
+                            if (kiraTinggi(fs, pad, 0) <= ruangJadual) {
+                                fsJadual = fs; padJadual = pad; jumpa = true; break;
+                            }
+                        }
+                    }
+                    if (!jumpa) { fsJadual = 7; padJadual = 0.6; }
+                }
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(11);
+
                 // Jadual markah
                 pdf.autoTable({
                     startY: yPos,
@@ -6956,16 +6997,18 @@
                     body: tableData,
                     foot: footRows,
                     theme: 'grid',
-                    headStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center', fontSize: 10, cellPadding: 2.5, lineColor: [0, 0, 0], lineWidth: 0.25 },
-                    footStyles: { fillColor: [235, 235, 235], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 10, cellPadding: 2.5, lineColor: [0, 0, 0], lineWidth: 0.25 },
+                    headStyles: { fillColor: [220, 220, 220], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center', fontSize: fsJadual, cellPadding: padJadual, lineColor: [0, 0, 0], lineWidth: 0.25 },
+                    footStyles: { fillColor: [235, 235, 235], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: fsJadual, cellPadding: padJadual, lineColor: [0, 0, 0], lineWidth: 0.25 },
                     bodyStyles: { textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.25 },
-                    styles: { fontSize: 10, cellPadding: 2.5, minCellHeight: 7, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.25 },
+                    styles: { fontSize: fsJadual, cellPadding: padJadual, minCellHeight: minHJadual, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.25 },
                     columnStyles: { 0: { halign: 'center', cellWidth: 15 }, 1: { halign: 'left' }, 2: { halign: 'center', cellWidth: 28 }, 3: { halign: 'center', cellWidth: 22 } },
                     didParseCell: function(data) {
                         if (data.section === 'foot' && data.column.index === 1) data.cell.styles.halign = 'right';
                         if (data.section === 'foot' && data.column.index === 2) data.cell.styles.halign = 'center';
                     },
-                    margin: { top: yPos, bottom: 55 }
+                    // bawah kecil: anggaran di atas yang menjaga ruang tandatangan;
+                    // margin besar hanya memecah jadual ke muka surat 2
+                    margin: { top: yPos, bottom: 12 }
                 });
 
                 yPos = pdf.lastAutoTable.finalY + 8;
@@ -6991,8 +7034,8 @@
                     yPos += 6;
                 }
 
-                // Pastikan cukup ruang untuk blok Guru Besar (tandatangan lebih besar)
-                if (yPos > 240) yPos = 235;
+                // Blok Guru Besar terus selepas jadual — ruangnya sudah dikira
+                // di atas. (Dahulu dipaksa ke 235mm dan boleh menindih jadual.)
 
                 // Tandatangan (dataURL dipramuat) — saiz sederhana, nama RAPAT di bawah
                 // (macam tandatangan sebenar di atas kertas).
