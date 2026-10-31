@@ -827,6 +827,8 @@ Auto-muat 90s kini **senyap**: ia menyemak dan menyalakan butang, **tidak meluki
 | **Hadiah** (`capBaris`) | `hadir` **dan** `mc` | kedua-duanya mengubah kiraan "perlu dibawa" |
 | **MC** (`capHadir`) | `hadir` **sahaja** | memasukkan `mc` akan menyalakan butang setiap kali MC menekan ✓ pada panelnya sendiri |
 
+**Kedua-dua cap juga membawa `capSusun(b)`** = `docId@subId+pengikut` (31 Okt 2026). Selepas 🔁 Jana Semula nombor tetap 1…N dan tanda masih kosong — hanya murid di setiap nombor bertukar, jadi tanpa ini butang merah tidak menyala dan petugas terus memegang susunan lama. Butang membawa "Susunan giliran berubah". Peserta & tayang melukis semula sendiri setiap 90s, jadi tidak perlu.
+
 - Butang membawa **apa** yang berubah (`🔄 1 tidak hadir`), bukan sekadar "sila refresh".
 - Menekan butang memakai data yang **sudah dimuat** (`TERTUNDA`), tidak pergi Firestore lagi — kuota majlis ini pernah habis di tengah ujian.
 - Accordion **kekal terbuka** selepas mengambil data.

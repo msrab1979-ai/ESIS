@@ -175,7 +175,14 @@ function memuat(el, teks) {
    perlu membandingkan dua senarai penuh setiap kali. */
 function capBaris(senarai) {
   return senarai.map(b => b.no + ':' + (b.hadir === false ? 'A' : b.hadir === true ? 'H' : '-') +
-    (b.mc === true ? 'M' : '-')).join('|');
+    (b.mc === true ? 'M' : '-') + ':' + capSusun(b)).join('|');
+}
+
+/* 🔴 Identiti baris pada nombor itu. Selepas 🔁 Jana Semula nombor tetap
+   1..N — hanya murid di setiap nombor bertukar, jadi tanpa ini butang
+   merah tidak menyala dan meja hadiah terus memegang susunan lama. */
+function capSusun(b) {
+  return b.docId + '@' + b.subId + '+' + (b.gabung || []).join(',');
 }
 
 /* `senyap` = muat berkala. Ia TIDAK melukis semula; ia hanya menyalakan
@@ -199,7 +206,7 @@ async function muat(pertama, senyap) {
         const ikut = agPengikutGiliran(gil, g);
         const hadiah = [...new Set([g, ...ikut].map(x => x.hadiah || '').filter(Boolean))];
         senarai.push({
-          no: g.no, nama: p.nama, tahun: p.tahun, kelas: p.kelas,
+          no: g.no, docId: p.docId, nama: p.nama, tahun: p.tahun, kelas: p.kelas,
           anugerah: g.anugerah, anugerahId: g.anugerahId,
           sub: g.sub, subId: g.subId,
           hadiah: hadiah.join(' \u00b7 '), hadir: g.hadir, mc: g.mc,
@@ -249,10 +256,10 @@ function tandaPerlu(perlu, nota) {
 /* Ringkasan satu baris: apa yang berubah sejak paparan terakhir. */
 function bezaRingkas(lama, baru) {
   const petaL = {}; lama.forEach(b => { petaL[b.no] = b; });
-  let absenBaru = 0, serahBaru = 0, lain = 0;
+  let absenBaru = 0, serahBaru = 0, lain = 0, susun = 0;
   baru.forEach(b => {
     const l = petaL[b.no];
-    if (!l) { lain++; return; }
+    if (!l || capSusun(l) !== capSusun(b)) { susun++; return; }
     if (l.hadir !== b.hadir) { if (b.hadir === false) absenBaru++; else lain++; }
     if (l.mc !== b.mc && b.mc === true) serahBaru++;
   });
@@ -260,6 +267,7 @@ function bezaRingkas(lama, baru) {
   if (absenBaru) bits.push(absenBaru + ' tidak hadir');
   if (serahBaru) bits.push(serahBaru + ' diserah');
   if (lain) bits.push(lain + ' lain');
+  if (susun || lama.length !== baru.length) bits.unshift('Susunan giliran berubah');
   return bits.length ? bits.join(' \u00b7 ') : 'Data berubah';
 }
 

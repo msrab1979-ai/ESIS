@@ -183,7 +183,16 @@ function memuat(el, teks) {
    menanda seseorang tidak hadir, kerana baris itu mesti dilangkau. */
 function capHadir(senarai) {
   return senarai.map(b => b.no + ':' +
-    (b.hadir === false ? 'A' : b.hadir === true ? 'H' : '-')).join('|');
+    (b.hadir === false ? 'A' : b.hadir === true ? 'H' : '-') + ':' + capSusun(b)).join('|');
+}
+
+/* 🔴 Identiti baris pada nombor itu — SIAPA, sub mana, dan siapa turut
+   menerima. Selepas 🔁 Jana Semula nombor tetap 1..N dan tanda belum ada;
+   hanya murid di setiap nombor bertukar. Tanpa ini butang merah tidak
+   menyala dan MC terus membaca susunan lama. `mc` tetap TIDAK dimasukkan
+   (lihat atas). */
+function capSusun(b) {
+  return b.docId + '@' + b.subId + '+' + (b.lain || []).join(',');
 }
 
 function tandaPerlu(perlu, nota) {
@@ -198,15 +207,17 @@ function tandaPerlu(perlu, nota) {
 
 function bezaHadir(lama, baru) {
   const petaL = {}; lama.forEach(b => { petaL[b.no] = b; });
-  let absen = 0, balik = 0;
+  let absen = 0, balik = 0, susun = 0;
   baru.forEach(b => {
     const l = petaL[b.no];
-    if (!l || l.hadir === b.hadir) return;
+    if (!l || capSusun(l) !== capSusun(b)) { susun++; return; }
+    if (l.hadir === b.hadir) return;
     if (b.hadir === false) absen++; else balik++;
   });
   const bits = [];
   if (absen) bits.push(absen + ' tidak hadir');
   if (balik) bits.push(balik + ' kembali');
+  if (susun || lama.length !== baru.length) bits.unshift('Susunan giliran berubah');
   return bits.length ? bits.join(' \u00b7 ') : 'Kehadiran berubah';
 }
 
