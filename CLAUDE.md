@@ -877,6 +877,8 @@ Dropdown **Murid: Biasa / 🎁 Paling banyak dahulu** pada baris anugerah dalam 
 - Dalam setiap darjah: murid dengan **≥2 entri dalam anugerah DIGABUNG** (bukan kecuali — keputusan pengguna) yang anugerah gabung pertamanya ialah anugerah ini → paling banyak dahulu, seri ikut nama; kemudian sub biasa darjah itu ikut susunan admin.
 - Versi pertama (kotak peringkat majlis, semua murid gabung di awal anugerah merentas darjah) **ditolak pengguna** dan dibuang — ia memecahkan Susunan Naik Pentas.
 
+**👁 Pratonton** di sebelah dropdown (`bukaPratontonGab`, modal `.luas`): satu baris satu nombor yang Jana Semula **akan** tulis (`agRancangNombor` + `agKedudukanDariNombor`), dikumpul ikut darjah, gabungan via `agTajukSubHadiah`, pil "dulu N" bila berubah. Baca sahaja; dropdown dalam modal yang sama melukis semula pratonton (`PRATONTON_GAB`).
+
 Data live: 53 entri berubah nombor, 0 nombor anugerah lain berubah, 401 tanpa jurang/pendua, set anugerah setiap murid sama.
 
 #### Susunan murid naik pentas — ikut nama ATAU ikut kedudukan (29 Okt 2026)

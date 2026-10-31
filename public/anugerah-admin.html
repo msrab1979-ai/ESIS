@@ -242,6 +242,8 @@
 .seret.pb-baris .s-bil{font-size:11.5px}
 .seret.pb-baris.pb-pecah{border-left:3px solid var(--emas)}
 .gab-dahulu{font-size:12px; padding:3px 6px; max-width:210px}
+.pg-dj td{background:var(--kertas-2); font-weight:800; font-size:12.5px; border-top:1.5px solid var(--garis)}
+tr.pg-gab td{background:var(--amaran-bg)}
 .pb-gab-kepala{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:10px 0 4px;
   font-size:12px; font-weight:700}
 
@@ -5231,8 +5233,82 @@ function pilihGabDahulu(a) {
   return '<select class="gab-dahulu" data-gab-dahulu="' + agEsc(a.id) + '" ' +
     'title="Murid gabung: Biasa = ikut susunan sub. Paling banyak dahulu = dalam setiap darjah, murid paling banyak anugerah naik dahulu.">' +
     '<option value=""' + (on ? '' : ' selected') + '>Murid: Biasa</option>' +
-    '<option value="1"' + (on ? ' selected' : '') + '>🎁 Paling banyak dahulu</option></select>';
+    '<option value="1"' + (on ? ' selected' : '') + '>🎁 Paling banyak dahulu</option></select>' +
+    '<button class="btn sunyi kecil" data-gab-pratonton="' + agEsc(a.id) + '" ' +
+      'title="Lihat susunan yang Jana Semula akan tulis — tiada apa ditukar">👁 Pratonton</button>';
 }
+
+/* 👁 Pratonton susunan satu anugerah = apa yang 🔁 Jana Semula AKAN tulis
+   (agRancangNombor, sama enjin dgn banner nombor lapuk). BACA SAHAJA.
+   Satu baris = satu nombor; pengikut gaya C masuk sebagai gabungan.
+   Dilukis semula bila dropdown 🎁 ditukar (PRATONTON_GAB). */
+let PRATONTON_GAB = null;
+
+function bukaPratontonGab(anId) {
+  const a = (MAJLIS.anugerah || []).find(x => x.id === anId);
+  if (!a) return;
+  PRATONTON_GAB = anId;
+  const ked = agKedudukanDariNombor(MAJLIS, PENERIMA);
+  const rancang = agRancangNombor(MAJLIS, PENERIMA, true, ked).petaBaru;
+  const subIkutId = {};
+  (a.sub || []).forEach(x => { subIkutId[x.id] = x; });
+  const baris = [];
+  PENERIMA.forEach(p => {
+    const gil = rancang[p.docId] || [];
+    gil.forEach(g => {
+      if (g.anugerahId !== a.id || g.ikut) return;
+      const ikut = gil.filter(x => x.ikut === g.subId && x.no === g.no);
+      const lama = (p.giliran || []).find(x => x.subId === g.subId);
+      baris.push({ p, g, ikut, dulu: lama && lama.no != null ? lama.no : null,
+                   dj: agDarjahSub(subIkutId[g.subId]) });
+    });
+  });
+  baris.sort((x, y) => x.g.no - y.g.no);
+  const ubah = baris.filter(b => b.dulu !== b.g.no).length;
+  const bilGab = baris.filter(b => b.ikut.length).length;
+
+  let html = '', djAkhir = null;
+  baris.forEach(b => {
+    if (b.dj !== djAkhir) {
+      djAkhir = b.dj;
+      const kump = baris.filter(x => x.dj === b.dj);
+      html += '<tr class="pg-dj"><td colspan="4">' + (b.dj ? 'DARJAH ' + b.dj : 'TANPA DARJAH') +
+        '<span class="kecil" style="float:right;font-weight:600">' + kump.length + ' giliran · ' +
+        kump.filter(x => x.ikut.length).length + ' gabung</span></td></tr>';
+    }
+    const tajuk = agTajukSubHadiah({ anugerah: a.nama, sub: b.g.sub, gabung: b.ikut.map(x => x.sub || x.anugerah) });
+    const no = '<strong>' + b.g.no + '</strong>' + (b.dulu !== b.g.no
+      ? ' <span class="pil absen" title="Nombor sekarang">dulu ' + (b.dulu == null ? '—' : b.dulu) + '</span>' : '');
+    html += '<tr' + (b.ikut.length ? ' class="pg-gab"' : '') + '><td style="white-space:nowrap">' + no + '</td>' +
+      '<td><strong>' + agEsc(b.p.nama) + '</strong><div class="kecil">' + agEsc(agKelasPenerima(b.p)) + '</div></td>' +
+      '<td class="kecil">' + (b.ikut.length ? '🎁 ' : '') + agEsc(tajuk) + '</td>' +
+      '<td style="text-align:center">' + (1 + b.ikut.length) + '</td></tr>';
+  });
+
+  const lapis = bukaModal(
+    '<div class="kad-kepala"><h3>👁 Pratonton susunan</h3>' +
+      '<span class="sub">' + agEsc(a.nama) + '</span>' +
+      '<button class="b-tutup" id="mx" aria-label="Tutup">×</button></div>' +
+    '<div class="kad-isi">' +
+      '<div class="baris-input" style="align-items:center;margin-bottom:8px">' + pilihGabDahulu(a)
+        .replace(/<button[^>]*data-gab-pratonton[^>]*>.*?<\/button>/, '') + '</div>' +
+      '<div class="nota ' + (ubah ? 'amaran' : 'ok') + '" style="margin:0 0 10px"><span class="sym">' +
+        (ubah ? '⚠' : '✓') + '</span><div>' + baris.length + ' giliran · ' + bilGab + ' murid gabung · ' +
+        (ubah ? '<strong>' + ubah + ' nombor akan berubah</strong> selepas 🔁 Jana Semula. Ini pratonton — tiada apa ditukar lagi.'
+              : 'Nombor sekarang sudah ikut susunan ini.') + '</div></div>' +
+      (baris.length
+        ? '<div class="gulung" style="max-height:60vh;overflow:auto"><table><thead><tr><th>Giliran</th><th>Nama</th>' +
+            '<th>Anugerah</th><th>Bil</th></tr></thead><tbody>' + html + '</tbody></table></div>'
+        : '<p class="hint">Tiada murid naik pentas dalam anugerah ini.</p>') +
+    '</div>', 'luas');
+  $('mx').onclick = () => { PRATONTON_GAB = null; tutupModal(); };
+  lapis.addEventListener('click', e => { if (e.target === lapis) PRATONTON_GAB = null; });
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('button[data-gab-pratonton]');
+  if (b) { e.stopPropagation(); bukaPratontonGab(b.dataset.gabPratonton); }
+}, true);
 
 async function setGabDahulu(anId, on) {
   const a = (MAJLIS.anugerah || []).find(x => x.id === anId);
@@ -5242,6 +5318,7 @@ async function setGabDahulu(anId, on) {
   try {
     await simpanMajlis();
     lukisGiliran();
+    if (PRATONTON_GAB === anId && $('lapis')) bukaPratontonGab(anId);
     agToast((on ? '🎁 Paling banyak dahulu' : 'Biasa') + ' — tekan 🔁 Jana Semula untuk tukar nombor', 'ok');
   } catch (err) {
     if (lama === undefined) delete a.gabungDahulu; else a.gabungDahulu = lama;
