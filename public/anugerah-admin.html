@@ -234,6 +234,15 @@
 .gaya-teks{font-size:12.5px; color:var(--neutral); line-height:1.45}
 .gaya-kecuali{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12.5px}
 .gaya-kecuali label{display:flex; gap:6px; align-items:center; cursor:pointer}
+.gaya-dahulu{display:flex; gap:8px; align-items:flex-start; margin-top:14px; font-size:12.5px; cursor:pointer; line-height:1.45}
+.gaya-dahulu input{margin-top:3px}
+.sg-blok{margin-top:12px; border:1px solid var(--garis-halus); border-radius:8px; overflow:hidden}
+.sg-kepala{display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:8px 11px; background:var(--kertas-2); font-weight:700; font-size:12.5px}
+.sg-kepala .kanan{margin-left:auto; display:flex; gap:6px; align-items:center}
+.sg-baris{display:flex; gap:8px; align-items:center; padding:5px 11px; border-top:1px solid var(--garis-halus); font-size:12.5px}
+.sg-baris .sg-no{width:22px; text-align:right; font-weight:700; color:var(--neutral)}
+.sg-baris .sg-nama{font-weight:600; min-width:0; flex:1}
+.sg-baris .sg-gab{font-size:11.5px; color:var(--neutral); flex:1.3}
 .seret.pb-baris{padding:6px 11px; margin-bottom:5px}
 .seret.pb-baris .pb-no{flex:none; width:30px; text-align:right; font-variant-numeric:tabular-nums;
   color:var(--neutral); font-size:12px}
@@ -723,6 +732,11 @@
           <p class="hint" style="margin:-4px 0 8px">Contoh: Tokoh Murid sebagai kemuncak majlis.
             Kosong = semua anugerah digabung.</p>
           <div id="gaya-kecuali" class="gaya-kecuali"></div>
+          <label class="gaya-dahulu"><input type="checkbox" id="gaya-dahulu">
+            <span><strong>🎁 Murid gabung naik dahulu</strong> — dalam anugerah pertamanya, murid
+              yang dapat lebih satu anugerah digabung naik sebelum sub biasa,
+              <strong>paling banyak anugerah dahulu</strong>. Kosong = macam sekarang.</span></label>
+          <div id="gaya-susun-gabung"></div>
         </div>
         <div id="gaya-pratonton"></div>
         <div class="baris-input" style="margin-top:14px">
@@ -5508,6 +5522,7 @@ function gayaDrafSemasa() {
       gaya: agGaya(MAJLIS),
       asas: MAJLIS.gabungAsas === 'bebas' ? 'bebas' : 'asal',
       kecuali: new Set(MAJLIS.gabungKecuali || []),
+      dahulu: !!MAJLIS.gabungDahulu,
       kotor: false
     };
   }
@@ -5516,7 +5531,8 @@ function gayaDrafSemasa() {
 
 function majlisDraf(d) {
   return Object.assign({}, MAJLIS, {
-    gayaGiliran: d.gaya, gabungAsas: d.asas, gabungKecuali: Array.from(d.kecuali)
+    gayaGiliran: d.gaya, gabungAsas: d.asas, gabungKecuali: Array.from(d.kecuali),
+    gabungDahulu: d.dahulu
   });
 }
 
@@ -5530,6 +5546,9 @@ function lukisGaya() {
     '<label><input type="checkbox" data-kecuali="' + agEsc(a.id) + '"' +
       (d.kecuali.has(a.id) ? ' checked' : '') + '> ' + agEsc(a.nama) + '</label>').join('') ||
     '<span class="hint">Belum ada anugerah.</span>';
+
+  $('gaya-dahulu').checked = d.dahulu;
+  lukisSusunGabung();
 
   $('gaya-status').textContent = d.kotor
     ? 'Belum disimpan — tekan Simpan gaya'
@@ -5598,6 +5617,7 @@ $('kad-gaya').addEventListener('change', e => {
   const d = gayaDrafSemasa();
   if (e.target.name === 'gaya') d.gaya = e.target.value;
   else if (e.target.id === 'gaya-asas') d.asas = e.target.value;
+  else if (e.target.id === 'gaya-dahulu') d.dahulu = e.target.checked;
   else if (e.target.dataset.kecuali) {
     if (e.target.checked) d.kecuali.add(e.target.dataset.kecuali);
     else d.kecuali.delete(e.target.dataset.kecuali);
@@ -5608,15 +5628,18 @@ $('kad-gaya').addEventListener('change', e => {
   $('gaya-gabung').hidden = d.gaya !== 'gabung';
   $('gaya-status').textContent = 'Belum disimpan — tekan Simpan gaya';
   lukisPratontonGaya();
+  lukisSusunGabung();
 });
 
 $('b-simpan-gaya').addEventListener('click', async () => {
   const d = gayaDrafSemasa();
   const lama = {
     gayaGiliran: MAJLIS.gayaGiliran, gabungAsas: MAJLIS.gabungAsas,
-    gabungKecuali: MAJLIS.gabungKecuali, susunanPentas: MAJLIS.susunanPentas
+    gabungKecuali: MAJLIS.gabungKecuali, susunanPentas: MAJLIS.susunanPentas,
+    gabungDahulu: MAJLIS.gabungDahulu
   };
   MAJLIS.gayaGiliran = d.gaya;
+  MAJLIS.gabungDahulu = !!d.dahulu;
   MAJLIS.gabungAsas = d.asas;
   MAJLIS.gabungKecuali = Array.from(d.kecuali);
   /* Susunan bebas kali pertama = salinan susunan asal, jadi tiada apa
@@ -5634,6 +5657,102 @@ $('b-simpan-gaya').addEventListener('click', async () => {
     Object.assign(MAJLIS, lama);
     agToast('Gagal: ' + err.message, 'ralat');
   }
+});
+
+/* ---------- 🎁 susunan murid gabung (gaya C + gabungDahulu) ----------
+   Enjin: agMuridGabung / agGabungDahulu dalam anugerah-kongsi.js. Di sini
+   hanya paparan + tulisan `a.susunanGabung` ([no_kp]) pada anugerah.
+   🔴 Ikut tetapan yang DISIMPAN, bukan draf — susunan yang dipapar mesti
+      susunan yang Jana Semula akan tulis.
+   🔴 Nombor giliran TIDAK berubah sendiri; banner nombor lapuk menyala
+      sehingga admin tekan 🔁 Jana Semula. */
+function muridGabungSemasa() {
+  if (agGaya(MAJLIS) !== 'gabung' || !MAJLIS.gabungDahulu) return null;
+  const asas = Object.assign({}, MAJLIS, { gabungDahulu: false });
+  const turutan = agBinaTurutan(asas, PENERIMA, agKedudukanDariNombor(MAJLIS, PENERIMA));
+  return { ikutAn: agMuridGabung(MAJLIS, turutan), turutan };
+}
+
+function lukisSusunGabung() {
+  const el = $('gaya-susun-gabung');
+  if (!el) return;
+  const m = muridGabungSemasa();
+  if (!m) {
+    el.innerHTML = GAYA_DRAF && GAYA_DRAF.dahulu && GAYA_DRAF.kotor
+      ? '<p class="hint" style="margin:8px 0 0">Tekan 💾 Simpan gaya dahulu — susunan murid gabung dipapar selepas itu.</p>' : '';
+    return;
+  }
+  const blok = susunanAnugerah().filter(a => (m.ikutAn[a.id] || []).length).map(a => {
+    const senarai = m.ikutAn[a.id];
+    const sendiri = Array.isArray(a.susunanGabung) && a.susunanGabung.length;
+    return '<div class="sg-blok"><div class="sg-kepala">🎁 ' + agEsc(a.nama) +
+      '<span class="hint" style="margin:0;font-weight:500">' + senarai.length + ' murid naik dahulu · ' +
+        (sendiri ? '✋ susun sendiri' : 'auto: paling banyak anugerah dahulu, seri ikut nama') + '</span>' +
+      '<span class="kanan">' + (sendiri
+        ? '<button class="btn sunyi kecil" data-sg-auto="' + agEsc(a.id) + '">↺ Auto</button>' : '') +
+      '</span></div>' +
+      senarai.map(({ p, bil }, k) => {
+        const sub = m.turutan.filter(x => x.p.docId === p.docId &&
+          !(MAJLIS.gabungKecuali || []).includes(x.a.id)).map(x => x.s.nama);
+        const tajuk = agTajukSubHadiah({ anugerah: a.nama, sub: sub[0], gabung: sub.slice(1) });
+        return '<div class="sg-baris"><span class="sg-no">' + (k + 1) + '</span>' +
+          '<span class="sg-nama">' + agEsc(p.nama) +
+            ' <span class="kecil" style="font-weight:400">' + agEsc(agKelasPenerima(p)) + '</span></span>' +
+          '<span class="pil tunggu">' + bil + ' anugerah</span>' +
+          '<span class="sg-gab">' + agEsc(tajuk) + '</span>' +
+          '<button class="btn sunyi kecil" data-sg="' + agEsc(a.id) + '" data-sg-k="' + k + '" data-sg-ke="' + (k - 1) + '"' +
+            (k === 0 ? ' disabled' : '') + ' title="Naik">↑</button>' +
+          '<button class="btn sunyi kecil" data-sg="' + agEsc(a.id) + '" data-sg-k="' + k + '" data-sg-ke="' + (k + 1) + '"' +
+            (k === senarai.length - 1 ? ' disabled' : '') + ' title="Turun">↓</button>' +
+          '<button class="btn sunyi kecil" data-sg-pindah="' + agEsc(a.id) + '" data-sg-k="' + k + '" title="Pindah ke kedudukan">Pindah</button>' +
+        '</div>';
+      }).join('') + '</div>';
+  }).join('');
+  el.innerHTML = blok ||
+    '<p class="hint" style="margin:8px 0 0">Tiada murid yang dapat lebih satu anugerah digabung.</p>';
+}
+
+async function simpanSusunGabung(anId, kpList) {
+  const a = (MAJLIS.anugerah || []).find(x => x.id === anId);
+  if (!a) return;
+  const lama = a.susunanGabung;
+  a.susunanGabung = kpList;
+  try {
+    await simpanMajlis();
+    lukisGiliran();
+    agToast(kpList.length ? 'Susunan murid gabung disimpan — tekan 🔁 Jana Semula'
+      : 'Kembali ke auto — tekan 🔁 Jana Semula', 'ok');
+  } catch (err) {
+    a.susunanGabung = lama;
+    agToast('Gagal: ' + err.message, 'ralat');
+  }
+}
+
+$('gaya-susun-gabung').addEventListener('click', e => {
+  const auto = e.target.closest('button[data-sg-auto]');
+  if (auto) {
+    if (!confirm('Kembali ke susunan auto (paling banyak anugerah dahulu)?\n\nSusunan yang kau atur akan dibuang.')) return;
+    simpanSusunGabung(auto.dataset.sgAuto, []);
+    return;
+  }
+  const b = e.target.closest('button[data-sg],button[data-sg-pindah]');
+  if (!b || b.disabled) return;
+  const anId = b.dataset.sg || b.dataset.sgPindah;
+  const m = muridGabungSemasa();
+  const senarai = ((m && m.ikutAn[anId]) || []).map(x => x.p.no_kp);
+  const k = +b.dataset.sgK;
+  let ke;
+  if (b.dataset.sgPindah !== undefined) {
+    const jawab = prompt('Pindah ke kedudukan berapa? (1–' + senarai.length + ')', String(k + 1));
+    if (jawab == null) return;
+    ke = parseInt(jawab, 10) - 1;
+    if (!(ke >= 0 && ke < senarai.length)) { agToast('Nombor mesti antara 1 dan ' + senarai.length, 'ralat'); return; }
+  } else ke = +b.dataset.sgKe;
+  if (ke === k || ke < 0 || ke >= senarai.length) return;
+  /* splice, bukan tukar tempat — sama peraturan dengan pindahAnugerah */
+  const item = senarai.splice(k, 1)[0];
+  senarai.splice(ke, 0, item);
+  simpanSusunGabung(anId, senarai);
 });
 
 /* ---------- susunan bebas (gaya B, atau C ikut B) ---------- */

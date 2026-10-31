@@ -944,7 +944,72 @@ function agBinaTurutan(majlis, penerima, kedudukan) {
       kedudukan
     ).forEach(p => turutan.push({ p, a, s }));
   });
-  return turutan;
+  return agGabungDahulu(majlis, turutan);
+}
+
+/* 🎁 GABUNG DAHULU (`majlis.gabungDahulu`, gaya C sahaja). Murid yang
+   memegang ≥2 anugerah DIGABUNG naik pentas di AWAL anugerah pertamanya,
+   paling banyak anugerah dahulu, sebelum sub biasa.
+   🔴 Kiraan = entri dalam anugerah yang DIGABUNG sahaja (bukan
+      gabungKecuali, naik pentas) — keputusan pengguna 31 Okt 2026.
+   🔴 Admin boleh menimpa susunan: `a.susunanGabung = [no_kp]` pada
+      anugerah. Yang tiada dalam senarai → di bawah, paling banyak dahulu,
+      seri ikut nama (tidak pernah hilang).
+   Hanya MENYUSUN SEMULA turutan — tiada entri ditambah/dibuang, jadi
+   agRancangNombor memberi nombor dan `ikut` seperti biasa.
+   Tiada tetapan = turutan dipulang sama tepat. */
+function agMuridGabung(majlis, turutan) {
+  const kecuali = new Set(majlis.gabungKecuali || []);
+  const bil = {}, pertama = {};
+  turutan.forEach(({ p, a }) => {
+    if (kecuali.has(a.id)) return;
+    bil[p.docId] = (bil[p.docId] || 0) + 1;
+    if (!pertama[p.docId]) pertama[p.docId] = a.id;
+  });
+  const ikutAn = {};           // anugerahId -> [{p, bil}]
+  const sudah = new Set();
+  turutan.forEach(({ p }) => {
+    if (sudah.has(p.docId) || !(bil[p.docId] >= 2)) return;
+    sudah.add(p.docId);
+    (ikutAn[pertama[p.docId]] = ikutAn[pertama[p.docId]] || []).push({ p, bil: bil[p.docId] });
+  });
+  const anugerah = {};
+  ((majlis && majlis.anugerah) || []).forEach(a => { anugerah[a.id] = a; });
+  Object.keys(ikutAn).forEach(id => {
+    const idx = new Map();
+    const sg = anugerah[id] && anugerah[id].susunanGabung;
+    (Array.isArray(sg) ? sg : []).forEach((kp, i) => { if (!idx.has(kp)) idx.set(kp, i); });
+    const r = x => idx.has(x.p.no_kp) ? idx.get(x.p.no_kp) : Infinity;
+    ikutAn[id].sort((x, y) => {
+      const rx = r(x), ry = r(y);
+      if (rx !== ry) return rx < ry ? -1 : 1;
+      if (x.bil !== y.bil) return y.bil - x.bil;
+      return String(x.p.nama).localeCompare(String(y.p.nama), 'ms');
+    });
+  });
+  return ikutAn;
+}
+
+function agGabungDahulu(majlis, turutan) {
+  if (agGaya(majlis) !== 'gabung' || !majlis.gabungDahulu) return turutan;
+  const ikutAn = agMuridGabung(majlis, turutan);
+  if (!Object.keys(ikutAn).length) return turutan;
+  const keluar = [];
+  const dipakai = new Set();      // indeks turutan
+  const siap = new Set();         // anugerahId yang bloknya sudah dikeluarkan
+  turutan.forEach((x, i) => {
+    const senarai = ikutAn[x.a.id];
+    if (senarai && !siap.has(x.a.id)) {
+      siap.add(x.a.id);
+      senarai.forEach(({ p }) => turutan.forEach((y, k) => {
+        if (!dipakai.has(k) && y.p.docId === p.docId && y.a.id === x.a.id) {
+          dipakai.add(k); keluar.push(y);
+        }
+      }));
+    }
+    if (!dipakai.has(i)) { dipakai.add(i); keluar.push(x); }
+  });
+  return keluar;
 }
 
 /* 🔴 SATU-SATUNYA tempat yang memutuskan susunan murid dalam satu sub.

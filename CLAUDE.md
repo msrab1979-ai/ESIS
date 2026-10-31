@@ -868,6 +868,16 @@ Kad **Gaya Giliran** di atas Susunan Naik Pentas (tab 🎟️ Giliran & Tiket). 
 
 Oracle 20,000 kes (susunan + nombor + mod tambah + invarian 1…N tanpa jurang) — 0 beza; 5 mutasi ditangkap.
 
+#### 🎁 Murid gabung naik dahulu (31 Okt 2026)
+
+Kotak `#gaya-dahulu` dalam kad Gaya Giliran (gaya C) = `MAJLIS.gabungDahulu`. Tiada / false = turutan sama tepat seperti dahulu.
+
+- `agBinaTurutan` → `agGabungDahulu`: murid yang memegang **≥2 entri dalam anugerah DIGABUNG** (bukan `gabungKecuali`, naik pentas — keputusan pengguna) dikumpul di **awal anugerah pertamanya**, sebelum sub biasa. Hanya menyusun semula turutan; `agRancangNombor` memberi nombor/`ikut` seperti biasa.
+- Susunan: `a.susunanGabung` ([no_kp], admin) → paling banyak anugerah dahulu → nama. Murid tiada dalam senarai admin → di bawah, tidak hilang.
+- UI `lukisSusunGabung` (`#gaya-susun-gabung`): satu blok per anugerah, ↑↓ / Pindah / ↺ Auto, simpan terus (`simpanSusunGabung`). Ikut tetapan **disimpan**, bukan draf. Nombor tidak berubah sendiri → Jana Semula.
+
+Data live: 11 murid (Terbaik Mata Pelajaran T2) → giliran 156–166, 2 murid 3 anugerah dahulu; 401 nombor tanpa jurang; set anugerah setiap murid tidak berubah.
+
 #### Susunan murid naik pentas — ikut nama ATAU ikut kedudukan (29 Okt 2026)
 
 Tetapan per anugerah dalam modal Ubah Anugerah: **Susunan murid naik pentas** = `Ikut nama` (lalai, tiada medan) atau `Ikut kedudukan` (`a.susunMurid:'kedudukan'`). Hanya anugerah `sumber:'auto'` — manual tiada ranking. Dipakai untuk Terbaik Dalam Kelas dan Terbaik Mata Pelajaran.
