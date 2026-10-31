@@ -868,15 +868,16 @@ Kad **Gaya Giliran** di atas Susunan Naik Pentas (tab 🎟️ Giliran & Tiket). 
 
 Oracle 20,000 kes (susunan + nombor + mod tambah + invarian 1…N tanpa jurang) — 0 beza; 5 mutasi ditangkap.
 
-#### 🎁 Murid gabung naik dahulu (31 Okt 2026)
+#### 🎁 Paling banyak dahulu — per anugerah gabung (31 Okt 2026)
 
-Kotak `#gaya-dahulu` dalam kad Gaya Giliran (gaya C) = `MAJLIS.gabungDahulu`. Tiada / false = turutan sama tepat seperti dahulu.
+Dropdown **Murid: Biasa / 🎁 Paling banyak dahulu** pada baris anugerah dalam Susunan Naik Pentas (gaya A: `.sgil-induk`; gaya B/C bebas: kepala `.pb-gab-kepala` di sub pertama setiap segmen anugerah) = `a.gabungDahulu`. Hanya gaya C, anugerah bukan `gabungKecuali`. Tiada medan = turutan sama tepat. Simpan terus (`setGabDahulu`); nombor berubah hanya selepas Jana Semula.
 
-- `agBinaTurutan` → `agGabungDahulu`: murid yang memegang **≥2 entri dalam anugerah DIGABUNG** (bukan `gabungKecuali`, naik pentas — keputusan pengguna) dikumpul di **awal anugerah pertamanya**, sebelum sub biasa. Hanya menyusun semula turutan; `agRancangNombor` memberi nombor/`ikut` seperti biasa.
-- Susunan: `a.susunanGabung` ([no_kp], admin) → paling banyak anugerah dahulu → nama. Murid tiada dalam senarai admin → di bawah, tidak hilang.
-- UI `lukisSusunGabung` (`#gaya-susun-gabung`): satu blok per anugerah, ↑↓ / Pindah / ↺ Auto, simpan terus (`simpanSusunGabung`). Ikut tetapan **disimpan**, bukan draf. Nombor tidak berubah sendiri → Jana Semula.
+`agBinaTurutan` → `agGabungDahulu`: entri anugerah itu disusun semula **dalam slot yang sama** (anugerah lain tidak bergerak):
+- **Dikumpul ikut darjah** (`agDarjahSub`), darjah dalam urutan sub pertama darjah itu dalam Susunan Naik Pentas (sub 🚫 tidak naik pentas tidak dikira — majlis 2026: T5 → T6 → T4).
+- Dalam setiap darjah: murid dengan **≥2 entri dalam anugerah DIGABUNG** (bukan kecuali — keputusan pengguna) yang anugerah gabung pertamanya ialah anugerah ini → paling banyak dahulu, seri ikut nama; kemudian sub biasa darjah itu ikut susunan admin.
+- Versi pertama (kotak peringkat majlis, semua murid gabung di awal anugerah merentas darjah) **ditolak pengguna** dan dibuang — ia memecahkan Susunan Naik Pentas.
 
-Data live: 11 murid (Terbaik Mata Pelajaran T2) → giliran 156–166, 2 murid 3 anugerah dahulu; 401 nombor tanpa jurang; set anugerah setiap murid tidak berubah.
+Data live: 53 entri berubah nombor, 0 nombor anugerah lain berubah, 401 tanpa jurang/pendua, set anugerah setiap murid sama.
 
 #### Susunan murid naik pentas — ikut nama ATAU ikut kedudukan (29 Okt 2026)
 

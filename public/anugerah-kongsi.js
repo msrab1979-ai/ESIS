@@ -947,18 +947,21 @@ function agBinaTurutan(majlis, penerima, kedudukan) {
   return agGabungDahulu(majlis, turutan);
 }
 
-/* 🎁 GABUNG DAHULU (`majlis.gabungDahulu`, gaya C sahaja). Murid yang
-   memegang ≥2 anugerah DIGABUNG naik pentas di AWAL anugerah pertamanya,
-   paling banyak anugerah dahulu, sebelum sub biasa.
-   🔴 Kiraan = entri dalam anugerah yang DIGABUNG sahaja (bukan
-      gabungKecuali, naik pentas) — keputusan pengguna 31 Okt 2026.
-   🔴 Admin boleh menimpa susunan: `a.susunanGabung = [no_kp]` pada
-      anugerah. Yang tiada dalam senarai → di bawah, paling banyak dahulu,
-      seri ikut nama (tidak pernah hilang).
-   Hanya MENYUSUN SEMULA turutan — tiada entri ditambah/dibuang, jadi
-   agRancangNombor memberi nombor dan `ikut` seperti biasa.
-   Tiada tetapan = turutan dipulang sama tepat. */
-function agMuridGabung(majlis, turutan) {
+/* 🎁 PALING BANYAK DAHULU (`a.gabungDahulu`, per anugerah, gaya C sahaja).
+   Butang pada baris anugerah dalam Susunan Naik Pentas: Biasa / Paling
+   banyak dahulu. Keputusan pengguna 31 Okt 2026:
+   - Susunan sub KEKAL ikut Susunan Naik Pentas admin; darjah ikut sub
+     pertama darjah itu dalam susunan tersebut (agDarjahSub).
+   - Dalam setiap DARJAH, murid yang memegang ≥2 entri dalam anugerah
+     DIGABUNG (bukan gabungKecuali, naik pentas) naik dahulu — paling banyak
+     dahulu, seri ikut nama — kemudian sub biasa darjah itu.
+   - Hanya murid yang anugerah gabung PERTAMAnya ialah anugerah ini; yang
+     sudah naik di anugerah lebih awal kekal pengikut di tempatnya.
+   🔴 Hanya MENYUSUN SEMULA entri anugerah itu dalam slot yang sama dalam
+      turutan — tiada entri ditambah/dibuang, anugerah lain tidak bergerak,
+      dan agRancangNombor memberi nombor/`ikut` seperti biasa.
+   Tiada `gabungDahulu` = turutan dipulang sama tepat. */
+function agBilGabung(majlis, turutan) {
   const kecuali = new Set(majlis.gabungKecuali || []);
   const bil = {}, pertama = {};
   turutan.forEach(({ p, a }) => {
@@ -966,48 +969,53 @@ function agMuridGabung(majlis, turutan) {
     bil[p.docId] = (bil[p.docId] || 0) + 1;
     if (!pertama[p.docId]) pertama[p.docId] = a.id;
   });
-  const ikutAn = {};           // anugerahId -> [{p, bil}]
-  const sudah = new Set();
-  turutan.forEach(({ p }) => {
-    if (sudah.has(p.docId) || !(bil[p.docId] >= 2)) return;
-    sudah.add(p.docId);
-    (ikutAn[pertama[p.docId]] = ikutAn[pertama[p.docId]] || []).push({ p, bil: bil[p.docId] });
-  });
-  const anugerah = {};
-  ((majlis && majlis.anugerah) || []).forEach(a => { anugerah[a.id] = a; });
-  Object.keys(ikutAn).forEach(id => {
-    const idx = new Map();
-    const sg = anugerah[id] && anugerah[id].susunanGabung;
-    (Array.isArray(sg) ? sg : []).forEach((kp, i) => { if (!idx.has(kp)) idx.set(kp, i); });
-    const r = x => idx.has(x.p.no_kp) ? idx.get(x.p.no_kp) : Infinity;
-    ikutAn[id].sort((x, y) => {
-      const rx = r(x), ry = r(y);
-      if (rx !== ry) return rx < ry ? -1 : 1;
-      if (x.bil !== y.bil) return y.bil - x.bil;
-      return String(x.p.nama).localeCompare(String(y.p.nama), 'ms');
-    });
-  });
-  return ikutAn;
+  return { bil, pertama, kecuali };
 }
 
 function agGabungDahulu(majlis, turutan) {
-  if (agGaya(majlis) !== 'gabung' || !majlis.gabungDahulu) return turutan;
-  const ikutAn = agMuridGabung(majlis, turutan);
-  if (!Object.keys(ikutAn).length) return turutan;
-  const keluar = [];
-  const dipakai = new Set();      // indeks turutan
-  const siap = new Set();         // anugerahId yang bloknya sudah dikeluarkan
-  turutan.forEach((x, i) => {
-    const senarai = ikutAn[x.a.id];
-    if (senarai && !siap.has(x.a.id)) {
-      siap.add(x.a.id);
-      senarai.forEach(({ p }) => turutan.forEach((y, k) => {
-        if (!dipakai.has(k) && y.p.docId === p.docId && y.a.id === x.a.id) {
-          dipakai.add(k); keluar.push(y);
-        }
+  if (agGaya(majlis) !== 'gabung') return turutan;
+  const sasaran = ((majlis && majlis.anugerah) || []).filter(a => a.gabungDahulu === true);
+  if (!sasaran.length) return turutan;
+  const { bil, pertama, kecuali } = agBilGabung(majlis, turutan);
+  const keluar = turutan.slice();
+  sasaran.forEach(a => {
+    if (kecuali.has(a.id)) return;
+    const slot = [];
+    turutan.forEach((x, i) => { if (x.a.id === a.id) slot.push(i); });
+    if (!slot.length) return;
+    const entri = slot.map(i => turutan[i]);
+    /* urutan darjah = sub pertama darjah itu dalam Susunan Naik Pentas,
+       termasuk sub yang belum ada murid (BM T4 kosong tetap meletakkan
+       Darjah 4 di depan). */
+    const susunDj = [], ikutDj = {};
+    agSusunanSub(majlis).forEach(({ a: x, s }) => {
+      if (x.id !== a.id) return;
+      const d = agDarjahSub(s);
+      if (!ikutDj[d]) { ikutDj[d] = []; susunDj.push(d); }
+    });
+    entri.forEach(x => {
+      const d = agDarjahSub(x.s);
+      if (!ikutDj[d]) { ikutDj[d] = []; susunDj.push(d); }
+      ikutDj[d].push(x);
+    });
+    const baru = [];
+    susunDj.forEach(d => {
+      const kump = ikutDj[d];
+      const bintang = [];
+      kump.forEach(x => {
+        const id = x.p.docId;
+        if (bil[id] >= 2 && pertama[id] === a.id && !bintang.some(b => b.p.docId === id))
+          bintang.push({ p: x.p, bil: bil[id] });
+      });
+      bintang.sort((x, y) => y.bil - x.bil ||
+        String(x.p.nama).localeCompare(String(y.p.nama), 'ms'));
+      const ambil = new Set();
+      bintang.forEach(b => kump.forEach((x, k) => {
+        if (!ambil.has(k) && x.p.docId === b.p.docId) { ambil.add(k); baru.push(x); }
       }));
-    }
-    if (!dipakai.has(i)) { dipakai.add(i); keluar.push(x); }
+      kump.forEach((x, k) => { if (!ambil.has(k)) baru.push(x); });
+    });
+    slot.forEach((i, k) => { keluar[i] = baru[k]; });
   });
   return keluar;
 }
