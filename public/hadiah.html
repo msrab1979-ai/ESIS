@@ -89,7 +89,8 @@
       <div class="kad-kepala">
         <h3>Giliran Seterusnya</h3>
         <span class="sub">Susun hadiah ikut turutan ini</span>
-        <div class="kanan"><button class="btn sunyi kecil" id="b-muat">🔄 Muat Semula</button></div>
+        <div class="kanan"><button class="btn sunyi kecil" id="b-cetak">🖨 Cetak</button>
+          <button class="btn sunyi kecil" id="b-muat">🔄 Muat Semula</button></div>
       </div>
       <div class="tapis-bar">
         <input type="text" id="t-cari" placeholder="Cari nama atau nombor giliran…">
@@ -121,7 +122,8 @@
       yang tertulis dalam senarai asal. Inilah sebab panel ini wujud.
 
    🔴 Panel ini ikut GILIRAN, bukan murid. Murid yang menang 4 anugerah
-      adalah 4 hadiah berasingan di meja — bukan satu bungkus.
+      adalah 4 hadiah berasingan di meja — bukan satu bungkus. KECUALI
+      gaya GABUNG: anugerah yang berkongsi satu nombor = SATU hadiah.
 
    🔴 Kegagalan muat semula TIDAK mengosongkan paparan.
    ========================================================================== */
@@ -186,19 +188,22 @@ async function muat(pertama, senyap) {
     const penerima = await agMuatPenerima(MAJLIS.id);
     const senarai = [];
     penerima.forEach(p => {
-      (p.giliran || []).forEach(g => {
-        if (g.no == null) return;
-        /* 🔴 Gaya GABUNG: hadiah pengikut KEKAL satu baris sendiri (ia
-           hadiah berasingan di meja), tetapi dipapar di bawah anugerah
-           UTAMA — itulah masa murid itu naik, jadi itulah masa hadiahnya
-           perlu berada di pentas. `untuk` menamakan anugerah asalnya. */
-        const u = agUtamaGiliran(p.giliran, g);
+      const gil = (p.giliran || []).filter(g => g.no != null);
+      gil.forEach(g => {
+        /* 🔴 Gaya GABUNG: murid menerima SATU hadiah untuk semua anugerah
+           yang digabung — pengikut bukan baris sendiri. Satu baris = satu
+           nombor = satu hadiah, sama dengan 🖨 Senarai Hadiah (PDF).
+           `gabung` menamakan anugerah pengikut supaya meja tahu hadiah
+           itu mewakili semuanya. */
+        if (agIkutSah(gil, g)) return;
+        const ikut = agPengikutGiliran(gil, g);
+        const hadiah = [...new Set([g, ...ikut].map(x => x.hadiah || '').filter(Boolean))];
         senarai.push({
           no: g.no, nama: p.nama, tahun: p.tahun, kelas: p.kelas,
-          anugerah: u.anugerah, anugerahId: u.anugerahId,
-          sub: u.sub, subId: u.subId,
-          hadiah: g.hadiah || '', hadir: g.hadir, mc: g.mc,
-          untuk: u !== g ? (g.sub || g.anugerah) : ''
+          anugerah: g.anugerah, anugerahId: g.anugerahId,
+          sub: g.sub, subId: g.subId,
+          hadiah: hadiah.join(' \u00b7 '), hadir: g.hadir, mc: g.mc,
+          gabung: ikut.map(x => x.sub || x.anugerah)
         });
       });
     });
@@ -292,6 +297,21 @@ $('b-muat').addEventListener('click', () => {
 });
 document.addEventListener('click', e => {
   if (e.target.closest('#b-cuba-lagi')) muat(true);
+});
+
+/* 🖨 Cetak SEMUA hadiah (bukan ikut tapisan skrin), dibaca segar —
+   enjin sama dengan butang di panel admin. Tetingkap dibuka SEBELUM
+   await (pop-up selepas await disekat pelayar). */
+$('b-cetak').addEventListener('click', async () => {
+  const w = window.open('', '_blank');
+  if (!w) { agToast('Benarkan pop-up untuk mencetak', 'ralat'); return; }
+  w.document.write('<p style="font:14px system-ui;padding:20px">Memuatkan senarai hadiah…</p>');
+  try {
+    agCetakSenaraiHadiah(w, MAJLIS, await agMuatPenerima(MAJLIS.id));
+  } catch (e) {
+    w.close();
+    agToast('Gagal: ' + e.message, 'ralat');
+  }
 });
 
 function status(b) {
@@ -399,7 +419,8 @@ function lukisSenarai() {
         (s === 'absen' ? '<s>' + agEsc(b.nama) + '</s>' : agEsc(b.nama)) + '</td>' +
       '<td>' + agEsc(agDarjahKelas(b.tahun, b.kelas)) + '</td>' +
       '<td class="kecil lajur-teks">' + (agEsc(b.hadiah) || '<em>\u2014</em>') +
-        (b.untuk ? '<div class="kecil" style="opacity:.75">untuk: ' + agEsc(b.untuk) + '</div>' : '') +
+        (b.gabung && b.gabung.length ? '<div class="kecil" style="opacity:.8">\ud83c\udf81 1 hadiah untuk: ' +
+          agEsc([b.sub].concat(b.gabung).join(' + ')) + '</div>' : '') +
       '</td>' +
       '<td>' + pil + '</td></tr>';
   };
@@ -436,7 +457,8 @@ function lukisSenarai() {
     '<div class="kad-isi" style="border-top:1px solid var(--garis-halus)">' +
       '<div class="nota" style="margin:0"><span class="sym">\u25b8</span><div>' +
       '<strong>Panel ini ikut giliran, bukan murid.</strong> Murid yang menang beberapa ' +
-      'anugerah adalah beberapa hadiah berasingan di meja \u2014 bukan satu bungkus.' +
+      'anugerah adalah beberapa hadiah berasingan di meja \u2014 bukan satu bungkus. ' +
+      'Kecuali \ud83c\udf81 gabung: satu nombor = satu hadiah untuk semua anugerah yang disenarai.' +
       '</div></div></div>';
 }
 

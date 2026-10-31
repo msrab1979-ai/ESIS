@@ -6536,6 +6536,8 @@ function lukisPetugas() {
       '<div class="lb-teks"><div class="lb-nama">' + agEsc(r.nama) + '</div>' +
         '<div class="lb-url">' + (kod ? agEsc(url) : '<em>kod dibatalkan</em>') + '</div>' +
         '<div class="lb-tulis">' + r.tulis + '</div></div>' +
+      (r.k === 'kodHadiah'
+        ? '<button class="btn sunyi kecil" data-cetak-hadiah>🖨 Cetak Senarai Hadiah (PDF)</button>' : '') +
       (kod
         ? '<button class="btn sunyi kecil" data-salin="' + agEsc(url) + '">Salin</button>' +
           '<a class="btn sunyi kecil" href="' + agEsc(url) + '" target="_blank" rel="noopener">Buka</a>' +
@@ -6546,6 +6548,23 @@ function lukisPetugas() {
 }
 
 $('link-grid').addEventListener('click', async e => {
+  /* 🖨 Senarai Hadiah — ikut nombor giliran DISIMPAN, penerima dibaca
+     SEGAR. Tetingkap dibuka SEBELUM await (pop-up selepas await disekat). */
+  if (e.target.closest('button[data-cetak-hadiah]')) {
+    if (!MAJLIS) return;
+    if (!sahkanNomborSebelum('Senarai Hadiah')) return;
+    const w = window.open('', '_blank');
+    if (!w) { agToast('Benarkan pop-up untuk mencetak', 'ralat'); return; }
+    w.document.write('<p style="font:14px system-ui;padding:20px">Memuatkan senarai hadiah…</p>');
+    try {
+      const r = agCetakSenaraiHadiah(w, MAJLIS, await agMuatPenerima(MAJLIS.id));
+      agToast(r.baris.length + ' hadiah · ' + r.bilAbsen + ' tidak hadir', 'ok');
+    } catch (err) {
+      w.close();
+      agToast('Gagal: ' + err.message, 'ralat');
+    }
+    return;
+  }
   const salin = e.target.closest('button[data-salin]');
   if (salin) {
     try { await navigator.clipboard.writeText(salin.dataset.salin); agToast('Link disalin', 'ok'); }

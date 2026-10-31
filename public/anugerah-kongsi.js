@@ -1519,6 +1519,180 @@ function agCetakSkripMC(w, majlis, penerima) {
   return r;
 }
 
+/* ---------- 🖨 Senarai Hadiah (cetak) ----------
+   Kertas semakan petugas hadiah: SEBELUM majlis (☐ Sedia) dan SEMASA
+   majlis (☐ Serah).
+   🔴 Satu baris = satu NOMBOR GILIRAN DISIMPAN = satu hadiah. Gaya GABUNG:
+      pengikut berkongsi nombor utama dan murid menerima SATU hadiah untuk
+      semua — ia bukan baris sendiri, tetapi namanya masuk ke tajuk gabung
+      ("TAHUN 5: BAHASA MELAYU + SAINS"). Sama peraturan dgn hadiah.html.
+   🔴 Tidak hadir KEKAL dicetak (dicoret) — nombor tidak melompat dan
+      petugas tidak hilang tempat. */
+function agKiraSenaraiHadiah(penerima) {
+  const baris = [];
+  (penerima || []).forEach(p => {
+    const gil = (p.giliran || []).filter(g => g.no != null);
+    gil.filter(g => !agIkutSah(gil, g)).forEach(g => {
+      const ikut = agPengikutGiliran(gil, g);
+      const hadiah = [...new Set([g, ...ikut].map(x => x.hadiah || '').filter(Boolean))];
+      baris.push({
+        no: g.no, nama: p.nama || '', tahun: p.tahun, kelas: p.kelas, luar: agAdalahLuar(p),
+        anugerahId: g.anugerahId || g.anugerah, anugerah: g.anugerah || '', sub: g.sub || '',
+        gabung: ikut.map(x => x.sub || x.anugerah), hadiah: hadiah.join(' · '),
+        hadir: g.hadir, mc: g.mc
+      });
+    });
+  });
+  baris.sort((a, b) => a.no - b.no || String(a.nama).localeCompare(String(b.nama)));
+  const kiraNo = {};
+  baris.forEach(b => { kiraNo[b.no] = (kiraNo[b.no] || 0) + 1; });
+  const nombor = Object.keys(kiraNo).map(Number);
+  const maks = nombor.length ? Math.max(...nombor) : 0;
+  const min = nombor.length ? Math.min(...nombor) : 0;
+  const jurang = [];
+  for (let n = 1; n <= maks; n++) if (!kiraNo[n]) jurang.push(n);
+  return {
+    baris, min, maks, jurang,
+    pendua: nombor.filter(n => kiraNo[n] > 1).sort((a, b) => a - b),
+    bilAbsen: baris.filter(b => b.hadir === false).length,
+    bilAmbil: baris.filter(b => b.hadir !== false && b.mc === true).length,
+    bilGabung: baris.filter(b => b.gabung.length).length
+  };
+}
+
+/* Tajuk sub dalam blok anugerah. Gabung: akhiran " — X" yang dikongsi
+   semua sub dikeluarkan ke depan → "TAHUN 5: BAHASA MELAYU + SAINS". */
+function agTajukSubHadiah(b) {
+  const nA = String(b.anugerah).toUpperCase().replace(/^ANUGERAH\s+/, '');
+  const pendek = n => {
+    n = String(n || '');
+    if (n.toUpperCase() === String(b.anugerah).toUpperCase()) return '';
+    return n.toUpperCase().startsWith(nA + ' — ') ? n.slice(nA.length + 3) : n;
+  };
+  if (!b.gabung.length) return pendek(b.sub || b.anugerah);
+  const semua = [b.sub, ...b.gabung].map(n => String(n || ''));
+  const akhir = semua.map(n => { const i = n.lastIndexOf(' — '); return i < 0 ? null : n.slice(i + 3); });
+  if (akhir[0] && akhir.every(x => x === akhir[0])) {
+    return akhir[0] + ': ' + semua.map(n => n.slice(0, n.lastIndexOf(' — '))).join(' + ');
+  }
+  return semua.map(pendek).map((n, i) => n || semua[i]).join(' + ');
+}
+
+/* `w` = tetingkap yang SUDAH dibuka oleh pemanggil sebelum await. */
+function agCetakSenaraiHadiah(w, majlis, penerima) {
+  const r = agKiraSenaraiHadiah(penerima);
+  const E = agEsc;
+  const dijana = new Date().toLocaleString('ms-MY', { dateStyle: 'medium', timeStyle: 'short' });
+
+  /* blok anugerah BERTURUT-TURUT ikut nombor — sama dgn Skrip MC. */
+  const blok = [];
+  r.baris.forEach(b => {
+    let B = blok[blok.length - 1];
+    if (!B || B.anugerahId !== b.anugerahId) {
+      B = { anugerahId: b.anugerahId, anugerah: b.anugerah, baris: [] };
+      blok.push(B);
+    }
+    B.baris.push(b);
+  });
+
+  const lajur = 6;
+  const html = blok.map(B => {
+    const n = B.baris.length;
+    let isi = '', kunciAkhir = null;
+    B.baris.forEach((b, i) => {
+      const tajuk = agTajukSubHadiah(b);
+      const kunci = tajuk + '|' + b.hadiah;
+      if (kunci !== kunciAkhir) {
+        kunciAkhir = kunci;
+        let bil = 0;
+        for (let k = i; k < n && agTajukSubHadiah(B.baris[k]) + '|' + B.baris[k].hadiah === kunci; k++) bil++;
+        if (tajuk || b.hadiah) {
+          isi += '<tr class="sub' + (b.gabung.length ? ' gab' : '') + '"><td colspan="' + lajur + '">' +
+            (b.gabung.length ? '🎁 GABUNG · ' : '') + E(tajuk || b.anugerah) +
+            (b.hadiah ? ' <span class="hadiah">· ' + E(b.hadiah) + '</span>' : '') +
+            '<span class="bil">' + bil + ' hadiah</span>' +
+            (b.gabung.length ? '<div class="ket-gab">1 hadiah untuk semua anugerah di atas</div>' : '') +
+            '</td></tr>';
+        }
+      }
+      const absen = b.hadir === false;
+      const st = absen ? '<b>TIDAK HADIR</b>' : b.mc === true ? 'Sudah diambil' : '';
+      isi += '<tr class="m' + (absen ? ' absen' : '') + '">' +
+        '<td class="kotak">☐</td><td class="kotak">☐</td>' +
+        '<td class="no">' + b.no + '</td>' +
+        '<td class="kls">' + E(b.luar ? '' : agDarjahKelas(b.tahun, b.kelas)) + '</td>' +
+        '<td class="nama">' + E(b.nama) + '</td><td class="st">' + st + '</td></tr>';
+    });
+    const a = B.baris[0].no, z = B.baris[n - 1].no;
+    return '<table class="' + (n <= 30 ? 'pendek' : '') + '"><thead>' +
+      '<tr class="an"><th colspan="' + lajur + '">' + E(B.anugerah) +
+        '<span class="bil">' + n + ' hadiah · giliran ' + (a === z ? a : a + '–' + z) + '</span></th></tr>' +
+      '<tr class="lj"><th>Sedia</th><th>Serah</th><th style="text-align:right">No</th>' +
+        '<th>Darjah/Kelas</th><th>Nama</th><th>Status</th></tr>' +
+      '</thead><tbody>' + isi + '</tbody></table>';
+  }).join('');
+
+  const amaran = [];
+  if (r.pendua.length) amaran.push('Nombor berulang: ' + r.pendua.join(', '));
+  if (r.jurang.length) amaran.push('Nombor tiada (jurang): ' + r.jurang.slice(0, 30).join(', ') +
+    (r.jurang.length > 30 ? ' … (+' + (r.jurang.length - 30) + ')' : ''));
+  const kpi = (n, l) => '<div class="k"><div class="n">' + n + '</div><div class="l">' + l + '</div></div>';
+  const julat = r.baris.length ? 'giliran ' + r.min + '–' + r.maks : '';
+
+  w.document.open();
+  w.document.write('<!doctype html><html lang="ms"><head><meta charset="utf-8">' +
+    '<title>Senarai Hadiah — ' + E(majlis.nama || 'Majlis') + '</title><style>' +
+    '@page{size:A4 portrait;margin:12mm 11mm 14mm}' +
+    'body{font:11.5px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;color:#111;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.kepala{text-align:center;border-bottom:2px solid #111;padding-bottom:7px;margin-bottom:9px}' +
+    '.kepala .s{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#333}' +
+    '.kepala h1{font-size:17px;margin:2px 0}.kepala .t{font-size:12.5px;font-weight:700;letter-spacing:.06em}' +
+    '.kepala .d{font-size:10px;color:#555;margin-top:2px}' +
+    '.kpi{display:flex;gap:7px;margin:0 0 6px}.k{flex:1;border:1.5px solid #111;border-radius:5px;padding:5px 4px;text-align:center}' +
+    '.k .n{font-size:21px;font-weight:800;line-height:1.1}.k .l{font-size:9.5px;text-transform:uppercase;color:#333}' +
+    '.ket{margin:3px 0;font-size:10px;color:#444}.amaran{margin:4px 0;padding:4px 7px;border:1.5px solid #900;color:#900;font-weight:700;font-size:10.5px}' +
+    'table{border-collapse:collapse;width:100%;margin-top:10px}' +
+    'table.pendek{break-inside:avoid;page-break-inside:avoid}' +
+    'thead{display:table-header-group}' +
+    'tr.an th{background:#E4E4E4;font-weight:800;font-size:12px;border-top:1.5px solid #111;padding:5px;text-align:left}' +
+    'tr.lj th{font-size:9px;text-transform:uppercase;text-align:left;border-bottom:1.5px solid #111;padding:3px 5px;font-weight:700}' +
+    'td{padding:4px 5px;border-bottom:1px solid #CCC;vertical-align:top}' +
+    'tr{page-break-inside:avoid;break-inside:avoid}' +
+    'tr.sub td{background:#F3F3F3;font-weight:700;font-size:11px;padding:3px 5px 3px 10px;break-after:avoid;page-break-after:avoid}' +
+    'tr.sub.gab td{background:#FFF3D6;border-left:3px solid #111}' +
+    '.ket-gab{font-weight:500;font-size:9.5px;color:#444}' +
+    '.bil{float:right;font-weight:600;font-size:10px;color:#444}.hadiah{font-weight:500;color:#444}' +
+    'td.kotak{width:30px;font-size:15px;line-height:1;text-align:center}' +
+    'td.no{width:34px;font-weight:800;font-size:14px;text-align:right}' +
+    'td.kls{width:100px;white-space:nowrap}td.nama{font-weight:700;font-size:12px}' +
+    'td.st{width:88px;font-size:10px}' +
+    'tr.absen td{color:#888;text-decoration:line-through}tr.absen td.st{text-decoration:none;color:#900}' +
+    '.akhir{margin-top:10px;border-top:2px solid #111;padding-top:5px;font-weight:700;text-align:right}' +
+    '</style></head><body>' +
+    '<div class="kepala">' + (majlis.sekolah ? '<div class="s">' + E(majlis.sekolah) + '</div>' : '') +
+      '<h1>' + E(majlis.nama || 'Majlis Anugerah') + '</h1>' +
+      '<div class="t">SENARAI HADIAH — SEMAKAN PETUGAS</div>' +
+      '<div class="d">' + (majlis.tarikh ? E(majlis.tarikh) + ' · ' : '') +
+        r.baris.length + ' hadiah' + (julat ? ' · ' + julat : '') + ' · Dijana ' + E(dijana) + '</div></div>' +
+    '<div class="kpi">' +
+      kpi(r.baris.length, 'Jumlah<br>hadiah') + kpi(r.bilAbsen, 'Tidak<br>hadir') +
+      kpi(r.bilAmbil, 'Sudah<br>diambil') + kpi(r.baris.length - r.bilAbsen, 'Perlu<br>disediakan') +
+    '</div>' +
+    '<p class="ket">Satu baris = satu nombor giliran = satu hadiah. Kertas ini ikut nombor giliran yang ' +
+      'disimpan pada masa dijana — selepas admin tekan 🔁 Jana Semula, cetak semula.' +
+      (r.bilGabung ? ' 🎁 GABUNG: murid menerima <b>1 hadiah</b> untuk semua anugerah dalam tajuk itu (' + r.bilGabung + ' murid).' : '') +
+    '</p>' +
+    (amaran.length ? '<p class="amaran">⚠ ' + amaran.join(' · ') + '</p>' : '') +
+    (r.baris.length
+      ? html + '<div class="akhir">Jumlah hadiah: ' + r.baris.length + ' · ' + julat +
+          ' · Tidak hadir: ' + r.bilAbsen + ' · Perlu disediakan: ' + (r.baris.length - r.bilAbsen) + '</div>'
+      : '<p style="margin-top:20px;text-align:center">Belum ada giliran bernombor. Admin perlu tekan 🔢 Beri Nombor dahulu.</p>') +
+    '</body></html>');
+  w.document.close();
+  setTimeout(() => { w.focus(); w.print(); }, 400);
+  return r;
+}
+
 /* ---------- papar ---------- */
 function agEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g,

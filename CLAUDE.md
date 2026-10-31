@@ -863,7 +863,7 @@ Kad **Gaya Giliran** di atas Susunan Naik Pentas (tab 🎟️ Giliran & Tiket). 
 - **Gaya C: entri giliran KEKAL satu per anugerah** (meja hadiah kira hadiah satu per satu), tetapi **berkongsi `no`**. Entri utama tiada `ikut`; yang lain `ikut: <subId utama>`. Medan `ikut` hanya ditulis bila wujud — data gaya A/B sama tepat seperti dahulu.
 - **`agIkutSah`, bukan `g.ikut` mentah**: bila sub utama dibuang, pengikut mesti berdiri sendiri semula, jika tidak anugerahnya hilang dari MC dan tayangan.
 - Sub yang tiada dalam `susunanPentas` (ditambah kemudian) **disambung di hujung** dengan amaran, bukan hilang.
-- Panel: MC satu baris per nombor + "turut menerima", ✓ menanda utama **dan** pengikut (`tandaMC`). Peserta: murid hanya di baris utama, "naik pentas N kali" = `agBilNaik`. Hadiah: baris pengikut kekal, dipapar di bawah anugerah **utama** dengan "untuk: …". Tayang/PPTX: satu slaid utama, pengikut disenarai. Gaya ≠ asal: accordion petugas = blok **berturut-turut** (kunci `anId#n`), gaya A kekal `find`.
+- Panel: MC satu baris per nombor + "turut menerima", ✓ menanda utama **dan** pengikut (`tandaMC`). Peserta: murid hanya di baris utama, "naik pentas N kali" = `agBilNaik`. Hadiah: **satu baris satu nombor = satu hadiah** — pengikut tidak lagi baris sendiri, dinamakan sebagai "🎁 1 hadiah untuk: A + B" (pengguna, 31 Okt 2026; dahulu 414 baris, kini 401). Tayang/PPTX: satu slaid utama, pengikut disenarai. Gaya ≠ asal: accordion petugas = blok **berturut-turut** (kunci `anId#n`), gaya A kekal `find`.
 - **Tukar gaya tidak menukar nombor.** Pratonton dalam kad memberi amaran bila nombor semasa tidak padan dengan gaya disimpan → Jana Semula.
 
 Oracle 20,000 kes (susunan + nombor + mod tambah + invarian 1…N tanpa jurang) — 0 beza; 5 mutasi ditangkap.
@@ -953,6 +953,15 @@ Butang **🖨 Skrip MC (PDF)** dalam kad Susunan Naik Pentas (admin) dan **🖨 
 - Satu baris = satu **nombor giliran disimpan** (pengikut gaya C = "turut menerima", bukan baris). Dikumpul anugerah › sub berturut-turut ikut nombor. Kotak ☐ untuk MC tanda tangan; "naik kali ke-2 dari 3"; tidak hadir dicoret.
 - **Tiga angka sahaja** (pengguna: label lain mengelirukan) — dalam PDF dan kepala senarai `mc.html`: **Jumlah tiket dikeluarkan** (`bilTiket`, peraturan sama dgn `lukisTiket`: ≥1 nombor pada sub naik pentas bukan 🤫 rahsia) · **Jumlah semua murid** (`bilMurid`, orang berbeza dgn ≥1 nombor) · **Jumlah murid lebih dari 1 anugerah** (`bilUlang`, `giliran[]` bernombor > 1, termasuk pengikut gaya C). Amaran nombor berulang / jurang kekal.
 - **KPI tab Giliran berbeza maksud**: "Giliran" = semua entri `giliran[]` (termasuk pengikut gaya C), "Murid" = semua penerima (termasuk yang tidak naik pentas). Skrip MC ialah angka naik pentas yang tepat.
+
+#### 🖨 Senarai Hadiah (PDF) — 31 Okt 2026
+
+Butang dalam kad Pengurus Hadiah (tab 🔗 Link Petugas, `data-cetak-hadiah`, melalui `sahkanNomborSebelum`) dan **🖨 Cetak** dalam `hadiah.html`. Enjin `agKiraSenaraiHadiah` + `agCetakSenaraiHadiah` dalam `anugerah-kongsi.js`, corak sama dgn Skrip MC (penerima segar, tetingkap dibuka sebelum `await`).
+
+- Satu baris = satu **nombor disimpan** = satu hadiah; lajur ☐ Sedia · ☐ Serah · No · Darjah/Kelas · Nama · Status (TIDAK HADIR dicoret, tidak dibuang / Sudah diambil = `mc`).
+- Satu `<table>` per blok anugerah berturut-turut; `thead` (tajuk + kiraan + julat giliran) berulang di muka baharu; blok ≤30 baris `break-inside:avoid`.
+- Gaya C: tajuk `🎁 GABUNG · TAHUN 5: BAHASA MELAYU + SAINS` (`agTajukSubHadiah` — akhiran " — X" dikongsi dikeluarkan ke depan). Tajuk bertukar ikut nombor, jadi boleh berulang — nombor tidak disusun semula.
+- Kepala: sekolah, majlis, tarikh, jumlah hadiah, julat giliran, "Dijana <masa>".
 
 #### Nombor giliran mesti berturutan tanpa jurang
 
