@@ -1040,8 +1040,8 @@ function agSusunMuridDalamSub(a, s, senarai, kedudukan) {
     kedudukan && agIkutKedudukan(a) ? kedudukan[s.id] : null);
 }
 
-/* IKUT KELAS — permintaan pengguna 1 Nov 2026, HANYA dua anugerah ini:
-   KEHADIRAN PENUH & SAHSIAH TERPUJI (sub Darjah 1–6). Murid naik ikut
+/* IKUT KELAS — permintaan pengguna 1 Nov 2026, HANYA tiga anugerah ini:
+   KEHADIRAN PENUH & SAHSIAH TERPUJI (sub Darjah 1–6), KECEMERLANGAN UPKK. Murid naik ikut
    susunan kelas sekolah, kemudian nama. Tiada butang/medan — dipadan
    pada nama anugerah. Susun sendiri (`manual`) / ikut kedudukan menang. */
 const AG_SUSUN_KELAS = ['CELERON', 'RYZEN', 'INTEL', 'PENTIUM', 'HIGEN', 'PIXEL', 'BYTECH'];
@@ -1049,7 +1049,8 @@ const AG_SUSUN_KELAS = ['CELERON', 'RYZEN', 'INTEL', 'PENTIUM', 'HIGEN', 'PIXEL'
 function agIkutKelas(a) {
   if (!a || (a.susunMurid && a.susunMurid !== 'nama')) return false;
   const n = String(a.nama || '').toUpperCase();
-  return n.includes('KEHADIRAN PENUH') || n.includes('SAHSIAH TERPUJI');
+  return n.includes('KEHADIRAN PENUH') || n.includes('SAHSIAH TERPUJI') ||
+    n.includes('KECEMERLANGAN UPKK');
 }
 
 function agSusunIkutKelas(senarai) {
