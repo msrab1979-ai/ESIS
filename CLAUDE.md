@@ -978,6 +978,27 @@ Butang dalam kad Pengurus Hadiah (tab 🔗 Link Petugas, `data-cetak-hadiah`, me
 - Gaya C: tajuk `🎁 GABUNG · TAHUN 5: BAHASA MELAYU + SAINS` (`agTajukSubHadiah` — akhiran " — X" dikongsi dikeluarkan ke depan). Tajuk bertukar ikut nombor, jadi boleh berulang — nombor tidak disusun semula.
 - Kepala: sekolah, majlis, tarikh, jumlah hadiah, julat giliran, "Dijana <masa>".
 
+#### Susun ikut kelas — 3 anugerah dipadan pada NAMA (1 Nov 2026)
+
+`agIkutKelas(a)` / `agSusunIkutKelas` dalam `anugerah-kongsi.js`, dipanggil dalam `agSusunMuridDalamSub` (enjin tunggal). **Hanya** anugerah yang namanya mengandungi `KEHADIRAN PENUH`, `SAHSIAH TERPUJI` atau `KECEMERLANGAN UPKK` — permintaan pengguna, **tiada butang/medan** (dia minta "jangan bina butang, terus baiki").
+
+- Susunan kelas `AG_SUSUN_KELAS` = CELERON → RYZEN → INTEL → PENTIUM → HIGEN → PIXEL → BYTECH (padanan `includes`, jadi `CELERON (DLP)` padan), kemudian nama. Kelas tidak dikenali → hujung (pengguna: beritahu dia jika berlaku — disemak live, 0 setakat ini).
+- Terpakai hanya bila `susunMurid` tiada / `'nama'`; Susun sendiri dan ikut kedudukan **menang**.
+- Nombor giliran tidak berubah sendiri → 🔁 Jana Semula.
+- Menambah anugerah lain = tambah satu `n.includes(...)` dalam `agIkutKelas`.
+
+#### 🏫 Guru Kelas — lihat murid kelas sendiri (`guru-kelas.html`, 1 Nov 2026)
+
+Guru kelas melihat murid **kelasnya sahaja** yang menerima anugerah + nombor giliran, **baca sahaja**, dengan 🖨 Cetak/PDF (`window.print`). Dua pintu, satu halaman:
+- **Link** `guru-kelas.html?kod=` — `modPetugas.kodGuruKelas` (`AG_PERANAN_MEDAN.guruKelas`), baris 🏫 dalam Link Petugas.
+- **ESIS › Guru Kelas › tab 🏆 Anugerah** (`index.html`, `gkaSemak`/`gkaBuka`) — halaman sama dalam iframe `?esis=1` (tajuk disorok, tinggi dilapor via `postMessage {gkaTinggi}`). Tab muncul hanya bila `anugerah_majlis.guruKelasEsis === true` dan kod wujud; majlis terbaru dipilih. Admin: butang **🏆 Tab di ESIS: YA/TIDAK** (lalai TIDAK).
+
+**Pendaftaran** dalam koleksi `anugerah_guruKelas`, doc id `${majlisId}__${tahun}__${kelas}` = `{majlisId, tahun, kelas, nama, idNama, pw, daftar, tutup?}`. **Satu kelas satu guru** dikuatkuasakan oleh **transaksi** (ditolak dengan nama tuan). Satu nama satu kelas. Nama dinormalkan seperti Markah Ujian Khas (`gkIdNama`, gelaran dilucut). **Bukan dalam dokumen majlis** — `simpanMajlis()` admin menulis MAJLIS dari memori dan akan memadam pendaftaran baharu.
+
+**Buka/Tutup senarai:** `agGuruKelasTutup(majlis, g)` — `g.tutup` (per kelas) menang, tiada → `MAJLIS.guruKelasTutup` (lalai untuk pendaftar kemudian, ditetapkan oleh 👁 Buka semua / ⛔ Tutup semua yang juga menulis setiap doc). Lalai DIBUKA. Guru masih boleh daftar/masuk bila ditutup. `guru-kelas.html` membaca majlis + doc pendaftaran **segar** setiap 🔄 Muat Semula; doc dipadam admin → mesej daftar semula. Admin boleh **Padam** pendaftaran (lupa kata laluan / salah kelas).
+
+Rahsia 🤫 disorok (`agSubRahsia`); bukan murid (`jenis:'luar'`) tidak dipapar; anugerah tidak naik pentas = "Tidak naik pentas", tiada nombor = "Belum".
+
 #### Nombor giliran mesti berturutan tanpa jurang
 
 `beriNombor(true)` (🔁 Jana Semula) menomborkan 1…N mengikut `binaTurutan`; sub tanpa peserta dilangkau sendiri dan tidak memakan nombor.
