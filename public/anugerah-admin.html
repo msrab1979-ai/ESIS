@@ -186,12 +186,15 @@
 .kj .b1{top:7.6mm; left:7.6mm} .kj .b2{top:7.6mm; right:7.6mm}
 .kj .b3{bottom:7.6mm; left:7.6mm} .kj .b4{bottom:7.6mm; right:7.6mm}
 .kj .isi{position:relative; height:100%; box-sizing:border-box;
-  display:grid; grid-template-columns:44mm 1fr; grid-template-rows:minmax(0,1fr); padding:10mm 11mm 9mm}
+  display:grid; grid-template-columns:50mm 1fr; grid-template-rows:minmax(0,1fr); padding:10mm 11mm 9mm}
 .kj .kiri{display:flex; flex-direction:column; justify-content:center; align-items:center;
   text-align:center; padding-right:5mm; border-right:.6px solid #d8c79c; min-width:0}
 .kj .sek{font-size:8.5px; letter-spacing:.2em; text-transform:uppercase; color:#8A6A1F; font-weight:700; line-height:1.4}
 .kj .jemp{font-family:"Fraunces",serif; font-size:10px; letter-spacing:.38em; color:#666; margin-top:5mm}
-.kj .tajuk{font-family:"Fraunces",serif; font-size:15px; font-weight:700; line-height:1.22; margin-top:1.5mm;
+/* 🔴 BUKAN `.tajuk` — kelas itu milik kepala halaman (anugerah-kongsi.css,
+   border-bottom) dan disorok `display:none` semasa cetak, jadi nama
+   majlis hilang dari setiap kad yang dicetak. */
+.kj .majlis-kj{font-family:"Fraunces",serif; font-size:14px; font-weight:700; line-height:1.22; margin-top:1.5mm;
   overflow-wrap:break-word; color:#16233A}
 .kj .orn{color:#A8832E; font-size:10px; letter-spacing:.4em; margin-top:4mm}
 .kj .kanan{padding-left:7mm; display:flex; flex-direction:column; justify-content:center; min-width:0}
@@ -6551,7 +6554,7 @@ function lukisKad() {
         '<div class="kiri">' +
           '<div class="sek">' + agEsc(MAJLIS.sekolah || '') + '</div>' +
           '<div class="jemp">KAD JEMPUTAN</div>' +
-          '<div class="tajuk">' + agEsc(MAJLIS.nama || '') + '</div>' +
+          '<div class="majlis-kj">' + agEsc(MAJLIS.nama || '') + '</div>' +
           '<div class="orn">\u2726 \u2726 \u2726</div>' +
         '</div>' +
         '<div class="kanan">' +
