@@ -584,6 +584,14 @@ const AG_PERANAN_MEDAN = {
   guruKelas: 'kodGuruKelas'
 };
 
+/* 🏫 Guru Kelas — senarai ditutup oleh admin? `g.tutup` (per kelas)
+   menang; tiada medan → lalai majlis `guruKelasTutup` (ditetapkan oleh
+   butang Buka/Tutup semua). Lalai DIBUKA. */
+function agGuruKelasTutup(majlis, g) {
+  if (g && typeof g.tutup === 'boolean') return g.tutup;
+  return !!(majlis && majlis.guruKelasTutup);
+}
+
 function agKodDariURL() {
   return new URLSearchParams(location.search).get('kod') || '';
 }

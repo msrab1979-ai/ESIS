@@ -340,6 +340,30 @@ function teksGiliran(x) {
 async function muatSenarai() {
   $('senarai').innerHTML = '<p class="kecil" style="padding:16px">Memuatkan…</p>';
   try {
+    /* Status dibaca SEGAR — admin boleh membuka/menutup ketika halaman
+       ini sudah terbuka; 🔄 Muat Semula mesti nampak perubahan itu. */
+    const [dm, dg] = await Promise.all([
+      agDb.collection('anugerah_majlis').doc(MAJLIS.id).get(),
+      agDb.collection(GK_KOL).doc(DAFTAR.id).get()
+    ]);
+    if (!dg.exists) {
+      sessionStorage.removeItem(gkSesi());
+      $('senarai').innerHTML = '<div class="nota ralat" style="margin:16px"><span class="sym">✕</span>' +
+        '<div>Pendaftaran anda telah dipadam oleh admin. Sila daftar semula.</div></div>';
+      return;
+    }
+    if (dm.exists) MAJLIS = { id: dm.id, ...dm.data() };
+    DAFTAR = { id: dg.id, ...dg.data() };
+    if (agGuruKelasTutup(MAJLIS, DAFTAR)) {
+      $('kad-sari').textContent = '';
+      $('kpi').innerHTML = '';
+      $('b-cetak').hidden = true;
+      $('senarai').innerHTML = '<div class="nota amaran" style="margin:16px"><span class="sym">⛔</span>' +
+        '<div><strong>Senarai belum dibuka oleh admin.</strong> Sila semak semula kemudian ' +
+        'dan tekan 🔄 Muat Semula.</div></div>';
+      return;
+    }
+    $('b-cetak').hidden = false;
     const baris = binaBaris(await agMuatPenerima(MAJLIS.id));
     const bilAnu = baris.reduce((n, r) => n + r.anu.length, 0);
     $('kad-sari').textContent = baris.length + ' murid · ' + bilAnu + ' anugerah';

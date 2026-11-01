@@ -6675,8 +6675,11 @@ function lukisPetugas() {
 
 /* ---------- 🏫 Guru Kelas berdaftar ----------
    Pendaftaran dalam koleksi sendiri (`anugerah_guruKelas`), satu doc per
-   kelas. Admin hanya boleh MEMADAM — untuk guru salah kelas atau lupa
-   kata laluan; tanpanya kelas itu terkunci kekal. */
+   kelas. Admin boleh MEMADAM (guru salah kelas / lupa kata laluan) dan
+   membuka/menutup senarai — satu kelas (single) atau semua (bundle).
+   🔴 Bundle juga menetapkan `MAJLIS.guruKelasTutup` sebagai lalai untuk
+      guru yang mendaftar KEMUDIAN — "tutup semua" mesti kekal tutup.
+      Status dibaca melalui agGuruKelasTutup sahaja. */
 async function lukisGuruKelas() {
   const el = $('gk-daftar');
   if (!el || !MAJLIS) return;
@@ -6686,15 +6689,33 @@ async function lukisGuruKelas() {
     const senarai = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((x, y) => agWordDarjah(x.tahun) - agWordDarjah(y.tahun) ||
         String(x.kelas).localeCompare(String(y.kelas)));
-    el.innerHTML = '<p class="eyebrow" style="margin-top:15px">🏫 Guru kelas berdaftar (' +
-      senarai.length + ')</p>' +
+    const bilTutup = senarai.filter(g => agGuruKelasTutup(MAJLIS, g)).length;
+    const lalaiTutup = !!MAJLIS.guruKelasTutup;
+    el.innerHTML =
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:15px">' +
+        '<p class="eyebrow" style="margin:0">🏫 Guru kelas berdaftar (' + senarai.length + ')' +
+          (senarai.length ? ' · ' + (senarai.length - bilTutup) + ' dibuka · ' + bilTutup + ' ditutup' : '') +
+        '</p>' +
+        '<span style="margin-left:auto"></span>' +
+        '<button class="btn sunyi kecil" data-gk-semua="buka">👁 Buka semua</button>' +
+        '<button class="btn sunyi kecil" data-gk-semua="tutup">⛔ Tutup semua</button>' +
+      '</div>' +
+      '<p class="kecil" style="margin:4px 0 8px">Guru yang mendaftar selepas ini: ' +
+        (lalaiTutup ? '<strong>⛔ ditutup</strong>' : '<strong>👁 dibuka</strong>') +
+        ' (ikut butang semua yang terakhir ditekan).</p>' +
       (senarai.length
-        ? '<div class="gulung"><table><thead><tr><th>Kelas</th><th>Guru</th><th></th></tr></thead><tbody>' +
-          senarai.map(g => '<tr><td>' + agEsc(agDarjahKelas(g.tahun, g.kelas)) + '</td>' +
-            '<td>' + agEsc(g.nama) + '</td>' +
-            '<td style="text-align:right"><button class="btn sunyi kecil" data-gk-padam="' +
-              agEsc(g.id) + '" data-gk-label="' + agEsc(agDarjahKelas(g.tahun, g.kelas) + ' — ' + g.nama) +
-              '">Padam</button></td></tr>').join('') +
+        ? '<div class="gulung"><table><thead><tr><th>Kelas</th><th>Guru</th><th>Senarai</th><th></th></tr></thead><tbody>' +
+          senarai.map(g => {
+            const tutup = agGuruKelasTutup(MAJLIS, g);
+            return '<tr><td>' + agEsc(agDarjahKelas(g.tahun, g.kelas)) + '</td>' +
+              '<td>' + agEsc(g.nama) + '</td>' +
+              '<td><button class="btn kecil ' + (tutup ? 'sunyi' : 'emas') + '" data-gk-togol="' +
+                agEsc(g.id) + '" data-gk-tutup="' + (tutup ? '1' : '0') + '">' +
+                (tutup ? '⛔ Ditutup' : '👁 Dibuka') + '</button></td>' +
+              '<td style="text-align:right"><button class="btn sunyi kecil" data-gk-padam="' +
+                agEsc(g.id) + '" data-gk-label="' + agEsc(agDarjahKelas(g.tahun, g.kelas) + ' — ' + g.nama) +
+                '">Padam</button></td></tr>';
+          }).join('') +
           '</tbody></table></div>'
         : '<p class="kecil">Belum ada guru kelas mendaftar.</p>');
   } catch (err) {
@@ -6703,6 +6724,37 @@ async function lukisGuruKelas() {
 }
 
 $('gk-daftar').addEventListener('click', async e => {
+  const semua = e.target.closest('button[data-gk-semua]');
+  if (semua) {
+    const tutup = semua.dataset.gkSemua === 'tutup';
+    if (!confirm((tutup ? 'Tutup' : 'Buka') + ' senarai untuk SEMUA guru kelas?')) return;
+    semua.disabled = true;
+    try {
+      const snap = await agDb.collection('anugerah_guruKelas')
+        .where('majlisId', '==', MAJLIS.id).get();
+      for (let i = 0; i < snap.docs.length; i += RESET_CHUNK) {
+        const batch = agDb.batch();
+        snap.docs.slice(i, i + RESET_CHUNK).forEach(d => batch.update(d.ref, { tutup }));
+        await batch.commit();
+      }
+      MAJLIS.guruKelasTutup = tutup;
+      await simpanMajlis();
+      agToast(snap.size + ' kelas ' + (tutup ? 'ditutup' : 'dibuka'), 'ok');
+    } catch (err) { agToast('Gagal: ' + err.message, 'ralat'); }
+    lukisGuruKelas();
+    return;
+  }
+  const togol = e.target.closest('button[data-gk-togol]');
+  if (togol) {
+    const tutup = togol.dataset.gkTutup !== '1';
+    togol.disabled = true;
+    try {
+      await agDb.collection('anugerah_guruKelas').doc(togol.dataset.gkTogol).update({ tutup });
+      agToast(tutup ? 'Senarai ditutup' : 'Senarai dibuka', 'ok');
+    } catch (err) { agToast('Gagal: ' + err.message, 'ralat'); }
+    lukisGuruKelas();
+    return;
+  }
   const b = e.target.closest('button[data-gk-padam]');
   if (!b) return;
   if (!confirm('Padam pendaftaran ' + b.dataset.gkLabel + '?\n\n' +
