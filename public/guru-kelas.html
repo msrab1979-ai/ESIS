@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guru Kelas — Anugerah</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="anugerah-kongsi.css">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+.login-kotak{max-width:430px; margin:46px auto}
+.tab-masuk{display:flex; gap:8px; margin-bottom:15px}
+.tab-masuk .btn{flex:1}
+.medan + .medan{margin-top:11px}
+.gk-jadual td{vertical-align:top}
+.gk-jadual .no-gil{font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap}
+.gk-jadual .sub-nama{font-size:11.5px; color:var(--neutral)}
+.gk-jadual tr.anu-baris td{border-top:none}
+.cetak-sahaja{display:none}
+@media print{
+  header.tajuk, .tiada-cetak{display:none !important}
+  .cetak-sahaja{display:block}
+  body{background:#fff}
+  .kad{box-shadow:none; border:none}
+  .gk-jadual tr{break-inside:avoid}
+  @page{size:A4; margin:12mm}
+}
+</style>
+</head>
+<body>
+
+<header class="tajuk tanpa-tab">
+  <div class="tajuk-dlm">
+    <div class="jenama">
+      <h1 id="tajuk">Guru Kelas</h1>
+      <span class="cap">Lihat sahaja</span>
+    </div>
+    <p class="sari" id="sari">Memuatkan…</p>
+  </div>
+</header>
+
+<main class="badan">
+
+  <!-- ============ RALAT ============ -->
+  <div id="p-ralat" hidden>
+    <div class="kad login-kotak">
+      <div class="kad-kepala"><h3>Link tidak sah</h3></div>
+      <div class="kad-isi">
+        <div class="nota ralat" style="margin:0">
+          <span class="sym">✕</span>
+          <div id="ralat-teks">Kod dalam link ini tidak dikenali.</div>
+        </div>
+        <p class="kecil" style="margin:13px 0 0">
+          Minta link baharu daripada admin majlis.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MASUK / DAFTAR ============ -->
+  <div id="p-login" hidden>
+    <div class="kad login-kotak">
+      <div class="kad-isi">
+        <div class="tab-masuk">
+          <button class="btn emas" id="t-masuk">Masuk</button>
+          <button class="btn sunyi" id="t-daftar">Daftar baharu</button>
+        </div>
+
+        <div class="medan" style="width:100%">
+          <label for="f-nama">Nama</label>
+          <input type="text" id="f-nama" autocomplete="name" placeholder="cth: Siti Aminah">
+        </div>
+        <div class="medan" style="width:100%">
+          <label for="f-pw">Kata laluan</label>
+          <div class="pw-baris">
+            <input type="password" id="f-pw" autocomplete="current-password">
+            <button type="button" class="b-mata" id="b-mata"
+              aria-label="Tunjuk kata laluan" title="Tunjuk kata laluan">👁</button>
+          </div>
+        </div>
+        <div class="medan" style="width:100%" id="m-kelas" hidden>
+          <label for="f-kelas">Kelas</label>
+          <select id="f-kelas"></select>
+        </div>
+
+        <div class="nota ralat" id="login-ralat" style="margin:11px 0 0" hidden>
+          <span class="sym">✕</span><div></div>
+        </div>
+        <div class="baris-input" style="margin-top:15px">
+          <button class="btn emas" id="b-hantar">Masuk</button>
+        </div>
+        <p class="kecil" id="login-nota" style="margin:13px 0 0">
+          Kali pertama? Tekan <strong>Daftar baharu</strong> dan pilih kelas anda.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PAPARAN ============ -->
+  <div id="p-isi" hidden>
+    <div class="cetak-sahaja" id="cetak-kepala"></div>
+
+    <div class="nota tiada-cetak">
+      <span class="sym">👁</span>
+      <div><strong>Lihat sahaja.</strong> Senarai ini menunjukkan murid kelas anda yang
+      menerima anugerah. Hubungi admin majlis jika ada yang tidak betul.</div>
+    </div>
+
+    <div class="kpi-grid tiada-cetak" id="kpi"></div>
+
+    <div class="kad">
+      <div class="kad-kepala">
+        <h3 id="kad-tajuk">Murid Penerima Anugerah</h3>
+        <span class="sub" id="kad-sari"></span>
+        <div class="kanan tiada-cetak">
+          <button class="btn sunyi kecil" id="b-segar">🔄 Muat Semula</button>
+          <button class="btn emas kecil" id="b-cetak">🖨 Cetak / PDF</button>
+          <button class="btn sunyi kecil" id="b-keluar">Keluar</button>
+        </div>
+      </div>
+      <div class="kad-isi rapat" id="senarai"></div>
+    </div>
+  </div>
+</main>
+
+<script src="anugerah-kongsi.js"></script>
+<script>
+/* ==========================================================================
+   GURU KELAS — lihat murid kelas sendiri yang menerima anugerah
+   --------------------------------------------------------------------------
+   🔴 BACA SAHAJA. Satu-satunya tulisan ialah pendaftaran guru sendiri
+      (koleksi `anugerah_guruKelas`). Penerima tidak pernah ditulis.
+
+   🔴 Satu kelas satu guru. Doc id = majlis + darjah + kelas, dicipta
+      dalam TRANSAKSI — dua guru mendaftar serentak tidak boleh kedua-duanya
+      menang. Ditolak dengan nama tuannya dipapar.
+
+   🔴 Pendaftaran disimpan dalam koleksi SENDIRI, bukan dalam dokumen
+      majlis: simpanMajlis() admin menulis semula MAJLIS dari memori, dan
+      akan memadam pendaftaran yang dibuat selepas admin membuka panel.
+
+   🔴 Anugerah 🤫 rahsia disorok — peraturan sama dengan tiket murid.
+   ========================================================================== */
+const $ = id => document.getElementById(id);
+const GK_KOL = 'anugerah_guruKelas';
+let MAJLIS = null, DAFTAR = null, MOD = 'masuk';
+
+const GK_GELARAN = /^(cikgu|cg|pn|puan|en|encik|tn|tuan|ustaz|ustazah|dr|hj|hjh|haji|hajjah)\.?\s+/;
+function gkIdNama(s) {
+  let t = String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  let dulu;
+  do { dulu = t; t = t.replace(GK_GELARAN, ''); } while (t !== dulu);
+  return t.replace(/[^a-z0-9 ]/g, '').trim().replace(/\s+/g, '-');
+}
+function gkDocId(majlisId, tahun, kelas) {
+  return (majlisId + '__' + tahun + '__' + kelas).replace(/\//g, '_');
+}
+function gkSesi() { return 'gk_' + (MAJLIS && MAJLIS.id); }
+
+function papar(id) {
+  ['p-ralat', 'p-login', 'p-isi'].forEach(x => { $(x).hidden = x !== id; });
+}
+function ralatLogin(msg) {
+  $('login-ralat').hidden = !msg;
+  $('login-ralat').querySelector('div').textContent = msg || '';
+}
+
+/* ---------- mula ---------- */
+async function mula() {
+  pasangMata('b-mata', 'f-pw');
+  try {
+    const r = await agBukaDenganKod('guruKelas');
+    if (!r) { $('sari').textContent = ''; papar('p-ralat'); return; }
+    MAJLIS = r.majlis;
+  } catch (e) {
+    $('ralat-teks').textContent = 'Gagal memuatkan: ' + e.message;
+    papar('p-ralat'); return;
+  }
+  $('sari').textContent = [MAJLIS.sekolah, MAJLIS.nama].filter(Boolean).join(' · ');
+
+  /* sesi sedia ada — disemak semula terhadap Firestore */
+  try {
+    const s = JSON.parse(sessionStorage.getItem(gkSesi()) || 'null');
+    if (s && s.id) {
+      const d = await agDb.collection(GK_KOL).doc(s.id).get();
+      if (d.exists && d.data().pw === s.pw) {
+        DAFTAR = { id: d.id, ...d.data() };
+        return bukaPaparan();
+      }
+      sessionStorage.removeItem(gkSesi());
+    }
+  } catch (e) { /* jatuh ke login */ }
+
+  await isiKelas();
+  tukarMod('masuk');
+  papar('p-login');
+}
+
+async function isiKelas() {
+  const peta = await agKelasIkutDarjah();
+  let html = '<option value="">— pilih kelas —</option>';
+  for (let d = 1; d <= 6; d++) {
+    const w = agDarjahWord(d);
+    (peta[w] || []).forEach(k => {
+      html += '<option value="' + agEsc(w + '|' + k) + '">' + agEsc(agDarjahKelas(w, k)) + '</option>';
+    });
+  }
+  $('f-kelas').innerHTML = html;
+}
+
+function tukarMod(m) {
+  MOD = m;
+  const daftar = m === 'daftar';
+  $('t-masuk').className = 'btn ' + (daftar ? 'sunyi' : 'emas');
+  $('t-daftar').className = 'btn ' + (daftar ? 'emas' : 'sunyi');
+  $('m-kelas').hidden = !daftar;
+  $('b-hantar').textContent = daftar ? 'Daftar' : 'Masuk';
+  $('f-pw').autocomplete = daftar ? 'new-password' : 'current-password';
+  $('login-nota').innerHTML = daftar
+    ? 'Satu kelas hanya untuk <strong>seorang</strong> guru. Ingat kata laluan anda — ia diperlukan setiap kali masuk.'
+    : 'Kali pertama? Tekan <strong>Daftar baharu</strong> dan pilih kelas anda.';
+  ralatLogin('');
+}
+
+$('t-masuk').addEventListener('click', () => tukarMod('masuk'));
+$('t-daftar').addEventListener('click', () => tukarMod('daftar'));
+$('f-pw').addEventListener('keydown', e => { if (e.key === 'Enter') $('b-hantar').click(); });
+
+$('b-hantar').addEventListener('click', async () => {
+  const nama = $('f-nama').value.trim().replace(/\s+/g, ' ');
+  const pw = $('f-pw').value;
+  const idNama = gkIdNama(nama);
+  ralatLogin('');
+  if (!idNama) return ralatLogin('Sila isi nama.');
+  if (!pw) return ralatLogin('Sila isi kata laluan.');
+
+  const b = $('b-hantar');
+  b.disabled = true;
+  try {
+    const snap = await agDb.collection(GK_KOL).where('majlisId', '==', MAJLIS.id).get();
+    const milikNama = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(x => x.idNama === idNama);
+
+    if (MOD === 'masuk') {
+      const jumpa = milikNama.find(x => x.pw === pw);
+      if (!jumpa) {
+        return ralatLogin(milikNama.length
+          ? 'Kata laluan salah.'
+          : 'Nama ini belum didaftarkan. Tekan "Daftar baharu".');
+      }
+      DAFTAR = jumpa;
+    } else {
+      const pilih = $('f-kelas').value;
+      if (!pilih) return ralatLogin('Sila pilih kelas.');
+      if (pw.length < 4) return ralatLogin('Kata laluan sekurang-kurangnya 4 aksara.');
+      if (milikNama.length) {
+        return ralatLogin('Nama ini sudah mendaftar kelas ' +
+          agDarjahKelas(milikNama[0].tahun, milikNama[0].kelas) + '. Tekan "Masuk".');
+      }
+      const i = pilih.indexOf('|');
+      const tahun = pilih.slice(0, i), kelas = pilih.slice(i + 1);
+      const ref = agDb.collection(GK_KOL).doc(gkDocId(MAJLIS.id, tahun, kelas));
+      const data = {
+        majlisId: MAJLIS.id, tahun, kelas, nama, idNama, pw,
+        daftar: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      const tuan = await agDb.runTransaction(async t => {
+        const d = await t.get(ref);
+        if (d.exists) return d.data().nama || 'guru lain';
+        t.set(ref, data);
+        return null;
+      });
+      if (tuan) {
+        return ralatLogin(agDarjahKelas(tahun, kelas) + ' sudah didaftarkan oleh ' +
+          tuan + '. Hubungi admin jika ini salah.');
+      }
+      DAFTAR = { id: ref.id, ...data };
+      agToast('Pendaftaran berjaya', 'ok');
+    }
+    sessionStorage.setItem(gkSesi(), JSON.stringify({ id: DAFTAR.id, pw: DAFTAR.pw }));
+    bukaPaparan();
+  } catch (e) {
+    ralatLogin('Gagal: ' + e.message);
+  } finally {
+    b.disabled = false;
+  }
+});
+
+/* ---------- paparan ---------- */
+function bukaPaparan() {
+  const kelasPenuh = agDarjahKelas(DAFTAR.tahun, DAFTAR.kelas);
+  $('tajuk').textContent = kelasPenuh;
+  $('kad-tajuk').textContent = kelasPenuh + ' — Murid Penerima Anugerah';
+  papar('p-isi');
+  muatSenarai();
+}
+
+/* Baris paparan: satu murid, senarai anugerah + nombor giliran setiap satu.
+   Rahsia disorok; murid yang semua anugerahnya rahsia tidak dipapar. */
+function binaBaris(penerima) {
+  const rahsia = agSubRahsia(MAJLIS);
+  const petaAn = {}, petaSub = {};
+  (MAJLIS.anugerah || []).forEach(a => {
+    petaAn[a.id] = a;
+    (a.sub || []).forEach(s => { petaSub[s.id] = { a, s }; });
+  });
+  return penerima
+    .filter(p => !agAdalahLuar(p) && p.tahun === DAFTAR.tahun && p.kelas === DAFTAR.kelas)
+    .map(p => {
+      const anu = (p.anugerah || [])
+        .filter(x => !rahsia.has(x.subId))
+        .map(x => {
+          const ps = petaSub[x.subId];
+          const a = ps ? ps.a : petaAn[x.anugerahId];
+          const s = ps ? ps.s : null;
+          const namaAn = (a && a.nama) || x.anugerah || '';
+          let namaSub = (s && s.nama) || x.sub || '';
+          const nA = String(namaAn).toUpperCase().replace(/^ANUGERAH\s+/, '');
+          if (namaSub.toUpperCase() === String(namaAn).toUpperCase() ||
+              namaSub.toUpperCase() === nA) namaSub = '';
+          const g = (p.giliran || []).find(y => y.subId === x.subId);
+          const pentas = a ? agNaikPentas(a, s) : true;
+          return {
+            an: namaAn, sub: namaSub,
+            no: g && g.no != null ? g.no : null,
+            pentas
+          };
+        });
+      return { p, anu };
+    })
+    .filter(r => r.anu.length)
+    .sort((x, y) => String(x.p.nama).localeCompare(String(y.p.nama), 'ms'));
+}
+
+function teksGiliran(x) {
+  if (!x.pentas) return '<span class="kecil">Tidak naik pentas</span>';
+  return x.no != null ? String(x.no) : '<span class="kecil">Belum</span>';
+}
+
+async function muatSenarai() {
+  $('senarai').innerHTML = '<p class="kecil" style="padding:16px">Memuatkan…</p>';
+  try {
+    const baris = binaBaris(await agMuatPenerima(MAJLIS.id));
+    const bilAnu = baris.reduce((n, r) => n + r.anu.length, 0);
+    $('kad-sari').textContent = baris.length + ' murid · ' + bilAnu + ' anugerah';
+    $('kpi').innerHTML =
+      '<div class="kpi"><div class="angka">' + baris.length + '</div><div class="label">Murid menerima</div></div>' +
+      '<div class="kpi"><div class="angka">' + bilAnu + '</div><div class="label">Anugerah</div></div>';
+    $('cetak-kepala').innerHTML =
+      '<p style="margin:0;font-weight:700">' + agEsc(MAJLIS.sekolah || '') + '</p>' +
+      '<p style="margin:2px 0 0">' + agEsc(MAJLIS.nama || '') + '</p>' +
+      '<p style="margin:2px 0 10px" class="kecil">Guru kelas: ' + agEsc(DAFTAR.nama) +
+        ' · Dicetak ' + agEsc(new Date().toLocaleString('ms-MY')) + '</p>';
+
+    if (!baris.length) {
+      $('senarai').innerHTML = '<p class="kecil" style="padding:16px">Tiada murid kelas ini menerima anugerah setakat ini.</p>';
+      return;
+    }
+    let html = '<div class="gulung"><table class="gk-jadual"><thead><tr>' +
+      '<th style="width:40px">No</th><th>Nama Murid</th><th>Anugerah</th><th style="width:80px">Giliran</th>' +
+      '</tr></thead><tbody>';
+    baris.forEach((r, i) => {
+      const n = r.anu.length;
+      r.anu.forEach((x, k) => {
+        html += '<tr' + (k ? ' class="anu-baris"' : '') + '>' +
+          (k ? '' : '<td rowspan="' + n + '">' + (i + 1) + '</td>' +
+                    '<td rowspan="' + n + '"><strong>' + agEsc(r.p.nama) + '</strong></td>') +
+          '<td>' + agEsc(x.an) + (x.sub ? '<div class="sub-nama">' + agEsc(x.sub) + '</div>' : '') + '</td>' +
+          '<td class="no-gil">' + teksGiliran(x) + '</td></tr>';
+      });
+    });
+    $('senarai').innerHTML = html + '</tbody></table></div>';
+  } catch (e) {
+    $('senarai').innerHTML = '<div class="nota ralat" style="margin:16px"><span class="sym">✕</span><div>Gagal memuatkan: ' +
+      agEsc(e.message) + '</div></div>';
+  }
+}
+
+$('b-segar').addEventListener('click', muatSenarai);
+$('b-cetak').addEventListener('click', () => window.print());
+$('b-keluar').addEventListener('click', () => {
+  sessionStorage.removeItem(gkSesi());
+  location.reload();
+});
+
+mula();
+</script>
+</body>
+</html>

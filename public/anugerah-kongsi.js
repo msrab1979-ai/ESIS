@@ -580,7 +580,8 @@ const AG_PERANAN_MEDAN = {
   peserta: 'kodPeserta',
   mc: 'kodMC',
   hadiah: 'kodHadiah',
-  tayang: 'kodTayang'
+  tayang: 'kodTayang',
+  guruKelas: 'kodGuruKelas'
 };
 
 function agKodDariURL() {

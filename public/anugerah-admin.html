@@ -1029,6 +1029,7 @@ tr.pg-gab td{background:var(--amaran-bg)}
       <div class="kad-kepala"><span class="langkah-no">6</span><h3>Link Petugas Majlis</h3></div>
       <div class="kad-isi">
         <div class="link-grid" id="link-grid"></div>
+        <div id="gk-daftar"></div>
         <hr style="border:none;border-top:1px solid var(--garis-halus);margin:19px 0">
         <p class="eyebrow">Borang serahan guru — anugerah yang diuruskan oleh orang lain</p>
         <div id="borang-grid"></div>
@@ -6644,11 +6645,14 @@ function lukisPetugas() {
     { k: 'kodHadiah', fail: 'hadiah.html', ikon: '🎁', nama: 'Pengurus Hadiah',
       tulis: 'Menulis: <strong>tiada</strong> · Melihat: kedua-duanya' },
     { k: 'kodTayang', fail: 'tayang.html', ikon: '📺', nama: 'Slaid Dewan',
-      tulis: 'Menulis: tiada · Paparan projektor sahaja' }
+      tulis: 'Menulis: tiada · Paparan projektor sahaja' },
+    { k: 'kodGuruKelas', fail: 'guru-kelas.html', ikon: '🏫', nama: 'Guru Kelas',
+      tulis: 'Lihat sahaja · Guru daftar sendiri, satu kelas satu guru · Nampak murid kelasnya sahaja' }
   ];
 
   lukisBorangGuru();
   lukisResetStatus();
+  lukisGuruKelas();
 
   $('link-grid').innerHTML = peranan.map(r => {
     const kod = mod[r.k];
@@ -6668,6 +6672,47 @@ function lukisPetugas() {
     '</div>';
   }).join('');
 }
+
+/* ---------- 🏫 Guru Kelas berdaftar ----------
+   Pendaftaran dalam koleksi sendiri (`anugerah_guruKelas`), satu doc per
+   kelas. Admin hanya boleh MEMADAM — untuk guru salah kelas atau lupa
+   kata laluan; tanpanya kelas itu terkunci kekal. */
+async function lukisGuruKelas() {
+  const el = $('gk-daftar');
+  if (!el || !MAJLIS) return;
+  try {
+    const snap = await agDb.collection('anugerah_guruKelas')
+      .where('majlisId', '==', MAJLIS.id).get();
+    const senarai = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((x, y) => agWordDarjah(x.tahun) - agWordDarjah(y.tahun) ||
+        String(x.kelas).localeCompare(String(y.kelas)));
+    el.innerHTML = '<p class="eyebrow" style="margin-top:15px">🏫 Guru kelas berdaftar (' +
+      senarai.length + ')</p>' +
+      (senarai.length
+        ? '<div class="gulung"><table><thead><tr><th>Kelas</th><th>Guru</th><th></th></tr></thead><tbody>' +
+          senarai.map(g => '<tr><td>' + agEsc(agDarjahKelas(g.tahun, g.kelas)) + '</td>' +
+            '<td>' + agEsc(g.nama) + '</td>' +
+            '<td style="text-align:right"><button class="btn sunyi kecil" data-gk-padam="' +
+              agEsc(g.id) + '" data-gk-label="' + agEsc(agDarjahKelas(g.tahun, g.kelas) + ' — ' + g.nama) +
+              '">Padam</button></td></tr>').join('') +
+          '</tbody></table></div>'
+        : '<p class="kecil">Belum ada guru kelas mendaftar.</p>');
+  } catch (err) {
+    el.innerHTML = '<p class="kecil">Gagal memuatkan guru kelas: ' + agEsc(err.message) + '</p>';
+  }
+}
+
+$('gk-daftar').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-gk-padam]');
+  if (!b) return;
+  if (!confirm('Padam pendaftaran ' + b.dataset.gkLabel + '?\n\n' +
+    'Guru ini tidak boleh masuk lagi, dan kelas itu boleh didaftarkan semula.')) return;
+  try {
+    await agDb.collection('anugerah_guruKelas').doc(b.dataset.gkPadam).delete();
+    agToast('Pendaftaran dipadam', 'ok');
+    lukisGuruKelas();
+  } catch (err) { agToast('Gagal: ' + err.message, 'ralat'); }
+});
 
 $('link-grid').addEventListener('click', async e => {
   /* 🖨 Senarai Hadiah — ikut nombor giliran DISIMPAN, penerima dibaca
