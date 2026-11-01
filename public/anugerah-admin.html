@@ -345,7 +345,15 @@ tr.pg-gab td{background:var(--amaran-bg)}
   /* Hanya kad yang sedang dicetak kekal: Giliran mencetak #kad-cetak,
      Kad Jemputan mencetak #kad-cetak-kj. Panel yang tersembunyi tidak
      mencetak apa-apa, jadi memadai menapis pada aras kad. */
-  .badan > .kad:not(#kad-cetak):not(#kad-cetak-kj){display:none!important}
+  /* 🔴 Kad berada di dalam `section.panel`, BUKAN anak terus `.badan` —
+     pemilih lama `.badan > .kad` tidak memadan apa-apa, jadi Gaya Giliran,
+     Susunan Naik Pentas & KPI turut dicetak bersama tiket (1 Nov 2026).
+     Kini: hanya #kad-cetak / #kad-cetak-kj, tiada apa-apa di luar <main>. */
+  body > :not(main){display:none!important}
+  .badan > :not(.panel),
+  .panel > :not(#kad-cetak):not(#kad-cetak-kj),
+  #tiket-amaran{display:none!important}
+  .badan,.panel{padding:0!important; margin:0!important; max-width:none!important}
   #kad-cetak-kj,#kad-cetak-kj .kad-isi{border:none!important; box-shadow:none!important;
     padding:0!important; margin:0!important}
   #kad-cetak,#kad-cetak .kad-isi{border:none!important; box-shadow:none!important; padding:0!important; margin:0!important}
