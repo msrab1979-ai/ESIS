@@ -146,27 +146,30 @@
   background:var(--kertas-2); padding:12px 14px;
   display:flex; flex-direction:column; text-align:center;
 }
-.tiket .sekolah{font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--emas); font-weight:700}
-.tiket .majlis{font-family:"Fraunces",serif; font-size:13.5px; font-weight:600; margin:3px 0 0; line-height:1.25}
-.tiket .pemisah{border:0; border-top:1px solid var(--garis); width:100%; margin:9px 0 8px}
-.tiket .nama{font-family:"Fraunces",serif; font-weight:700; font-size:15px; line-height:1.2; overflow-wrap:break-word}
-.tiket .kelas{font-size:12px; color:var(--neutral); margin-top:2px; letter-spacing:.06em}
+/* 🔴 Pencetak sekolah kualiti rendah — SEMUA teks tiket hitam #000, tiada
+   kelabu/emas pada teks (pengguna, 1 Nov 2026). */
+.tiket{color:#000}
+.tiket .sekolah{font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; color:#000; font-weight:700}
+.tiket .majlis{font-family:"Fraunces",serif; font-size:13.5px; font-weight:700; color:#000; margin:3px 0 0; line-height:1.25}
+.tiket .pemisah{border:0; border-top:1px solid #000; width:100%; margin:9px 0 8px}
+.tiket .nama{font-family:"Fraunces",serif; font-weight:700; color:#000; font-size:15px; line-height:1.2; overflow-wrap:break-word}
+.tiket .kelas{font-size:12px; color:#000; font-weight:700; margin-top:2px; letter-spacing:.06em}
 
 /* Jadual anugerah \u00d7 giliran. `margin-top:auto` melekatkannya ke bawah
    supaya kedudukannya sama pada setiap tiket walaupun panjang nama
    berbeza \u2014 penting apabila dipotong sekeping demi sekeping. */
 .tiket .gil-jadual{margin-top:auto; width:100%; border-collapse:collapse; text-align:left}
 .tiket .gil-jadual th{
-  font-size:8.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--neutral);
-  font-weight:700; padding:0 0 4px; border-bottom:1px solid var(--garis)}
+  font-size:8.5px; letter-spacing:.12em; text-transform:uppercase; color:#000;
+  font-weight:700; padding:0 0 4px; border-bottom:1px solid #000}
 .tiket .gil-jadual th.no,.tiket .gil-jadual td.no{text-align:right; width:16mm}
-.tiket .gil-jadual td{padding:4px 0; border-bottom:1px dotted var(--garis); vertical-align:middle}
+.tiket .gil-jadual td{padding:4px 0; border-bottom:1px dotted #000; vertical-align:middle}
 .tiket .gil-jadual tr:last-child td{border-bottom:0}
-.tiket .gil-jadual td.an{font-family:"Fraunces",serif; font-weight:600; font-size:11.5px;
+.tiket .gil-jadual td.an{font-family:"Fraunces",serif; font-weight:700; color:#000; font-size:11.5px;
   line-height:1.2; padding-right:4mm; overflow-wrap:break-word}
 .tiket .gil-jadual td.no{font-family:"Fraunces",serif; font-weight:700; font-size:20px;
-  color:var(--emas); line-height:1; font-variant-numeric:tabular-nums;
-  border-left:1px solid var(--garis); padding-left:4mm}
+  color:#000; line-height:1; font-variant-numeric:tabular-nums;
+  border-left:1px solid #000; padding-left:4mm}
 
 /* ---------- kad jemputan ---------- */
 /* Gaya A2 "Klasik Emas" landskap (1 Nov 2026, dipilih pengguna):
@@ -354,7 +357,7 @@ tr.pg-gab td{background:var(--amaran-bg)}
      baharu — gejalanya 2 tiket sehelai, bukan 4.
      Nilai lama 74mm memberi 6 sehelai sedangkan UI menjanjikan 4. */
   .tiket{
-    border:1px dashed #8A6A1F!important; border-radius:0!important;
+    border:1px dashed #000!important; border-radius:0!important;
     height:136mm; page-break-inside:avoid; background:transparent!important;
     padding:10mm 9mm!important;
   }
@@ -378,8 +381,7 @@ tr.pg-gab td{background:var(--amaran-bg)}
   .tiket.padat .gil-jadual td{padding:3.5px 0!important}
   .tiket.padat .gil-jadual td.an{font-size:12.5px!important}
   .tiket.padat .gil-jadual td.no{font-size:22px!important}
-  .tiket .nama,.tiket .majlis{color:#16233A!important}
-  .tiket .gil-jadual td.no,.tiket .sekolah{color:#8A6A1F!important}
+  .tiket,.tiket *{color:#000!important}
   /* Kad jemputan: 4 sehelai A4 LANDSKAP (2 x 2, 139 x 94mm).
      Halaman bernama `kjland` supaya tiket kekal A4 potret.
      281mm lebar = 2 x 139 + 3mm; 194mm tinggi = 2 x 94 + 6mm lega.
