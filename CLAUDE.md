@@ -608,7 +608,7 @@ Disahkan 21 Okt 2026: oracle 22 kes terhadap `examTypes` sebenar sekolah — dar
 
 Tiket kini **satu lajur rata tengah**: sekolah → majlis → nama murid (serif, terbesar) → kelas → jadual anugerah. Nama sekolah dan majlis dibaca daripada `MAJLIS.sekolah` / `MAJLIS.nama` — tiada medan baharu untuk admin isi.
 
-**4+ anugerah mendapat kelas `.padat`** yang mengecilkan taip. Sebab sama dengan `kjSemakMuat` di bawah: tinggi tiket TETAP dengan `overflow:visible`, jadi isi berlebihan tidak menatal — ia terkeluar senyap dan dipotong oleh pemotong kertas. Disahkan muat sehingga **5** anugerah; kalau sekolah ada murid yang melebihi itu, turunkan ambang atau tambah aras kedua.
+**Auto-muat (1 Nov 2026):** tiket pada skrin kini **saiz cetak sebenar** (97×136mm, taip cetak), dan `tiketMuatkan()` mengukur setiap tiket (`scrollHeight > clientHeight`) lalu mengecilkan `--sk` (skala taip, 1 → 0.5, langkah 0.05) sehingga muat. Menggantikan kelas `.padat` lama (ambang 4 anugerah, hanya "disahkan muat sehingga 5"). Dipanggil selepas `lukisTiket`, semasa tab Giliran dibuka (panel tersembunyi tiada ukuran), selepas `document.fonts.ready`, dan pada `beforeprint`. `#t-kira` melapor "N tiket dikecilkan" dan amaran merah jika masih tidak muat pada 0.5. Semua teks tiket hitam #000 (pencetak kualiti rendah).
 
 **136mm ialah nilai yang diukur, bukan dipilih.** A4 = 297mm tolak margin 8mm atas+bawah = 281mm ruang; 2 baris × 136 = 272mm, lega 9mm. **Jangan naikkan ke 140mm**: 2 × 140 = 280mm meninggalkan 1mm, dan pembundaran pemandu pencetak menolak baris kedua ke halaman baharu — gejalanya **2 sehelai, bukan 4**. Nilai asal 74mm memberi 6 sehelai sedangkan UI menjanjikan 4.
 

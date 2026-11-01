@@ -140,36 +140,44 @@
    memisahkan nombor daripada anugerahnya, jadi murid dengan tiga
    anugerah memegang tiga nombor tanpa tahu yang mana untuk yang mana.
    Kini setiap nombor duduk SEBARIS dengan anugerahnya sendiri. */
-.tiket-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(248px,1fr)); gap:14px}
+/* 🔴 Tiket pada skrin = SAIZ CETAK SEBENAR (97 x 136mm, saiz taip cetak),
+   supaya muat-tidaknya boleh DIUKUR (1 Nov 2026). `--sk` (1 → 0.5) ialah
+   skala taip yang tiketMuatkan() kecilkan sehingga isi muat dalam tiket;
+   tiket yang muat kekal 1. Ganti kelas `.padat` lama (ambang 4 anugerah,
+   "disahkan muat sehingga 5" — tiada apa menjaga 6+). */
+.tiket-grid{display:grid; grid-template-columns:repeat(auto-fill,97mm); gap:14px}
 .tiket{
+  --sk:1; width:97mm; height:136mm; box-sizing:border-box;
   border:1px solid var(--emas); border-radius:4px; overflow:hidden;
-  background:var(--kertas-2); padding:12px 14px;
+  background:var(--kertas-2); padding:10mm 9mm;
   display:flex; flex-direction:column; text-align:center;
 }
 /* 🔴 Pencetak sekolah kualiti rendah — SEMUA teks tiket hitam #000, tiada
    kelabu/emas pada teks (pengguna, 1 Nov 2026). */
 .tiket{color:#000}
-.tiket .sekolah{font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; color:#000; font-weight:700}
-.tiket .majlis{font-family:"Fraunces",serif; font-size:13.5px; font-weight:700; color:#000; margin:3px 0 0; line-height:1.25}
-.tiket .pemisah{border:0; border-top:1px solid #000; width:100%; margin:9px 0 8px}
-.tiket .nama{font-family:"Fraunces",serif; font-weight:700; color:#000; font-size:15px; line-height:1.2; overflow-wrap:break-word}
-.tiket .kelas{font-size:12px; color:#000; font-weight:700; margin-top:2px; letter-spacing:.06em}
+.tiket .sekolah{font-size:calc(11px * var(--sk)); letter-spacing:.15em; text-transform:uppercase; color:#000; font-weight:700}
+.tiket .majlis{font-family:"Fraunces",serif; font-size:calc(16px * var(--sk)); font-weight:700; color:#000; margin:5px 0 0; line-height:1.25}
+.tiket .pemisah{border:0; border-top:1px solid #000; width:100%; margin:calc(9mm * var(--sk)) 0 calc(7mm * var(--sk))}
+/* Nama murid ialah sebab tiket ini wujud — saiz terbesar. */
+.tiket .nama{font-family:"Fraunces",serif; font-weight:700; color:#000; font-size:calc(23px * var(--sk)); line-height:1.2;
+  word-break:normal; overflow-wrap:break-word}
+.tiket .kelas{font-size:calc(15px * var(--sk)); color:#000; font-weight:700; margin-top:4px; letter-spacing:.06em}
 
 /* Jadual anugerah \u00d7 giliran. `margin-top:auto` melekatkannya ke bawah
    supaya kedudukannya sama pada setiap tiket walaupun panjang nama
    berbeza \u2014 penting apabila dipotong sekeping demi sekeping. */
 .tiket .gil-jadual{margin-top:auto; width:100%; border-collapse:collapse; text-align:left}
 .tiket .gil-jadual th{
-  font-size:8.5px; letter-spacing:.12em; text-transform:uppercase; color:#000;
-  font-weight:700; padding:0 0 4px; border-bottom:1px solid #000}
-.tiket .gil-jadual th.no,.tiket .gil-jadual td.no{text-align:right; width:16mm}
-.tiket .gil-jadual td{padding:4px 0; border-bottom:1px dotted #000; vertical-align:middle}
+  font-size:calc(9.5px * var(--sk)); letter-spacing:.12em; text-transform:uppercase; color:#000;
+  font-weight:700; padding:0 0 5px; border-bottom:1px solid #000}
+.tiket .gil-jadual th.no,.tiket .gil-jadual td.no{text-align:right; width:22mm}
+.tiket .gil-jadual td{padding:calc(5px * var(--sk)) 0; border-bottom:1px dotted #000; vertical-align:middle}
 .tiket .gil-jadual tr:last-child td{border-bottom:0}
-.tiket .gil-jadual td.an{font-family:"Fraunces",serif; font-weight:700; color:#000; font-size:11.5px;
-  line-height:1.2; padding-right:4mm; overflow-wrap:break-word}
-.tiket .gil-jadual td.no{font-family:"Fraunces",serif; font-weight:700; font-size:20px;
+.tiket .gil-jadual td.an{font-family:"Fraunces",serif; font-weight:700; color:#000; font-size:calc(14px * var(--sk));
+  line-height:1.2; padding-right:5mm; overflow-wrap:break-word}
+.tiket .gil-jadual td.no{font-family:"Fraunces",serif; font-weight:700; font-size:calc(30px * var(--sk));
   color:#000; line-height:1; font-variant-numeric:tabular-nums;
-  border-left:1px solid #000; padding-left:4mm}
+  border-left:1px solid #000; padding-left:5mm}
 
 /* ---------- kad jemputan ---------- */
 /* Gaya A2 "Klasik Emas" landskap (1 Nov 2026, dipilih pengguna):
@@ -357,38 +365,18 @@ tr.pg-gab td{background:var(--amaran-bg)}
   #kad-cetak-kj,#kad-cetak-kj .kad-isi{border:none!important; box-shadow:none!important;
     padding:0!important; margin:0!important}
   #kad-cetak,#kad-cetak .kad-isi{border:none!important; box-shadow:none!important; padding:0!important; margin:0!important}
-  .tiket-grid{display:grid!important; grid-template-columns:1fr 1fr!important; gap:0!important}
+  .tiket-grid{display:grid!important; grid-template-columns:97mm 97mm!important; gap:0!important; justify-content:center}
   /* 🔴 4 sehelai = 2 baris. A4 ialah 297mm tolak margin 8mm atas+bawah
      = 281mm ruang. 2 x 136mm = 272mm, lega 9mm.
      JANGAN naikkan ke 140mm: 2 x 140 = 280mm meninggalkan 1mm sahaja,
      dan pembundaran pemandu pencetak menolak baris kedua ke halaman
      baharu — gejalanya 2 tiket sehelai, bukan 4.
-     Nilai lama 74mm memberi 6 sehelai sedangkan UI menjanjikan 4. */
+     Saiz & taip sama dengan skrin (lihat .tiket di atas) — `--sk` yang
+     diukur pada skrin terpakai terus pada cetakan. */
   .tiket{
     border:1px dashed #000!important; border-radius:0!important;
-    height:136mm; page-break-inside:avoid; background:transparent!important;
-    padding:10mm 9mm!important;
+    page-break-inside:avoid; break-inside:avoid; background:transparent!important;
   }
-  .tiket .sekolah{font-size:11px!important; letter-spacing:.15em!important}
-  .tiket .majlis{font-size:16px!important; margin:5px 0 0!important}
-  .tiket .pemisah{margin:9mm 0 7mm!important}
-  /* \U0001f534 Nama murid ialah sebab tiket ini wujud \u2014 saiz terbesar. */
-  .tiket .nama{font-size:23px!important; line-height:1.2!important;
-    word-break:normal!important; overflow-wrap:break-word!important}
-  .tiket .kelas{font-size:15px!important; margin-top:4px!important}
-  .tiket .gil-jadual th{font-size:9.5px!important; padding-bottom:5px!important}
-  .tiket .gil-jadual td{padding:5px 0!important}
-  .tiket .gil-jadual td.an{font-size:14px!important; padding-right:5mm!important}
-  .tiket .gil-jadual td.no{font-size:30px!important; padding-left:5mm!important}
-  .tiket .gil-jadual th.no,.tiket .gil-jadual td.no{width:22mm!important}
-  /* \U0001f534 Tinggi TETAP dengan overflow:visible \u2014 isi yang terlalu
-     panjang TIDAK menatal, ia terkeluar senyap dan dipotong oleh
-     pemotong kertas. Murid dengan 4+ anugerah: taip mengecil supaya
-     senarai tetap muat dalam 136mm. Disahkan muat sehingga 5 anugerah. */
-  .tiket.padat .nama{font-size:20px!important}
-  .tiket.padat .gil-jadual td{padding:3.5px 0!important}
-  .tiket.padat .gil-jadual td.an{font-size:12.5px!important}
-  .tiket.padat .gil-jadual td.no{font-size:22px!important}
   .tiket,.tiket *{color:#000!important}
   /* Kad jemputan: 4 sehelai A4 LANDSKAP (2 x 2, 139 x 94mm).
      Halaman bernama `kjland` supaya tiket kekal A4 potret.
@@ -1207,7 +1195,7 @@ function tukarTab(nama) {
   if (nama === 'tetapan') initTetapan();
   if (nama === 'jenis') lukisPokok();
   if (nama === 'semak') initSemak();
-  if (nama === 'giliran') lukisGiliran();
+  if (nama === 'giliran') { lukisGiliran(); tiketMuatkan(); }
   if (nama === 'kad') initKad();
   if (nama === 'sijil') sjInit();
   if (nama === 'petugas') lukisPetugas();
@@ -6151,10 +6139,10 @@ function lukisTiket() {
      jadual dua lajur. Versi lama mengumpulkan semua nombor dalam lajur
      kanan berasingan \u2014 murid dengan tiga anugerah mendapat tiga
      nombor bertindan tanpa tahu yang mana untuk yang mana.
-     `padat` mengecilkan taip pada 4+ anugerah: tinggi tiket TETAP
-     136mm dan isi berlebihan terkeluar senyap, bukan menatal. */
+     tiketMuatkan() mengecilkan taip tiket yang tidak muat: tinggi tiket
+     TETAP 136mm dan isi berlebihan terkeluar senyap, bukan menatal. */
   bekas.innerHTML = semua.map(({ p, gil }) =>
-    '<div class="tiket' + (gil.length >= 4 ? ' padat' : '') + '">' +
+    '<div class="tiket">' +
       '<div class="sekolah">' + agEsc(MAJLIS.sekolah || 'Sekolah') + '</div>' +
       '<div class="majlis">' + agEsc(MAJLIS.nama || '') + '</div>' +
       '<hr class="pemisah">' +
@@ -6170,7 +6158,46 @@ function lukisTiket() {
                    '<td class="no">' + g.no + '</td></tr>').join('') +
       '</tbody></table>' +
     '</div>').join('');
+  tiketMuatkan();
 }
+
+/* 🔴 Setiap tiket MESTI muat dalam 97 x 136mm — isi berlebihan tidak
+   menatal, ia terkeluar senyap dan dipotong pemotong kertas. Tiket pada
+   skrin sudah saiz cetak, jadi limpahan diukur terus: kecilkan `--sk`
+   0.05 setiap langkah (min 0.5) sehingga scrollHeight muat.
+   Panel tersembunyi tiada ukuran (0), jadi diulang semasa tab dibuka,
+   selepas font dimuat, dan sebelum cetak. */
+function tiketMuatkan() {
+  const bekas = $('tiket-grid');
+  if (!bekas || !bekas.offsetParent) return;
+  let kecil = 0, takMuat = [];
+  bekas.querySelectorAll('.tiket').forEach(t => {
+    let sk = 1;
+    t.style.setProperty('--sk', sk);
+    while (t.scrollHeight > t.clientHeight + 1 && sk > 0.5) {
+      sk = Math.round((sk - 0.05) * 100) / 100;
+      t.style.setProperty('--sk', sk);
+    }
+    if (sk < 1) kecil++;
+    if (t.scrollHeight > t.clientHeight + 1) {
+      const n = t.querySelector('.nama');
+      takMuat.push(n ? n.textContent : 'murid');
+    }
+  });
+  const nota = $('t-kira');
+  if (!nota) return;
+  nota.querySelectorAll('.tiket-muat').forEach(e => e.remove());
+  if (kecil || takMuat.length) {
+    nota.insertAdjacentHTML('beforeend', '<span class="tiket-muat">' +
+      (kecil ? ' \u00b7 <strong>' + kecil + '</strong> tiket dikecilkan tulisannya supaya muat' : '') +
+      (takMuat.length ? '<br><span style="color:#b3261e">\u26a0 <strong>' + takMuat.length +
+        '</strong> tiket masih tidak muat walaupun dikecilkan: ' +
+        takMuat.slice(0, 3).map(agEsc).join(', ') + (takMuat.length > 3 ? ', \u2026' : '') + '</span>' : '') +
+      '</span>');
+  }
+}
+window.addEventListener('beforeprint', tiketMuatkan);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => tiketMuatkan());
 
 /* Dropdown darjah/kelas tiket \u2014 hanya murid yang BERNOMBOR, kerana
    tiket hanya wujud untuk mereka. Memapar kelas tanpa tiket memberi
