@@ -1026,8 +1026,34 @@ function agGabungDahulu(majlis, turutan) {
    Susun sendiri → s.susunanMurid; ikut kedudukan → rank; lain → nama. */
 function agSusunMuridDalamSub(a, s, senarai, kedudukan) {
   if (agIkutManual(a)) return agSusunManual(senarai, s && s.susunanMurid);
+  if (agIkutKelas(a)) return agSusunIkutKelas(senarai);
   return agSusunMuridSub(senarai,
     kedudukan && agIkutKedudukan(a) ? kedudukan[s.id] : null);
+}
+
+/* IKUT KELAS — permintaan pengguna 1 Nov 2026, HANYA dua anugerah ini:
+   KEHADIRAN PENUH & SAHSIAH TERPUJI (sub Darjah 1–6). Murid naik ikut
+   susunan kelas sekolah, kemudian nama. Tiada butang/medan — dipadan
+   pada nama anugerah. Susun sendiri (`manual`) / ikut kedudukan menang. */
+const AG_SUSUN_KELAS = ['CELERON', 'RYZEN', 'INTEL', 'PENTIUM', 'HIGEN', 'PIXEL', 'BYTECH'];
+
+function agIkutKelas(a) {
+  if (!a || (a.susunMurid && a.susunMurid !== 'nama')) return false;
+  const n = String(a.nama || '').toUpperCase();
+  return n.includes('KEHADIRAN PENUH') || n.includes('SAHSIAH TERPUJI');
+}
+
+function agSusunIkutKelas(senarai) {
+  const r = p => {
+    const k = String(p.kelas || '').toUpperCase();
+    const i = AG_SUSUN_KELAS.findIndex(x => k.includes(x));
+    return i < 0 ? Infinity : i;
+  };
+  return senarai.slice().sort((x, y) => {
+    const rx = r(x), ry = r(y);
+    if (rx !== ry) return rx < ry ? -1 : 1;
+    return String(x.nama).localeCompare(String(y.nama), 'ms');
+  });
 }
 
 /* Anugerah yang susunan muridnya disusun sendiri oleh admin. Terpakai
