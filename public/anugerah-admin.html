@@ -180,34 +180,38 @@
   width:139mm; height:94mm; box-sizing:border-box; position:relative; overflow:hidden;
   background:var(--kertas-2); border:1px solid var(--garis-halus); border-radius:3px; color:var(--tinta);
 }
-.kj .bingkai{position:absolute; inset:4.5mm; border:1.6px solid #A8832E; pointer-events:none}
-.kj .bingkai::after{content:""; position:absolute; inset:1.5mm; border:.6px solid #A8832E}
-.kj .bucu{position:absolute; color:#A8832E; font-size:10px; line-height:1}
+/* 🔴 CETAKAN SEKOLAH = PENCETAK KUALITI RENDAH (pengguna, 1 Nov 2026).
+   Semua TEKS hitam pekat (#000), tiada kelabu; tiada teks nipis/italik
+   kecil; garis sekurang-kurangnya 1px. Hanya bingkai & hiasan berwarna
+   emas — gelap (#7A5A12) supaya tidak pudar jadi kuning cair. */
+.kj .bingkai{position:absolute; inset:4.5mm; border:2px solid #7A5A12; pointer-events:none}
+.kj .bingkai::after{content:""; position:absolute; inset:1.5mm; border:1px solid #7A5A12}
+.kj .bucu{position:absolute; color:#7A5A12; font-size:11px; line-height:1}
 .kj .b1{top:7.6mm; left:7.6mm} .kj .b2{top:7.6mm; right:7.6mm}
 .kj .b3{bottom:7.6mm; left:7.6mm} .kj .b4{bottom:7.6mm; right:7.6mm}
 .kj .isi{position:relative; height:100%; box-sizing:border-box;
   display:grid; grid-template-columns:50mm 1fr; grid-template-rows:minmax(0,1fr); padding:10mm 11mm 9mm}
 .kj .kiri{display:flex; flex-direction:column; justify-content:center; align-items:center;
-  text-align:center; padding-right:5mm; border-right:.6px solid #d8c79c; min-width:0}
-.kj .sek{font-size:8.5px; letter-spacing:.2em; text-transform:uppercase; color:#8A6A1F; font-weight:700; line-height:1.4}
-.kj .jemp{font-family:"Fraunces",serif; font-size:10px; letter-spacing:.38em; color:#666; margin-top:5mm}
+  text-align:center; padding-right:5mm; border-right:1px solid #7A5A12; min-width:0}
+.kj .sek{font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:#000; font-weight:700; line-height:1.35}
+.kj .jemp{font-family:"Fraunces",serif; font-size:11px; font-weight:700; letter-spacing:.3em; color:#000; margin-top:4.5mm}
 /* 🔴 BUKAN `.tajuk` — kelas itu milik kepala halaman (anugerah-kongsi.css,
    border-bottom) dan disorok `display:none` semasa cetak, jadi nama
    majlis hilang dari setiap kad yang dicetak. */
-.kj .majlis-kj{font-family:"Fraunces",serif; font-size:14px; font-weight:700; line-height:1.22; margin-top:1.5mm;
-  overflow-wrap:break-word; color:#16233A}
-.kj .orn{color:#A8832E; font-size:10px; letter-spacing:.4em; margin-top:4mm}
+.kj .majlis-kj{font-family:"Fraunces",serif; font-size:15px; font-weight:700; line-height:1.22; margin-top:1.5mm;
+  overflow-wrap:break-word; color:#000}
+.kj .orn{color:#7A5A12; font-size:11px; letter-spacing:.4em; margin-top:4mm}
 .kj .kanan{padding-left:7mm; display:flex; flex-direction:column; justify-content:center; min-width:0}
-.kj .ajak{font-family:"Fraunces",serif; font-style:italic; font-size:11px; color:#444; line-height:1.4}
-.kj .nama{font-family:"Fraunces",serif; font-size:19px; font-weight:600; line-height:1.2;
-  margin:1.5mm 0 .8mm; overflow-wrap:break-word; color:#16233A}
-.kj .nama.panjang{font-size:16px}
-.kj .kelas{font-size:10px; letter-spacing:.14em; color:#666}
-.kj .but{margin-top:4.5mm; display:grid; grid-template-columns:auto 1fr; gap:1.4mm 4mm; font-size:10.5px}
-.kj .but span{font-size:8px; letter-spacing:.14em; color:#888; padding-top:.5mm; text-transform:uppercase}
-.kj .but b{color:#16233A; font-weight:600; overflow-wrap:break-word}
-.kj .kaki{margin-top:4mm; padding-top:2mm; border-top:.6px dashed #d8c79c;
-  font-size:8.5px; font-style:italic; color:#777; line-height:1.45}
+.kj .ajak{font-size:11.5px; font-weight:600; color:#000; line-height:1.4}
+.kj .nama{font-family:"Fraunces",serif; font-size:20px; font-weight:700; line-height:1.2;
+  margin:1.5mm 0 1mm; overflow-wrap:break-word; color:#000}
+.kj .nama.panjang{font-size:16.5px}
+.kj .kelas{font-size:13px; font-weight:700; letter-spacing:.06em; color:#000}
+.kj .but{margin-top:4mm; display:grid; grid-template-columns:auto 1fr; gap:1.6mm 4mm; font-size:11.5px; color:#000}
+.kj .but span{font-size:10px; font-weight:700; letter-spacing:.08em; color:#000; padding-top:.3mm; text-transform:uppercase}
+.kj .but b{color:#000; font-weight:700; overflow-wrap:break-word}
+.kj .kaki{margin-top:3.5mm; padding-top:2mm; border-top:1px dashed #000;
+  font-size:10px; font-weight:600; color:#000; line-height:1.4}
 .kj-baris{display:flex; gap:8px; align-items:center; margin-bottom:7px}
 .kj-baris input{flex:1; min-width:0}
 .kj-baris .lbl-in{flex:0 0 150px}
@@ -383,7 +387,7 @@ tr.pg-gab td{background:var(--amaran-bg)}
      pembundaran pemandu pencetak menolak baris kedua ke halaman baharu. */
   #kad-cetak-kj{page:kjland}
   .kad-grid{grid-template-columns:139mm 139mm!important; gap:0!important; justify-content:center}
-  .kj{border:.5px dashed #b9a777!important; border-radius:0!important;
+  .kj{border:.5px dashed #000!important; border-radius:0!important;
     page-break-inside:avoid; break-inside:avoid; background:transparent!important}
   @page{size:A4; margin:8mm}
   @page kjland{size:A4 landscape; margin:8mm}
