@@ -599,7 +599,7 @@ Disahkan 21 Okt 2026: oracle 22 kes terhadap `examTypes` sebenar sekolah — dar
 | Keluaran | Tab | Susunan | Saiz |
 |---|---|---|---|
 | **Tiket giliran** | 🎟️ Giliran & Tiket | nombor giliran | 136mm, 4 sehelai A4 |
-| **Kad jemputan** | 💌 Kad Jemputan | nama murid | 136mm, 4 sehelai A4 |
+| **Kad jemputan** | 💌 Kad Jemputan | nama murid | 139×94mm, 4 sehelai A4 **landskap** |
 | **Slaid PPTX** | 🎟️ Giliran & Tiket | nombor giliran | 16:9 |
 
 **SATU TIKET SEORANG MURID**, bukan satu per anugerah. Murid yang menang beberapa anugerah tetap naik pentas beberapa kali (`binaTurutan` tidak disentuh) tetapi memegang satu keping yang menyenaraikan semua anugerah dan semua nombor gilirannya. Sama untuk kad jemputan, dengan nota "anak anda dipanggil 2 kali — sila kekal di dewan".
@@ -782,6 +782,8 @@ Dijalankan pada majlis sebenar 26 Okt 2026: 61 pindah + 2 pendua dibuang → **0
 Ia **jemputan kepada ibu bapa, bukan jadual majlis**. Versi awal membawa senarai anugerah + "Giliran 12" setiap satu + lencana "NAIK PENTAS 2 KALI". Tiga maklumat itu milik **tiket murid** (tab 🎟️ Giliran & Tiket), yang memang dicetak untuk dipegang murid sendiri. Pada kad ibu bapa ia membocorkan keputusan sebelum diumumkan, dan menjadikan kad padat sehingga terpotong.
 
 Yang tinggal: sekolah · majlis · ayat jemputan · nama murid · kelas · baris butiran dinamik · nota kaki.
+
+**Reka bentuk A2 "Klasik Emas" landskap (1 Nov 2026, dipilih pengguna):** bingkai garis berkembar emas + ❖ di bucu, lajur kiri = sekolah · KAD JEMPUTAN · majlis, lajur kanan = penerima + butiran. Saiz **tetap 139×94mm pada skrin dan cetakan**; cetak melalui halaman bernama `@page kjland` (A4 landskap) supaya tiket kekal potret. Tiada latar putih (kertas warna) — hiasan bucu duduk di dalam bingkai, tidak menutup garis. `kjSemakMuat` kini mengukur limpahan `.kiri`/`.kanan` terus (`scrollHeight > clientHeight`). Jangan naikkan tinggi ke 97mm (2×97 = 194mm tepat → baris kedua ke halaman baharu).
 
 **`margin-top:auto` berpindah ke `.kaki`** apabila blok `.anu` dibuang — tanpanya nota kaki melekat pada butiran dan separuh bawah kad kosong. `kjSemakMuat` masih dikekalkan kerana baris butiran dinamik: sepuluh baris pakaian/masa/telefon masih boleh melimpah 136mm. Diukur selepas perubahan: ruang 482px, isi tertinggi 42px, **0 kad sesak** daripada 105.
 

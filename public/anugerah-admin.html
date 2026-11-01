@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Anugerah — Panel Admin | Sistem ESIS</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Public+Sans:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="anugerah-kongsi.css">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -169,25 +169,42 @@
   border-left:1px solid var(--garis); padding-left:4mm}
 
 /* ---------- kad jemputan ---------- */
-.kad-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px}
+/* Gaya A2 "Klasik Emas" landskap (1 Nov 2026, dipilih pengguna):
+   bingkai garis berkembar emas, kiri = sekolah + majlis, kanan =
+   penerima + butiran. Saiz TETAP 139 x 94mm pada skrin DAN cetakan,
+   jadi apa yang admin nampak ialah apa yang keluar dari pencetak.
+   🔴 Tiada latar putih di mana-mana — kertas warna sekolah jadi latarnya,
+   jadi hiasan bucu duduk DI DALAM bingkai, bukan menutup garisnya. */
+.kad-grid{display:grid; grid-template-columns:repeat(auto-fill,139mm); gap:14px}
 .kj{
-  border:1px solid var(--emas); border-radius:4px; background:var(--kertas-2);
-  padding:16px 18px; display:flex; flex-direction:column; min-height:300px;
+  width:139mm; height:94mm; box-sizing:border-box; position:relative; overflow:hidden;
+  background:var(--kertas-2); border:1px solid var(--garis-halus); border-radius:3px; color:var(--tinta);
 }
-.kj .sek{font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--emas); font-weight:700}
-.kj .tajuk{font-family:"Fraunces",serif; font-size:16px; font-weight:600; line-height:1.22; margin:4px 0 0}
-.kj .garis{border:0; border-top:1px solid var(--garis-halus); margin:10px 0}
-.kj .ajak{font-size:11.5px; color:var(--tinta-lembut); line-height:1.5}
-.kj .nama{font-size:18px; font-weight:700; line-height:1.2; margin:6px 0 2px; overflow-wrap:break-word}
-.kj .kelas{font-size:12.5px; color:var(--neutral)}
-.kj .but{display:grid; grid-template-columns:auto 1fr; gap:3px 10px; font-size:11.5px; margin-top:10px; color:var(--tinta-lembut)}
-.kj .but b{color:var(--tinta); font-weight:600}
-/* 🔴 `margin-top:auto` berpindah ke .kaki apabila blok .anu dibuang —
-   tanpanya nota kaki melekat pada butiran dan separuh bawah kad kosong. */
-.kj .kaki{
-  margin-top:auto; border-top:1px dashed var(--garis); padding-top:9px;
-  font-size:10px; color:var(--neutral); font-style:italic; line-height:1.45;
-}
+.kj .bingkai{position:absolute; inset:4.5mm; border:1.6px solid #A8832E; pointer-events:none}
+.kj .bingkai::after{content:""; position:absolute; inset:1.5mm; border:.6px solid #A8832E}
+.kj .bucu{position:absolute; color:#A8832E; font-size:10px; line-height:1}
+.kj .b1{top:7.6mm; left:7.6mm} .kj .b2{top:7.6mm; right:7.6mm}
+.kj .b3{bottom:7.6mm; left:7.6mm} .kj .b4{bottom:7.6mm; right:7.6mm}
+.kj .isi{position:relative; height:100%; box-sizing:border-box;
+  display:grid; grid-template-columns:44mm 1fr; grid-template-rows:minmax(0,1fr); padding:10mm 11mm 9mm}
+.kj .kiri{display:flex; flex-direction:column; justify-content:center; align-items:center;
+  text-align:center; padding-right:5mm; border-right:.6px solid #d8c79c; min-width:0}
+.kj .sek{font-size:8.5px; letter-spacing:.2em; text-transform:uppercase; color:#8A6A1F; font-weight:700; line-height:1.4}
+.kj .jemp{font-family:"Fraunces",serif; font-size:10px; letter-spacing:.38em; color:#666; margin-top:5mm}
+.kj .tajuk{font-family:"Fraunces",serif; font-size:15px; font-weight:700; line-height:1.22; margin-top:1.5mm;
+  overflow-wrap:break-word; color:#16233A}
+.kj .orn{color:#A8832E; font-size:10px; letter-spacing:.4em; margin-top:4mm}
+.kj .kanan{padding-left:7mm; display:flex; flex-direction:column; justify-content:center; min-width:0}
+.kj .ajak{font-family:"Fraunces",serif; font-style:italic; font-size:11px; color:#444; line-height:1.4}
+.kj .nama{font-family:"Fraunces",serif; font-size:19px; font-weight:600; line-height:1.2;
+  margin:1.5mm 0 .8mm; overflow-wrap:break-word; color:#16233A}
+.kj .nama.panjang{font-size:16px}
+.kj .kelas{font-size:10px; letter-spacing:.14em; color:#666}
+.kj .but{margin-top:4.5mm; display:grid; grid-template-columns:auto 1fr; gap:1.4mm 4mm; font-size:10.5px}
+.kj .but span{font-size:8px; letter-spacing:.14em; color:#888; padding-top:.5mm; text-transform:uppercase}
+.kj .but b{color:#16233A; font-weight:600; overflow-wrap:break-word}
+.kj .kaki{margin-top:4mm; padding-top:2mm; border-top:.6px dashed #d8c79c;
+  font-size:8.5px; font-style:italic; color:#777; line-height:1.45}
 .kj-baris{display:flex; gap:8px; align-items:center; margin-bottom:7px}
 .kj-baris input{flex:1; min-width:0}
 .kj-baris .lbl-in{flex:0 0 150px}
@@ -356,25 +373,17 @@ tr.pg-gab td{background:var(--amaran-bg)}
   .tiket.padat .gil-jadual td.no{font-size:22px!important}
   .tiket .nama,.tiket .majlis{color:#16233A!important}
   .tiket .gil-jadual td.no,.tiket .sekolah{color:#8A6A1F!important}
-  /* Kad jemputan: 4 sehelai A4 (2 lajur x 2 baris), sama tinggi dengan
-     tiket supaya guna pemotong yang sama. 2 x 136 = 272mm dalam 281mm
-     ruang cetak, lega 9mm.
-     JANGAN naikkan ke 140mm: 2 x 140 = 280mm meninggalkan 1mm sahaja,
-     dan pembundaran pemandu pencetak menolak baris kedua ke halaman
-     baharu — gejalanya 2 kad sehelai, bukan 4. */
-  .kad-grid{display:grid!important; grid-template-columns:1fr 1fr!important; gap:0!important}
-  .kj{
-    border:1px dashed #8A6A1F!important; border-radius:0!important;
-    height:136mm!important; page-break-inside:avoid; background:transparent!important;
-    padding:11mm 12mm!important;
-  }
-  .kj .tajuk{font-size:19px!important}
-  .kj .nama{font-size:21px!important}
-  .kj .kelas{font-size:13.5px!important}
-  .kj .ajak,.kj .but{font-size:12px!important}
-  .kj .nama,.kj .tajuk,.kj .but b{color:#16233A!important}
-  .kj .sek{color:#8A6A1F!important}
+  /* Kad jemputan: 4 sehelai A4 LANDSKAP (2 x 2, 139 x 94mm).
+     Halaman bernama `kjland` supaya tiket kekal A4 potret.
+     281mm lebar = 2 x 139 + 3mm; 194mm tinggi = 2 x 94 + 6mm lega.
+     🔴 JANGAN naikkan tinggi ke 97mm: 2 x 97 = 194mm tepat, dan
+     pembundaran pemandu pencetak menolak baris kedua ke halaman baharu. */
+  #kad-cetak-kj{page:kjland}
+  .kad-grid{grid-template-columns:139mm 139mm!important; gap:0!important; justify-content:center}
+  .kj{border:.5px dashed #b9a777!important; border-radius:0!important;
+    page-break-inside:avoid; break-inside:avoid; background:transparent!important}
   @page{size:A4; margin:8mm}
+  @page kjland{size:A4 landscape; margin:8mm}
 }
 
 /* ---------- 🎓 Sijil ---------- */
@@ -768,7 +777,7 @@ tr.pg-gab td{background:var(--amaran-bg)}
     <div class="kad" id="kad-cetak">
       <div class="kad-kepala" id="bar-cetak">
         <h3>Tiket Giliran</h3>
-        <span class="sub">Latar telus — kertas warna sekolah jadi latarnya · 4 sehelai A4</span>
+        <span class="sub">Latar telus — kertas warna sekolah jadi latarnya · 4 sehelai A4 landskap</span>
         <div class="kanan">
           <select id="t-tapis" style="min-width:160px"></select>
           <button class="btn sunyi kecil" id="b-cetak-tiket">🖨 Cetak</button>
@@ -6533,21 +6542,30 @@ function lukisKad() {
 
      Jangan kembalikan tanpa diminta — kjSemakMuat di bawah mengukur
      ruang berdasarkan blok yang kini tiada. */
+  const bucu = ['b1', 'b2', 'b3', 'b4'].map(b => '<span class="bucu ' + b + '">\u2756</span>').join('');
   bekas.innerHTML = senarai.map(p => {
-    return '<div class="kj">' +
-      '<div class="sek">' + agEsc(MAJLIS.sekolah || '') + '</div>' +
-      '<div class="tajuk">' + agEsc(MAJLIS.nama || '') + '</div>' +
-      '<hr class="garis">' +
-      /* Bukan murid dijemput terus, bukan "ibu bapa kepada". */
-      '<div class="ajak">' + agEsc(agAdalahLuar(p) ? (MAJLIS.kadAjakLuar || KJ_AJAK_LUAR_LALAI) : ajak) + '</div>' +
-      '<div class="nama">' + agEsc(p.nama || '') + '</div>' +
-      '<div class="kelas">' + agEsc(agDarjahKelas(p.tahun, p.kelas)) + '</div>' +
-      (baris.length
-        ? '<div class="but">' + baris.map(b =>
-            '<span>' + agEsc(b.label) + '</span><b>' + agEsc(b.nilai) + '</b>').join('') + '</div>'
-        : '') +
-      '<div class="kaki">' + agEsc(kaki) + '</div>' +
-    '</div>';
+    const kelas = agDarjahKelas(p.tahun, p.kelas);
+    const nama = String(p.nama || '');
+    return '<div class="kj"><div class="bingkai"></div>' + bucu +
+      '<div class="isi">' +
+        '<div class="kiri">' +
+          '<div class="sek">' + agEsc(MAJLIS.sekolah || '') + '</div>' +
+          '<div class="jemp">KAD JEMPUTAN</div>' +
+          '<div class="tajuk">' + agEsc(MAJLIS.nama || '') + '</div>' +
+          '<div class="orn">\u2726 \u2726 \u2726</div>' +
+        '</div>' +
+        '<div class="kanan">' +
+          /* Bukan murid dijemput terus, bukan "ibu bapa kepada". */
+          '<div class="ajak">' + agEsc(agAdalahLuar(p) ? (MAJLIS.kadAjakLuar || KJ_AJAK_LUAR_LALAI) : ajak) + '</div>' +
+          '<div class="nama' + (nama.length > 38 ? ' panjang' : '') + '">' + agEsc(nama) + '</div>' +
+          (kelas ? '<div class="kelas">' + agEsc(kelas) + '</div>' : '') +
+          (baris.length
+            ? '<div class="but">' + baris.map(b =>
+                '<span>' + agEsc(b.label) + '</span><b>' + agEsc(b.nilai) + '</b>').join('') + '</div>'
+            : '') +
+          '<div class="kaki">' + agEsc(kaki) + '</div>' +
+        '</div>' +
+      '</div></div>';
   }).join('');
 
   kjSemakMuat(senarai);
@@ -6569,37 +6587,21 @@ function kjSemakMuat(senarai) {
   const kad = $('kad-grid').querySelectorAll('.kj');
   if (!kad.length) return;
 
-  /* 🔴 Skrin memakai min-height (kad boleh mengembang), cetakan memakai
-     height:136mm tetap. Mengukur ruang kosong pada skrin tidak
-     memberitahu apa-apa tentang cetakan \u2014 ia sentiasa besar.
-     Jadi tinggi cetak dikira: 136mm tolak padding, berbanding tinggi
-     isi sebenar kad itu (semua anak, termasuk yang akan terkeluar). */
-  const MM = 96 / 25.4;
+  /* Kad kini tinggi TETAP 139 x 94mm pada skrin juga, jadi limpahan
+     boleh diukur terus: lajur kiri/kanan yang isinya lebih tinggi
+     daripada ruangnya akan terpotong semasa dicetak. */
   const sesak = [];
   kad.forEach((el, i) => {
-    const gaya = getComputedStyle(el);
-    const dalam = 136 * MM - parseFloat(gaya.paddingTop) - parseFloat(gaya.paddingBottom);
-    let isi = 0;
-    Array.from(el.children).forEach(c => {
-      const g = getComputedStyle(c);
-      /* .kaki membawa margin-top:auto pada skrin \u2014 abaikan margin itu
-         dan kira tinggi sebenar setiap blok sahaja. */
-      isi += c.getBoundingClientRect().height +
-        (g.marginTop === 'auto' ? 0 : parseFloat(g.marginTop) || 0) +
-        (parseFloat(g.marginBottom) || 0);
+    const lebih = ['.kiri', '.kanan'].some(sel => {
+      const c = el.querySelector(sel);
+      return c && c.scrollHeight > c.clientHeight + 2;
     });
-    /* Ambang 30px \u2248 satu baris teks + jidar.
-
-       Sejak senarai anugerah dibuang, kad ini jauh lebih lapang \u2014
-       yang tinggal hanya baris butiran (dikawal admin) dan ayat ajak/kaki.
-       Amaran dikekalkan kerana baris butiran dinamik: sepuluh baris
-       pakaian/masa/nombor telefon masih boleh melimpah 136mm. */
-    if (isi > dalam - 30) sesak.push((senarai[i] && senarai[i].nama) || 'murid');
+    if (lebih) sesak.push((senarai[i] && senarai[i].nama) || 'murid');
   });
 
   if (!sesak.length) return;
   nota.innerHTML += '<br><span style="color:#b3261e">\u26a0 <strong>' + sesak.length +
-    ' kad terlalu padat</strong> untuk 136mm \u2014 isi boleh terpotong semasa dicetak: ' +
+    ' kad terlalu padat</strong> untuk saiz kad \u2014 isi boleh terpotong semasa dicetak: ' +
     sesak.slice(0, 3).map(agEsc).join(', ') + (sesak.length > 3 ? ', \u2026' : '') +
     '. Kurangkan baris butiran, atau pendekkan ayat jemputan.</span>';
 }
