@@ -6697,6 +6697,8 @@ async function lukisGuruKelas() {
           (senarai.length ? ' · ' + (senarai.length - bilTutup) + ' dibuka · ' + bilTutup + ' ditutup' : '') +
         '</p>' +
         '<span style="margin-left:auto"></span>' +
+        '<button class="btn kecil ' + (MAJLIS.guruKelasEsis ? 'emas' : 'sunyi') + '" data-gk-esis>' +
+          (MAJLIS.guruKelasEsis ? '🏆 Tab di ESIS: YA' : '🏆 Tab di ESIS: TIDAK') + '</button>' +
         '<button class="btn sunyi kecil" data-gk-semua="buka">👁 Buka semua</button>' +
         '<button class="btn sunyi kecil" data-gk-semua="tutup">⛔ Tutup semua</button>' +
       '</div>' +
@@ -6724,6 +6726,21 @@ async function lukisGuruKelas() {
 }
 
 $('gk-daftar').addEventListener('click', async e => {
+  /* 🏆 Papar tab Anugerah dalam ESIS › Guru Kelas. Hanya majlis TERBARU
+     yang dihidupkan dipapar di sana. Perlu kod Guru Kelas. */
+  if (e.target.closest('button[data-gk-esis]')) {
+    const ya = !MAJLIS.guruKelasEsis;
+    if (ya && !(MAJLIS.modPetugas && MAJLIS.modPetugas.kodGuruKelas)) {
+      agToast('Jana Kod Guru Kelas dahulu', 'ralat'); return;
+    }
+    MAJLIS.guruKelasEsis = ya;
+    try {
+      await simpanMajlis();
+      agToast(ya ? 'Tab 🏆 Anugerah dipapar dalam ESIS › Guru Kelas' : 'Tab disorok dari ESIS', 'ok');
+    } catch (err) { MAJLIS.guruKelasEsis = !ya; agToast('Gagal: ' + err.message, 'ralat'); }
+    lukisGuruKelas();
+    return;
+  }
   const semua = e.target.closest('button[data-gk-semua]');
   if (semua) {
     const tutup = semua.dataset.gkSemua === 'tutup';

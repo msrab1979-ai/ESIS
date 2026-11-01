@@ -18,6 +18,9 @@
 .gk-jadual .sub-nama{font-size:11.5px; color:var(--neutral)}
 .gk-jadual tr.anu-baris td{border-top:none}
 .cetak-sahaja{display:none}
+/* Mod dalam ESIS (iframe, ?esis=1): tab ESIS sudah menjadi tajuk. */
+body.esis header.tajuk{display:none}
+body.esis main.badan{padding-top:12px}
 @media print{
   header.tajuk, .tiada-cetak{display:none !important}
   .cetak-sahaja{display:block}
@@ -406,6 +409,18 @@ $('b-keluar').addEventListener('click', () => {
   sessionStorage.removeItem(gkSesi());
   location.reload();
 });
+
+/* ?esis=1 — dipapar dalam tab Guru Kelas › 🏆 Anugerah (index.html).
+   Lapor tinggi kepada induk supaya iframe tidak menatal sendiri. */
+if (new URLSearchParams(location.search).get('esis') === '1') {
+  document.body.classList.add('esis');
+  if (window.parent !== window) {
+    const lapor = () => window.parent.postMessage(
+      { gkaTinggi: document.documentElement.scrollHeight }, location.origin);
+    new ResizeObserver(lapor).observe(document.body);
+    lapor();
+  }
+}
 
 mula();
 </script>

@@ -1509,6 +1509,7 @@
                 <button id="tab-view" onclick="toggleGuruKelasTab('view')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-blue-500 text-gray-700">Lihat / Edit Murid</button>
                 <button id="tab-status" onclick="toggleGuruKelasTab('status')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-green-500 text-gray-700">Status Pengisian Markah</button>
                 <button id="tab-markah" onclick="toggleGuruKelasTab('markah')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-purple-500 text-gray-700">Markah Kelas</button>
+                <button id="tab-anugerah" onclick="toggleGuruKelasTab('anugerah')" class="hidden px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:border-yellow-500 text-gray-700">🏆 Anugerah</button>
             </div>
             
             <!-- TAB 1: TAMBAH MURID BARU -->
@@ -1715,6 +1716,11 @@
                 </div>
 
                 <p id="gkm-message" class="mt-2 text-sm font-medium text-center text-gray-500">Pilih Tahun, Peperiksaan, Darjah dan Kelas, kemudian klik Papar Markah.</p>
+            </div>
+
+            <!-- ───────── TAB: 🏆 ANUGERAH (guru-kelas.html dalam iframe) ───────── -->
+            <div id="guru-kelas-anugerah" class="hidden">
+                <iframe id="gka-iframe" title="Anugerah Kelas Saya" style="width:100%;min-height:640px;border:0;border-radius:12px;background:#F7F4ED"></iframe>
             </div>
         </div>
 
@@ -4018,6 +4024,8 @@
             // bawah akan menunjukkannya semula apabila dipilih.
             if (markahTab) markahTab.classList.add('hidden');
             if (btnMarkah) btnMarkah.classList.remove('border-purple-500');
+            document.getElementById('guru-kelas-anugerah').classList.add('hidden');
+            document.getElementById('tab-anugerah').classList.remove('border-yellow-500');
             
             if (tab === 'add') {
                 addTab.classList.remove('hidden');
@@ -4067,8 +4075,57 @@
                 btnStatus.classList.remove('border-green-500');
                 if (btnMarkah) btnMarkah.classList.add('border-purple-500');
                 await gkmInit();
+            } else if (tab === 'anugerah') {
+                addTab.classList.add('hidden');
+                viewTab.classList.add('hidden');
+                statusTab.classList.add('hidden');
+                btnAdd.classList.remove('border-blue-500');
+                btnView.classList.remove('border-blue-500');
+                btnStatus.classList.remove('border-green-500');
+                document.getElementById('guru-kelas-anugerah').classList.remove('hidden');
+                document.getElementById('tab-anugerah').classList.add('border-yellow-500');
+                gkaBuka();
             }
         }
+
+        // ───────── Guru Kelas › 🏆 Anugerah ─────────
+        // Tab ini MEMAPARKAN guru-kelas.html (iframe) — satu enjin, satu
+        // pendaftaran dengan link Guru Kelas. Login nama + kata laluan kekal:
+        // panel Guru Kelas terbuka tanpa kata laluan, jadi tanpanya sesiapa
+        // boleh melihat anugerah mana-mana kelas sebelum majlis.
+        // Tab hanya muncul bila admin anugerah menghidupkan "Papar tab di
+        // ESIS" (`anugerah_majlis.guruKelasEsis`) dan kod Guru Kelas wujud.
+        // Majlis terbaru dipilih bila lebih daripada satu.
+        let _gkaKod = '';
+        async function gkaSemak() {
+            const btn = document.getElementById('tab-anugerah');
+            try {
+                const snap = await db.collection('anugerah_majlis').where('guruKelasEsis', '==', true).get();
+                const calon = snap.docs.map(d => d.data())
+                    .filter(m => m.modPetugas && m.modPetugas.kodGuruKelas)
+                    .sort((a, b) => (Number(b.tahun) || 0) - (Number(a.tahun) || 0) ||
+                        ((b.timestamp && b.timestamp.seconds) || 0) - ((a.timestamp && a.timestamp.seconds) || 0));
+                _gkaKod = calon.length ? calon[0].modPetugas.kodGuruKelas : '';
+            } catch (e) {
+                console.warn('Semak tab Anugerah gagal:', e);
+                _gkaKod = '';
+            }
+            btn.classList.toggle('hidden', !_gkaKod);
+            if (!_gkaKod && !document.getElementById('guru-kelas-anugerah').classList.contains('hidden')) {
+                toggleGuruKelasTab('add');
+            }
+        }
+        function gkaBuka() {
+            const fr = document.getElementById('gka-iframe');
+            if (!_gkaKod) return;
+            const src = 'guru-kelas.html?esis=1&kod=' + encodeURIComponent(_gkaKod);
+            if (fr.getAttribute('src') !== src) fr.setAttribute('src', src);
+        }
+        // guru-kelas.html (mod esis) melapor tingginya supaya iframe tidak menatal sendiri.
+        window.addEventListener('message', e => {
+            if (e.origin !== location.origin || !e.data || e.data.gkaTinggi == null) return;
+            document.getElementById('gka-iframe').style.height = Math.max(640, e.data.gkaTinggi + 20) + 'px';
+        });
 
         // Isi dropdown status-peperiksaan mengikut tahun.
         //
@@ -8353,6 +8410,7 @@
             } else if (panelId === 'guru-kelas') {
                 _showWithAnim('guru-kelas-panel');
                 toggleGuruKelasTab('add');
+                gkaSemak();
             } else if (panelId === 'analisa-kelas') {
                 _showWithAnim('analisa-kelas-panel');
                 initAnalisaKelas();
