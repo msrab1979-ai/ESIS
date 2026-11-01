@@ -6512,14 +6512,27 @@ function lukisKad() {
   const cD = $('kj-darjah').value, cK = $('kj-kelas').value;
   const cC = agPecahCarian($('kj-cari').value);
 
-  /* 🔴 SATU KAD SEORANG MURID. Kad disusun ikut NAMA, bukan nombor
-     giliran \u2014 ia diedar oleh guru kelas mengikut senarai kelas, bukan
-     dipanggil mengikut turutan pentas seperti tiket. */
+  /* 🔴 SATU KAD SEORANG MURID, disusun ikut nombor GILIRAN terkecil
+     (pengguna, 1 Nov 2026) \u2014 sama turutan dengan tiket, supaya petugas
+     mengedar kad dan tiket dari timbunan yang sama urutannya.
+     Peraturan nombor sama dengan lukisTiket: hanya sub naik pentas, dan
+     nombor anugerah 🤫 rahsia hanya dipakai bila murid tiada nombor lain.
+     Tiada nombor \u2192 di bawah, ikut nama. Nombor TIDAK dicetak pada kad. */
+  const pentas = subPentasSemasa();
+  const rahsia = agSubRahsia(MAJLIS);
+  const noAwal = p => {
+    const no = (p.giliran || []).filter(g => g.no != null && pentas.has(g.subId));
+    const biasa = no.filter(g => !rahsia.has(g.subId));
+    const pakai = biasa.length ? biasa : no;
+    return pakai.length ? Math.min(...pakai.map(g => g.no)) : Infinity;
+  };
   const senarai = kjPenerima()
     .filter(p => !cD || String(p.tahun || '').toUpperCase() === cD)
     .filter(p => !cK || String(p.kelas || '').toUpperCase() === cK)
     .filter(p => agPadanCarian(cC, p.nama, p.no_kp))
-    .sort((a, b) => String(a.nama).localeCompare(String(b.nama), 'ms'));
+    .map(p => ({ p, no: noAwal(p) }))
+    .sort((a, b) => (a.no - b.no) || String(a.p.nama).localeCompare(String(b.p.nama), 'ms'))
+    .map(x => x.p);
 
   const jumSemua = kjPenerima().length;
   const adaTapis = !!(cD || cK || !cC.kosong);

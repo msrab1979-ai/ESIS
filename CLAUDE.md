@@ -599,7 +599,7 @@ Disahkan 21 Okt 2026: oracle 22 kes terhadap `examTypes` sebenar sekolah — dar
 | Keluaran | Tab | Susunan | Saiz |
 |---|---|---|---|
 | **Tiket giliran** | 🎟️ Giliran & Tiket | nombor giliran | 136mm, 4 sehelai A4 |
-| **Kad jemputan** | 💌 Kad Jemputan | nama murid | 139×94mm, 4 sehelai A4 **landskap** |
+| **Kad jemputan** | 💌 Kad Jemputan | nombor giliran terkecil (sama dgn tiket, 1 Nov 2026; tiada nombor → bawah ikut nama; nombor TIDAK dicetak) | 139×94mm, 4 sehelai A4 **landskap** |
 | **Slaid PPTX** | 🎟️ Giliran & Tiket | nombor giliran | 16:9 |
 
 **SATU TIKET SEORANG MURID**, bukan satu per anugerah. Murid yang menang beberapa anugerah tetap naik pentas beberapa kali (`binaTurutan` tidak disentuh) tetapi memegang satu keping yang menyenaraikan semua anugerah dan semua nombor gilirannya. Sama untuk kad jemputan, dengan nota "anak anda dipanggil 2 kali — sila kekal di dewan".
