@@ -6786,7 +6786,8 @@ function lukisPetugas() {
         '<div class="lb-url">' + (kod ? agEsc(url) : '<em>kod dibatalkan</em>') + '</div>' +
         '<div class="lb-tulis">' + r.tulis + '</div></div>' +
       (r.k === 'kodHadiah'
-        ? '<button class="btn sunyi kecil" data-cetak-hadiah>🖨 Cetak Senarai Hadiah (PDF)</button>' : '') +
+        ? '<button class="btn sunyi kecil" data-cetak-hadiah>🖨 Cetak Senarai Hadiah (PDF)</button>' +
+          '<button class="btn sunyi kecil" data-word-hadiah>📄 Muat Turun (Word)</button>' : '') +
       (kod
         ? '<button class="btn sunyi kecil" data-salin="' + agEsc(url) + '">Salin</button>' +
           '<a class="btn sunyi kecil" href="' + agEsc(url) + '" target="_blank" rel="noopener">Buka</a>' +
@@ -6922,6 +6923,20 @@ $('link-grid').addEventListener('click', async e => {
       w.close();
       agToast('Gagal: ' + err.message, 'ralat');
     }
+    return;
+  }
+  /* 📄 Senarai Hadiah (Word) — isi sama dgn PDF, penerima dibaca SEGAR. */
+  const word = e.target.closest('button[data-word-hadiah]');
+  if (word) {
+    if (!MAJLIS) return;
+    if (!sahkanNomborSebelum('Senarai Hadiah')) return;
+    word.disabled = true;
+    try {
+      const r = await agMuatTurunSenaraiHadiahWord(MAJLIS, await agMuatPenerima(MAJLIS.id));
+      agToast('Word dimuat turun · ' + r.baris.length + ' hadiah', 'ok');
+    } catch (err) {
+      agToast('Gagal: ' + err.message, 'ralat');
+    } finally { word.disabled = false; }
     return;
   }
   const salin = e.target.closest('button[data-salin]');

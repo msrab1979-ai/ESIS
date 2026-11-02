@@ -1802,6 +1802,170 @@ function agCetakSenaraiHadiah(w, majlis, penerima) {
   return r;
 }
 
+/* ---------- 📄 Senarai Hadiah (Word .docx) ----------
+   Isi SAMA dengan PDF (agKiraSenaraiHadiah + agTajukSubHadiah) — hanya
+   format berbeza, supaya petugas boleh ubah/tambah lajur sendiri.
+   .docx dijana terus sebagai OOXML (JSZip), seperti anugerah-pptx.js.
+   🔴 Teks MESTI dilepaskan untuk XML — satu `&` mentah merosakkan fail. */
+async function agMuatTurunSenaraiHadiahWord(majlis, penerima) {
+  if (typeof JSZip === 'undefined') {
+    await new Promise((ya, tidak) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      s.onload = ya; s.onerror = () => tidak(new Error('Gagal memuat JSZip'));
+      document.head.appendChild(s);
+    });
+  }
+  const r = agKiraSenaraiHadiah(penerima);
+  const X = s => agEsc(String(s == null ? '' : s).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ''));
+  const dijana = new Date().toLocaleString('ms-MY', { dateStyle: 'medium', timeStyle: 'short' });
+
+  /* run & perenggan */
+  const run = (t, o = {}) => '<w:r><w:rPr>' +
+    (o.b ? '<w:b/>' : '') + (o.strike ? '<w:strike/>' : '') +
+    '<w:color w:val="' + (o.warna || '000000') + '"/>' +
+    '<w:sz w:val="' + (o.sz || 20) + '"/></w:rPr>' +
+    '<w:t xml:space="preserve">' + X(t) + '</w:t></w:r>';
+  const para = (runs, o = {}) => '<w:p><w:pPr><w:spacing w:before="0" w:after="' + (o.after || 0) + '"/>' +
+    (o.jc ? '<w:jc w:val="' + o.jc + '"/>' : '') + (o.keep ? '<w:keepNext/>' : '') + '</w:pPr>' + runs + '</w:p>';
+
+  /* jadual: lebar twips, A4 margin 11mm ≈ 10660 ruang */
+  const LEBAR = [700, 700, 700, 1700, 5060, 1800];
+  const sel = (isi, o = {}) => '<w:tc><w:tcPr><w:tcW w:w="' + (o.w || 0) + '" w:type="dxa"/>' +
+    (o.span ? '<w:gridSpan w:val="' + o.span + '"/>' : '') +
+    (o.isi ? '<w:shd w:val="clear" w:color="auto" w:fill="' + o.isi + '"/>' : '') +
+    '<w:vAlign w:val="center"/></w:tcPr>' + isi + '</w:tc>';
+  const baris = (sels, o = {}) => '<w:tr><w:trPr><w:cantSplit/>' + (o.kepala ? '<w:tblHeader/>' : '') +
+    '</w:trPr>' + sels + '</w:tr>';
+  const sempadan = '<w:tblBorders>' + ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']
+    .map(k => '<w:' + k + ' w:val="single" w:sz="4" w:space="0" w:color="999999"/>').join('') + '</w:tblBorders>';
+
+  /* blok anugerah BERTURUT-TURUT ikut nombor — sama dgn PDF */
+  const blok = [];
+  r.baris.forEach(b => {
+    let B = blok[blok.length - 1];
+    if (!B || B.anugerahId !== b.anugerahId) { B = { anugerah: b.anugerah, anugerahId: b.anugerahId, baris: [] }; blok.push(B); }
+    B.baris.push(b);
+  });
+
+  let badan = '';
+  badan += majlis.sekolah ? para(run(String(majlis.sekolah).toUpperCase(), { sz: 20 }), { jc: 'center' }) : '';
+  badan += para(run(majlis.nama || 'Majlis Anugerah', { b: true, sz: 32 }), { jc: 'center' });
+  badan += para(run('SENARAI HADIAH — SEMAKAN PETUGAS', { b: true, sz: 24 }), { jc: 'center' });
+  const julat = r.baris.length ? 'giliran ' + r.min + '–' + r.maks : '';
+  badan += para(run((majlis.tarikh ? majlis.tarikh + ' · ' : '') + r.baris.length + ' hadiah' +
+    (julat ? ' · ' + julat : '') + ' · Dijana ' + dijana, { sz: 18, warna: '555555' }), { jc: 'center', after: 120 });
+  badan += para(run('Jumlah hadiah: ' + r.baris.length + '   ·   Tidak hadir: ' + r.bilAbsen +
+    '   ·   Sudah diambil: ' + r.bilAmbil + '   ·   Perlu disediakan: ' + (r.baris.length - r.bilAbsen), { b: true, sz: 20 }),
+    { jc: 'center', after: 80 });
+  badan += para(run('Satu baris = satu nombor giliran = satu hadiah. Senarai ini ikut nombor giliran yang disimpan ' +
+    'pada masa dijana — selepas admin tekan 🔁 Jana Semula, muat turun semula.' +
+    (r.bilGabung ? ' 🎁 GABUNG: murid menerima 1 hadiah untuk semua anugerah dalam tajuk itu (' + r.bilGabung + ' murid).' : ''),
+    { sz: 17, warna: '444444' }), { after: 80 });
+  const amaran = [];
+  if (r.pendua.length) amaran.push('Nombor berulang: ' + r.pendua.join(', '));
+  if (r.jurang.length) amaran.push('Nombor tiada (jurang): ' + r.jurang.slice(0, 30).join(', ') +
+    (r.jurang.length > 30 ? ' … (+' + (r.jurang.length - 30) + ')' : ''));
+  if (amaran.length) badan += para(run('⚠ ' + amaran.join(' · '), { b: true, sz: 19, warna: '990000' }), { after: 80 });
+
+  if (!r.baris.length) {
+    badan += para(run('Belum ada giliran bernombor. Admin perlu tekan 🔢 Beri Nombor dahulu.', { sz: 22 }), { jc: 'center' });
+  }
+
+  blok.forEach(B => {
+    const n = B.baris.length, a = B.baris[0].no, z = B.baris[n - 1].no;
+    let t = '<w:tbl><w:tblPr><w:tblW w:w="10660" w:type="dxa"/><w:tblLayout w:type="fixed"/>' + sempadan +
+      '<w:tblCellMar><w:left w:w="70" w:type="dxa"/><w:right w:w="70" w:type="dxa"/></w:tblCellMar></w:tblPr>' +
+      '<w:tblGrid>' + LEBAR.map(w => '<w:gridCol w:w="' + w + '"/>').join('') + '</w:tblGrid>';
+    t += baris(sel(para(run(B.anugerah, { b: true, sz: 22 }) +
+      run('   (' + n + ' hadiah · giliran ' + (a === z ? a : a + '–' + z) + ')', { sz: 18, warna: '444444' }), { keep: true }),
+      { w: 10660, span: 6, isi: 'D9D9D9' }), { kepala: true });
+    const lj = ['Sedia', 'Serah', 'No', 'Darjah/Kelas', 'Nama', 'Status'];
+    t += baris(lj.map((l, i) => sel(para(run(l.toUpperCase(), { b: true, sz: 16 }), { jc: i === 2 ? 'right' : 'left', keep: true }),
+      { w: LEBAR[i], isi: 'F2F2F2' })).join(''), { kepala: true });
+
+    let kunciAkhir = null;
+    B.baris.forEach((b, i) => {
+      const tajuk = agTajukSubHadiah(b);
+      const kunci = tajuk + '|' + b.hadiah;
+      if (kunci !== kunciAkhir) {
+        kunciAkhir = kunci;
+        let bil = 0;
+        for (let k = i; k < n && agTajukSubHadiah(B.baris[k]) + '|' + B.baris[k].hadiah === kunci; k++) bil++;
+        if (tajuk || b.hadiah) {
+          let isi = run((b.gabung.length ? '🎁 GABUNG · ' : '') + (tajuk || b.anugerah), { b: true, sz: 19 }) +
+            (b.hadiah ? run(' · ' + b.hadiah, { sz: 18, warna: '444444' }) : '') +
+            run('   (' + bil + ' hadiah)', { sz: 17, warna: '444444' });
+          let p = para(isi, { keep: true });
+          if (b.gabung.length) p += para(run('1 hadiah untuk semua anugerah di atas', { sz: 16, warna: '444444' }), { keep: true });
+          t += baris(sel(p, { w: 10660, span: 6, isi: b.gabung.length ? 'FFF3D6' : 'F7F7F7' }));
+        }
+      }
+      const absen = b.hadir === false;
+      const o = absen ? { strike: true, warna: '888888' } : {};
+      const st = absen ? run('TIDAK HADIR', { b: true, sz: 17, warna: '990000' })
+        : b.mc === true ? run('Sudah diambil', { sz: 17 }) : '';
+      t += baris(
+        sel(para(run('☐', { sz: 24 }), { jc: 'center' }), { w: LEBAR[0] }) +
+        sel(para(run('☐', { sz: 24 }), { jc: 'center' }), { w: LEBAR[1] }) +
+        sel(para(run(b.no, Object.assign({ b: true, sz: 24 }, o)), { jc: 'right' }), { w: LEBAR[2] }) +
+        sel(para(run(b.luar ? '' : agDarjahKelas(b.tahun, b.kelas), Object.assign({ sz: 18 }, o))), { w: LEBAR[3] }) +
+        sel(para(run(b.nama, Object.assign({ b: true, sz: 21 }, o))), { w: LEBAR[4] }) +
+        sel(para(st), { w: LEBAR[5] }));
+    });
+    t += '</w:tbl>';
+    badan += t + para('', { after: 120 });
+  });
+
+  if (r.baris.length) {
+    badan += para(run('Jumlah hadiah: ' + r.baris.length + ' · ' + julat + ' · Tidak hadir: ' + r.bilAbsen +
+      ' · Perlu disediakan: ' + (r.baris.length - r.bilAbsen), { b: true, sz: 20 }), { jc: 'right' });
+  }
+
+  const dokumen = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + badan +
+    '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/>' +
+    '<w:pgMar w:top="680" w:right="624" w:bottom="794" w:left="624" w:header="400" w:footer="400" w:gutter="0"/>' +
+    '</w:sectPr></w:body></w:document>';
+  const gaya = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+    '<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial" w:eastAsia="Arial"/>' +
+    '<w:sz w:val="20"/><w:lang w:val="ms-MY"/></w:rPr></w:rPrDefault>' +
+    '<w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>' +
+    '</w:styles>';
+
+  const zip = new JSZip();
+  zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+    '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' +
+    '</Types>');
+  zip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>' +
+    '</Relationships>');
+  zip.file('word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+    '</Relationships>');
+  zip.file('word/document.xml', dokumen);
+  zip.file('word/styles.xml', gaya);
+
+  const blob = await zip.generateAsync({
+    type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  });
+  const nama = 'Senarai Hadiah - ' + String(majlis.nama || 'Majlis').replace(/[\\/:*?"<>|]+/g, ' ').trim() + '.docx';
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nama;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return r;
+}
+
 /* ---------- papar ---------- */
 function agEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g,

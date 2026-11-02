@@ -90,6 +90,7 @@
         <h3>Giliran Seterusnya</h3>
         <span class="sub">Susun hadiah ikut turutan ini</span>
         <div class="kanan"><button class="btn sunyi kecil" id="b-cetak">🖨 Cetak</button>
+          <button class="btn sunyi kecil" id="b-word">📄 Word</button>
           <button class="btn sunyi kecil" id="b-muat">🔄 Muat Semula</button></div>
       </div>
       <div class="tapis-bar">
@@ -320,6 +321,17 @@ $('b-cetak').addEventListener('click', async () => {
     w.close();
     agToast('Gagal: ' + e.message, 'ralat');
   }
+});
+
+/* 📄 Muat turun Word — enjin & isi sama dengan 🖨 Cetak. */
+$('b-word').addEventListener('click', async () => {
+  const b = $('b-word');
+  b.disabled = true;
+  try {
+    await agMuatTurunSenaraiHadiahWord(MAJLIS, await agMuatPenerima(MAJLIS.id));
+  } catch (e) {
+    agToast('Gagal: ' + e.message, 'ralat');
+  } finally { b.disabled = false; }
 });
 
 function status(b) {
