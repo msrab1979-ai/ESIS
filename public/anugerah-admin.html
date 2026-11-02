@@ -226,6 +226,10 @@
 .kj-baris{display:flex; gap:8px; align-items:center; margin-bottom:7px}
 .kj-baris input{flex:1; min-width:0}
 .kj-baris .lbl-in{flex:0 0 150px}
+.kj-baris .kj-seret{cursor:grab; color:var(--pudar,#888); font-size:18px; padding:0 4px; user-select:none}
+.kj-baris.kj-atas{box-shadow:0 -3px 0 0 var(--emas,#c9a227)}
+.kj-baris.kj-bawah{box-shadow:0 3px 0 0 var(--emas,#c9a227)}
+.kj-baris.kj-dibawa{opacity:.4}
 
 /* ---------- seret ---------- */
 .seret{
@@ -828,7 +832,8 @@ tr.pg-gab td{background:var(--amaran-bg)}
       <div class="kad-isi">
         <div id="kj-baris-senarai"></div>
         <p class="hint" style="margin:9px 0 0">Label kosong = baris itu dibuang semasa simpan.
-        Nilai kosong = baris tidak dicetak. Seret tidak perlu — susunan ikut turutan di sini.</p>
+        Nilai kosong = baris tidak dicetak. Susunan pada kad ikut turutan di sini —
+        seret ⠿ atau tekan ↑↓ untuk ubah.</p>
         <hr style="border:none;border-top:1px solid var(--garis-halus);margin:15px 0">
         <div class="medan" style="width:100%">
           <label for="kj-ajak">Ayat jemputan</label>
@@ -6444,12 +6449,18 @@ function initKad() {
 }
 
 function lukisKjBaris() {
+  const n = (MAJLIS.kadBaris || []).length;
   $('kj-baris-senarai').innerHTML = (MAJLIS.kadBaris || []).map((b, i) =>
-    '<div class="kj-baris">' +
+    '<div class="kj-baris" data-kj-row="' + i + '">' +
+      '<span class="kj-seret" draggable="true" data-kj-seret="' + i + '" title="Seret untuk susun">⠿</span>' +
       '<input class="lbl-in" type="text" data-kj="label" data-i="' + i + '" ' +
         'value="' + agEsc(b.label || '') + '" placeholder="Label (cth: Pakaian)">' +
       '<input type="text" data-kj="nilai" data-i="' + i + '" ' +
         'value="' + agEsc(b.nilai || '') + '" placeholder="Nilai (cth: Baju Melayu / Kurung)">' +
+      '<button class="btn sunyi kecil" data-kj-pindah="' + i + ',' + (i - 1) + '" title="Naik"' +
+        (i === 0 ? ' disabled' : '') + '>\u2191</button>' +
+      '<button class="btn sunyi kecil" data-kj-pindah="' + i + ',' + (i + 1) + '" title="Turun"' +
+        (i === n - 1 ? ' disabled' : '') + '>\u2193</button>' +
       '<button class="btn sunyi kecil" data-kj-buang="' + i + '" title="Buang baris">\u2715</button>' +
     '</div>').join('') || '<p class="hint">Tiada baris. Tekan \u2795 Tambah baris.</p>';
 }
@@ -6463,7 +6474,60 @@ $('kj-baris-senarai').addEventListener('input', e => {
   if (b) { b[el.dataset.kj] = el.value; lukisKad(); }
 });
 
+/* Pindah = splice (menyelit), bukan tukar tempat — sama seperti Susunan
+   Naik Pentas. ↑↓ ialah kes jarak 1. Simpan masih melalui 💾. */
+function pindahKjBaris(dari, ke) {
+  const a = MAJLIS && MAJLIS.kadBaris;
+  if (!a || dari === ke || dari < 0 || dari >= a.length || ke < 0 || ke >= a.length) return;
+  a.splice(ke, 0, a.splice(dari, 1)[0]);
+  lukisKjBaris(); lukisKad();
+}
+
+let KJ_SERET = null;
+$('kj-baris-senarai').addEventListener('dragstart', e => {
+  const h = e.target.closest && e.target.closest('[data-kj-seret]');
+  if (!h) return;
+  KJ_SERET = Number(h.dataset.kjSeret);
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', String(KJ_SERET)); } catch (_) {}
+  const row = h.closest('.kj-baris');
+  if (row) { e.dataTransfer.setDragImage(row, 20, 15); row.classList.add('kj-dibawa'); }
+});
+function kjBersihSeret() {
+  document.querySelectorAll('#kj-baris-senarai .kj-baris').forEach(r =>
+    r.classList.remove('kj-atas', 'kj-bawah', 'kj-dibawa'));
+}
+$('kj-baris-senarai').addEventListener('dragover', e => {
+  if (KJ_SERET == null) return;
+  const row = e.target.closest('.kj-baris');
+  if (!row) return;
+  e.preventDefault();
+  const atas = e.clientY < row.getBoundingClientRect().top + row.offsetHeight / 2;
+  document.querySelectorAll('#kj-baris-senarai .kj-baris').forEach(r => r.classList.remove('kj-atas', 'kj-bawah'));
+  row.classList.add(atas ? 'kj-atas' : 'kj-bawah');
+});
+$('kj-baris-senarai').addEventListener('drop', e => {
+  if (KJ_SERET == null) return;
+  const row = e.target.closest('.kj-baris');
+  if (!row) return;
+  e.preventDefault();
+  const sasar = Number(row.dataset.kjRow);
+  const atas = e.clientY < row.getBoundingClientRect().top + row.offsetHeight / 2;
+  let ke = atas ? sasar : sasar + 1;
+  if (KJ_SERET < ke) ke--;
+  const dari = KJ_SERET;
+  KJ_SERET = null; kjBersihSeret();
+  pindahKjBaris(dari, ke);
+});
+$('kj-baris-senarai').addEventListener('dragend', () => { KJ_SERET = null; kjBersihSeret(); });
+
 $('kj-baris-senarai').addEventListener('click', e => {
+  const p = e.target.closest('button[data-kj-pindah]');
+  if (p && MAJLIS) {
+    const [dari, ke] = p.dataset.kjPindah.split(',').map(Number);
+    pindahKjBaris(dari, ke);
+    return;
+  }
   const b = e.target.closest('button[data-kj-buang]');
   if (!b || !MAJLIS) return;
   MAJLIS.kadBaris.splice(Number(b.dataset.kjBuang), 1);
