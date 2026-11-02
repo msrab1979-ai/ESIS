@@ -452,15 +452,15 @@ function lukis() {
     const semua = A.sub.flatMap(x => x.baris);
     const bukaAn = !!BUKA_AN[A.kunci];
     const satuSub = A.sub.length === 1;
-    const nt = agNotaTajuk(A.anugerahId, A.kunci);   // 📝 nota anugerah
+    const nt = agNotaTajuk(A.anugerahId, A.anugerah);   // 📝 nota anugerah sebaris nama
     return '<div class="grup-kepala' + (bukaAn ? ' buka' : '') +
         '" data-mc-an="' + agEsc(A.kunci) + '">' +
         '<span class="anak-panah">\u25b6</span>' +
         '<span class="an-nama">' + agEsc(A.anugerah) + '</span>' +
+        nt +
         '<span class="bil-kep">' + kiraTeks(semua) +
           (satuSub ? '' : ' \u00b7 ' + A.sub.length + ' kategori') + '</span>' +
-        nt.butang +
-      '</div>' + nt.panel +
+      '</div>' +
       (bukaAn ? '<div class="grup-isi">' + A.sub.map(blokSub).join('') + '</div>' : '');
   }).join('');
 

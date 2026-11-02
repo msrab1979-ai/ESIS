@@ -396,16 +396,16 @@ function lukis() {
           g.baris.map(b => baris(b.m, b.no)).join('') + '</ul>' : '');
     }).join('');
 
-    /* 📝 nota anugerah — butang dalam tajuk, panel di bawahnya */
-    const nt = blok.anId === '_yatim' ? { butang: '', panel: '' } : agNotaTajuk(blok.anId, blok.kunci);
+    /* 📝 nota anugerah — sebaris nama, semua petugas boleh tulis */
+    const nt = blok.anId === '_yatim' ? '' : agNotaTajuk(blok.anId, blok.anNama);
     return '<div class="grup-kepala' + (bukaAn ? ' buka' : '') +
         '" data-an-togol="' + agEsc(blok.kunci) + '">' +
         '<span class="anak-panah">\u25b6</span>' +
         '<span class="an-nama">' + agEsc(blok.anNama) + '</span>' +
+        nt +
         '<span class="bil-kep">' + kira(semua) +
           (satuSub ? '' : ' \u00b7 ' + blok.sub.length + ' kategori') + '</span>' +
-        nt.butang +
-      '</div>' + nt.panel +
+      '</div>' +
       (bukaAn ? '<div class="grup-isi">' + dalam + '</div>' : '');
   }).join('');
 }
