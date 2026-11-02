@@ -340,3 +340,17 @@ code{
   .kpi .angka{font-size:25px}
   .baris{padding:11px 13px; gap:10px}
 }
+
+/* 📝 Nota Petugas */
+.nota-papan .nota-borang{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:12px}
+.nota-papan .nota-borang input,.nota-papan .nota-borang textarea{
+  width:100%;box-sizing:border-box;font:inherit;padding:8px 10px;
+  border:1px solid var(--garis-halus);border-radius:7px;background:#fff}
+.nota-papan .nota-borang textarea{resize:vertical;min-height:52px}
+.nota-papan .nota-borang button{justify-self:end}
+.nota-papan .nota-senarai{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow:auto}
+.nota-papan .nota-item{border:1px solid var(--garis-halus);border-left:3px solid var(--emas);
+  border-radius:7px;padding:8px 10px;background:#fff}
+.nota-papan .nota-teks{white-space:pre-wrap;word-break:break-word;font-size:14px}
+.nota-papan .nota-meta{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;color:#666}
+.nota-papan .nota-meta button{margin-left:auto}

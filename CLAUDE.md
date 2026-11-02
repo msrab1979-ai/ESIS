@@ -977,6 +977,15 @@ Untuk anugerah kejutan (contoh Tokoh Murid). `a.rahsia === true` / `s.rahsia` (b
 - **Peserta** juga membuang murid yang SEMUA anugerahnya 🚫 tidak naik pentas (`agPenerimaPentas` atas majlis segar) — dahulu mereka jatuh ke blok "(tiada anugerah)" (5 murid PI/MORAL/SEJARAH T4, 2 Nov 2026).
 - Panel memanggil `agMuatPetugas(MAJLIS)` = dokumen majlis **segar** + penerima ditapis, supaya 🙈 sampai pada 🔄 / muat berkala tanpa muat semula halaman (+1 bacaan setiap muat). `MAJLIS` panel = `agMajlisPetugas(...)` (sub disorok dibuang, `_penuh` = asal untuk jatuh balik bila bacaan gagal). MC/Hadiah: `MAJLIS` hanya ditukar bila senarai dipakai (`senarai.majlis` / `TERTUNDA.majlis`). Tayang auto: pemantau `onSnapshot` menapis dgn `MAJLIS._penuh`.
 
+#### 📝 Nota Petugas (2 Nov 2026)
+
+Papan nota dikongsi **Peserta · MC · Hadiah · Admin** (tab 🔗 Link Petugas). Tayang tiada (skrin dewan). **Semua boleh tulis dan padam** (keputusan pengguna). Satu enjin `agPasangNota(bekas, majlisId, panel)` dalam `anugerah-kongsi.js`; DOM `#nota-petugas` (panel) / `#nota-admin`.
+
+- Koleksi **`anugerah_nota`** = `{majlisId, teks (≤500), nama (≤40), panel, masa: Date.now()}` — **bukan** dalam dokumen majlis (`simpanMajlis()` admin akan memadamnya).
+- `onSnapshot` pada `where('majlisId')` sahaja (tiada orderBy → tiada indeks komposit), susun terbaru dahulu di klien. Nama penulis wajib, diingati dalam `localStorage` `ag_nota_nama`. Ctrl/Cmd+Enter hantar.
+- `agPasangNota` idempoten per bekas+majlis (dipanggil setiap `lukisPetugas`); tukar majlis → pendengar lama dihentikan. Padam: `bekas.onclick` (ditulis ganti, tidak berhimpun) + `confirm`.
+- **Reset nota BERASINGAN** daripada reset tanda: butang `#b-reset-nota` (admin) → `agPadamSemuaNota` (batch 400), taip RESET. Reset tanda tidak menyentuh nota dan sebaliknya.
+
 #### 🖨 Skrip MC (PDF) — 30 Okt 2026
 
 Butang **🖨 Skrip MC (PDF)** dalam kad Susunan Naik Pentas (admin) dan **🖨 Cetak** dalam `mc.html`. Satu enjin dalam `anugerah-kongsi.js`: `agKiraSkripMC(penerima)` (kiraan) + `agCetakSkripMC(w, majlis, penerima)` (dialog cetak pelayar, A4). Penerima dibaca **segar**; tetingkap dibuka **sebelum** `await` (pop-up selepas await disekat).

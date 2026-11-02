@@ -1064,6 +1064,16 @@ tr.pg-gab td{background:var(--amaran-bg)}
           panel petugas, kemudian tekan <strong>Reset kedua-dua</strong> untuk mengembalikan
           majlis kepada keadaan sebelum majlis bermula. Nombor giliran dan senarai penerima
           <strong>tidak</strong> disentuh.</p>
+        <hr style="border:none;border-top:1px solid var(--garis-halus);margin:19px 0">
+        <p class="eyebrow">📝 Nota petugas — dikongsi Peserta · MC · Hadiah · Admin</p>
+        <div id="nota-admin"></div>
+        <div class="baris-input" style="margin-top:9px">
+          <button class="btn kecil" id="b-reset-nota"
+            style="background:var(--bahaya,#b3261e);color:#fff;border-color:var(--bahaya,#b3261e)">
+            🗑 Padam semua nota</button>
+        </div>
+        <p class="hint" style="margin:9px 0 0">Berasingan daripada reset tanda — memadam nota
+          <strong>tidak</strong> menyentuh kehadiran atau MC, dan reset tanda tidak menyentuh nota.</p>
       </div>
     </div>
   </section>
@@ -6845,6 +6855,7 @@ function lukisPetugas() {
   lukisBorangGuru();
   lukisResetStatus();
   lukisGuruKelas();
+  agPasangNota($('nota-admin'), MAJLIS.id, 'admin');   // 📝 nota dikongsi petugas
 
   $('link-grid').innerHTML = peranan.map(r => {
     const kod = mod[r.k];
@@ -7448,6 +7459,23 @@ $('b-rs-giliran').addEventListener('click', async () => {
 
 $('b-reset-hadir').addEventListener('click', () => resetTanda('hadir', 'kehadiran'));
 $('b-reset-mc').addEventListener('click', () => resetTanda('mc', 'MC'));
+/* 📝 Reset nota — BERASINGAN daripada reset tanda. */
+$('b-reset-nota').addEventListener('click', async () => {
+  if (!MAJLIS) return;
+  const b = $('b-reset-nota');
+  b.disabled = true;
+  try {
+    const n = await agBilNota(MAJLIS.id);
+    if (!n) { agToast('Tiada nota untuk dipadam', 'ok'); return; }
+    const taip = prompt('Padam SEMUA ' + n + ' nota petugas?\n\n' +
+      'Nota hilang dari Peserta, MC, Hadiah dan Admin. TIADA UNDO.\n' +
+      'Tanda kehadiran dan MC tidak disentuh.\n\nTaip RESET untuk teruskan:');
+    if (taip !== 'RESET') { if (taip !== null) agToast('Dibatalkan'); return; }
+    const bil = await agPadamSemuaNota(MAJLIS.id);
+    agToast(bil + ' nota dipadam', 'ok');
+  } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
+  finally { b.disabled = false; }
+});
 $('b-reset-dua').addEventListener('click', () =>
   resetTanda(['hadir', 'mc'], 'kehadiran + MC'));
 
