@@ -1001,6 +1001,10 @@ Guru kelas melihat murid **kelasnya sahaja** yang menerima anugerah + nombor gil
 
 Rahsia 🤫 disorok (`agSubRahsia`); bukan murid (`jenis:'luar'`) tidak dipapar; anugerah tidak naik pentas = "Tidak naik pentas", tiada nombor = "Belum".
 
+**Rahsia KEKAL disorok daripada guru kelas** — keputusan pengguna 2 Nov 2026 (cadangan papar dengan tanda "jangan maklumkan murid" ditolak).
+
+**Aduan "anugerah X tidak keluar" (2 Nov 2026, contoh NILAM):** disemak live untuk 31 kelas berdaftar — 370/372 entri dipapar, 2 yang tiada ialah 🤫 rahsia. Punca sebenar: borang guru NILAM **belum dihantar** (senarai belum lengkap), atau kelas guru itu **tiada pendaftaran** (7 kelas ada penerima tanpa guru berdaftar). Semak dua perkara ini dahulu sebelum menyangka `binaBaris` rosak.
+
 #### Nombor giliran mesti berturutan tanpa jurang
 
 `beriNombor(true)` (🔁 Jana Semula) menomborkan 1…N mengikut `binaTurutan`; sub tanpa peserta dilangkau sendiri dan tidak memakan nombor.
