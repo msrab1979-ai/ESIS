@@ -974,6 +974,7 @@ Untuk anugerah kejutan (contoh Tokoh Murid). `a.rahsia === true` / `s.rahsia` (b
 - **Disorok dari SEMUA link petugas** (pengguna: "semua sorok"): Peserta, MC, Hadiah, Tayang, Guru Kelas, Skrip MC PDF, Senarai Hadiah PDF/Word/Excel (termasuk bila dicetak dari admin — tapisan dalam enjin `agKiraSkripMC` / pemanggil `agKiraSenaraiHadiah`). **Kekal** dalam panel admin, tiket, sijil, kad.
 - **Tapisan paparan sahaja — nombor giliran TIDAK berubah**, tiada Jana Semula. Berbeza dgn 🎤 yang membuang dari giliran.
 - Murid dengan anugerah lain yang tidak disorok **kekal**, di bawah anugerah itu sahaja (`agTapisPenerimaPetugas` menapis `anugerah[]` + `giliran[]`; murid tanpa baki dibuang). Gaya C: utama disorok → pengikut berdiri sendiri (agIkutSah), nombor sama.
+- **Peserta** juga membuang murid yang SEMUA anugerahnya 🚫 tidak naik pentas (`agPenerimaPentas` atas majlis segar) — dahulu mereka jatuh ke blok "(tiada anugerah)" (5 murid PI/MORAL/SEJARAH T4, 2 Nov 2026).
 - Panel memanggil `agMuatPetugas(MAJLIS)` = dokumen majlis **segar** + penerima ditapis, supaya 🙈 sampai pada 🔄 / muat berkala tanpa muat semula halaman (+1 bacaan setiap muat). `MAJLIS` panel = `agMajlisPetugas(...)` (sub disorok dibuang, `_penuh` = asal untuk jatuh balik bila bacaan gagal). MC/Hadiah: `MAJLIS` hanya ditukar bila senarai dipakai (`senarai.majlis` / `TERTUNDA.majlis`). Tayang auto: pemantau `onSnapshot` menapis dgn `MAJLIS._penuh`.
 
 #### 🖨 Skrip MC (PDF) — 30 Okt 2026

@@ -204,7 +204,11 @@ async function muat(pertama) {
     /* 🙈 majlis segar + penerima tanpa anugerah disorok admin */
     const r = await agMuatPetugas(MAJLIS);
     MAJLIS = r.majlis;
-    const penerima = r.penerima;
+    /* 🚫 Murid yang SEMUA anugerahnya tidak naik pentas tiada giliran —
+       dahulu jatuh ke blok "(tiada anugerah)". Dikira atas majlis SEGAR
+       setiap muat, jadi tukar 🎤 / 🙈 di admin terpakai pada 🔄. */
+    const subPentas = agSubPentas(MAJLIS);
+    const penerima = r.penerima.filter(p => agPenerimaPentas(p, subPentas));
 
     MURID = penerima.map(p => {
       const gil = p.giliran || [];
