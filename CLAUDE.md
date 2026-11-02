@@ -987,6 +987,10 @@ Papan nota dikongsi **Peserta · MC · Hadiah · Admin** (tab 🔗 Link Petugas)
 - **Nota pada tajuk ANUGERAH** (pengguna: aras anugerah sahaja, papan umum kekal, semua petugas tulis): **SATU nota per anugerah**, dipapar **SEBARIS nama** dalam accordion Peserta/MC/Hadiah (`ANUGERAH X  📝 nota`; tiada nota = `＋ nota` sunyi). Doc id tetap `${majlisId}__${anugerahId}` — ubah = `set` ganti, kosongkan = padam. `agNotaTajuk(anId, anNama)` → HTML; klik → `prompt` (nama diminta sekali, `localStorage`). Versi pertama (butang 📝 N + panel kuning di bawah tajuk, banyak nota) **ditolak pengguna** — jangan kembalikan. Satu `onSnapshot` untuk papan + tajuk; `agNotaSegar()` mengemas **di tempat**. Pendengar klik dokumen **fasa capture + stopPropagation** — nota duduk dalam tajuk accordion.
 - **Reset nota BERASINGAN** daripada reset tanda: butang `#b-reset-nota` (admin) → `agPadamSemuaNota` (batch 400), taip RESET. Reset tanda tidak menyentuh nota dan sebaliknya.
 
+#### 🔄 Tukar link petugas (2 Nov 2026)
+
+Tab 🔗 Link Petugas: butang **🔄 Tukar Link** per baris (Batal + Jana dalam satu langkah, `confirm`) dan **🔄 Tukar SEMUA link petugas** (`#b-tukar-semua-link`, taip RESET) — kod rawak baharu (`agKodBaru`) untuk `kodPeserta/kodMC/kodHadiah/kodTayang/kodGuruKelas` dalam satu `simpanMajlis`. Untuk selepas latihan: link yang tersebar mati serta-merta. **Borang guru (`borangGuru`) tidak disentuh.** Pendaftaran Guru Kelas kekal (doc ikut majlisId, bukan kod) — guru cuma perlu link baharu. Gagal simpan → kod lama dipulihkan dalam memori.
+
 #### 🖨 Skrip MC (PDF) — 30 Okt 2026
 
 Butang **🖨 Skrip MC (PDF)** dalam kad Susunan Naik Pentas (admin) dan **🖨 Cetak** dalam `mc.html`. Satu enjin dalam `anugerah-kongsi.js`: `agKiraSkripMC(penerima)` (kiraan) + `agCetakSkripMC(w, majlis, penerima)` (dialog cetak pelayar, A4). Penerima dibaca **segar**; tetingkap dibuka **sebelum** `await` (pop-up selepas await disekat).

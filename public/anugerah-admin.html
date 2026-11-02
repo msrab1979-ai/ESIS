@@ -1045,6 +1045,13 @@ tr.pg-gab td{background:var(--amaran-bg)}
     <div class="kad">
       <div class="kad-kepala"><span class="langkah-no">6</span><h3>Link Petugas Majlis</h3></div>
       <div class="kad-isi">
+        <div class="baris-input" style="margin-bottom:12px">
+          <button class="btn kecil" id="b-tukar-semua-link"
+            style="background:var(--bahaya,#b3261e);color:#fff;border-color:var(--bahaya,#b3261e)">
+            🔄 Tukar SEMUA link petugas</button>
+          <span class="hint">Selepas latihan: link lama mati serta-merta, kongsi link baharu.
+            Borang guru tidak disentuh.</span>
+        </div>
         <div class="link-grid" id="link-grid"></div>
         <div id="gk-daftar"></div>
         <hr style="border:none;border-top:1px solid var(--garis-halus);margin:19px 0">
@@ -6872,6 +6879,7 @@ function lukisPetugas() {
       (kod
         ? '<button class="btn sunyi kecil" data-salin="' + agEsc(url) + '">Salin</button>' +
           '<a class="btn sunyi kecil" href="' + agEsc(url) + '" target="_blank" rel="noopener">Buka</a>' +
+          '<button class="btn sunyi kecil" data-tukar="' + r.k + '" title="Link baharu, link lama terus mati">🔄 Tukar Link</button>' +
           '<button class="btn sunyi kecil" data-batal="' + r.k + '">Batal</button>'
         : '<button class="btn emas kecil" data-jana="' + r.k + '">Jana Kod</button>') +
     '</div>';
@@ -7038,6 +7046,18 @@ $('link-grid').addEventListener('click', async e => {
   if (salin) {
     try { await navigator.clipboard.writeText(salin.dataset.salin); agToast('Link disalin', 'ok'); }
     catch { agToast('Gagal menyalin — salin manual dari paparan', 'ralat'); }
+    return;
+  }
+  /* 🔄 Tukar = Batal + Jana dalam SATU langkah. Kod lama terus ditolak
+     oleh agBukaDenganKod (padanan kod tepat). */
+  const tukar = e.target.closest('button[data-tukar]');
+  if (tukar) {
+    if (!confirm('Tukar link ini?\n\nLink LAMA terus tidak boleh dibuka. ' +
+      'Kongsi link baharu kepada petugas. Peranan lain tidak terjejas.')) return;
+    const lama = MAJLIS.modPetugas[tukar.dataset.tukar];
+    MAJLIS.modPetugas[tukar.dataset.tukar] = agKodBaru();
+    try { await simpanMajlis(); lukisPetugas(); agToast('Link baharu dijana — link lama mati', 'ok'); }
+    catch (err) { MAJLIS.modPetugas[tukar.dataset.tukar] = lama; agToast('Gagal: ' + err.message, 'ralat'); }
     return;
   }
   const batal = e.target.closest('button[data-batal]');
@@ -7459,6 +7479,24 @@ $('b-rs-giliran').addEventListener('click', async () => {
 
 $('b-reset-hadir').addEventListener('click', () => resetTanda('hadir', 'kehadiran'));
 $('b-reset-mc').addEventListener('click', () => resetTanda('mc', 'MC'));
+/* 🔄 Tukar SEMUA link petugas (Peserta, MC, Hadiah, Tayang, Guru Kelas)
+   — satu simpanan. Borang guru (`borangGuru`) TIDAK disentuh: guru yang
+   sedang mengisi tidak boleh terputus. */
+$('b-tukar-semua-link').addEventListener('click', async () => {
+  if (!MAJLIS) return;
+  const taip = prompt('Tukar SEMUA link petugas?\n\n' +
+    'Peserta, MC, Hadiah, Tayang dan Guru Kelas dapat link BAHARU.\n' +
+    'Semua link lama terus tidak boleh dibuka.\n' +
+    'Borang guru tidak disentuh.\n\nTaip RESET untuk teruskan:');
+  if (taip !== 'RESET') { if (taip !== null) agToast('Dibatalkan'); return; }
+  const mod = MAJLIS.modPetugas = MAJLIS.modPetugas || {};
+  const lama = { ...mod };
+  ['kodPeserta', 'kodMC', 'kodHadiah', 'kodTayang', 'kodGuruKelas']
+    .forEach(k => { mod[k] = agKodBaru(); });
+  try { await simpanMajlis(); lukisPetugas(); agToast('Semua link petugas ditukar — kongsi link baharu', 'ok'); }
+  catch (err) { MAJLIS.modPetugas = lama; agToast('Gagal: ' + err.message, 'ralat'); }
+});
+
 /* 📝 Reset nota — BERASINGAN daripada reset tanda. */
 $('b-reset-nota').addEventListener('click', async () => {
   if (!MAJLIS) return;
