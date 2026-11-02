@@ -306,7 +306,7 @@ Symptom to recognise: console shows `❌ Cache read error: IndexedDB timeout (5s
 
 ### Modul Anugerah — TIADA dark mode (2 Nov 2026)
 
-Semua panel anugerah (dan `markah-guru.html`, yang berkongsi `anugerah-kongsi.css`) **sentiasa terang** walaupun OS dalam mod gelap — pengguna mahu paparan rasmi. Blok `prefers-color-scheme:dark` / `data-theme="dark"` dibuang; `:root{color-scheme:only light}` + `<meta name="color-scheme" content="only light">` pada setiap halaman — `only` menghalang Auto Dark Mode Chrome daripada memaksa laman gelap. Jangan kembalikan tanpa diminta.
+Semua panel anugerah (dan `markah-guru.html`, yang berkongsi `anugerah-kongsi.css`) **sentiasa terang** walaupun OS dalam mod gelap — pengguna mahu paparan rasmi. Blok `prefers-color-scheme:dark` / `data-theme="dark"` dibuang; `:root{color-scheme:only light}` + `<meta name="color-scheme" content="only light">` pada setiap halaman — `only` menghalang Auto Dark Mode Chrome daripada memaksa laman gelap. `<meta name="darkreader-lock">` menghalang extension Dark Reader (pengguna masih nampak gelap di Chrome desktop selepas kod bersih). Jangan kembalikan tanpa diminta.
 
 ### Modul Anugerah — tetapan subjek murid terbaik
 
