@@ -979,6 +979,7 @@ Butang dalam kad Pengurus Hadiah (tab 🔗 Link Petugas, `data-cetak-hadiah`, me
 - Satu `<table>` per blok anugerah berturut-turut; `thead` (tajuk + kiraan + julat giliran) berulang di muka baharu; blok ≤30 baris `break-inside:avoid`.
 - Gaya C: tajuk `🎁 GABUNG · TAHUN 5: BAHASA MELAYU + SAINS` (`agTajukSubHadiah` — akhiran " — X" dikongsi dikeluarkan ke depan). Tajuk bertukar ikut nombor, jadi boleh berulang — nombor tidak disusun semula.
 - Kepala: sekolah, majlis, tarikh, jumlah hadiah, julat giliran, "Dijana <masa>".
+- **📄 Word (.docx)** (2 Nov 2026): butang `data-word-hadiah` (admin) / `#b-word` (`hadiah.html`) → `agMuatTurunSenaraiHadiahWord` — OOXML terus via JSZip (corak PPTX), enjin kiraan sama `agKiraSenaraiHadiah`, jadi isi sentiasa sama dgn PDF. Baris kepala jadual berulang (`tblHeader`), tidak hadir dicoret.
 
 #### Susun ikut kelas — 3 anugerah dipadan pada NAMA (1 Nov 2026)
 
