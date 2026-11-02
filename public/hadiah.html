@@ -490,13 +490,15 @@ function lukisSenarai() {
           '<span class="bil-kep">' + kira(S.baris) + '</span>' +
         '</div>' + (bukaSub ? jadual(S.baris) : '');
     }).join('');
+    const nt = agNotaTajuk(A.anugerahId, A.kunci);   // 📝 nota anugerah
     return '<div class="grup-kepala' + (buka ? ' buka' : '') +
         '" data-gil-an="' + agEsc(A.kunci) + '">' +
         '<span class="anak-panah">\u25b6</span>' +
         '<span class="an-nama">' + agEsc(A.anugerah) + '</span>' +
         '<span class="bil-kep">' + kira(semua) +
           (satuSub ? '' : ' \u00b7 ' + A.sub.length + ' kategori') + '</span>' +
-      '</div>' + (buka ? '<div class="grup-isi">' + dalam + '</div>' : '');
+        nt.butang +
+      '</div>' + nt.panel + (buka ? '<div class="grup-isi">' + dalam + '</div>' : '');
   }).join('') +
     '<div class="kad-isi" style="border-top:1px solid var(--garis-halus)">' +
       '<div class="nota" style="margin:0"><span class="sym">\u25b8</span><div>' +

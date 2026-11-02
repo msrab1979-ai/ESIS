@@ -984,6 +984,7 @@ Papan nota dikongsi **Peserta · MC · Hadiah · Admin** (tab 🔗 Link Petugas)
 - Koleksi **`anugerah_nota`** = `{majlisId, teks (≤500), nama (≤40), panel, masa: Date.now()}` — **bukan** dalam dokumen majlis (`simpanMajlis()` admin akan memadamnya).
 - `onSnapshot` pada `where('majlisId')` sahaja (tiada orderBy → tiada indeks komposit), susun terbaru dahulu di klien. Nama penulis wajib, diingati dalam `localStorage` `ag_nota_nama`. Ctrl/Cmd+Enter hantar.
 - `agPasangNota` idempoten per bekas+majlis (dipanggil setiap `lukisPetugas`); tukar majlis → pendengar lama dihentikan. Padam: `bekas.onclick` (ditulis ganti, tidak berhimpun) + `confirm`.
+- **Nota pada tajuk ANUGERAH** (pengguna: aras anugerah sahaja, papan umum kekal): medan `anugerahId` (kosong = nota umum). `agNotaTajuk(anId, kunciBlok)` → `{butang, panel}`; butang `📝 N` (kuning bila ada) dalam `.grup-kepala` Peserta/MC/Hadiah, panel kuning terus di bawah tajuk. Satu `onSnapshot` untuk kedua-dua tempat; `agNotaSegar()` mengemas butang/senarai **di tempat**. Keadaan buka `_agNotaBuka` (ikut kunci blok) + draf `_agNotaDraf` kekal bila panel melukis semula (muat 90s Peserta). Pendengar klik dokumen **fasa capture + stopPropagation** — butang duduk dalam tajuk accordion.
 - **Reset nota BERASINGAN** daripada reset tanda: butang `#b-reset-nota` (admin) → `agPadamSemuaNota` (batch 400), taip RESET. Reset tanda tidak menyentuh nota dan sebaliknya.
 
 #### 🖨 Skrip MC (PDF) — 30 Okt 2026

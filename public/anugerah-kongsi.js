@@ -2172,18 +2172,27 @@ async function agMuatTurunSenaraiHadiahExcel(majlis, penerima) {
 
 /* ---------- papar ---------- */
 /* ---------- 📝 NOTA PETUGAS (2 Nov 2026) ----------
-   Papan nota dikongsi Peserta · MC · Hadiah · admin (tab Link Petugas).
-   Semua boleh TULIS dan PADAM. Koleksi `anugerah_nota` = {majlisId, teks,
-   nama, panel, masa}. 🔴 BUKAN dalam dokumen majlis — simpanMajlis() admin
-   menulis MAJLIS dari memori dan akan memadam nota petugas.
-   onSnapshot (bukan muat berkala): nota tiba serta-merta, dan bacaan
-   hanya berlaku bila ada perubahan. Query majlisId sahaja (tiada orderBy)
-   supaya tiada indeks komposit; susun di klien, terbaru di atas.
+   Dikongsi Peserta · MC · Hadiah · admin (tab Link Petugas). Semua boleh
+   TULIS dan PADAM. Koleksi `anugerah_nota` = {majlisId, anugerahId, teks,
+   nama, panel, masa}. 🔴 BUKAN dalam dokumen majlis — simpanMajlis()
+   admin menulis MAJLIS dari memori dan akan memadam nota petugas.
+   DUA tempat, SATU pendengar:
+   - Papan umum (`agPasangNota`) = nota TANPA anugerahId.
+   - Tajuk anugerah (`agNotaTajuk`) = nota dgn anugerahId itu, butang 📝 N
+     pada .grup-kepala + panel di bawahnya. Aras ANUGERAH sahaja (pengguna).
+   onSnapshot pada majlisId sahaja (tiada orderBy → tiada indeks komposit);
+   kemas kini DI TEMPAT (butang + senarai), tidak melukis semula panel —
+   jadual di bawah tangan petugas tidak boleh bertukar.
+   Panel melukis semula senarainya sendiri (muat 90s Peserta): keadaan
+   buka (`_agNotaBuka`) dan draf (`_agNotaDraf`) kekal di memori.
    Reset (padam semua) BERASINGAN daripada reset tanda — dalam admin. */
 const AG_NOTA_KOL = 'anugerah_nota';
 const AG_NOTA_PANEL = { peserta: 'Peserta', mc: 'MC', hadiah: 'Hadiah', admin: 'Admin' };
 const AG_NOTA_HAD = 500;
-const _agNota = {};   // bekasId → {majlisId, henti}
+const AG_NOTA_KUNCI_NAMA = 'ag_nota_nama';
+const _agNotaS = { majlisId: null, panel: '', henti: null, nota: [], sedia: false };
+const _agNotaBuka = new Set();   // kunci blok tajuk yang panel notanya terbuka
+const _agNotaDraf = {};          // anugerahId (atau '' umum) → teks belum dihantar
 
 function agNotaMasa(ms) {
   const d = new Date(ms || 0);
@@ -2192,82 +2201,178 @@ function agNotaMasa(ms) {
     : d.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short' }) + ' ' + jam;
 }
 
-function agPasangNota(bekas, majlisId, panel) {
-  if (!bekas || !majlisId) return;
-  const id = bekas.id;
-  const lama = _agNota[id];
-  if (lama && lama.majlisId === majlisId) return;      // sudah dipasang
-  if (lama && lama.henti) lama.henti();
+function agNotaNama() {
+  try { return localStorage.getItem(AG_NOTA_KUNCI_NAMA) || ''; } catch (e) { return ''; }
+}
 
-  const kunciNama = 'ag_nota_nama';
-  bekas.innerHTML =
-    '<div class="kad nota-papan">' +
-      '<div class="kad-kepala"><h3>📝 Nota Petugas</h3>' +
-        '<span class="sub" data-nota-kira>Memuatkan…</span></div>' +
-      '<div class="kad-isi">' +
-        '<div class="nota-borang">' +
-          '<input type="text" data-nota-nama maxlength="40" placeholder="Nama anda (cth Cikgu Aina)">' +
-          '<textarea data-nota-teks rows="2" maxlength="' + AG_NOTA_HAD + '" ' +
-            'placeholder="Tulis nota untuk semua petugas…"></textarea>' +
-          '<button class="btn kecil" data-nota-hantar>Hantar</button>' +
-        '</div>' +
-        '<div class="nota-senarai" data-nota-senarai></div>' +
+function agNotaUntuk(anId) {
+  return _agNotaS.nota.filter(n => (n.anugerahId || '') === (anId || ''));
+}
+
+function agNotaSenaraiHtml(anId) {
+  const l = agNotaUntuk(anId);
+  if (!l.length) return '<div class="nota-kosong">Belum ada nota.</div>';
+  return l.map(n =>
+    '<div class="nota-item">' +
+      '<div class="nota-teks">' + agEsc(n.teks) + '</div>' +
+      '<div class="nota-meta">' + agEsc(n.nama || '—') + ' · ' +
+        agEsc(AG_NOTA_PANEL[n.panel] || n.panel || '') + ' · ' + agEsc(agNotaMasa(n.masa)) +
+        '<button class="btn sunyi kecil" data-nota-padam="' + agEsc(n.id) + '" title="Padam nota ini">🗑</button>' +
       '</div>' +
+    '</div>').join('');
+}
+
+function agNotaBorangHtml(anId, teksPh) {
+  const k = agEsc(anId || '');
+  return '<div class="nota-borang">' +
+      '<input type="text" data-nota-nama maxlength="40" value="' + agEsc(agNotaNama()) + '" ' +
+        'placeholder="Nama anda (cth Cikgu Aina)">' +
+      '<textarea data-nota-teks="' + k + '" rows="2" maxlength="' + AG_NOTA_HAD + '" ' +
+        'placeholder="' + agEsc(teksPh) + '">' + agEsc(_agNotaDraf[anId || ''] || '') + '</textarea>' +
+      '<button class="btn kecil" data-nota-hantar="' + k + '">Hantar</button>' +
     '</div>';
-  const q = s => bekas.querySelector(s);
-  const elNama = q('[data-nota-nama]'), elTeks = q('[data-nota-teks]'), elHantar = q('[data-nota-hantar]');
-  try { elNama.value = localStorage.getItem(kunciNama) || ''; } catch (e) {}
+}
 
-  const hantar = async () => {
-    const teks = elTeks.value.trim();
-    const nama = elNama.value.trim();
-    if (!teks) { elTeks.focus(); return; }
-    if (!nama) { agToast('Sila isi nama anda dahulu', 'ralat'); elNama.focus(); return; }
-    try { localStorage.setItem(kunciNama, nama); } catch (e) {}
-    elHantar.disabled = true;
-    try {
-      await agDb.collection(AG_NOTA_KOL).add({
-        majlisId, teks: teks.slice(0, AG_NOTA_HAD), nama: nama.slice(0, 40),
-        panel: panel || '', masa: Date.now()
-      });
-      elTeks.value = '';
-    } catch (e) {
-      agToast('Nota TIDAK dihantar: ' + e.message, 'ralat');
-    } finally { elHantar.disabled = false; }
-  };
-  elHantar.onclick = hantar;
-  /* Ctrl/Cmd+Enter hantar; Enter biasa = baris baharu. */
-  elTeks.onkeydown = e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) hantar(); };
+/* Tajuk anugerah → {butang, panel}. `kunci` = kunci blok accordion
+   (gaya B/C boleh ada beberapa blok satu anugerah); data ikut anId. */
+function agNotaTajuk(anId, kunci) {
+  if (!_agNotaS.majlisId || !anId) return { butang: '', panel: '' };
+  const n = agNotaUntuk(anId).length;
+  const k = kunci || anId;
+  const buka = _agNotaBuka.has(k);
+  const butang = '<button class="btn kecil nota-an-btn' + (n ? ' ada' : ' sunyi') + '" ' +
+    'data-nota-togol="' + agEsc(k) + '" data-nota-an="' + agEsc(anId) + '" ' +
+    'title="Nota petugas untuk anugerah ini">📝' + (n ? ' ' + n : '') + '</button>';
+  const panel = !buka ? '' :
+    '<div class="nota-papan nota-an-panel" data-nota-panel="' + agEsc(anId) + '">' +
+      '<div class="nota-senarai" data-nota-senarai="' + agEsc(anId) + '">' + agNotaSenaraiHtml(anId) + '</div>' +
+      agNotaBorangHtml(anId, 'Nota untuk anugerah ini…') +
+    '</div>';
+  return { butang, panel };
+}
 
-  /* Satu pendengar pada bekas (onclick ditulis ganti, tidak berhimpun). */
-  bekas.onclick = async e => {
-    const b = e.target.closest('[data-nota-padam]');
-    if (!b) return;
-    if (!confirm('Padam nota ini untuk SEMUA petugas?')) return;
-    b.disabled = true;
-    try { await agDb.collection(AG_NOTA_KOL).doc(b.dataset.notaPadam).delete(); }
-    catch (err) { b.disabled = false; agToast('Gagal padam: ' + err.message, 'ralat'); }
-  };
+/* Kemas kini di tempat bila nota berubah. */
+function agNotaSegar() {
+  document.querySelectorAll('[data-nota-an]').forEach(b => {
+    const n = agNotaUntuk(b.dataset.notaAn).length;
+    b.textContent = '📝' + (n ? ' ' + n : '');
+    b.classList.toggle('ada', !!n);
+    b.classList.toggle('sunyi', !n);
+  });
+  document.querySelectorAll('[data-nota-senarai]').forEach(el => {
+    el.innerHTML = agNotaSenaraiHtml(el.dataset.notaSenarai);
+  });
+  document.querySelectorAll('[data-nota-kira]').forEach(el => {
+    const n = agNotaUntuk('').length;
+    el.textContent = (n ? n + ' nota' : 'Tiada nota') + ' · semua petugas boleh tulis & padam';
+  });
+}
 
-  const henti = agDb.collection(AG_NOTA_KOL).where('majlisId', '==', majlisId)
-    .onSnapshot(snap => {
-      const nota = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (b.masa || 0) - (a.masa || 0));
-      q('[data-nota-kira]').textContent = nota.length
-        ? nota.length + ' nota · semua petugas boleh tulis & padam'
-        : 'Tiada nota · semua petugas boleh tulis & padam';
-      q('[data-nota-senarai]').innerHTML = nota.map(n =>
-        '<div class="nota-item">' +
-          '<div class="nota-teks">' + agEsc(n.teks) + '</div>' +
-          '<div class="nota-meta">' + agEsc(n.nama || '—') + ' · ' +
-            agEsc(AG_NOTA_PANEL[n.panel] || n.panel || '') + ' · ' + agEsc(agNotaMasa(n.masa)) +
-            '<button class="btn sunyi kecil" data-nota-padam="' + agEsc(n.id) + '" title="Padam nota ini">🗑</button>' +
-          '</div>' +
-        '</div>').join('');
-    }, err => {
-      q('[data-nota-kira]').textContent = 'Gagal memuat nota: ' + err.message;
+async function agNotaHantar(anId, el) {
+  const akar = el.closest('.nota-borang');
+  const elTeks = akar.querySelector('[data-nota-teks]');
+  const elNama = akar.querySelector('[data-nota-nama]');
+  const teks = elTeks.value.trim();
+  const nama = elNama.value.trim();
+  if (!teks) { elTeks.focus(); return; }
+  if (!nama) { agToast('Sila isi nama anda dahulu', 'ralat'); elNama.focus(); return; }
+  try { localStorage.setItem(AG_NOTA_KUNCI_NAMA, nama); } catch (e) {}
+  const b = akar.querySelector('[data-nota-hantar]');
+  b.disabled = true;
+  try {
+    await agDb.collection(AG_NOTA_KOL).add({
+      majlisId: _agNotaS.majlisId, anugerahId: anId || '',
+      teks: teks.slice(0, AG_NOTA_HAD), nama: nama.slice(0, 40),
+      panel: _agNotaS.panel || '', masa: Date.now()
     });
-  _agNota[id] = { majlisId, henti };
+    elTeks.value = '';
+    delete _agNotaDraf[anId || ''];
+  } catch (e) {
+    agToast('Nota TIDAK dihantar: ' + e.message, 'ralat');
+  } finally { b.disabled = false; }
+}
+
+/* Pendengar peringkat dokumen, sekali sahaja. Klik dalam fasa CAPTURE +
+   stopPropagation — butang 📝 duduk DI DALAM .grup-kepala, jadi tanpa ini
+   accordion anugerah turut menogol. */
+function _agNotaPasangPendengar() {
+  if (window._agNotaPasang) return;
+  window._agNotaPasang = true;
+  document.addEventListener('click', async e => {
+    const tg = e.target.closest('[data-nota-togol]');
+    if (tg) {
+      e.stopPropagation(); e.preventDefault();
+      const k = tg.dataset.notaTogol, anId = tg.dataset.notaAn;
+      const kepala = tg.closest('.grup-kepala');
+      if (_agNotaBuka.has(k)) {
+        _agNotaBuka.delete(k);
+        const p = kepala && kepala.nextElementSibling;
+        if (p && p.classList.contains('nota-an-panel')) p.remove();
+      } else {
+        _agNotaBuka.add(k);
+        if (kepala) {
+          kepala.insertAdjacentHTML('afterend', agNotaTajuk(anId, k).panel);
+          const ta = kepala.nextElementSibling.querySelector('textarea');
+          if (ta) ta.focus();
+        }
+      }
+      return;
+    }
+    const hn = e.target.closest('[data-nota-hantar]');
+    if (hn) { e.stopPropagation(); agNotaHantar(hn.dataset.notaHantar, hn); return; }
+    const pd = e.target.closest('[data-nota-padam]');
+    if (pd) {
+      e.stopPropagation();
+      if (!confirm('Padam nota ini untuk SEMUA petugas?')) return;
+      pd.disabled = true;
+      try { await agDb.collection(AG_NOTA_KOL).doc(pd.dataset.notaPadam).delete(); }
+      catch (err) { pd.disabled = false; agToast('Gagal padam: ' + err.message, 'ralat'); }
+      return;
+    }
+    if (e.target.closest('.nota-an-panel')) e.stopPropagation();
+  }, true);
+  document.addEventListener('input', e => {
+    const ta = e.target.closest && e.target.closest('[data-nota-teks]');
+    if (ta) _agNotaDraf[ta.dataset.notaTeks] = ta.value;
+    const nm = e.target.closest && e.target.closest('[data-nota-nama]');
+    if (nm) document.querySelectorAll('[data-nota-nama]').forEach(x => { if (x !== nm) x.value = nm.value; });
+  });
+  /* Ctrl/Cmd+Enter hantar; Enter biasa = baris baharu. */
+  document.addEventListener('keydown', e => {
+    const ta = e.target.closest && e.target.closest('[data-nota-teks]');
+    if (ta && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) agNotaHantar(ta.dataset.notaTeks, ta);
+  });
+}
+
+/* Mulakan pendengar nota + papan umum dalam `bekas`. `bekas` boleh null
+   (pendengar sahaja). Idempoten untuk majlis yang sama. */
+function agPasangNota(bekas, majlisId, panel) {
+  if (!majlisId) return;
+  _agNotaPasangPendengar();
+  if (bekas && !bekas.querySelector('[data-nota-kira]')) {
+    bekas.innerHTML =
+      '<div class="kad nota-papan">' +
+        '<div class="kad-kepala"><h3>📝 Nota Petugas</h3>' +
+          '<span class="sub" data-nota-kira>Memuatkan…</span></div>' +
+        '<div class="kad-isi">' + agNotaBorangHtml('', 'Nota umum untuk semua petugas… (nota anugerah: tekan 📝 pada tajuk anugerah)') +
+          '<div class="nota-senarai" data-nota-senarai="">' + agNotaSenaraiHtml('') + '</div>' +
+        '</div>' +
+      '</div>';
+  }
+  if (_agNotaS.majlisId === majlisId) { agNotaSegar(); return; }
+  if (_agNotaS.henti) _agNotaS.henti();
+  Object.assign(_agNotaS, { majlisId, panel: panel || '', nota: [], sedia: false });
+  _agNotaS.henti = agDb.collection(AG_NOTA_KOL).where('majlisId', '==', majlisId)
+    .onSnapshot(snap => {
+      _agNotaS.nota = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.masa || 0) - (a.masa || 0));
+      _agNotaS.sedia = true;
+      agNotaSegar();
+    }, err => {
+      document.querySelectorAll('[data-nota-kira]').forEach(el => {
+        el.textContent = 'Gagal memuat nota: ' + err.message;
+      });
+    });
 }
 
 /* Padam SEMUA nota majlis — admin sahaja (butang reset berasingan).

@@ -354,3 +354,8 @@ code{
 .nota-papan .nota-teks{white-space:pre-wrap;word-break:break-word;font-size:14px}
 .nota-papan .nota-meta{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;color:#666}
 .nota-papan .nota-meta button{margin-left:auto}
+.nota-papan .nota-kosong{font-size:13px;color:#777}
+.nota-an-panel{padding:10px 16px 12px;background:#fffbea;border-bottom:1px solid var(--garis-halus)}
+.nota-an-panel .nota-senarai{margin-bottom:10px}
+.nota-an-btn{flex:none}
+.nota-an-btn.ada{background:#fff1b8;color:#7a5200;border-color:#e8c46a}
