@@ -304,6 +304,10 @@ Symptom to recognise: console shows `❌ Cache read error: IndexedDB timeout (5s
 
 **General rule this uncovered:** never read Firestore docs one at a time in a loop. Per-doc reads cost ~113ms each, so 91 of them is ~10s while one filtered query returning the same data is ~0.3s — a 70× difference. See the Trend GPS ETR query above.
 
+### Modul Anugerah — TIADA dark mode (2 Nov 2026)
+
+Semua panel anugerah (dan `markah-guru.html`, yang berkongsi `anugerah-kongsi.css`) **sentiasa terang** walaupun OS dalam mod gelap — pengguna mahu paparan rasmi. Blok `prefers-color-scheme:dark` / `data-theme="dark"` dibuang; `:root{color-scheme:light}` mengekalkan input/select pelayar terang. Jangan kembalikan tanpa diminta.
+
 ### Modul Anugerah — tetapan subjek murid terbaik
 
 Admin memilih **subjek mana dikira** untuk anugerah murid terbaik, **per darjah** — `settings/anugerahSubjek` = `{SATU:[nama_penuh...], ..., ENAM:[...]}`. Tandaan dibuat dalam tab `📚 Tetapan` (`initTetapan`/`lukisTetapan`, ids `tetapan-*`, satu accordion per darjah), disimpan dengan butang 💾 (bukan auto — admin majlis ramai dan sebahagiannya kurang biasa dengan komputer; toast "Disimpan" ialah pengesahan yang mereka cari).

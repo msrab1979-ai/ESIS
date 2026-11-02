@@ -28,34 +28,10 @@
   --bayang:0 1px 2px rgba(22,35,58,.06),0 3px 10px rgba(22,35,58,.05);
   --r:10px;
 }
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --tinta:#EDE7D8; --tinta-lembut:#CFC7B4;
-    --emas:#D2A94C; --emas-cerah:#E8C475;
-    --kertas:#141821; --kertas-2:#1C2130; --kertas-3:#232936;
-    --neutral:#9AA2B4; --neutral-lembut:#737B8C;
-    --garis:#333A4A; --garis-halus:#29303E;
-    --hadir:#6FC091; --hadir-bg:#1C3027;
-    --absen:#E58080; --absen-bg:#33201F;
-    --amaran:#D9A95C; --amaran-bg:#2E2617;
-    --atas-emas:#1A1203; --tanda-teks:#102018;
-    --pentas-bg:#0C0F16; --pentas-teks:#EDE7D8;
-    --bayang:0 1px 2px rgba(0,0,0,.4),0 3px 10px rgba(0,0,0,.3);
-  }
-}
-:root[data-theme="dark"]{
-  --tinta:#EDE7D8; --tinta-lembut:#CFC7B4;
-  --emas:#D2A94C; --emas-cerah:#E8C475;
-  --kertas:#141821; --kertas-2:#1C2130; --kertas-3:#232936;
-  --neutral:#9AA2B4; --neutral-lembut:#737B8C;
-  --garis:#333A4A; --garis-halus:#29303E;
-  --hadir:#6FC091; --hadir-bg:#1C3027;
-  --absen:#E58080; --absen-bg:#33201F;
-  --amaran:#D9A95C; --amaran-bg:#2E2617;
-  --atas-emas:#1A1203; --tanda-teks:#102018;
-  --pentas-bg:#0C0F16; --pentas-teks:#EDE7D8;
-  --bayang:0 1px 2px rgba(0,0,0,.4),0 3px 10px rgba(0,0,0,.3);
-}
+/* 🔴 Tiada dark mode — paparan rasmi sentiasa terang (pengguna, 2 Nov 2026).
+   color-scheme:light supaya input/select/scrollbar pelayar juga kekal terang
+   walaupun OS dalam mod gelap. */
+:root{color-scheme:light}
 
 *{box-sizing:border-box}
 body{
