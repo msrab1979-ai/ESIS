@@ -31,7 +31,7 @@
 /* 🔴 Tiada dark mode — paparan rasmi sentiasa terang (pengguna, 2 Nov 2026).
    color-scheme:light supaya input/select/scrollbar pelayar juga kekal terang
    walaupun OS dalam mod gelap. */
-:root{color-scheme:light}
+:root{color-scheme:only light}
 
 *{box-sizing:border-box}
 body{
