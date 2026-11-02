@@ -154,7 +154,7 @@ function memuat(el, teks) {
       $('p-ralat').hidden = false;
       return;
     }
-    MAJLIS = hasil.majlis;
+    MAJLIS = agMajlisPetugas(hasil.majlis);   // 🙈 sub disorok admin dibuang
     $('p-isi').hidden = false;
     await muat(true);
     /* 🔴 Muat berkala 25s × 3 panel × berjam-jam majlis = puluhan ribu
@@ -196,7 +196,11 @@ function capSusun(b) {
 async function muat(pertama, senyap) {
   if (pertama) memuat($('senarai'), 'Memuatkan…');
   try {
-    const penerima = await agMuatPenerima(MAJLIS.id);
+    /* 🙈 majlis segar + penerima tanpa anugerah disorok admin. MAJLIS
+       hanya ditukar bila senarai DIPAKAI (lihat TERTUNDA), supaya
+       accordion tidak berubah di bawah tangan petugas. */
+    const r = await agMuatPetugas(MAJLIS);
+    const penerima = r.penerima;
     const senarai = [];
     penerima.forEach(p => {
       const gil = (p.giliran || []).filter(g => g.no != null);
@@ -219,6 +223,7 @@ async function muat(pertama, senyap) {
       });
     });
     senarai.sort((a, b) => a.no - b.no);
+    senarai.majlis = r.majlis;
 
     if (senyap && BARIS.length) {
       if (capBaris(senarai) === capBaris(BARIS)) { tandaPerlu(false); return; }
@@ -228,6 +233,7 @@ async function muat(pertama, senyap) {
     }
 
     BARIS = senarai;
+    MAJLIS = senarai.majlis;
     TERTUNDA = null;
     tandaPerlu(false);
 
@@ -297,6 +303,7 @@ $('senarai').addEventListener('click', e => {
 $('b-muat').addEventListener('click', () => {
   if (TERTUNDA) {
     BARIS = TERTUNDA;
+    MAJLIS = TERTUNDA.majlis;
     TERTUNDA = null;
     tandaPerlu(false);
     isiDropdownAnugerah();
@@ -319,7 +326,7 @@ $('b-cetak').addEventListener('click', async () => {
   if (!w) { agToast('Benarkan pop-up untuk mencetak', 'ralat'); return; }
   w.document.write('<p style="font:14px system-ui;padding:20px">Memuatkan senarai hadiah…</p>');
   try {
-    agCetakSenaraiHadiah(w, MAJLIS, await agMuatPenerima(MAJLIS.id));
+    agCetakSenaraiHadiah(w, MAJLIS, (await agMuatPetugas(MAJLIS)).penerima);
   } catch (e) {
     w.close();
     agToast('Gagal: ' + e.message, 'ralat');
@@ -331,7 +338,7 @@ $('b-word').addEventListener('click', async () => {
   const b = $('b-word');
   b.disabled = true;
   try {
-    await agMuatTurunSenaraiHadiahWord(MAJLIS, await agMuatPenerima(MAJLIS.id));
+    await agMuatTurunSenaraiHadiahWord(MAJLIS, (await agMuatPetugas(MAJLIS)).penerima);
   } catch (e) {
     agToast('Gagal: ' + e.message, 'ralat');
   } finally { b.disabled = false; }
@@ -342,7 +349,7 @@ $('b-excel').addEventListener('click', async () => {
   const b = $('b-excel');
   b.disabled = true;
   try {
-    await agMuatTurunSenaraiHadiahExcel(MAJLIS, await agMuatPenerima(MAJLIS.id));
+    await agMuatTurunSenaraiHadiahExcel(MAJLIS, (await agMuatPetugas(MAJLIS)).penerima);
   } catch (e) {
     agToast('Gagal: ' + e.message, 'ralat');
   } finally { b.disabled = false; }

@@ -908,6 +908,69 @@ function agSubRahsia(majlis) {
   return set;
 }
 
+/* 🙈 SOROK DARI PETUGAS — untuk latihan: anugerah yang tidak mahu
+   dipapar lagi kepada petugas. Lalai PAPAR (tiada medan). `s.sorokPetugas`
+   (boolean) menimpa `a.sorokPetugas`.
+   Disorok dari: Peserta, MC, Hadiah, Tayang, Guru Kelas, Skrip MC PDF,
+   Senarai Hadiah PDF/Word/Excel. KEKAL dalam panel admin.
+   🔴 Nombor giliran TIDAK disentuh — ini tapisan paparan sahaja, jadi
+      tiket yang sudah dicetak kekal sah dan tiada Jana Semula.
+   Murid yang ada anugerah lain kekal, di bawah anugerah itu sahaja.
+   Gaya C: bila sub utama disorok, entri utama turut ditapis keluar, jadi
+   pengikutnya berdiri sendiri melalui agIkutSah (nombor sama). */
+function agSorokPetugas(a, s) {
+  if (s && typeof s.sorokPetugas === 'boolean') return s.sorokPetugas;
+  return !!(a && a.sorokPetugas === true);
+}
+
+function agSubSorok(majlis) {
+  const set = new Set();
+  ((majlis && majlis.anugerah) || []).forEach(a =>
+    (a.sub || []).forEach(s => { if (agSorokPetugas(a, s)) set.add(s.id); }));
+  return set;
+}
+
+/* Salinan majlis tanpa sub/anugerah disorok — untuk panel petugas. */
+function agMajlisPetugas(majlis) {
+  if (!majlis) return majlis;
+  /* Anugerah tanpa sub tidak boleh memegang penerima (penerima pada
+     subId), jadi anugerah yang tinggal 0 sub dibuang terus. */
+  const anugerah = (majlis.anugerah || [])
+    .map(a => ({ ...a, sub: (a.sub || []).filter(s => !agSorokPetugas(a, s)) }))
+    .filter(a => a.sub.length);
+  /* `_penuh` = asal, supaya agMuatPetugas masih boleh menapis bila
+     bacaan majlis segar gagal. */
+  return { ...majlis, anugerah, _penuh: majlis._penuh || majlis };
+}
+
+/* Penerima tanpa entri anugerah[]/giliran[] yang disorok. Murid tanpa
+   apa-apa anugerah tinggal → dibuang. */
+function agTapisPenerimaPetugas(majlis, penerima) {
+  const sorok = agSubSorok(majlis);
+  if (!sorok.size) return penerima || [];
+  const keluar = [];
+  (penerima || []).forEach(p => {
+    const anugerah = (p.anugerah || []).filter(x => !sorok.has(x.subId));
+    if (!anugerah.length) return;
+    keluar.push({ ...p, anugerah,
+      giliran: (p.giliran || []).filter(g => !sorok.has(g.subId)) });
+  });
+  return keluar;
+}
+
+/* Muat untuk panel petugas: dokumen majlis SEGAR (supaya 🙈 admin sampai
+   pada 🔄 / muat berkala tanpa muat semula halaman) + penerima ditapis.
+   Bacaan majlis gagal → guna majlis lama, bukan berhenti. */
+async function agMuatPetugas(majlis) {
+  const [dm, penerima] = await Promise.all([
+    agDb.collection('anugerah_majlis').doc(majlis.id).get().catch(() => null),
+    agMuatPenerima(majlis.id)
+  ]);
+  const penuh = (dm && dm.exists) ? { id: dm.id, ...dm.data() } : (majlis._penuh || majlis);
+  return { majlis: agMajlisPetugas(penuh), penuh,
+           penerima: agTapisPenerimaPetugas(penuh, penerima) };
+}
+
 /* Murid yang memegang sekurang-kurangnya satu anugerah naik pentas. */
 function agPenerimaPentas(p, subPentas) {
   return (p.anugerah || []).some(x => subPentas.has(x.subId));
@@ -1481,6 +1544,7 @@ function agDarjahSub(sub) {
                    belum bernombor) — tidak dikira dalam bilMurid
      pendua / jurang = nombor yang dipegang >1 baris / nombor 1..maks yang tiada */
 function agKiraSkripMC(penerima, majlis) {
+  penerima = agTapisPenerimaPetugas(majlis, penerima);
   const baris = [];
   const rahsia = agSubRahsia(majlis);
   const pentas = new Set();
@@ -1689,7 +1753,7 @@ function agTajukSubHadiah(b) {
 
 /* `w` = tetingkap yang SUDAH dibuka oleh pemanggil sebelum await. */
 function agCetakSenaraiHadiah(w, majlis, penerima) {
-  const r = agKiraSenaraiHadiah(penerima);
+  const r = agKiraSenaraiHadiah(agTapisPenerimaPetugas(majlis, penerima));
   const E = agEsc;
   const dijana = new Date().toLocaleString('ms-MY', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -1816,7 +1880,7 @@ async function agMuatTurunSenaraiHadiahWord(majlis, penerima) {
       document.head.appendChild(s);
     });
   }
-  const r = agKiraSenaraiHadiah(penerima);
+  const r = agKiraSenaraiHadiah(agTapisPenerimaPetugas(majlis, penerima));
   const X = s => agEsc(String(s == null ? '' : s).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ''));
   const dijana = new Date().toLocaleString('ms-MY', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -1980,7 +2044,7 @@ async function agMuatTurunSenaraiHadiahExcel(majlis, penerima) {
       document.head.appendChild(s);
     });
   }
-  const r = agKiraSenaraiHadiah(penerima);
+  const r = agKiraSenaraiHadiah(agTapisPenerimaPetugas(majlis, penerima));
   const X = s => agEsc(String(s == null ? '' : s).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ''));
   const dijana = new Date().toLocaleString('ms-MY', { dateStyle: 'medium', timeStyle: 'short' });
   const huruf = i => String.fromCharCode(65 + i);

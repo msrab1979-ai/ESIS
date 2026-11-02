@@ -967,6 +967,15 @@ Untuk anugerah kejutan (contoh Tokoh Murid). `a.rahsia === true` / `s.rahsia` (b
 - Butang `butangRahsia`/`setRahsia` di pokok — corak sama dengan 🎤: baris anugerah + tajuk kumpulan **sentiasa**; baris sub **hanya bila sub itu rahsia** (107 butang "🎟️ Dalam tiket" ialah bunyi). Modal Ubah Sub ada `#s-rahsia`, dan `baca()` membawanya.
 - Nombor giliran **tidak** disentuh — tiada Jana Semula diperlukan.
 
+#### 🙈 Sorok dari petugas — latihan (2 Nov 2026)
+
+`a.sorokPetugas === true` / `s.sorokPetugas` (boolean, menimpa) — `agSorokPetugas`, `agSubSorok` dalam `anugerah-kongsi.js`. **Lalai PAPAR** (tiada medan). Butang `butangSorok`/`setSorok` di pokok, corak sama dengan 🤫: baris anugerah + tajuk kumpulan sentiasa; baris sub hanya bila disorok. `baca()` modal sub membawa medan ini.
+
+- **Disorok dari SEMUA link petugas** (pengguna: "semua sorok"): Peserta, MC, Hadiah, Tayang, Guru Kelas, Skrip MC PDF, Senarai Hadiah PDF/Word/Excel (termasuk bila dicetak dari admin — tapisan dalam enjin `agKiraSkripMC` / pemanggil `agKiraSenaraiHadiah`). **Kekal** dalam panel admin, tiket, sijil, kad.
+- **Tapisan paparan sahaja — nombor giliran TIDAK berubah**, tiada Jana Semula. Berbeza dgn 🎤 yang membuang dari giliran.
+- Murid dengan anugerah lain yang tidak disorok **kekal**, di bawah anugerah itu sahaja (`agTapisPenerimaPetugas` menapis `anugerah[]` + `giliran[]`; murid tanpa baki dibuang). Gaya C: utama disorok → pengikut berdiri sendiri (agIkutSah), nombor sama.
+- Panel memanggil `agMuatPetugas(MAJLIS)` = dokumen majlis **segar** + penerima ditapis, supaya 🙈 sampai pada 🔄 / muat berkala tanpa muat semula halaman (+1 bacaan setiap muat). `MAJLIS` panel = `agMajlisPetugas(...)` (sub disorok dibuang, `_penuh` = asal untuk jatuh balik bila bacaan gagal). MC/Hadiah: `MAJLIS` hanya ditukar bila senarai dipakai (`senarai.majlis` / `TERTUNDA.majlis`). Tayang auto: pemantau `onSnapshot` menapis dgn `MAJLIS._penuh`.
+
 #### 🖨 Skrip MC (PDF) — 30 Okt 2026
 
 Butang **🖨 Skrip MC (PDF)** dalam kad Susunan Naik Pentas (admin) dan **🖨 Cetak** dalam `mc.html`. Satu enjin dalam `anugerah-kongsi.js`: `agKiraSkripMC(penerima)` (kiraan) + `agCetakSkripMC(w, majlis, penerima)` (dialog cetak pelayar, A4). Penerima dibaca **segar**; tetingkap dibuka **sebelum** `await` (pop-up selepas await disekat).

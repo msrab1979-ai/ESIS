@@ -2331,6 +2331,7 @@ function pilStatusBorang(b) {
               kiraan +
               butangPentas(i, a, [s]) +
               (agRahsia(a, s) ? butangRahsia(i, a, [s]) : '') +
+              (agSorokPetugas(a, s) ? butangSorok(i, a, [s]) : '') +
               lencanaSusun +
               /* 🔴 Hanya muncul bila ADA kerja untuk dibuat — butang
                  untuk sifar murid luar skop ialah bunyi bising pada
@@ -2397,7 +2398,8 @@ function pilStatusBorang(b) {
               '<span class="kanan"><span class="kecil">' + senarai.length + ' darjah \u00b7 ' +
                 bilM + ' murid</span>' + pilKunci(a, senarai.map(([sb]) => sb)) +
                 butangPentas(i, a, senarai.map(([sb]) => sb)) +
-                butangRahsia(i, a, senarai.map(([sb]) => sb)) + '</span>' +
+                butangRahsia(i, a, senarai.map(([sb]) => sb)) +
+                butangSorok(i, a, senarai.map(([sb]) => sb)) + '</span>' +
             '</div>' +
             '<ul class="kump-isi">' + senarai
               .sort(([x], [y]) => agWordDarjah(x.skopNilai) - agWordDarjah(y.skopNilai))
@@ -2435,6 +2437,7 @@ function pilStatusBorang(b) {
                 pilKunci(a, senarai.map(([sb]) => sb)) +
                 butangPentas(i, a, senarai.map(([sb]) => sb)) +
                 butangRahsia(i, a, senarai.map(([sb]) => sb)) +
+                butangSorok(i, a, senarai.map(([sb]) => sb)) +
                 '<button class="btn ' + (bDarjah ? 'sunyi' : 'hijau') + ' kecil" ' +
                   'data-dj-borang="' + i + ',' + agEsc(w) + '">' +
                   (bDarjah ? '\ud83d\udd17 Borang' : '\ud83d\udcdd Bina Borang') + '</button>' +
@@ -2471,6 +2474,7 @@ function pilStatusBorang(b) {
           pilihSusunAnugerah(a, i) +
           butangPentas(i, a, null) +
           butangRahsia(i, a, null) +
+          butangSorok(i, a, null) +
           '<button class="btn sunyi kecil" data-an-edit="' + i + '">Ubah</button>' +
           '<button class="btn sunyi kecil" data-an-buang="' + i + '">Buang</button>' +
         '</span>' +
@@ -2543,6 +2547,56 @@ function butangRahsia(i, a, subList) {
     (semua ? 'Rahsia — TIDAK dicetak pada tiket murid. Tekan untuk cetak semula pada tiket'
            : 'Tekan untuk jadikan RAHSIA — tidak dicetak pada tiket murid') +
     '. Kekal dalam giliran, MC, peserta, hadiah, slaid, sijil.">' + label + '</button>';
+}
+
+/* 🙈 Sorok dari petugas (latihan) — corak sama dengan butangRahsia.
+   Disorok = hilang dari Peserta, MC, Hadiah, Tayang, Guru Kelas dan
+   PDF/Word/Excel petugas. Nombor giliran TIDAK berubah. Pada baris SUB
+   hanya dipapar bila sub itu disorok. */
+function butangSorok(i, a, subList) {
+  const root = !subList;
+  const senarai = root ? (a.sub || []) : subList;
+  const n = senarai.length;
+  const r = n ? senarai.filter(s => agSorokPetugas(a, s)).length : (agSorokPetugas(a, null) ? 1 : 0);
+  const jum = n || 1;
+  const semua = r === jum, tiada = r === 0;
+  const ids = root ? '*' : senarai.map(s => s.id).join('|');
+  const label = semua ? '🙈 Disorok dari petugas' : tiada ? '👁 Papar ke petugas'
+              : '🙈 ' + r + '/' + jum + ' disorok';
+  const gaya = semua ? 'background:#fde8e8;color:#9b1c1c;border-color:#f0a8a8'
+             : tiada ? '' : 'background:#fff4d6;color:#8a5a00;border-color:#e8c46a';
+  return '<button class="btn ' + (tiada ? 'sunyi ' : '') + 'kecil"' +
+    (gaya ? ' style="' + gaya + '"' : '') + ' data-sorok="' + i + '" ' +
+    'data-sorok-id="' + agEsc(ids) + '" title="' +
+    (semua ? 'Disorok — TIDAK dipapar dalam link petugas. Tekan untuk papar semula'
+           : 'Tekan untuk SOROK dari semua link petugas (Peserta, MC, Hadiah, Tayang, Guru Kelas)') +
+    '. Nombor giliran tidak berubah; data murid tidak dipadam.">' + label + '</button>';
+}
+
+async function setSorok(i, ids, nilai) {
+  const a = (MAJLIS.anugerah || [])[i];
+  if (!a) return;
+  const salinan = JSON.parse(JSON.stringify(a));
+  if (ids === '*') {
+    if (nilai) a.sorokPetugas = true; else delete a.sorokPetugas;
+    (a.sub || []).forEach(s => { delete s.sorokPetugas; });
+  } else {
+    const set = new Set(ids.split('|'));
+    const asal = agSorokPetugas(a, null);
+    (a.sub || []).forEach(s => {
+      if (!set.has(s.id)) return;
+      if (nilai === asal) delete s.sorokPetugas; else s.sorokPetugas = nilai;
+    });
+  }
+  try {
+    await simpanMajlis();
+    agToast(nilai ? '🙈 Disorok dari link petugas — petugas tekan 🔄' : '👁 Dipapar semula ke petugas — petugas tekan 🔄', 'ok');
+  } catch (err) {
+    Object.keys(a).forEach(k => delete a[k]);
+    Object.assign(a, salinan);
+    agToast('Gagal: ' + err.message, 'ralat');
+  }
+  lukisPokok();
 }
 
 async function setRahsia(i, ids, nilai) {
@@ -2638,6 +2692,21 @@ $('pokok-anugerah').addEventListener('click', e => {
   if (e.target.closest('select[data-an-susun]')) return;
   /* 🎤 Disemak sebelum togol — butang duduk dalam .induk / .kump-kepala / baris sub. */
   /* 🤫 Disemak sebelum togol — sebab sama dengan butang 🎤. */
+  /* 🙈 Disorok sebelum togol — sebab sama dengan butang 🎤. */
+  const bSorok = e.target.closest('button[data-sorok]');
+  if (bSorok) {
+    e.stopPropagation();
+    const i = parseInt(bSorok.dataset.sorok);
+    const a = (MAJLIS.anugerah || [])[i];
+    if (!a) return;
+    const ids = bSorok.dataset.sorokId;
+    const senarai = ids === '*' ? (a.sub || [])
+      : (a.sub || []).filter(s => ids.split('|').includes(s.id));
+    const semua = senarai.length ? senarai.every(s => agSorokPetugas(a, s)) : agSorokPetugas(a, null);
+    bSorok.disabled = true;
+    setSorok(i, ids, !semua);
+    return;
+  }
   const bRahsia = e.target.closest('button[data-rahsia]');
   if (bRahsia) {
     e.stopPropagation();
@@ -4730,6 +4799,8 @@ async function modalSub(iAn, jSub) {
     if (vp === 'ya') o.pentas = true; else if (vp === 'tidak') o.pentas = false;
     const vr = $('s-rahsia') ? $('s-rahsia').value : '';
     if (vr === 'ya') o.rahsia = true; else if (vr === 'tidak') o.rahsia = false;
+    /* 🙈 Sorok dari petugas — tiada kawalan di sini, mesti dibawa. */
+    if (typeof s.sorokPetugas === 'boolean') o.sorokPetugas = s.sorokPetugas;
     /* Susunan naik pentas (susun sendiri) — tiada kawalan di sini. */
     if (Array.isArray(s.susunanMurid)) o.susunanMurid = s.susunanMurid;
     if (s.susunKunci) { o.susunKunci = true; if (s.susunKunciMasa) o.susunKunciMasa = s.susunKunciMasa; }

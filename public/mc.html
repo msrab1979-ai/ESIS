@@ -159,7 +159,7 @@ function memuat(el, teks) {
       $('p-ralat').hidden = false;
       return;
     }
-    MAJLIS = hasil.majlis;
+    MAJLIS = agMajlisPetugas(hasil.majlis);   // 🙈 sub disorok admin dibuang
     $('p-isi').hidden = false;
     await muat(true);
     /* 🔴 Muat berkala 25s × 3 panel × berjam-jam majlis = puluhan ribu
@@ -229,7 +229,11 @@ function bezaHadir(lama, baru) {
 async function muat(pertama, senyap) {
   if (pertama) memuat($('senarai'), 'Memuatkan giliran…');
   try {
-    const penerima = await agMuatPenerima(MAJLIS.id);
+    /* 🙈 majlis segar + penerima tanpa anugerah disorok admin. MAJLIS
+       hanya ditukar bila senarai DIPAKAI (lihat TERTUNDA), supaya
+       accordion tidak berubah di bawah tangan petugas. */
+    const r = await agMuatPetugas(MAJLIS);
+    const penerima = r.penerima;
 
     /* satu baris satu GILIRAN. Hanya medan yang MC perlukan dibentuk —
        nama, kelas, anugerah, sub, hadiah, nombor, status. TIADA no_kp
@@ -253,7 +257,8 @@ async function muat(pertama, senyap) {
       });
     });
     senarai.sort((a, b) => a.no - b.no);
-    senarai.kira = agKiraSkripMC(penerima, MAJLIS);
+    senarai.majlis = r.majlis;
+    senarai.kira = agKiraSkripMC(penerima, r.majlis);
 
     /* 🔴 Muat berkala MESTI menghormati baris gilir luar talian.
        Tanpa ini, muat 25s yang berikutnya membaca DB (yang belum menerima
@@ -274,6 +279,7 @@ async function muat(pertama, senyap) {
     }
 
     BARIS = senarai;
+    MAJLIS = senarai.majlis;
     KIRA = senarai.kira;
     TERTUNDA = null;
     tandaPerlu(false);
@@ -295,6 +301,7 @@ async function muat(pertama, senyap) {
 $('b-muat').addEventListener('click', () => {
   if (TERTUNDA) {
     BARIS = TERTUNDA;
+    MAJLIS = TERTUNDA.majlis;
     KIRA = TERTUNDA.kira;
     TERTUNDA = null;
     tandaPerlu(false);
@@ -317,7 +324,7 @@ $('b-cetak').addEventListener('click', async () => {
   if (!w) { agToast('Benarkan pop-up untuk mencetak', 'ralat'); return; }
   w.document.write('<p style="font:14px system-ui;padding:20px">Memuatkan senarai giliran…</p>');
   try {
-    agCetakSkripMC(w, MAJLIS, await agMuatPenerima(MAJLIS.id));
+    agCetakSkripMC(w, MAJLIS, (await agMuatPetugas(MAJLIS)).penerima);
   } catch (e) {
     w.close();
     agToast('Gagal: ' + e.message, 'ralat');

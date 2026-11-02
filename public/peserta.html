@@ -178,7 +178,7 @@ function memuat(el, teks) {
       $('p-ralat').hidden = false;
       return;
     }
-    MAJLIS = hasil.majlis;
+    MAJLIS = agMajlisPetugas(hasil.majlis);   // 🙈 sub disorok admin dibuang
     $('p-isi').hidden = false;
     await muat(true);
     /* 🔴 Muat berkala 25s × 3 panel × berjam-jam majlis = puluhan ribu
@@ -201,7 +201,10 @@ function memuat(el, teks) {
 async function muat(pertama) {
   if (pertama) memuat($('senarai'), 'Memuatkan senarai murid…');
   try {
-    const penerima = await agMuatPenerima(MAJLIS.id);
+    /* 🙈 majlis segar + penerima tanpa anugerah disorok admin */
+    const r = await agMuatPetugas(MAJLIS);
+    MAJLIS = r.majlis;
+    const penerima = r.penerima;
 
     MURID = penerima.map(p => {
       const gil = p.giliran || [];

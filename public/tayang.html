@@ -172,7 +172,7 @@ const $ = id => document.getElementById(id);
       $('p-ralat').hidden = false;
       return;
     }
-    MAJLIS = hasil.majlis;
+    MAJLIS = agMajlisPetugas(hasil.majlis);   // 🙈 sub disorok admin dibuang
     MOD = (MAJLIS.modTayang && MAJLIS.modTayang.auto) ? 'auto' : 'manual';
     $('s-mod').value = MOD;
     $('p-isi').hidden = false;
@@ -193,7 +193,10 @@ async function muat(pertama) {
       '<div class="t-anugerah">Menyiapkan slaid…</div>';
   }
   try {
-    const penerima = await agMuatPenerima(MAJLIS.id);
+    /* 🙈 majlis segar + penerima tanpa anugerah disorok admin */
+    const r = await agMuatPetugas(MAJLIS);
+    MAJLIS = r.majlis;
+    const penerima = r.penerima;
     bina(penerima);
     isiLompat();
     lukis();
@@ -365,7 +368,7 @@ function pasangMod() {
   pemantau = agDb.collection('anugerah_penerima')
     .where('majlisId', '==', MAJLIS.id)
     .onSnapshot(snap => {
-      bina(snap.docs.map(d => ({ docId: d.id, ...d.data() })));
+      bina(agTapisPenerimaPetugas(MAJLIS._penuh, snap.docs.map(d => ({ docId: d.id, ...d.data() }))));
       majuAuto();
       lukis();
     }, err => {

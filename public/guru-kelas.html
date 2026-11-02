@@ -369,7 +369,8 @@ async function muatSenarai() {
       return;
     }
     $('b-cetak').hidden = false;
-    const baris = binaBaris(await agMuatPenerima(MAJLIS.id));
+    /* 🙈 anugerah yang admin sorok dari petugas tidak dipapar */
+    const baris = binaBaris(agTapisPenerimaPetugas(MAJLIS, await agMuatPenerima(MAJLIS.id)));
     const bilAnu = baris.reduce((n, r) => n + r.anu.length, 0);
     $('kad-sari').textContent = baris.length + ' murid · ' + bilAnu + ' anugerah';
     $('kpi').innerHTML =
