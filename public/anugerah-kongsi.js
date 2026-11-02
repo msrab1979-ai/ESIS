@@ -1966,6 +1966,146 @@ async function agMuatTurunSenaraiHadiahWord(majlis, penerima) {
   return r;
 }
 
+/* ---------- 📊 Senarai Hadiah (Excel .xlsx) ----------
+   Enjin SAMA (agKiraSenaraiHadiah + agTajukSubHadiah) — satu baris RATA
+   satu hadiah, supaya petugas boleh tapis/susun sendiri dalam Excel.
+   .xlsx dijana terus sebagai OOXML (JSZip), rentetan inline (tiada
+   sharedStrings). 🔴 Teks MESTI dilepaskan untuk XML. */
+async function agMuatTurunSenaraiHadiahExcel(majlis, penerima) {
+  if (typeof JSZip === 'undefined') {
+    await new Promise((ya, tidak) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      s.onload = ya; s.onerror = () => tidak(new Error('Gagal memuat JSZip'));
+      document.head.appendChild(s);
+    });
+  }
+  const r = agKiraSenaraiHadiah(penerima);
+  const X = s => agEsc(String(s == null ? '' : s).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ''));
+  const dijana = new Date().toLocaleString('ms-MY', { dateStyle: 'medium', timeStyle: 'short' });
+  const huruf = i => String.fromCharCode(65 + i);
+
+  /* s: 0 biasa · 1 tebal · 2 kepala lajur · 3 tajuk · 4 tidak hadir (coret) · 5 merah tebal */
+  const sel = (ref, v, s = 0) => (v === '' || v == null) ? (s ? '<c r="' + ref + '" s="' + s + '"/>' : '')
+    : typeof v === 'number'
+      ? '<c r="' + ref + '" s="' + s + '"><v>' + v + '</v></c>'
+      : '<c r="' + ref + '" s="' + s + '" t="inlineStr"><is><t xml:space="preserve">' + X(v) + '</t></is></c>';
+  const LAJUR = ['No', 'Darjah/Kelas', 'Nama', 'Anugerah', 'Sub / Gabung', 'Hadiah', 'Status', 'Sedia', 'Serah'];
+  const LEBAR = [7, 16, 42, 36, 40, 22, 15, 8, 8];
+
+  const rows = [];
+  let n = 0;
+  const tambah = (sels, ht) => { n++; rows.push('<row r="' + n + '"' + (ht ? ' ht="' + ht + '" customHeight="1"' : '') + '>' +
+    sels.map((x, i) => sel(huruf(i) + n, x[0], x[1])).join('') + '</row>'); };
+
+  tambah([[majlis.nama || 'Majlis Anugerah', 3]], 22);
+  tambah([['SENARAI HADIAH — SEMAKAN PETUGAS', 1]]);
+  tambah([[(majlis.sekolah ? majlis.sekolah + ' · ' : '') + (majlis.tarikh ? majlis.tarikh + ' · ' : '') +
+    'Dijana ' + dijana]]);
+  tambah([['Jumlah hadiah: ' + r.baris.length + ' · Tidak hadir: ' + r.bilAbsen + ' · Sudah diambil: ' + r.bilAmbil +
+    ' · Perlu disediakan: ' + (r.baris.length - r.bilAbsen), 1]]);
+  const amaran = [];
+  if (r.pendua.length) amaran.push('Nombor berulang: ' + r.pendua.join(', '));
+  if (r.jurang.length) amaran.push('Nombor tiada (jurang): ' + r.jurang.slice(0, 30).join(', ') +
+    (r.jurang.length > 30 ? ' … (+' + (r.jurang.length - 30) + ')' : ''));
+  tambah([[amaran.length ? '⚠ ' + amaran.join(' · ') : '', amaran.length ? 5 : 0]]);
+  const kepala = n + 1;
+  tambah(LAJUR.map(l => [l, 2]));
+
+  r.baris.forEach(b => {
+    const absen = b.hadir === false;
+    const s = absen ? 4 : 0;
+    const tajuk = agTajukSubHadiah(b);
+    tambah([
+      [b.no, absen ? 4 : 1],
+      [b.luar ? '' : agDarjahKelas(b.tahun, b.kelas), s],
+      [b.nama, absen ? 4 : 1],
+      [b.anugerah, s],
+      [(b.gabung.length ? '🎁 GABUNG · ' : '') + (tajuk || ''), s],
+      [b.hadiah, s],
+      [absen ? 'TIDAK HADIR' : b.mc === true ? 'Sudah diambil' : '', absen ? 5 : 0],
+      ['☐', 0], ['☐', 0]
+    ]);
+  });
+  if (!r.baris.length) tambah([['Belum ada giliran bernombor. Admin perlu tekan 🔢 Beri Nombor dahulu.']]);
+
+  const akhir = huruf(LAJUR.length - 1);
+  const helaian = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<sheetViews><sheetView workbookViewId="0"><pane ySplit="' + kepala + '" topLeftCell="A' + (kepala + 1) +
+      '" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
+    '<cols>' + LEBAR.map((w, i) => '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>').join('') + '</cols>' +
+    '<sheetData>' + rows.join('') + '</sheetData>' +
+    (r.baris.length ? '<autoFilter ref="A' + kepala + ':' + akhir + (kepala + r.baris.length) + '"/>' : '') +
+    '<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/>' +
+    '<pageSetup paperSize="9" orientation="landscape" fitToHeight="0"/>' +
+    '</worksheet>';
+  const gaya = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<fonts count="5">' +
+      '<font><sz val="11"/><name val="Arial"/></font>' +
+      '<font><b/><sz val="11"/><name val="Arial"/></font>' +
+      '<font><b/><sz val="14"/><name val="Arial"/></font>' +
+      '<font><strike/><sz val="11"/><color rgb="FF888888"/><name val="Arial"/></font>' +
+      '<font><b/><sz val="11"/><color rgb="FF990000"/><name val="Arial"/></font>' +
+    '</fonts>' +
+    '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
+      '<fill><patternFill patternType="solid"><fgColor rgb="FFD9D9D9"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+    '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>' +
+      '<border><left/><right/><top/><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border></borders>' +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="6">' +
+      '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+      '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
+      '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>' +
+      '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
+      '<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
+      '<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
+    '</cellXfs>' +
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+    '</styleSheet>';
+
+  const zip = new JSZip();
+  zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+    '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+    '</Types>');
+  zip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+    '</Relationships>');
+  zip.file('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ' +
+    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    '<sheets><sheet name="Senarai Hadiah" sheetId="1" r:id="rId1"/></sheets>' +
+    (r.baris.length ? '<definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">' +
+      '\'Senarai Hadiah\'!$A$' + kepala + ':$' + akhir + '$' + (kepala + r.baris.length) + '</definedName></definedNames>' : '') +
+    '</workbook>');
+  zip.file('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+    '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+    '</Relationships>');
+  zip.file('xl/worksheets/sheet1.xml', helaian);
+  zip.file('xl/styles.xml', gaya);
+
+  const blob = await zip.generateAsync({
+    type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+  const nama = 'Senarai Hadiah - ' + String(majlis.nama || 'Majlis').replace(/[\\/:*?"<>|]+/g, ' ').trim() + '.xlsx';
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nama;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return r;
+}
+
 /* ---------- papar ---------- */
 function agEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g,

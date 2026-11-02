@@ -91,6 +91,7 @@
         <span class="sub">Susun hadiah ikut turutan ini</span>
         <div class="kanan"><button class="btn sunyi kecil" id="b-cetak">🖨 Cetak</button>
           <button class="btn sunyi kecil" id="b-word">📄 Word</button>
+          <button class="btn sunyi kecil" id="b-excel">📊 Excel</button>
           <button class="btn sunyi kecil" id="b-muat">🔄 Muat Semula</button></div>
       </div>
       <div class="tapis-bar">
@@ -329,6 +330,17 @@ $('b-word').addEventListener('click', async () => {
   b.disabled = true;
   try {
     await agMuatTurunSenaraiHadiahWord(MAJLIS, await agMuatPenerima(MAJLIS.id));
+  } catch (e) {
+    agToast('Gagal: ' + e.message, 'ralat');
+  } finally { b.disabled = false; }
+});
+
+/* 📊 Muat turun Excel — enjin sama, satu baris rata satu hadiah. */
+$('b-excel').addEventListener('click', async () => {
+  const b = $('b-excel');
+  b.disabled = true;
+  try {
+    await agMuatTurunSenaraiHadiahExcel(MAJLIS, await agMuatPenerima(MAJLIS.id));
   } catch (e) {
     agToast('Gagal: ' + e.message, 'ralat');
   } finally { b.disabled = false; }

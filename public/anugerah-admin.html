@@ -6787,7 +6787,8 @@ function lukisPetugas() {
         '<div class="lb-tulis">' + r.tulis + '</div></div>' +
       (r.k === 'kodHadiah'
         ? '<button class="btn sunyi kecil" data-cetak-hadiah>🖨 Cetak Senarai Hadiah (PDF)</button>' +
-          '<button class="btn sunyi kecil" data-word-hadiah>📄 Muat Turun (Word)</button>' : '') +
+          '<button class="btn sunyi kecil" data-word-hadiah>📄 Muat Turun (Word)</button>' +
+          '<button class="btn sunyi kecil" data-excel-hadiah>📊 Muat Turun (Excel)</button>' : '') +
       (kod
         ? '<button class="btn sunyi kecil" data-salin="' + agEsc(url) + '">Salin</button>' +
           '<a class="btn sunyi kecil" href="' + agEsc(url) + '" target="_blank" rel="noopener">Buka</a>' +
@@ -6937,6 +6938,20 @@ $('link-grid').addEventListener('click', async e => {
     } catch (err) {
       agToast('Gagal: ' + err.message, 'ralat');
     } finally { word.disabled = false; }
+    return;
+  }
+  /* 📊 Senarai Hadiah (Excel) — enjin sama, satu baris rata satu hadiah. */
+  const excel = e.target.closest('button[data-excel-hadiah]');
+  if (excel) {
+    if (!MAJLIS) return;
+    if (!sahkanNomborSebelum('Senarai Hadiah')) return;
+    excel.disabled = true;
+    try {
+      const r = await agMuatTurunSenaraiHadiahExcel(MAJLIS, await agMuatPenerima(MAJLIS.id));
+      agToast('Excel dimuat turun · ' + r.baris.length + ' hadiah', 'ok');
+    } catch (err) {
+      agToast('Gagal: ' + err.message, 'ralat');
+    } finally { excel.disabled = false; }
     return;
   }
   const salin = e.target.closest('button[data-salin]');
