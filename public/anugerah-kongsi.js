@@ -1279,6 +1279,24 @@ function agPilKe(ke, jum) {
     ' untuk murid ini">\ud83c\udf81 ' + ke + '/' + jum + (ke === jum ? ' (akhir)' : '') + '</span>';
 }
 
+/* Teks cetakan: "🎁 1/3 · seterusnya: No. 45, No. 78" ('' bila sekali sahaja).
+   Perlu b.ke / b.jum / b.lepas — lihat agTandaKe. */
+function agTeksKe(b) {
+  if (!(b.jum > 1)) return '';
+  return '\ud83c\udf81 ' + b.ke + '/' + b.jum + (b.ke === b.jum ? ' (akhir)' : '') +
+    (b.lepas.length ? ' \u00b7 seterusnya: ' + b.lepas.map(n => 'No. ' + n).join(', ') : '');
+}
+/* Isi b.ke/b.jum/b.lepas bagi baris yang SUDAH disusun ikut nombor.
+   `kunci` = pengenal murid (docId). */
+function agTandaKe(baris, kunci) {
+  const ikut = {};
+  baris.forEach(b => (ikut[kunci(b)] = ikut[kunci(b)] || []).push(b.no));
+  baris.forEach(b => {
+    const nos = ikut[kunci(b)];
+    b.ke = nos.indexOf(b.no) + 1; b.jum = nos.length; b.lepas = nos.slice(b.ke);
+  });
+}
+
 function agBilNaik(gil) {
   return (gil || []).filter(g => !agIkutSah(gil, g)).length;
 }
@@ -1568,7 +1586,7 @@ function agKiraSkripMC(penerima, majlis) {
     if (gil.length > 1) bilUlang++;
     if (gil.some(g => pentas.has(g.subId) && !rahsia.has(g.subId))) bilTiket++;
     utama.forEach((g, i) => baris.push({
-      no: g.no, nama: p.nama || '', tahun: p.tahun, kelas: p.kelas, luar: agAdalahLuar(p),
+      no: g.no, docId: p.docId, nama: p.nama || '', tahun: p.tahun, kelas: p.kelas, luar: agAdalahLuar(p),
       anugerahId: g.anugerahId || g.anugerah, anugerah: g.anugerah || '', sub: g.sub || '',
       hadiah: g.hadiah || '', hadir: g.hadir,
       kali: i + 1, daripada: utama.length,
@@ -1576,6 +1594,7 @@ function agKiraSkripMC(penerima, majlis) {
     }));
   });
   baris.sort((a, b) => a.no - b.no || String(a.nama).localeCompare(String(b.nama)));
+  agTandaKe(baris, b => b.docId);
 
   const kiraNo = {};
   baris.forEach(b => { kiraNo[b.no] = (kiraNo[b.no] || 0) + 1; });
@@ -1631,7 +1650,7 @@ function agCetakSkripMC(w, majlis, penerima) {
       }
     }
     const nota = [];
-    if (b.daripada > 1) nota.push('naik kali ke-' + b.kali + ' dari ' + b.daripada);
+    if (b.jum > 1) nota.push('<b>' + E(agTeksKe(b)) + '</b>');
     if (b.lain.length) nota.push('+ turut menerima: ' + b.lain.map(E).join(' · '));
     if (b.hadir === false) nota.push('<b>TIDAK HADIR</b>');
     html += '<tr class="m' + (b.hadir === false ? ' absen' : '') + '">' +
@@ -1715,7 +1734,7 @@ function agKiraSenaraiHadiah(penerima) {
       const ikut = agPengikutGiliran(gil, g);
       const hadiah = [...new Set([g, ...ikut].map(x => x.hadiah || '').filter(Boolean))];
       baris.push({
-        no: g.no, nama: p.nama || '', tahun: p.tahun, kelas: p.kelas, luar: agAdalahLuar(p),
+        no: g.no, docId: p.docId, nama: p.nama || '', tahun: p.tahun, kelas: p.kelas, luar: agAdalahLuar(p),
         anugerahId: g.anugerahId || g.anugerah, anugerah: g.anugerah || '', sub: g.sub || '',
         gabung: ikut.map(x => x.sub || x.anugerah), hadiah: hadiah.join(' · '),
         hadir: g.hadir, mc: g.mc
@@ -1723,6 +1742,7 @@ function agKiraSenaraiHadiah(penerima) {
     });
   });
   baris.sort((a, b) => a.no - b.no || String(a.nama).localeCompare(String(b.nama)));
+  agTandaKe(baris, b => b.docId);
   const kiraNo = {};
   baris.forEach(b => { kiraNo[b.no] = (kiraNo[b.no] || 0) + 1; });
   const nombor = Object.keys(kiraNo).map(Number);
@@ -1800,7 +1820,9 @@ function agCetakSenaraiHadiah(w, majlis, penerima) {
         '<td class="kotak">☐</td><td class="kotak">☐</td>' +
         '<td class="no">' + b.no + '</td>' +
         '<td class="kls">' + E(b.luar ? '' : agDarjahKelas(b.tahun, b.kelas)) + '</td>' +
-        '<td class="nama">' + E(b.nama) + '</td><td class="st">' + st + '</td></tr>';
+        '<td class="nama">' + E(b.nama) +
+          (b.jum > 1 ? '<div class="ke">' + E(agTeksKe(b)) + '</div>' : '') +
+        '</td><td class="st">' + st + '</td></tr>';
     });
     const a = B.baris[0].no, z = B.baris[n - 1].no;
     return '<table class="' + (n <= 30 ? 'pendek' : '') + '"><thead>' +
@@ -1844,6 +1866,7 @@ function agCetakSenaraiHadiah(w, majlis, penerima) {
     'td.kotak{width:30px;font-size:15px;line-height:1;text-align:center}' +
     'td.no{width:34px;font-weight:800;font-size:14px;text-align:right}' +
     'td.kls{width:100px;white-space:nowrap}td.nama{font-weight:700;font-size:12px}' +
+    'td.nama .ke{font-weight:600;font-size:10px;color:#333;text-decoration:none}' +
     'td.st{width:88px;font-size:10px}' +
     'tr.absen td{color:#888;text-decoration:line-through}tr.absen td.st{text-decoration:none;color:#900}' +
     '.akhir{margin-top:10px;border-top:2px solid #111;padding-top:5px;font-weight:700;text-align:right}' +
@@ -1980,7 +2003,8 @@ async function agMuatTurunSenaraiHadiahWord(majlis, penerima) {
         sel(para(run('☐', { sz: 24 }), { jc: 'center' }), { w: LEBAR[1] }) +
         sel(para(run(b.no, Object.assign({ b: true, sz: 24 }, o)), { jc: 'right' }), { w: LEBAR[2] }) +
         sel(para(run(b.luar ? '' : agDarjahKelas(b.tahun, b.kelas), Object.assign({ sz: 18 }, o))), { w: LEBAR[3] }) +
-        sel(para(run(b.nama, Object.assign({ b: true, sz: 21 }, o))), { w: LEBAR[4] }) +
+        sel(para(run(b.nama, Object.assign({ b: true, sz: 21 }, o))) +
+          (b.jum > 1 ? para(run(agTeksKe(b), { sz: 16, warna: '333333' })) : ''), { w: LEBAR[4] }) +
         sel(para(st), { w: LEBAR[5] }));
     });
     t += '</w:tbl>';
@@ -2060,8 +2084,8 @@ async function agMuatTurunSenaraiHadiahExcel(majlis, penerima) {
     : typeof v === 'number'
       ? '<c r="' + ref + '" s="' + s + '"><v>' + v + '</v></c>'
       : '<c r="' + ref + '" s="' + s + '" t="inlineStr"><is><t xml:space="preserve">' + X(v) + '</t></is></c>';
-  const LAJUR = ['No', 'Darjah/Kelas', 'Nama', 'Anugerah', 'Sub / Gabung', 'Hadiah', 'Status', 'Sedia', 'Serah'];
-  const LEBAR = [7, 16, 42, 36, 40, 22, 15, 8, 8];
+  const LAJUR = ['No', 'Darjah/Kelas', 'Nama', 'Hadiah ke- / Seterusnya', 'Anugerah', 'Sub / Gabung', 'Hadiah', 'Status', 'Sedia', 'Serah'];
+  const LEBAR = [7, 16, 42, 30, 36, 40, 22, 15, 8, 8];
 
   const rows = [];
   let n = 0;
@@ -2090,6 +2114,7 @@ async function agMuatTurunSenaraiHadiahExcel(majlis, penerima) {
       [b.no, absen ? 4 : 1],
       [b.luar ? '' : agDarjahKelas(b.tahun, b.kelas), s],
       [b.nama, absen ? 4 : 1],
+      [agTeksKe(b), s],
       [b.anugerah, s],
       [(b.gabung.length ? '🎁 GABUNG · ' : '') + (tajuk || ''), s],
       [b.hadiah, s],
