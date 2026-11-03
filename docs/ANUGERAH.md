@@ -747,6 +747,9 @@ Selepas kerja membetulkan sub darjah (26 Okt 2026), majlis ini tinggal **110 mur
 
 - **Dipecah pada `RESET_CHUNK` (400).** Versi lama memakai **satu batch**; Firestore menghadkan 500 operasi, jadi ia akan pecah senyap pada majlis >500 murid. Majlis ini 105 — ia belum pernah gagal, dan itulah sebabnya ia terlepas pandang.
 - **Dialog membawa kiraan tanda sebenar.** "Reset semua tanda MC?" tanpa nombor tidak memberitahu admin sama ada dia memadam kerja satu majlis penuh atau tiada apa-apa.
+- **Baca `PENERIMA` segar dahulu** (3 Nov 2026). Dahulu `resetTanda` mengira daripada `PENERIMA` dalam memori — tanda yang petugas buat selepas admin membuka halaman tidak direset dan "Sudah diambil" kekal.
+- **Panel MC/Hadiah lukis terus selepas reset** (`agAdaResetTanda(lama, baru)`): bila senarai lama ada tanda dan yang segar tiada, mod senyap diabaikan dan toast dipapar. MC juga mengosongkan `MENUNGGU`. Tanpanya MC tidak pun menyalakan butang merah (`capHadir` tidak membawa `mc`). Berkuat kuasa pada muat berkala seterusnya (≤90s) atau 🔄.
+- **🎁 1/3 + seterusnya** (`agTandaKe`/`agTeksKe`/`agPilKe`): skrin Peserta/MC/Hadiah dan cetakan Skrip MC + Senarai Hadiah PDF/Word/Excel. Dikira atas senarai penuh, gabung = 1.
 - `lukisResetStatus()` memaparkan keadaan semasa (kuning bila ada tanda, hijau bila bersih).
 - Nombor giliran dan senarai penerima **tidak disentuh** — boleh diulang berapa kali pun semasa menguji.
 
