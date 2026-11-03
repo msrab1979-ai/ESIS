@@ -472,8 +472,7 @@ function lukisSenarai() {
       '<td class="num">' + b.no + '</td>' +
       '<td class="nama-murid lajur-teks">' +
         (s === 'absen' ? '<s>' + agEsc(b.nama) + '</s>' : agEsc(b.nama)) +
-        (b.jum > 1 ? ' <span class="pil emas" title="Hadiah ke-' + b.ke + ' daripada ' + b.jum +
-          ' untuk murid ini">\ud83c\udf81 ' + b.ke + '/' + b.jum + (b.ke === b.jum ? ' (akhir)' : '') + '</span>' +
+        (b.jum > 1 ? ' ' + agPilKe(b.ke, b.jum) +
           (b.lepas.length ? '<div class="kecil" style="opacity:.8;font-weight:400">\u21b3 seterusnya: ' +
             b.lepas.map(n => 'No. ' + n).join(', ') + '</div>' : '') : '') + '</td>' +
       '<td>' + agEsc(agDarjahKelas(b.tahun, b.kelas)) + '</td>' +

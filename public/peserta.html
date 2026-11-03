@@ -531,7 +531,9 @@ function baris(m, no) {
   return '<li class="baris' + kelas + '" data-doc="' + agEsc(m.docId) + '">' +
     '<div class="baris-no">' + (no != null ? no : '\u2014') + '</div>' +
     '<div class="baris-info">' +
-      '<div class="n">' + agEsc(m.nama) + '</div>' +
+      '<div class="n">' + agEsc(m.nama) + (ulang && no != null ? ' ' + agPilKe(
+        [...new Set(m.giliran.filter(g => g.no != null && !agIkutSah(m.giliran, g)).map(g => g.no))]
+          .sort((a, b) => a - b).indexOf(no) + 1, bil) : '') + '</div>' +
       '<div class="k">' + agEsc(agDarjahKelas(m.tahun, m.kelas)) + '</div>' +
       notaGabung + notaUlang +
     '</div>' +

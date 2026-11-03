@@ -260,6 +260,16 @@ async function muat(pertama, senyap) {
       });
     });
     senarai.sort((a, b) => a.no - b.no);
+    /* 🎁 1/3: naik pentas ke berapa bagi murid ini + nombor seterusnya.
+       Dikira atas senarai PENUH (bukan tapisan); gabung = satu baris. */
+    const ikutMurid = {};
+    senarai.forEach(b => (ikutMurid[b.docId] = ikutMurid[b.docId] || []).push(b.no));
+    senarai.forEach(b => {
+      const nos = ikutMurid[b.docId];
+      b.ke = nos.indexOf(b.no) + 1;
+      b.jum = nos.length;
+      b.lepas = nos.slice(b.ke);
+    });
     senarai.majlis = r.majlis;
     senarai.kira = agKiraSkripMC(penerima, r.majlis);
 
@@ -497,8 +507,10 @@ function baris(b) {
       '" data-sub="' + agEsc(b.subId) + '">' +
     '<div class="baris-no">' + b.no + '</div>' +
     '<div class="baris-info">' +
-      '<div class="n">' + agEsc(b.nama) + '</div>' +
+      '<div class="n">' + agEsc(b.nama) + (b.jum > 1 ? ' ' + agPilKe(b.ke, b.jum) : '') + '</div>' +
       '<div class="k">' + agEsc(agDarjahKelas(b.tahun, b.kelas)) + nota + '</div>' + lain +
+      (b.lepas && b.lepas.length ? '<div class="k">\u21b3 seterusnya: ' +
+        b.lepas.map(n => 'No. ' + n).join(', ') + '</div>' : '') +
     '</div>' +
     '<div class="baris-butang">' +
       '<button class="b-tanda" data-tanda="1"' + (st === 'absen' ? ' disabled' : '') +

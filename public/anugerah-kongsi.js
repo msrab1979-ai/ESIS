@@ -1273,6 +1273,12 @@ function agPengikutGiliran(gil, u) {
 }
 
 /* Berapa kali murid naik pentas = entri yang bukan pengikut. */
+/* 🎁 1/3 — giliran ke berapa bagi murid ini (Peserta/MC/Hadiah). */
+function agPilKe(ke, jum) {
+  return '<span class="pil emas" title="Ke-' + ke + ' daripada ' + jum +
+    ' untuk murid ini">\ud83c\udf81 ' + ke + '/' + jum + (ke === jum ? ' (akhir)' : '') + '</span>';
+}
+
 function agBilNaik(gil) {
   return (gil || []).filter(g => !agIkutSah(gil, g)).length;
 }
