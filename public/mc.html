@@ -279,6 +279,10 @@ async function muat(pertama, senyap) {
        tekan HILANG dari skrin — tepat kelakuan yang tulisan optimistik
        sepatutnya menghalang. Tanda tertunggak disapu balik ke atas data
        segar sebelum dipaparkan. */
+    /* 🧹 Admin reset → buang baris gilir (tanda lama tidak boleh ditulis
+       balik) dan lukis terus, bukan butang merah. */
+    const reset = BARIS.length && agAdaResetTanda(BARIS, senarai);
+    if (reset) { MENUNGGU.length = 0; senyap = false; agToast('Admin telah reset tanda — senarai dikemas kini', 'ok'); }
     MENUNGGU.forEach(t => {
       const b = senarai.find(x => x.docId === t.docId && x.subId === t.subId);
       if (b) b.mc = t.nilai ? true : null;

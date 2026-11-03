@@ -1273,6 +1273,17 @@ function agPengikutGiliran(gil, u) {
 }
 
 /* Berapa kali murid naik pentas = entri yang bukan pengikut. */
+/* 🧹 Admin baru RESET tanda? Benar bila senarai lama ada tanda MC/hadir
+   dan senarai segar langsung tiada (bagi medan itu). Panel petugas
+   memakai ini untuk TERUS melukis semula — tanpanya ✓ "sudah diambil"
+   kekal di skrin petugas selepas admin reset (MC tidak pun menyalakan
+   butang merah kerana cap jarinya tidak membawa `mc`). */
+function agAdaResetTanda(lama, baru) {
+  const ada = (arr, f) => (arr || []).some(f);
+  const mc = b => b.mc === true, hd = b => b.hadir === true || b.hadir === false;
+  return (ada(lama, mc) && !ada(baru, mc)) || (ada(lama, hd) && !ada(baru, hd));
+}
+
 /* 🎁 1/3 — giliran ke berapa bagi murid ini (Peserta/MC/Hadiah). */
 function agPilKe(ke, jum) {
   return '<span class="pil emas" title="Ke-' + ke + ' daripada ' + jum +

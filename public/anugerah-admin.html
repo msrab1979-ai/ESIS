@@ -7537,6 +7537,12 @@ $('b-reset-dua').addEventListener('click', () =>
 async function resetTanda(medan, label) {
   const medanArr = [].concat(medan);
 
+  /* 🔴 Baca SEGAR dahulu. PENERIMA dalam memori dimuat bila admin buka
+     halaman — tanda yang petugas buat SELEPAS itu tiada di situ, jadi
+     reset melangkau murid itu dan "Sudah diambil" kekal. */
+  try { PENERIMA = await agMuatPenerima(MAJLIS.id); }
+  catch (e) { agToast('Gagal baca data terkini: ' + e.message, 'ralat'); return; }
+
   /* Kira dulu — admin mesti nampak saiz kerosakan sebelum menaip RESET. */
   let bilTanda = 0, bilMurid = 0;
   PENERIMA.forEach(p => {

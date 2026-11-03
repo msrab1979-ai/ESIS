@@ -239,6 +239,10 @@ async function muat(pertama, senyap) {
     });
     senarai.majlis = r.majlis;
 
+    /* 🧹 Admin reset → lukis terus, bukan butang merah. */
+    if (BARIS.length && agAdaResetTanda(BARIS, senarai)) {
+      senyap = false; agToast('Admin telah reset tanda — senarai dikemas kini', 'ok');
+    }
     if (senyap && BARIS.length) {
       if (capBaris(senarai) === capBaris(BARIS)) { tandaPerlu(false); return; }
       TERTUNDA = senarai;
