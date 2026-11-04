@@ -87,7 +87,6 @@
       yang ditanda tidak hadir di pintu dewan.</div>
     </div>
 
-    <div id="nota-petugas"></div>
 
     <div class="kad">
       <div class="kad-kepala">
@@ -157,7 +156,9 @@ function memuat(el, teks) {
       return;
     }
     MAJLIS = agMajlisPetugas(hasil.majlis);   // 🙈 sub disorok admin dibuang
-    agPasangNota($('nota-petugas'), MAJLIS.id, 'hadiah');   // 📝 nota dikongsi
+    /* 📝 Papan Nota Petugas umum dibuang (4 Nov 2026, pengguna). Bekas null:
+       pendengar kekal supaya ＋ nota pada tajuk anugerah berfungsi. */
+    agPasangNota(null, MAJLIS.id, 'hadiah');
     $('p-isi').hidden = false;
     await muat(true);
     /* 🔴 Muat berkala 25s × 3 panel × berjam-jam majlis = puluhan ribu
