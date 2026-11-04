@@ -25,8 +25,8 @@
 
 /* 🔴 Murid yang naik pentas BERULANG. Pengurus peserta berdiri di pintu
    dewan dan menanda masuk; dia perlu tahu murid ini akan dipanggil
-   lebih sekali SEBELUM dia menanda, kerana tanda tidak-hadir menjatuhkan
-   KESEMUA giliran murid itu sekali gus — dua anugerah hilang, bukan satu.
+   lebih sekali — setiap giliran ditanda SENDIRI (5 Nov 2026), jadi dia
+   akan menanda murid ini lagi bila giliran seterusnya tiba.
 
    Lencana "2 giliran" sedia ada terlalu senyap untuk kerja itu: ia sama
    rupa dengan "1 giliran" dan mata yang mengimbas 105 baris tidak
@@ -114,9 +114,10 @@
   <div id="p-isi" hidden>
     <div class="nota">
       <span class="sym">▸</span>
-      <div><strong>Kau menanda MURID, bukan giliran.</strong> Seorang murid boleh menang beberapa
-      anugerah — satu tekan menggugurkan semua giliran dia sekali. Lencana
-      <span class="lencana-gil">4 giliran</span> menunjukkan kesannya sebelum kau tekan.</div>
+      <div><strong>Kau menanda GILIRAN, bukan murid.</strong> Murid yang menang beberapa
+      anugerah ditanda pada setiap gilirannya — tanda pada satu anugerah tidak
+      mengubah anugerah dia yang lain. Lencana
+      <span class="lencana-ulang">⚠ NAIK PENTAS 2 KALI</span> menunjukkan murid itu perlu ditanda lagi.</div>
     </div>
 
     <div class="kpi-grid" id="kpi"></div>
@@ -154,8 +155,10 @@
       — MC yang tersilap tekan tidak boleh membatalkan semakan di pintu dewan,
       dan sebaliknya.
 
-   🔴 Seorang murid = SATU tanda = SEMUA giliran dia. Ditulis dalam satu
-      transaksi supaya tidak separuh jalan.
+   🔴 Satu tanda = SATU giliran (5 Nov 2026, pengguna). Ali hadir untuk
+      Kelas Terbaik tidak menjadikan Subjek Terbaik dia hadir — pengurus
+      peserta menanda lagi bila giliran itu tiba. Pengikut gabung berkongsi
+      nombor yang sama, jadi ikut ditanda bersama utamanya (padanGil).
 
    🔴 Kegagalan muat semula TIDAK mengosongkan paparan — orang sedang membaca
       senarai ini di tengah majlis.
@@ -163,11 +166,12 @@
 
 let MAJLIS = null;
 let MURID = [];            // [{docId, nama, tahun, kelas, giliran[], status}]
-const MENUNGGU = [];       // baris gilir luar talian
-/* 🔴 Tanda SEDANG dihantar (docId → nilai). Pemantau langsung boleh membawa
-   data pengurus lain sebelum transaksi kita siap — tanpa ini tanda yang
-   baru ditekan melompat balik sekejap. */
+const MENUNGGU = [];       // baris gilir luar talian [{docId, no, subId, nilai, nama}]
+/* 🔴 Tanda SEDANG dihantar (docId|no|subId → tanda). Pemantau langsung boleh
+   membawa data pengurus lain sebelum transaksi kita siap — tanpa ini tanda
+   yang baru ditekan melompat balik sekejap. */
 const TERBANG = {};
+const kunciTanda = t => t.docId + '|' + (t.no == null ? '' : t.no) + '|' + (t.subId || '');
 let CAP = '';              // cap jari paparan terakhir — langkau lukis bila sama
 /* Blok mana terbuka. Kekal antara lukisan — muat berkala 90s akan
    menutup semula apa yang pengurus peserta baru buka tanpa ini. */
@@ -177,6 +181,32 @@ const BUKA_SUB = {};
 const $ = id => document.getElementById(id);
 function memuat(el, teks) {
   el.innerHTML = '<div class="memuat"><div class="pusing"></div>' + agEsc(teks || 'Memuatkan…') + '</div>';
+}
+
+/* ---------- tanda per giliran ----------
+   Giliran yang disasar satu baris: nombor yang sama (utama + pengikut
+   gabung); belum bernombor → sub itu; baris yatim (tiada sub) → semua. */
+function padanGil(g, t) {
+  if (t.no != null) return g.no === t.no;
+  if (t.subId) return g.subId === t.subId;
+  return true;
+}
+function statusGil(gil) {
+  const b = gil.find(g => g.hadir === true || g.hadir === false);
+  return !b ? 'belum' : (b.hadir ? 'hadir' : 'absen');
+}
+function statusBaris(m, no, subId) {
+  return statusGil(m.giliran.filter(g => padanGil(g, { no, subId })));
+}
+/* Status MURID (KPI, ringkasan): di dewan bila mana-mana giliran hadir. */
+function statusMurid(gil) {
+  if (gil.some(g => g.hadir === true)) return 'hadir';
+  if (gil.some(g => g.hadir === false)) return 'absen';
+  return 'belum';
+}
+function sapuTanda(m, t) {
+  m.giliran = m.giliran.map(g => padanGil(g, t) ? { ...g, hadir: t.nilai } : g);
+  m.status = statusMurid(m.giliran);
 }
 
 /* ---------- mula ---------- */
@@ -225,10 +255,7 @@ async function muat(pertama, sedia) {
 
     MURID = penerima.map(p => {
       const gil = p.giliran || [];
-      /* status murid = status pada giliran pertama yang ada tanda.
-         Semua giliran murid ditanda serentak, jadi mana-mana mewakili. */
-      const bertanda = gil.find(g => g.hadir === true || g.hadir === false);
-      const status = !bertanda ? 'belum' : (bertanda.hadir ? 'hadir' : 'absen');
+      const status = statusMurid(gil);
       return {
         docId: p.docId, no_kp: p.no_kp, nama: p.nama,
         tahun: p.tahun, kelas: p.kelas,
@@ -242,20 +269,18 @@ async function muat(pertama, sedia) {
        guru menekan. */
     const sapu = t => {
       const m = MURID.find(x => x.docId === t.docId);
-      if (m) {
-        m.status = t.nilai === null ? 'belum' : (t.nilai ? 'hadir' : 'absen');
-        m.giliran = m.giliran.map(g => ({ ...g, hadir: t.nilai }));
-      }
+      if (m) sapuTanda(m, t);
     };
     MENUNGGU.forEach(sapu);
-    Object.keys(TERBANG).forEach(docId => sapu({ docId, nilai: TERBANG[docId] }));
+    Object.values(TERBANG).forEach(sapu);
 
     /* 🔴 Pemantau membawa SETIAP perubahan penerima. Lukis hanya bila apa
        yang dipapar di sini berubah — termasuk ✓ MC, kerana senarai giliran
        murid berulang memaparkan "sudah diambil". */
     const cap = JSON.stringify((r.penuh || MAJLIS).anugerah || []) + '#' +
       MURID.map(m => m.docId + ':' + m.status + ':' + m.nama + ':' + m.tahun + ':' + m.kelas + ':' +
-        m.giliran.map(g => g.no + '/' + g.subId + (g.mc === true ? '/mc' : '')).join(',')).join('|');
+        m.giliran.map(g => g.no + '/' + g.subId + (g.mc === true ? '/mc' : '') +
+          (g.hadir === true ? '/H' : g.hadir === false ? '/A' : '')).join(',')).join('|');
     if (!pertama && cap === CAP) return;
     CAP = cap;
 
@@ -304,8 +329,8 @@ function lukis() {
   const hadir = MURID.filter(m => m.status === 'hadir').length;
   const absen = MURID.filter(m => m.status === 'absen').length;
   const belum = MURID.filter(m => m.status === 'belum').length;
-  const gilAbsen = MURID.filter(m => m.status === 'absen')
-    .reduce((j, m) => j + m.giliran.length, 0);
+  const gilAbsen = MURID.reduce((j, m) =>
+    j + m.giliran.filter(g => g.hadir === false && !agIkutSah(m.giliran, g)).length, 0);
   const peratus = MURID.length ? Math.round(hadir / MURID.length * 100) : 0;
 
   /* Murid berulang ialah angka yang pengurus peserta perlukan SEBELUM
@@ -325,9 +350,12 @@ function lukis() {
   const darjah = $('t-darjah').value;
   const status = $('t-status').value;
 
+  /* Tapisan status ikut BARIS (giliran) — murid boleh hadir di satu
+     giliran dan belum di giliran lain. */
   const tapis = MURID.filter(m => {
     if (darjah && m.tahun !== darjah) return false;
-    if (status && m.status !== status) return false;
+    if (status && !m.giliran.some(g => statusGil([g]) === status) &&
+        !(status === 'belum' && !m.giliran.length)) return false;
     if (q && !(m.nama.toUpperCase().includes(q) ||
                agDarjahKelas(m.tahun, m.kelas).toUpperCase().includes(q))) return false;
     return true;
@@ -376,7 +404,7 @@ function lukis() {
      blok BERTURUT-TURUT mengikut susunan sebenar naik pentas. */
   const asal = agGaya(MAJLIS) === 'asal';
   const ikutAn = [];
-  kumpulIkutGiliran(tapis).forEach(g => {
+  kumpulIkutGiliran(tapis, status).forEach(g => {
     let blok = asal ? ikutAn.find(x => x.anId === g.anId) : ikutAn[ikutAn.length - 1];
     if (!blok || blok.anId !== g.anId) {
       const ulang = ikutAn.filter(x => x.anId === g.anId).length;
@@ -388,8 +416,8 @@ function lukis() {
   });
 
   const kira = baris => {
-    const h = baris.filter(b => b.m.status === 'hadir').length;
-    const a = baris.filter(b => b.m.status === 'absen').length;
+    const h = baris.filter(b => b.st === 'hadir').length;
+    const a = baris.filter(b => b.st === 'absen').length;
     return baris.length + ' murid \u00b7 ' + h + ' hadir' +
       (a ? ' \u00b7 ' + a + ' tidak hadir' : '');
   };
@@ -409,7 +437,7 @@ function lukis() {
     const dalam = blok.sub.map(g => {
       const acS = agAcaraHtml('sub:' + blok.anId + '|' + g.subId);   // 🎭
       if (satuSub) return '<ul class="senarai">' +
-        g.baris.map(b => baris(b.m, b.no)).join('') + '</ul>' + acS;
+        g.baris.map(b => baris(b.m, b.no, b.subId, b.st)).join('') + '</ul>' + acS;
       const bukaSub = !!BUKA_SUB[g.kunci];
       return '<div class="sub-kepala' + (bukaSub ? ' buka' : '') +
           '" data-sub-togol="' + agEsc(g.kunci) + '">' +
@@ -419,7 +447,7 @@ function lukis() {
           '<span class="bil-kep">' + kira(g.baris) + '</span>' +
         '</div>' +
         (bukaSub ? '<ul class="senarai">' +
-          g.baris.map(b => baris(b.m, b.no)).join('') + '</ul>' : '') + acS;
+          g.baris.map(b => baris(b.m, b.no, b.subId, b.st)).join('') + '</ul>' : '') + acS;
     }).join('');
 
     /* 📝 nota anugerah — sebaris nama, semua petugas boleh tulis */
@@ -445,7 +473,7 @@ function lukis() {
 
    Sub yang tiada seorang pun murid DILANGKAU (bukan dipapar kosong) —
    majlis ini ada sub yang memang 0 murid dan itu normal. */
-function kumpulIkutGiliran(tapis) {
+function kumpulIkutGiliran(tapis, status) {
   const bolehPapar = new Set(tapis.map(m => m.docId));
   const ikutDoc = {};
   tapis.forEach(m => { ikutDoc[m.docId] = m; });
@@ -461,8 +489,10 @@ function kumpulIkutGiliran(tapis) {
       .filter(m => !agIkutSah(m.giliran, (m.giliran || []).find(x => x.subId === s.id)))
       .map(m => {
         const g = (m.giliran || []).find(x => x.subId === s.id);
-        return { m: ikutDoc[m.docId] || m, no: g && g.no != null ? g.no : null };
+        const mm = ikutDoc[m.docId] || m, no = g && g.no != null ? g.no : null;
+        return { m: mm, no, subId: s.id, st: statusBaris(mm, no, s.id) };
       })
+      .filter(b => !status || b.st === status)
       /* Ikut NOMBOR GILIRAN — sama dengan MC. Sub yang disusun ikut
          kedudukan tidak lagi abjad, jadi menyusun nama di sini akan
          memberi pengurus peserta susunan berbeza daripada yang dipanggil.
@@ -504,7 +534,7 @@ function kumpulIkutGiliran(tapis) {
   const yatim = tapis.filter(m => !sudah.has(m.docId));
   if (yatim.length) keluar.push({ anId: '_yatim', anNama: '(tiada anugerah)',
     subNama: '(tiada anugerah)', kunci: '_yatim',
-    baris: yatim.map(m => ({ m, no: null })) });
+    baris: yatim.map(m => ({ m, no: null, subId: '', st: statusBaris(m, null, '') })) });
 
   return keluar;
 }
@@ -516,12 +546,13 @@ function kad(angka, label, kecil, jenis) {
     '<div class="kecil">' + agEsc(kecil) + '</div></div>';
 }
 
-/* `no` = nombor giliran BARIS INI (bukan semua nombor murid itu). */
-function baris(m, no) {
+/* `no` = nombor giliran BARIS INI (bukan semua nombor murid itu).
+   `st` = status giliran ini sahaja. */
+function baris(m, no, subId, st) {
   /* bilangan kali NAIK PENTAS — gaya GABUNG berkongsi satu nombor */
   const bil = agBilNaik(m.giliran);
-  /* Murid berulang ditanda MERAH — tanda tidak-hadir menjatuhkan
-     KESEMUA gilirannya, bukan hanya baris ini. */
+  /* Murid berulang ditanda MERAH — dia perlu ditanda lagi pada
+     setiap gilirannya. */
   const ulang = bil > 1;
 
   /* 🔴 SEMUA giliran murid ini — nombor + nama anugerah PENUH + status
@@ -533,6 +564,7 @@ function baris(m, no) {
         const st = x.no === no ? '<span class="gst ini">\u25c0 giliran ini</span>'
           : x.hadir === false ? '<span class="gst absen">\u2717 tidak hadir</span>'
           : x.mc ? '<span class="gst ok">\u2713 sudah diambil</span>'
+          : x.hadir === true ? '<span class="gst ok">\u2713 hadir</span>'
           : '<span class="gst">belum</span>';
         return '<div class="gil-lain' + (x.no === no ? ' ini' : '') + '">' +
           '<b>#' + x.no + '</b> ' + agEsc(x.nama) + ' ' + st +
@@ -557,12 +589,13 @@ function baris(m, no) {
       serentak.map(g => agEsc(agNamaGiliran(g))).join(' · ') + '</div>'
     : '';
 
-  const kelas = (m.status === 'hadir' ? ' sudah' : (m.status === 'absen' ? ' absen' : '')) +
+  const kelas = (st === 'hadir' ? ' sudah' : (st === 'absen' ? ' absen' : '')) +
                 (ulang ? ' ulang' : '');
-  const catatan = m.status === 'absen'
+  const catatan = st === 'absen'
     ? '<span class="pil absen">Tidak hadir</span>' : '';
 
-  return '<li class="baris' + kelas + '" data-doc="' + agEsc(m.docId) + '">' +
+  return '<li class="baris' + kelas + '" data-doc="' + agEsc(m.docId) +
+    '" data-no="' + (no != null ? no : '') + '" data-sub="' + agEsc(subId || '') + '">' +
     '<div class="baris-no">' + (no != null ? no : '\u2014') + '</div>' +
     '<div class="baris-info">' +
       '<div class="n">' + agEsc(m.nama) + (ulang && no != null ? ' ' + agPilKe(
@@ -607,59 +640,53 @@ $('senarai').addEventListener('click', e => {
   const m = MURID.find(x => x.docId === li.dataset.doc);
   if (!m) return;
 
-  const mahu = b.dataset.tanda;
-  /* tekan butang yang sama lagi = buang tanda */
-  const baru = m.status === mahu ? null : (mahu === 'hadir');
+  const t = { docId: m.docId, nama: m.nama,
+    no: li.dataset.no === '' ? null : Number(li.dataset.no),
+    subId: li.dataset.sub || '' };
 
-  /* 🔴 Tanda tidak-hadir menjatuhkan KESEMUA giliran murid itu sekali gus.
-     Untuk murid yang naik pentas sekali itu jelas; untuk murid berulang
-     ia bermakna dua atau tiga anugerah hilang daripada majlis dengan
-     satu tekanan, dan MC serta pengurus hadiah terus melihat kesannya.
-     Itu keputusan yang patut disahkan, bukan kesan sampingan. */
-  if (baru === false && m.giliran.length > 1) {
-    const no = [...new Set(m.giliran.map(g => g.no).filter(n => n != null))].sort((a, b) => a - b);
-    const sub = m.giliran.map(g => g.sub || g.anugerah).filter(Boolean);
-    if (!confirm('TIDAK HADIR \u2014 ' + m.nama + '\n\n' +
-        'Murid ini naik pentas ' + agBilNaik(m.giliran) + ' kali' +
-        (no.length ? ' (giliran ' + no.join(', ') + ')' : '') + '.\n' +
-        'KESEMUA giliran akan dilangkau:\n' +
-        sub.map(x => '  \u2022 ' + x).join('\n') + '\n\n' +
-        'MC akan melangkau semuanya dan pengurus hadiah akan menyimpan ' +
-        'balik hadiahnya. Teruskan?')) return;
-  }
+  const mahu = b.dataset.tanda;
+  /* tekan butang yang sama lagi = buang tanda (giliran ini sahaja) */
+  t.nilai = statusBaris(m, t.no, t.subId) === mahu ? null : (mahu === 'hadir');
 
   /* ---- tulis optimistik: paparan berubah serta-merta ---- */
-  m.status = baru === null ? 'belum' : (baru ? 'hadir' : 'absen');
-  m.giliran = m.giliran.map(g => ({ ...g, hadir: baru }));
+  sapuTanda(m, t);
   lukis();
   /* 🔴 kemasSari() mesti dipanggil DI SINI juga, bukan hanya dalam muat().
      Tanpa ini baris ringkasan di kepala kekal angka lama sampai muat
-     berkala berikutnya (25s) — guru nampak "0 dari 6 hadir" sedangkan
-     KPI sudah kata 1. Dua angka bercanggah di skrin yang sama. */
+     berikutnya — guru nampak "0 dari 6 hadir" sedangkan KPI sudah kata 1. */
   kemasSari();
 
-  hantarTanda(m, baru);
+  hantarTanda(t);
 });
 
-async function hantarTanda(m, nilai) {
-  TERBANG[m.docId] = nilai;
+/* Transaksi: hanya giliran yang padan ditulis — giliran lain murid itu
+   kekal dengan tanda masing-masing. */
+async function tulisTanda(t) {
+  await agDb.runTransaction(async tx => {
+    const ref = agDb.collection('anugerah_penerima').doc(t.docId);
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new Error('Rekod murid tiada');
+    const gil = (snap.data().giliran || []).map(g => padanGil(g, t) ? { ...g, hadir: t.nilai } : g);
+    tx.update(ref, { giliran: gil });
+  });
+}
+
+async function hantarTanda(t) {
+  const k = kunciTanda(t);
+  TERBANG[k] = t;
   try {
-    await agDb.runTransaction(async tx => {
-      const ref = agDb.collection('anugerah_penerima').doc(m.docId);
-      const snap = await tx.get(ref);
-      if (!snap.exists) throw new Error('Rekod murid tiada');
-      const gil = (snap.data().giliran || []).map(g => ({ ...g, hadir: nilai }));
-      tx.update(ref, { giliran: gil });
-    });
+    await tulisTanda(t);
   } catch (e) {
     console.error('Tanda gagal:', e.code, e.message);
     /* 🔴 Paparan TIDAK dipulihkan — tanda yang melompat balik di tengah
        majlis lebih mengelirukan daripada tanda yang belum sampai.
        Masuk baris gilir dan dicuba semula.                             */
-    MENUNGGU.push({ docId: m.docId, nilai, nama: m.nama });
-    agToast('Rangkaian bermasalah — ' + agEsc(m.nama) + ' dalam baris gilir', 'ralat');
+    if (e.message !== 'Rekod murid tiada') {
+      MENUNGGU.push(t);
+      agToast('Rangkaian bermasalah — ' + agEsc(t.nama) + ' dalam baris gilir', 'ralat');
+    }
   } finally {
-    if (TERBANG[m.docId] === nilai) delete TERBANG[m.docId];
+    if (TERBANG[k] === t) delete TERBANG[k];
   }
 }
 
@@ -668,15 +695,9 @@ async function cubaHantarSemula() {
   const senarai = MENUNGGU.splice(0, MENUNGGU.length);
   for (const t of senarai) {
     try {
-      await agDb.runTransaction(async tx => {
-        const ref = agDb.collection('anugerah_penerima').doc(t.docId);
-        const snap = await tx.get(ref);
-        if (!snap.exists) return;
-        const gil = (snap.data().giliran || []).map(g => ({ ...g, hadir: t.nilai }));
-        tx.update(ref, { giliran: gil });
-      });
+      await tulisTanda(t);
     } catch (e) {
-      MENUNGGU.push(t);   // kekal dalam baris gilir
+      if (e.message !== 'Rekod murid tiada') MENUNGGU.push(t);   // kekal dalam baris gilir
     }
   }
   if (!MENUNGGU.length && senarai.length) agToast('Tanda tertunggak berjaya dihantar', 'ok');
