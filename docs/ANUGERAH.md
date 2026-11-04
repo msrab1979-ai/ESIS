@@ -800,9 +800,24 @@ Acara bukan-anugerah (persembahan, ucapan, doa…) **diselit di mana-mana**: di 
 
 #### 📊 Analisa (tab admin, 4 Nov 2026)
 
-Tab baca sahaja `p-analisa`, `initAnalisa` → `kiraAnalisa` → `lukisAnalisa`, DOM id `an-`. Penerima dibaca **segar** setiap buka tab / 🔄.
-- **Kad ringkasan:** Jumlah semua murid (murid ESIS, bukan `luar`; % daripada murid sekolah dalam `MURID_SEMUA`) · Jumlah tiket dikeluarkan (peraturan `lukisTiket`: ≥1 nombor pada sub naik pentas bukan 🤫 rahsia — termasuk bukan murid) · Jumlah murid lebih dari 1 anugerah (`anugerah[]` > 1) · Jumlah anugerah · Jumlah naik pentas (nombor berbeza per murid pada sub naik pentas = satu hadiah) · Bukan murid · Tidak naik pentas (muncul bila > 0).
-- Anugerah dikira hanya pada `subId` yang masih wujud dalam majlis (entri yatim tidak dikira).
-- **Ikut darjah & kelas:** kunci `DARJAH|KELAS` (nama kelas berulang), susunan `AG_SUSUN_KELAS`, jumlah per darjah + JUMLAH. Kelas 0 penerima = baris merah `⚠ tiada penerima`. Footer Tiket = tiket murid sahaja (tanpa bukan murid), jadi boleh kurang daripada kad.
-- **Murid lebih dari 1 anugerah:** susun bil. menurun, kemudian nama.
-- CSV (`agMuatTurunCSV`) + PDF (dialog cetak) mengandungi ketiga-tiga bahagian.
+Tab baca sahaja `p-analisa` (sebelah 📋 Semak Penerima): `initAnalisa` → `kiraAnalisa` → `lukisAnalisa`, DOM id `an-`. Penerima dibaca **segar** setiap buka tab / 🔄 Segar Semula.
+
+**Kad = angka + label pendek + `ⓘ klik` SAHAJA.** Pecahan dan senarai nama masuk modal `anModalButiran(id)` (klik / Enter pada `[data-an-kad]`). Versi teks pecahan panjang di bawah angka dibalas "keliru" tiga kali oleh pengguna — jangan kembalikan; pengguna sendiri minta "klik show details".
+
+| Kad (`data-an-kad`) | Angka | Modal |
+|---|---|---|
+| `murid` Jumlah semua murid | murid ESIS (bukan `luar`) dgn ≥1 anugerah sah | per darjah "N dari M (%)" |
+| `tiket` Jumlah tiket dikeluarkan | peraturan `lukisTiket` (≥1 nombor pada sub naik pentas bukan 🤫), **termasuk bukan murid** | tiket murid + bukan murid = jumlah; senarai murid tiada tiket + sebab (🚫 / belum bernombor / 🤫) |
+| `ulang` Lebih dari 1 anugerah | `anugerah[]` sah > 1 (murid sahaja) | senarai |
+| `anugerah` Jumlah anugerah | semua entri sah | naik pentas + tidak naik pentas 🚫 |
+| `naik` Jumlah kali naik pentas | nombor berbeza per penerima pada sub naik pentas = satu hadiah | anugerah naik pentas − digabung (gaya C) − belum bernombor |
+| `luar` Bukan murid | hanya bila > 0 | senarai |
+| `tanpa` Murid tidak naik pentas | penerima yang SEMUA anugerahnya 🚫 (hanya bila > 0) | senarai |
+
+Angka sebenar 4 Nov 2026: 312 murid, 333 tiket = 307 murid + 26 bukan murid, 5 murid tidak naik pentas (312 − 5 = 307), 454 anugerah → 435 kali naik pentas.
+
+- "Sah" = `subId` masih wujud dalam majlis (entri yatim tidak dikira).
+- **Ikut darjah & kelas:** kunci `DARJAH|KELAS` (nama kelas berulang), susunan `AG_SUSUN_KELAS`, jumlah per darjah + JUMLAH. Kelas 0 penerima = baris merah `⚠ tiada penerima`. Lajur Tiket = murid sahaja.
+- **Murid lebih dari 1 anugerah:** jadual di skrin, susun bil. menurun kemudian nama.
+- CSV (`agMuatTurunCSV`) + PDF (dialog cetak) memuat semua pecahan + senarai (termasuk tidak naik pentas).
+- Angka di sini boleh berbeza dgn Skrip MC: Skrip MC menapis 🙈 sorok petugas, Analisa tidak.
