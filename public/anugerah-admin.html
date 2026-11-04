@@ -5305,6 +5305,15 @@ function kiraAnalisa() {
            bilMuridSekolah: (MURID_SEMUA || []).filter(m => m.tahun && m.kelas).length };
 }
 
+/* 312 murid tetapi 307 tiket murid — bezanya mesti tertulis, atau admin
+   menyangka 5 tiket hilang. */
+function anKetTiket(d) {
+  const tm = d.tiket - d.tiketLuar;
+  const t = [tm + ' murid' + (d.tiketLuar ? ' + ' + d.tiketLuar + ' bukan murid' : '')];
+  if (d.murid - tm > 0) t.push((d.murid - tm) + ' murid tiada tiket (tidak naik pentas / rahsia)');
+  return t.join(' · ');
+}
+
 function anKetNaik(d) {
   const t = ['satu kali naik = satu hadiah'];
   if (d.gabung) t.push(d.gabung + ' anugerah digabung (naik sekali)');
@@ -5319,10 +5328,8 @@ function lukisAnalisa() {
   $('an-masa').textContent = 'Dikira ' + new Date().toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' });
   $('an-kpi').innerHTML =
     '<div class="kpi-grid" style="padding:0 19px 15px">' +
-      kad(d.murid, 'Jumlah semua murid', anPeratus(d.murid, d.bilMuridSekolah) + ' dari ' + d.bilMuridSekolah + ' murid sekolah' +
-          (d.luar ? ' · + ' + d.luar + ' bukan murid' : '')) +
-      kad(d.tiket, 'Jumlah tiket dikeluarkan', (d.tiket - d.tiketLuar) + ' murid' +
-          (d.tiketLuar ? ' + ' + d.tiketLuar + ' bukan murid' : '')) +
+      kad(d.murid, 'Jumlah semua murid', anPeratus(d.murid, d.bilMuridSekolah) + ' dari ' + d.bilMuridSekolah + ' murid sekolah') +
+      kad(d.tiket, 'Jumlah tiket dikeluarkan', anKetTiket(d)) +
       kad(d.ulang, 'Jumlah murid lebih dari 1 anugerah', d.ulang ? 'naik pentas lebih sekali' : 'seorang satu anugerah', d.ulang ? '' : 'ok') +
       kad(d.anugerah, 'Jumlah anugerah', d.anPentas + ' naik pentas' +
           (d.anTidak ? ' + ' + d.anTidak + ' tidak naik pentas 🚫' : '')) +
@@ -5443,8 +5450,7 @@ $('an-pdf').onclick = () => {
     'tr{break-inside:avoid}@page{margin:14mm}</style>' +
     '<h1>' + agEsc(MAJLIS.nama || 'Majlis Anugerah') + '</h1>' +
     '<p class="sub">Analisa majlis · dicetak ' + new Date().toLocaleString('ms-MY') + '</p>' +
-    '<div class="ks">' + kotak(d.murid, 'Jumlah semua murid') + kotak(d.tiket, 'Jumlah tiket dikeluarkan (' + (d.tiket - d.tiketLuar) + ' murid' +
-        (d.tiketLuar ? ' + ' + d.tiketLuar + ' bukan murid' : '') + ')') +
+    '<div class="ks">' + kotak(d.murid, 'Jumlah semua murid') + kotak(d.tiket, 'Jumlah tiket dikeluarkan (' + anKetTiket(d) + ')') +
       kotak(d.ulang, 'Jumlah murid lebih dari 1 anugerah') + kotak(d.anugerah, 'Jumlah anugerah (' + d.anPentas + ' naik pentas' +
         (d.anTidak ? ' + ' + d.anTidak + ' tidak naik pentas' : '') + ')') +
       kotak(d.naik, 'Jumlah kali naik pentas (' + anKetNaik(d) + ')') +
