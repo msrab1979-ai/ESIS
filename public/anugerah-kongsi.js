@@ -2423,6 +2423,11 @@ function agPenyelarasUbah(anId, subId, nama) {
   });
 }
 
+function _agNotaTajukDalam(anId) {
+  const n = agNotaAnugerah(anId);
+  return n ? '📝 ' + agEsc(n.teks) : '＋ nota';
+}
+
 /* Nota anugerah SEBARIS nama dalam .grup-kepala. Klik = tulis / ubah /
    padam (semua petugas). `anNama` untuk dialog sahaja. */
 function agNotaTajuk(anId, anNama) {
