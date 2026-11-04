@@ -5244,7 +5244,7 @@ function kiraAnalisa() {
       bilMurid: 0, dapat: 0, ulang: 0, tiket: 0 }).bilMurid++;
   });
 
-  let murid = 0, luar = 0, tiket = 0, ulang = 0, anugerah = 0, naik = 0, tanpaPentas = 0;
+  let murid = 0, luar = 0, tiket = 0, tiketLuar = 0, ulang = 0, anugerah = 0, naik = 0, tanpaPentas = 0;
   const senaraiUlang = [];
   PENERIMA.forEach(p => {
     const an = (p.anugerah || []).filter(x => subWujud.has(x.subId));
@@ -5256,7 +5256,7 @@ function kiraAnalisa() {
     naik += bilNaik;
     if (adaTiket) tiket++;
     if (!an.some(x => pentas.has(x.subId))) tanpaPentas++;
-    if (agAdalahLuar(p)) { luar++; return; }
+    if (agAdalahLuar(p)) { luar++; if (adaTiket) tiketLuar++; return; }
     murid++;
     if (an.length > 1) {
       ulang++;
@@ -5283,7 +5283,7 @@ function kiraAnalisa() {
   senaraiUlang.sort((a, b) => b.an.length - a.an.length ||
     String(a.p.nama).localeCompare(String(b.p.nama), 'ms'));
 
-  return { murid, luar, tiket, ulang, anugerah, naik, tanpaPentas, barisKelas, senaraiUlang,
+  return { murid, luar, tiket, tiketLuar, ulang, anugerah, naik, tanpaPentas, barisKelas, senaraiUlang,
            bilMuridSekolah: (MURID_SEMUA || []).filter(m => m.tahun && m.kelas).length };
 }
 
@@ -5294,8 +5294,10 @@ function lukisAnalisa() {
   $('an-masa').textContent = 'Dikira ' + new Date().toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' });
   $('an-kpi').innerHTML =
     '<div class="kpi-grid" style="padding:0 19px 15px">' +
-      kad(d.murid, 'Jumlah semua murid', anPeratus(d.murid, d.bilMuridSekolah) + ' dari ' + d.bilMuridSekolah + ' murid sekolah') +
-      kad(d.tiket, 'Jumlah tiket dikeluarkan', 'seorang satu tiket') +
+      kad(d.murid, 'Jumlah semua murid', anPeratus(d.murid, d.bilMuridSekolah) + ' dari ' + d.bilMuridSekolah + ' murid sekolah' +
+          (d.luar ? ' · + ' + d.luar + ' bukan murid' : '')) +
+      kad(d.tiket, 'Jumlah tiket dikeluarkan', (d.tiket - d.tiketLuar) + ' murid' +
+          (d.tiketLuar ? ' + ' + d.tiketLuar + ' bukan murid' : '')) +
       kad(d.ulang, 'Jumlah murid lebih dari 1 anugerah', d.ulang ? 'naik pentas lebih sekali' : 'seorang satu anugerah', d.ulang ? '' : 'ok') +
       kad(d.anugerah, 'Jumlah anugerah', 'semua anugerah diterima') +
       kad(d.naik, 'Jumlah naik pentas', 'satu nombor satu hadiah') +
@@ -5366,6 +5368,7 @@ $('an-csv').onclick = () => {
   if (!d) return;
   const r = [['ANALISA MAJLIS', MAJLIS.nama || ''], [],
     ['Jumlah semua murid', d.murid], ['Jumlah tiket dikeluarkan', d.tiket],
+    ['  Tiket murid', d.tiket - d.tiketLuar], ['  Tiket bukan murid', d.tiketLuar],
     ['Jumlah murid lebih dari 1 anugerah', d.ulang], ['Jumlah anugerah', d.anugerah],
     ['Jumlah naik pentas', d.naik], ['Bukan murid', d.luar], ['Tidak naik pentas', d.tanpaPentas], [],
     ['DARJAH', 'KELAS', 'MURID KELAS', 'DAPAT ANUGERAH', '%', 'LEBIH 1', 'TIKET']];
@@ -5394,7 +5397,8 @@ $('an-pdf').onclick = () => {
     'tr{break-inside:avoid}@page{margin:14mm}</style>' +
     '<h1>' + agEsc(MAJLIS.nama || 'Majlis Anugerah') + '</h1>' +
     '<p class="sub">Analisa majlis · dicetak ' + new Date().toLocaleString('ms-MY') + '</p>' +
-    '<div class="ks">' + kotak(d.murid, 'Jumlah semua murid') + kotak(d.tiket, 'Jumlah tiket dikeluarkan') +
+    '<div class="ks">' + kotak(d.murid, 'Jumlah semua murid') + kotak(d.tiket, 'Jumlah tiket dikeluarkan (' + (d.tiket - d.tiketLuar) + ' murid' +
+        (d.tiketLuar ? ' + ' + d.tiketLuar + ' bukan murid' : '') + ')') +
       kotak(d.ulang, 'Jumlah murid lebih dari 1 anugerah') + kotak(d.anugerah, 'Jumlah anugerah') +
       kotak(d.naik, 'Jumlah naik pentas') +
       (d.luar ? kotak(d.luar, 'Bukan murid') : '') +
