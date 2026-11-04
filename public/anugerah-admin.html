@@ -492,6 +492,7 @@ tr.pg-gab td{background:var(--amaran-bg)}
       <button role="tab" aria-selected="false" data-t="tetapan">📚 Tetapan</button>
       <button role="tab" aria-selected="false" data-t="jenis">🏆 Jenis Anugerah</button>
       <button role="tab" aria-selected="false" data-t="semak">📋 Semak Penerima</button>
+      <button role="tab" aria-selected="false" data-t="analisa">📊 Analisa</button>
       <button role="tab" aria-selected="false" data-t="giliran">🎟️ Giliran &amp; Tiket</button>
       <button role="tab" aria-selected="false" data-t="kad">💌 Kad Jemputan</button>
       <button role="tab" aria-selected="false" data-t="sijil">🎓 Sijil</button>
@@ -700,6 +701,32 @@ tr.pg-gab td{background:var(--amaran-bg)}
       </div>
       <div id="sk-kpi"></div>
       <div id="sk-hasil"></div>
+    </div>
+  </section>
+
+  <!-- ============ TAB : ANALISA ============ -->
+  <section class="panel" id="p-analisa" hidden>
+    <div class="kad">
+      <div class="kad-kepala">
+        <h3>📊 Analisa Majlis</h3>
+        <span class="sub" id="an-masa"></span>
+        <div class="kanan">
+          <button class="btn sunyi kecil" id="an-segar">🔄 Segar Semula</button>
+          <button class="btn sunyi kecil" id="an-csv">⬇️ Excel (CSV)</button>
+          <button class="btn sunyi kecil" id="an-pdf">🖨️ PDF</button>
+        </div>
+      </div>
+      <div id="an-kpi"></div>
+    </div>
+    <div class="kad">
+      <div class="kad-kepala"><h3>Ikut Darjah &amp; Kelas</h3>
+        <span class="sub" id="an-kelas-sub"></span></div>
+      <div id="an-kelas"></div>
+    </div>
+    <div class="kad">
+      <div class="kad-kepala"><h3>Murid Lebih Dari 1 Anugerah</h3>
+        <span class="sub" id="an-ulang-sub"></span></div>
+      <div id="an-ulang"></div>
     </div>
   </section>
 
@@ -1214,6 +1241,7 @@ function tukarTab(nama) {
   if (nama === 'tetapan') initTetapan();
   if (nama === 'jenis') lukisPokok();
   if (nama === 'semak') initSemak();
+  if (nama === 'analisa') initAnalisa();
   if (nama === 'giliran') { lukisGiliran(); tiketMuatkan(); }
   if (nama === 'kad') initKad();
   if (nama === 'sijil') sjInit();
@@ -5176,6 +5204,217 @@ $('sk-pdf').onclick = async () => {
       new Date().toLocaleDateString('ms-MY') + '</p>' +
     '<table><thead><tr><th>Nama</th><th>Kelas</th><th>Anugerah</th><th>Bil.</th></tr></thead>' +
     '<tbody>' + baris + '</tbody></table>');
+  w.document.close();
+  setTimeout(() => w.print(), 350);
+};
+
+/* ==========================================================================
+   📊 ANALISA — ringkasan majlis (baca sahaja)
+   --------------------------------------------------------------------------
+   Tiket = peraturan lukisTiket: ≥1 nombor pada sub naik pentas yang bukan
+   🤫 rahsia. Anugerah dikira hanya pada sub yang masih wujud dalam majlis
+   (entri yatim tidak dikira). Murid kelas datang dari students, dikunci
+   DARJAH|KELAS kerana nama kelas berulang merentas darjah.
+   ========================================================================== */
+let AN_DATA = null;
+
+async function initAnalisa(segar) {
+  $('an-kpi').innerHTML = '<div class="kad-isi"><p class="hint">Memuatkan…</p></div>';
+  try { PENERIMA = await agMuatPenerima(MAJLIS.id); } catch (e) {
+    console.error('Analisa:', e);
+    agToast('Gagal membaca penerima terkini — guna data sedia ada', 'ralat');
+  }
+  if (segar) agToast('Analisa dikemas kini');
+  AN_DATA = kiraAnalisa();
+  lukisAnalisa();
+}
+
+function kiraAnalisa() {
+  const subWujud = new Set();
+  (MAJLIS.anugerah || []).forEach(a => (a.sub || []).forEach(s => subWujud.add(s.id)));
+  const pentas = subPentasSemasa();
+  const rahsia = agSubRahsia(MAJLIS);
+
+  const kunci = (t, k) => String(t || '').toUpperCase() + '|' + String(k || '').toUpperCase();
+  const kelas = {};
+  (MURID_SEMUA || []).forEach(m => {
+    if (!m.tahun || !m.kelas) return;
+    const id = kunci(m.tahun, m.kelas);
+    (kelas[id] = kelas[id] || { tahun: String(m.tahun).toUpperCase(), kelas: m.kelas,
+      bilMurid: 0, dapat: 0, ulang: 0, tiket: 0 }).bilMurid++;
+  });
+
+  let murid = 0, luar = 0, tiket = 0, ulang = 0, anugerah = 0, naik = 0, tanpaPentas = 0;
+  const senaraiUlang = [];
+  PENERIMA.forEach(p => {
+    const an = (p.anugerah || []).filter(x => subWujud.has(x.subId));
+    if (!an.length) return;
+    const gil = (p.giliran || []).filter(g => g.no != null && pentas.has(g.subId));
+    const adaTiket = gil.some(g => !rahsia.has(g.subId));
+    const bilNaik = new Set(gil.map(g => g.no)).size;
+    anugerah += an.length;
+    naik += bilNaik;
+    if (adaTiket) tiket++;
+    if (!an.some(x => pentas.has(x.subId))) tanpaPentas++;
+    if (agAdalahLuar(p)) { luar++; return; }
+    murid++;
+    if (an.length > 1) {
+      ulang++;
+      senaraiUlang.push({ p, an });
+    }
+    const id = kunci(p.tahun, p.kelas);
+    const k = kelas[id] = kelas[id] || { tahun: String(p.tahun || '').toUpperCase(), kelas: p.kelas || '',
+      bilMurid: 0, dapat: 0, ulang: 0, tiket: 0 };
+    k.dapat++;
+    if (an.length > 1) k.ulang++;
+    if (adaTiket) k.tiket++;
+  });
+
+  const susunKelas = k => {
+    const n = String(k || '').toUpperCase();
+    const i = AG_SUSUN_KELAS.findIndex(x => n.includes(x));
+    return i < 0 ? 99 : i;
+  };
+  const barisKelas = Object.values(kelas).sort((a, b) =>
+    agWordDarjah(a.tahun) - agWordDarjah(b.tahun) ||
+    susunKelas(a.kelas) - susunKelas(b.kelas) ||
+    String(a.kelas).localeCompare(String(b.kelas)));
+
+  senaraiUlang.sort((a, b) => b.an.length - a.an.length ||
+    String(a.p.nama).localeCompare(String(b.p.nama), 'ms'));
+
+  return { murid, luar, tiket, ulang, anugerah, naik, tanpaPentas, barisKelas, senaraiUlang,
+           bilMuridSekolah: (MURID_SEMUA || []).filter(m => m.tahun && m.kelas).length };
+}
+
+function anPeratus(a, b) { return b ? Math.round(a / b * 100) + '%' : '—'; }
+
+function lukisAnalisa() {
+  const d = AN_DATA;
+  $('an-masa').textContent = 'Dikira ' + new Date().toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' });
+  $('an-kpi').innerHTML =
+    '<div class="kpi-grid" style="padding:0 19px 15px">' +
+      kad(d.murid, 'Jumlah semua murid', anPeratus(d.murid, d.bilMuridSekolah) + ' dari ' + d.bilMuridSekolah + ' murid sekolah') +
+      kad(d.tiket, 'Jumlah tiket dikeluarkan', 'seorang satu tiket') +
+      kad(d.ulang, 'Jumlah murid lebih dari 1 anugerah', d.ulang ? 'naik pentas lebih sekali' : 'seorang satu anugerah', d.ulang ? '' : 'ok') +
+      kad(d.anugerah, 'Jumlah anugerah', 'semua anugerah diterima') +
+      kad(d.naik, 'Jumlah naik pentas', 'satu nombor satu hadiah') +
+      (d.luar ? kad(d.luar, 'Bukan murid', 'contoh ibu bapa') : '') +
+      (d.tanpaPentas ? kad(d.tanpaPentas, 'Tidak naik pentas', 'anugerah 🚫 sahaja') : '') +
+    '</div>';
+
+  /* ---- ikut darjah & kelas ---- */
+  const kosong = d.barisKelas.filter(k => k.bilMurid && !k.dapat);
+  $('an-kelas-sub').textContent = d.barisKelas.length + ' kelas' +
+    (kosong.length ? ' · ' + kosong.length + ' kelas tiada penerima' : '');
+  let html = '', darjahKini = null, jum = null;
+  const tutupDarjah = () => {
+    if (!jum) return '';
+    return '<tr style="background:var(--kertas-3);font-weight:700"><td colspan="2">Jumlah Darjah ' +
+      agWordDarjah(darjahKini) + '</td><td class="num">' + jum.bilMurid + '</td><td class="num">' + jum.dapat +
+      '</td><td class="num">' + anPeratus(jum.dapat, jum.bilMurid) + '</td><td class="num">' + jum.ulang +
+      '</td><td class="num">' + jum.tiket + '</td></tr>';
+  };
+  d.barisKelas.forEach(k => {
+    if (k.tahun !== darjahKini) {
+      html += tutupDarjah();
+      darjahKini = k.tahun;
+      jum = { bilMurid: 0, dapat: 0, ulang: 0, tiket: 0 };
+    }
+    ['bilMurid', 'dapat', 'ulang', 'tiket'].forEach(f => { jum[f] += k[f]; });
+    const merah = k.bilMurid && !k.dapat;
+    html += '<tr' + (merah ? ' style="color:var(--absen);background:var(--absen-bg)"' : '') + '>' +
+      '<td>' + (agWordDarjah(k.tahun) || '—') + '</td>' +
+      '<td>' + agEsc(k.kelas) + (merah ? ' <strong>⚠ tiada penerima</strong>' : '') +
+        (!k.bilMurid ? ' <span class="kecil">(tiada dalam senarai murid)</span>' : '') + '</td>' +
+      '<td class="num">' + (k.bilMurid || '—') + '</td>' +
+      '<td class="num">' + k.dapat + '</td>' +
+      '<td class="num">' + anPeratus(k.dapat, k.bilMurid) + '</td>' +
+      '<td class="num">' + k.ulang + '</td>' +
+      '<td class="num">' + k.tiket + '</td></tr>';
+  });
+  html += tutupDarjah();
+  $('an-kelas').innerHTML = d.barisKelas.length
+    ? '<div class="gulung"><table><thead><tr><th>Darjah</th><th>Kelas</th>' +
+      '<th class="num">Murid kelas</th><th class="num">Dapat anugerah</th><th class="num">%</th>' +
+      '<th class="num">Lebih 1</th><th class="num">Tiket</th></tr></thead><tbody>' + html +
+      '</tbody><tfoot><tr style="font-weight:700"><td colspan="2">JUMLAH</td><td class="num">' +
+      d.bilMuridSekolah + '</td><td class="num">' + d.murid + '</td><td class="num">' +
+      anPeratus(d.murid, d.bilMuridSekolah) + '</td><td class="num">' + d.ulang + '</td><td class="num">' +
+      d.barisKelas.reduce((n, k) => n + k.tiket, 0) + '</td></tr></tfoot></table></div>'
+    : '<div class="kad-isi"><p class="hint">Tiada data murid.</p></div>';
+
+  /* ---- murid berulang ---- */
+  $('an-ulang-sub').textContent = d.senaraiUlang.length + ' murid';
+  $('an-ulang').innerHTML = d.senaraiUlang.length
+    ? '<div class="gulung"><table><thead><tr><th class="num">#</th><th>Nama</th><th>Kelas</th>' +
+      '<th class="num">Bil.</th><th>Anugerah</th></tr></thead><tbody>' +
+      d.senaraiUlang.map((x, i) => '<tr><td class="num">' + (i + 1) + '</td>' +
+        '<td class="nama-murid lajur-teks">' + agEsc(x.p.nama) + '</td>' +
+        '<td>' + agEsc(agKelasPenerima(x.p)) + '</td>' +
+        '<td class="num" style="font-weight:700">' + x.an.length + '</td>' +
+        '<td class="lajur-teks">' + x.an.map(a => '<span class="pil emas" title="' + agEsc(a.anugerah) + '">' +
+          agEsc(a.sub) + '</span>').join(' ') + '</td></tr>').join('') +
+      '</tbody></table></div>'
+    : '<div class="kad-isi"><p class="hint">Tiada murid menerima lebih dari satu anugerah.</p></div>';
+}
+
+$('an-segar').onclick = () => initAnalisa(true);
+
+$('an-csv').onclick = () => {
+  const d = AN_DATA;
+  if (!d) return;
+  const r = [['ANALISA MAJLIS', MAJLIS.nama || ''], [],
+    ['Jumlah semua murid', d.murid], ['Jumlah tiket dikeluarkan', d.tiket],
+    ['Jumlah murid lebih dari 1 anugerah', d.ulang], ['Jumlah anugerah', d.anugerah],
+    ['Jumlah naik pentas', d.naik], ['Bukan murid', d.luar], ['Tidak naik pentas', d.tanpaPentas], [],
+    ['DARJAH', 'KELAS', 'MURID KELAS', 'DAPAT ANUGERAH', '%', 'LEBIH 1', 'TIKET']];
+  d.barisKelas.forEach(k => r.push([agWordDarjah(k.tahun), k.kelas, k.bilMurid, k.dapat,
+    anPeratus(k.dapat, k.bilMurid), k.ulang, k.tiket]));
+  r.push([], ['MURID LEBIH DARI 1 ANUGERAH'], ['NAMA', 'NO KP', 'KELAS', 'BIL', 'ANUGERAH']);
+  d.senaraiUlang.forEach(x => r.push([x.p.nama, x.p.no_kp, agKelasPenerima(x.p), x.an.length,
+    x.an.map(a => a.anugerah + ' › ' + a.sub).join(' | ')]));
+  agMuatTurunCSV(r, 'analisa-' + (MAJLIS.nama || 'majlis').replace(/\s+/g, '-') + '.csv');
+};
+
+$('an-pdf').onclick = () => {
+  if (!AN_DATA) return;
+  const w = window.open('', '_blank');
+  if (!w) { agToast('Benarkan pop-up untuk mencetak', 'ralat'); return; }
+  const d = AN_DATA;
+  const kotak = (n, l) => '<div class="k"><b>' + n + '</b><span>' + agEsc(l) + '</span></div>';
+  w.document.write(
+    '<!doctype html><meta charset="utf-8"><title>Analisa Majlis</title>' +
+    '<style>body{font:12px/1.5 system-ui,sans-serif;margin:26px;color:#111}' +
+    'h1{font-size:17px;margin:0 0 3px}h2{font-size:14px;margin:20px 0 6px}p.sub{margin:0 0 15px;color:#555;font-size:11.5px}' +
+    '.ks{display:flex;flex-wrap:wrap;gap:8px}.k{border:1px solid #999;padding:8px 12px;min-width:120px}' +
+    '.k b{display:block;font-size:20px}.k span{font-size:11px}' +
+    'table{border-collapse:collapse;width:100%}th,td{border:1px solid #BBB;padding:4px 7px;text-align:left;vertical-align:top}' +
+    'th{background:#EEE;font-size:11px;text-transform:uppercase}td.n,th.n{text-align:right}tr.j td{font-weight:700;background:#F3F3F3}' +
+    'tr{break-inside:avoid}@page{margin:14mm}</style>' +
+    '<h1>' + agEsc(MAJLIS.nama || 'Majlis Anugerah') + '</h1>' +
+    '<p class="sub">Analisa majlis · dicetak ' + new Date().toLocaleString('ms-MY') + '</p>' +
+    '<div class="ks">' + kotak(d.murid, 'Jumlah semua murid') + kotak(d.tiket, 'Jumlah tiket dikeluarkan') +
+      kotak(d.ulang, 'Jumlah murid lebih dari 1 anugerah') + kotak(d.anugerah, 'Jumlah anugerah') +
+      kotak(d.naik, 'Jumlah naik pentas') +
+      (d.luar ? kotak(d.luar, 'Bukan murid') : '') +
+      (d.tanpaPentas ? kotak(d.tanpaPentas, 'Tidak naik pentas') : '') + '</div>' +
+    '<h2>Ikut Darjah &amp; Kelas</h2><table><thead><tr><th>Darjah</th><th>Kelas</th><th class="n">Murid kelas</th>' +
+      '<th class="n">Dapat anugerah</th><th class="n">%</th><th class="n">Lebih 1</th><th class="n">Tiket</th></tr></thead><tbody>' +
+      d.barisKelas.map(k => '<tr><td>' + (agWordDarjah(k.tahun) || '—') + '</td><td>' + agEsc(k.kelas) +
+        (k.bilMurid && !k.dapat ? ' ⚠' : '') + '</td><td class="n">' + (k.bilMurid || '—') + '</td><td class="n">' +
+        k.dapat + '</td><td class="n">' + anPeratus(k.dapat, k.bilMurid) + '</td><td class="n">' + k.ulang +
+        '</td><td class="n">' + k.tiket + '</td></tr>').join('') +
+      '<tr class="j"><td colspan="2">JUMLAH</td><td class="n">' + d.bilMuridSekolah + '</td><td class="n">' + d.murid +
+        '</td><td class="n">' + anPeratus(d.murid, d.bilMuridSekolah) + '</td><td class="n">' + d.ulang +
+        '</td><td class="n">' + d.barisKelas.reduce((n, k) => n + k.tiket, 0) + '</td></tr></tbody></table>' +
+    '<h2>Murid Lebih Dari 1 Anugerah (' + d.senaraiUlang.length + ')</h2>' +
+    (d.senaraiUlang.length
+      ? '<table><thead><tr><th class="n">#</th><th>Nama</th><th>Kelas</th><th class="n">Bil.</th><th>Anugerah</th></tr></thead><tbody>' +
+        d.senaraiUlang.map((x, i) => '<tr><td class="n">' + (i + 1) + '</td><td>' + agEsc(x.p.nama) + '</td><td>' +
+          agEsc(agKelasPenerima(x.p)) + '</td><td class="n">' + x.an.length + '</td><td>' +
+          x.an.map(a => agEsc(a.sub)).join('<br>') + '</td></tr>').join('') + '</tbody></table>'
+      : '<p>Tiada.</p>'));
   w.document.close();
   setTimeout(() => w.print(), 350);
 };
