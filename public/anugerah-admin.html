@@ -1072,8 +1072,7 @@ tr.pg-gab td{background:var(--amaran-bg)}
           majlis kepada keadaan sebelum majlis bermula. Nombor giliran dan senarai penerima
           <strong>tidak</strong> disentuh.</p>
         <hr style="border:none;border-top:1px solid var(--garis-halus);margin:19px 0">
-        <p class="eyebrow">📝 Nota petugas — dikongsi Peserta · MC · Hadiah · Admin</p>
-        <div id="nota-admin"></div>
+        <p class="eyebrow">📝 Nota anugerah petugas — ＋ nota pada tajuk anugerah (Peserta · MC · Hadiah)</p>
         <div class="baris-input" style="margin-top:9px">
           <button class="btn kecil" id="b-reset-nota"
             style="background:var(--bahaya,#b3261e);color:#fff;border-color:var(--bahaya,#b3261e)">
@@ -6862,7 +6861,8 @@ function lukisPetugas() {
   lukisBorangGuru();
   lukisResetStatus();
   lukisGuruKelas();
-  agPasangNota($('nota-admin'), MAJLIS.id, 'admin');   // 📝 nota dikongsi petugas
+  /* 📝 Papan Nota Petugas umum dibuang (4 Nov 2026, pengguna) — butang
+     🗑 Padam semua nota di bawah kekal untuk nota anugerah. */
 
   $('link-grid').innerHTML = peranan.map(r => {
     const kod = mod[r.k];
