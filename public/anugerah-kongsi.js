@@ -1647,7 +1647,7 @@ function agCetakSkripMC(w, majlis, penerima) {
     if (b.anugerahId !== anAkhir) {
       anAkhir = b.anugerahId; subAkhir = null;
       const n = bilDalam(i, x => x.anugerahId === b.anugerahId);
-      const py = agPenyelaras(b.anugerahId);
+      const py = agPenyelarasTeks(b.anugerahId);
       html += '<tr class="an"><td colspan="5">' + E(b.anugerah) +
         (py ? '<span class="pny">Penyelaras: ' + E(py) + '</span>' : '') +
         '<span class="bil">' + n + ' giliran</span></td></tr>';
@@ -1841,7 +1841,7 @@ function agCetakSenaraiHadiah(w, majlis, penerima) {
     const a = B.baris[0].no, z = B.baris[n - 1].no;
     return '<table class="' + (n <= 30 ? 'pendek' : '') + '"><thead>' +
       '<tr class="an"><th colspan="' + lajur + '">' + E(B.anugerah) +
-        (agPenyelaras(B.anugerahId) ? '<span class="pny">Penyelaras: ' + E(agPenyelaras(B.anugerahId)) + '</span>' : '') +
+        (agPenyelarasTeks(B.anugerahId) ? '<span class="pny">Penyelaras: ' + E(agPenyelarasTeks(B.anugerahId)) + '</span>' : '') +
         '<span class="bil">' + n + ' hadiah · giliran ' + (a === z ? a : a + '–' + z) + '</span></th></tr>' +
       '<tr class="lj"><th>Sedia</th><th>Serah</th><th style="text-align:right">No</th>' +
         '<th>Darjah/Kelas</th><th>Nama</th><th>Status</th></tr>' +
@@ -1986,7 +1986,7 @@ async function agMuatTurunSenaraiHadiahWord(majlis, penerima) {
     let t = '<w:tbl><w:tblPr><w:tblW w:w="10660" w:type="dxa"/><w:tblLayout w:type="fixed"/>' + sempadan +
       '<w:tblCellMar><w:left w:w="70" w:type="dxa"/><w:right w:w="70" w:type="dxa"/></w:tblCellMar></w:tblPr>' +
       '<w:tblGrid>' + LEBAR.map(w => '<w:gridCol w:w="' + w + '"/>').join('') + '</w:tblGrid>';
-    const py = agPenyelaras(B.anugerahId);
+    const py = agPenyelarasTeks(B.anugerahId);
     t += baris(sel(para(run(B.anugerah, { b: true, sz: 22 }) +
       (py ? run('   Penyelaras: ' + py, { b: true, sz: 18 }) : '') +
       run('   (' + n + ' hadiah · giliran ' + (a === z ? a : a + '–' + z) + ')', { sz: 18, warna: '444444' }), { keep: true }),
@@ -2134,7 +2134,7 @@ async function agMuatTurunSenaraiHadiahExcel(majlis, penerima) {
       [b.nama, absen ? 4 : 1],
       [agTeksKe(b), s],
       [b.anugerah, s],
-      [agPenyelaras(b.anugerahId), s],
+      [agPenyelarasTeks(b.anugerahId), s],
       [(b.gabung.length ? '🎁 GABUNG · ' : '') + (tajuk || ''), s],
       [b.hadiah, s],
       [absen ? 'TIDAK HADIR' : b.mc === true ? 'Sudah diambil' : '', absen ? 5 : 0],
@@ -2302,9 +2302,31 @@ function agPenyelaras(anId) {
   return n ? n.teks : '';
 }
 
+/* Senarai nama. Pemisah: , ; & + baris baharu. 🔴 BUKAN '/' — A/L, A/P
+   ialah sebahagian nama. Huruf besar supaya sama dengan nama ESIS lain. */
+function agPenyelarasSenarai(teks) {
+  return String(teks || '').split(/\s*(?:[,;&+\n])\s*/)
+    .map(x => x.trim().replace(/\s+/g, ' ').toUpperCase()).filter(Boolean);
+}
+
+/* Cetakan: "A · B" */
+function agPenyelarasTeks(anId) {
+  return agPenyelarasSenarai(agPenyelaras(anId)).join(' · ');
+}
+
+/* Satu nama satu baris dalam butang — dua nama sebaris tanpa pemisah
+   dibaca sebagai seorang (aduan pengguna 4 Nov 2026). */
 function _agPnyDalam(anId) {
-  const t = agPenyelaras(anId);
-  return t ? '👤 Penyelaras: ' + agEsc(t) : '＋ penyelaras';
+  const l = agPenyelarasSenarai(agPenyelaras(anId));
+  if (!l.length) return '＋ penyelaras';
+  return '<span class="pny-lbl">👤 Penyelaras</span>' +
+    l.map(n => '<span class="pny-nama">' + agEsc(n) + '</span>').join('');
+}
+
+/* Dua gelaran bin/binti/bt/a/l/a/p dalam SATU nama = hampir pasti dua
+   orang yang lupa koma. */
+function _agPnyNampakDua(nama) {
+  return (nama.match(/(?:^|\s)(?:BIN|BINTI|BT|BTE|BINTE|A\/L|A\/P)(?=\s|$)/g) || []).length >= 2;
 }
 
 function _agPnyTajukTitle(anId) {
@@ -2313,17 +2335,28 @@ function _agPnyTajukTitle(anId) {
     agNotaMasa(n.masa) + ' — tekan untuk ubah / padam' : 'Tekan untuk tulis nama penyelaras anugerah ini';
 }
 
-async function agPenyelarasUbah(anId, anNama) {
+function agPenyelarasUbah(anId, anNama) {
+  return agPenyelarasUbah2(anId, anNama, agPenyelaras(anId));
+}
+
+async function agPenyelarasUbah2(anId, anNama, awal) {
   const ada = agPenyelaras(anId);
   const teks = prompt('Penyelaras ' + (anNama || 'anugerah ini') +
-    '\n(lebih dari seorang: pisahkan dengan koma · kosongkan untuk padam)', ada);
+    '\n\nLebih dari seorang: pisahkan dengan KOMA\ncth: ALI BIN ABU, SITI BINTI AHMAD\n\n(kosongkan untuk padam)', awal || '');
   if (teks === null) return;
   const ref = agDb.collection(AG_NOTA_KOL).doc(_agNotaS.majlisId + '__' + anId + '__' + AG_PNY);
+  const senarai = agPenyelarasSenarai(teks);
+  const syak = senarai.filter(_agPnyNampakDua);
+  if (syak.length && !confirm('Nama ini nampak macam DUA orang tanpa koma:\n\n' + syak.join('\n') +
+      '\n\nLetak koma di antara nama, cth:\nALI BIN ABU, SITI BINTI AHMAD\n\n' +
+      'OK = simpan juga sebagai seorang · Batal = betulkan')) {
+    return agPenyelarasUbah2(anId, anNama, teks);
+  }
   try {
-    if (!teks.trim()) { if (ada) await ref.delete(); return; }
+    if (!senarai.length) { if (ada) await ref.delete(); return; }
     await ref.set({
       majlisId: _agNotaS.majlisId, anugerahId: anId, jenis: AG_PNY,
-      teks: teks.trim().replace(/\s+/g, ' ').slice(0, 200), nama: agNotaNama().slice(0, 40),
+      teks: senarai.join(', ').slice(0, 300), nama: agNotaNama().slice(0, 40),
       panel: _agNotaS.panel || '', masa: Date.now()
     });
   } catch (e) {

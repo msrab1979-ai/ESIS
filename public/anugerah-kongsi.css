@@ -362,3 +362,6 @@ code{
 .grup-kepala .nota-tajuk.ada{color:#6b4500;background:#fff1b8;border:1px solid #e8c46a}
 /* 👤 penyelaras — biru, supaya tidak keliru dengan 📝 nota (kuning) */
 .grup-kepala .nota-tajuk.pny.ada{color:#0b3d6b;background:#e3effc;border:1px solid #9cc3ea}
+.grup-kepala .nota-tajuk.pny.ada{display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;padding:4px 9px;line-height:1.3}
+.grup-kepala .nota-tajuk.pny .pny-lbl{font-size:10px;letter-spacing:.05em;text-transform:uppercase;opacity:.75}
+.grup-kepala .nota-tajuk.pny .pny-nama{font-size:12px;font-weight:700}
