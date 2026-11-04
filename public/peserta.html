@@ -70,10 +70,16 @@
 /* Giliran LAIN murid berulang: nombor + nama anugerah, baris sendiri. */
 .nota-ulang{margin-top:3px; font-size:11px; color:var(--neutral); line-height:1.6}
 .gil-lain{
-  display:inline-block; background:var(--kertas-3); border:1px solid var(--garis);
-  border-radius:20px; padding:1px 8px; margin-right:4px;
-  font-weight:650; color:var(--tinta); font-variant-numeric:tabular-nums;
+  margin-top:3px; background:var(--kertas-3); border:1px solid var(--garis);
+  border-radius:8px; padding:3px 9px; font-weight:600; color:var(--tinta);
+  font-variant-numeric:tabular-nums;
 }
+.gil-lain.ini{border-color:var(--emas)}
+.gil-ikut{font-weight:400; color:var(--neutral)}
+.gst{display:inline-block; font-size:10.5px; font-weight:700; color:var(--neutral); white-space:nowrap}
+.gst.ok{color:#1f7a3a}
+.gst.ini{color:var(--emas)}
+.gst.absen{color:var(--absen)}
 </style>
 </head>
 <body>
@@ -244,12 +250,12 @@ async function muat(pertama, sedia) {
     MENUNGGU.forEach(sapu);
     Object.keys(TERBANG).forEach(docId => sapu({ docId, nilai: TERBANG[docId] }));
 
-    /* 🔴 Pemantau membawa SETIAP perubahan penerima, termasuk ✓ MC yang
-       tiada kena-mengena dengan panel ini. Lukis hanya bila apa yang
-       dipapar di sini berubah. */
+    /* 🔴 Pemantau membawa SETIAP perubahan penerima. Lukis hanya bila apa
+       yang dipapar di sini berubah — termasuk ✓ MC, kerana senarai giliran
+       murid berulang memaparkan "sudah diambil". */
     const cap = JSON.stringify((r.penuh || MAJLIS).anugerah || []) + '#' +
       MURID.map(m => m.docId + ':' + m.status + ':' + m.nama + ':' + m.tahun + ':' + m.kelas + ':' +
-        m.giliran.map(g => g.no + '/' + g.subId).join(',')).join('|');
+        m.giliran.map(g => g.no + '/' + g.subId + (g.mc === true ? '/mc' : '')).join(',')).join('|');
     if (!pertama && cap === CAP) return;
     CAP = cap;
 
@@ -518,30 +524,37 @@ function baris(m, no) {
      KESEMUA gilirannya, bukan hanya baris ini. */
   const ulang = bil > 1;
 
-  /* 🔴 Giliran LAIN mesti membawa NOMBOR + NAMA ANUGERAH. "juga: 41"
-     ialah nombor bogel: pengurus peserta nampak angka dan tidak tahu
-     41 itu anugerah apa, jadi dia tidak dapat memberitahu murid bila
-     dia perlu kembali ke pentas. */
-  const lain = ulang
-    ? m.giliran.filter(g => g.no != null && g.no !== no && !agIkutSah(m.giliran, g))
-        .sort((a, b) => a.no - b.no)
-        .map(g => '<span class="gil-lain">#' + g.no + ' ' +
-          agEsc(agRingkasSub(g.sub || g.anugerah || '')) + '</span>')
+  /* 🔴 SEMUA giliran murid ini — nombor + nama anugerah PENUH + status
+     dari tick MC — termasuk yang sudah selesai (pengguna, 4 Nov).
+     "juga: #93 5 CELERON (DLP)" tidak memberitahu anugerah mana, dan
+     pengurus peserta tidak tahu hadiah mana sudah diambil. */
+  const senarai = ulang
+    ? agSemuaGiliran(m.giliran).map(x => {
+        const st = x.no === no ? '<span class="gst ini">\u25c0 giliran ini</span>'
+          : x.hadir === false ? '<span class="gst absen">\u2717 tidak hadir</span>'
+          : x.mc ? '<span class="gst ok">\u2713 sudah diambil</span>'
+          : '<span class="gst">belum</span>';
+        return '<div class="gil-lain' + (x.no === no ? ' ini' : '') + '">' +
+          '<b>#' + x.no + '</b> ' + agEsc(x.nama) + ' ' + st +
+          (x.ikut.length ? '<div class="gil-ikut">+ turut menerima: ' +
+            x.ikut.map(agEsc).join(' \u00b7 ') + '</div>' : '') + '</div>';
+      })
     : [];
 
   const notaUlang = ulang
     ? '<div class="nota-ulang">' +
-        '<span class="lencana-ulang">\u26a0 NAIK PENTAS ' + bil + ' KALI</span> ' +
-        (lain.length ? 'juga: ' + lain.join(' ') : '') +
+        '<span class="lencana-ulang">\u26a0 NAIK PENTAS ' + bil + ' KALI</span>' +
+        senarai.join('') +
       '</div>'
     : '';
 
   /* gaya GABUNG: anugerah yang diterima serentak pada nombor ini */
   const utama = m.giliran.find(g => g.no === no && !agIkutSah(m.giliran, g));
   const serentak = utama ? agPengikutGiliran(m.giliran, utama) : [];
-  const notaGabung = serentak.length
+  /* murid berulang: "turut menerima" sudah ada dalam senarai giliran di bawah */
+  const notaGabung = serentak.length && !ulang
     ? '<div class="k">+ turut menerima: ' +
-      serentak.map(g => agEsc(agRingkasSub(g.sub || g.anugerah || ''))).join(' · ') + '</div>'
+      serentak.map(g => agEsc(agNamaGiliran(g))).join(' · ') + '</div>'
     : '';
 
   const kelas = (m.status === 'hadir' ? ' sudah' : (m.status === 'absen' ? ' absen' : '')) +
@@ -563,14 +576,6 @@ function baris(m, no) {
       '<button class="b-tanda" data-tanda="hadir" title="Hadir">\u2713</button>' +
       '<button class="b-tanda x" data-tanda="absen" title="Tidak hadir">\u2715</button>' +
     '</div></li>';
-}
-
-/* Nama sub dipendekkan untuk pil kecil — "KEHADIRAN PENUH — DARJAH 4"
-   muat, "ANUGERAH KEBITARAAN ANTARABANGSA" tidak. Awalan "ANUGERAH"
-   dibuang kerana setiap nama membawanya. */
-function agRingkasSub(nama) {
-  const t = String(nama || '').replace(/^ANUGERAH\s+/i, '').trim();
-  return t.length > 30 ? t.slice(0, 29) + '\u2026' : t;
 }
 
 /* ---------- buka/tutup ---------- */

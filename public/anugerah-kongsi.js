@@ -1345,6 +1345,35 @@ function agTeksKe(b) {
   return '\ud83c\udf81 ' + b.ke + '/' + b.jum + (b.ke === b.jum ? ' (akhir)' : '') +
     (b.lepas.length ? ' \u00b7 seterusnya: ' + b.lepas.map(n => 'No. ' + n).join(', ') : '');
 }
+/* Nama PENUH satu giliran: "ANUGERAH TERBAIK DALAM KELAS — 5 CELERON (DLP)".
+   "#93 5 CELERON (DLP)" sahaja tidak memberitahu anugerah mana (pengguna, 4 Nov). */
+function agNamaGiliran(g) {
+  const an = String(g.anugerah || '').trim(), s = String(g.sub || '').trim();
+  const A = an.toUpperCase(), S = s.toUpperCase(), nA = A.replace(/^ANUGERAH\s+/, '');
+  if (!s || S === A || S === nA) return an || s;
+  if (!an || S.startsWith(A)) return s;
+  if (S.startsWith(nA + ' — ')) return an + s.slice(nA.length);
+  return an + ' — ' + s;
+}
+
+/* SEMUA giliran murid (bukan pengikut gabung), ikut nombor — termasuk yang
+   sudah selesai. [{no, nama, ikut[], mc, hadir}] */
+function agSemuaGiliran(gil) {
+  gil = (gil || []).filter(g => g.no != null);
+  return gil.filter(g => !agIkutSah(gil, g)).sort((a, b) => a.no - b.no).map(g => ({
+    no: g.no, nama: agNamaGiliran(g), ikut: agPengikutGiliran(gil, g).map(x =>   // anugerah sama → nama sub sahaja
+      x.anugerah === g.anugerah && x.sub ? x.sub : agNamaGiliran(x)),
+    mc: g.mc === true, hadir: g.hadir
+  }));
+}
+
+/* Teks cetakan, satu entri per giliran. TANPA status — kertas ditanda
+   dengan pen (pengguna, 4 Nov). */
+function agTeksSemuaGiliran(semua, noIni) {
+  return (semua || []).map(x => '#' + x.no + ' ' + x.nama +
+    (x.ikut.length ? ' (+ ' + x.ikut.join(' · ') + ')' : '') + (x.no === noIni ? ' ◀ ini' : ''));
+}
+
 /* Isi b.ke/b.jum/b.lepas bagi baris yang SUDAH disusun ikut nombor.
    `kunci` = pengenal murid (docId). */
 function agTandaKe(baris, kunci) {
@@ -1649,7 +1678,8 @@ function agKiraSkripMC(penerima, majlis) {
       anugerahId: g.anugerahId || g.anugerah, anugerah: g.anugerah || '', sub: g.sub || '',
       subId: g.subId || '', hadiah: g.hadiah || '', hadir: g.hadir,
       kali: i + 1, daripada: utama.length,
-      lain: agPengikutGiliran(gil, g).map(x => x.sub || x.anugerah)
+      lain: agPengikutGiliran(gil, g).map(x => x.sub || x.anugerah),
+      semua: agSemuaGiliran(gil)
     }));
   });
   baris.sort((a, b) => a.no - b.no || String(a.nama).localeCompare(String(b.nama)));
@@ -1714,7 +1744,8 @@ function agCetakSkripMC(w, majlis, penerima) {
       }
     }
     const nota = [];
-    if (b.jum > 1) nota.push('<b>' + E(agTeksKe(b)) + '</b>');
+    if (b.jum > 1) nota.push('<b>' + E(agTeksKe(b)) + '</b>',
+      agTeksSemuaGiliran(b.semua, b.no).map(E).join('<br>'));
     if (b.lain.length) nota.push('+ turut menerima: ' + b.lain.map(E).join(' · '));
     if (b.hadir === false) nota.push('<b>TIDAK HADIR</b>');
     html += '<tr class="m' + (b.hadir === false ? ' absen' : '') + '">' +
@@ -1806,7 +1837,7 @@ function agKiraSenaraiHadiah(penerima) {
         no: g.no, docId: p.docId, nama: p.nama || '', tahun: p.tahun, kelas: p.kelas, luar: agAdalahLuar(p),
         anugerahId: g.anugerahId || g.anugerah, anugerah: g.anugerah || '', sub: g.sub || '',
         subId: g.subId || '', gabung: ikut.map(x => x.sub || x.anugerah), hadiah: hadiah.join(' · '),
-        hadir: g.hadir, mc: g.mc
+        hadir: g.hadir, mc: g.mc, semua: agSemuaGiliran(gil)
       });
     });
   });
@@ -1895,7 +1926,8 @@ function agCetakSenaraiHadiah(w, majlis, penerima) {
         '<td class="no">' + b.no + '</td>' +
         '<td class="kls">' + E(b.luar ? '' : agDarjahKelas(b.tahun, b.kelas)) + '</td>' +
         '<td class="nama">' + E(b.nama) +
-          (b.jum > 1 ? '<div class="ke">' + E(agTeksKe(b)) + '</div>' : '') +
+          (b.jum > 1 ? '<div class="ke">' + E(agTeksKe(b)) + '</div>' +
+            '<div class="gil">' + agTeksSemuaGiliran(b.semua, b.no).map(E).join('<br>') + '</div>' : '') +
         '</td><td class="st">' + st + '</td></tr>';
       agAcaraLepasBaris(r.baris, r.baris.indexOf(b)).forEach(l => {
         const tr = agAcaraCetakTr(l, lajur, dipapar);
@@ -1948,6 +1980,7 @@ function agCetakSenaraiHadiah(w, majlis, penerima) {
     'td.no{width:34px;font-weight:800;font-size:14px;text-align:right}' +
     'td.kls{width:100px;white-space:nowrap}td.nama{font-weight:700;font-size:12px}' +
     'td.nama .ke{font-weight:600;font-size:10px;color:#333;text-decoration:none}' +
+    'td.nama .gil{font-weight:400;font-size:9.5px;color:#333;line-height:1.35;text-decoration:none}' +
     'td.st{width:88px;font-size:10px}' +
     'tr.absen td{color:#888;text-decoration:line-through}tr.absen td.st{text-decoration:none;color:#900}' +
     '.akhir{margin-top:10px;border-top:2px solid #111;padding-top:5px;font-weight:700;text-align:right}' +
@@ -2110,7 +2143,9 @@ async function agMuatTurunSenaraiHadiahWord(majlis, penerima) {
         sel(para(run(b.no, Object.assign({ b: true, sz: 24 }, o)), { jc: 'right' }), { w: LEBAR[2] }) +
         sel(para(run(b.luar ? '' : agDarjahKelas(b.tahun, b.kelas), Object.assign({ sz: 18 }, o))), { w: LEBAR[3] }) +
         sel(para(run(b.nama, Object.assign({ b: true, sz: 21 }, o))) +
-          (b.jum > 1 ? para(run(agTeksKe(b), { sz: 16, warna: '333333' })) : ''), { w: LEBAR[4] }) +
+          (b.jum > 1 ? para(run(agTeksKe(b), { sz: 16, warna: '333333' })) +
+            agTeksSemuaGiliran(b.semua, b.no).map(t => para(run(t, { sz: 15, warna: '333333' }))).join('') : ''),
+          { w: LEBAR[4] }) +
         sel(para(st), { w: LEBAR[5] }));
       agAcaraLepasBaris(r.baris, r.baris.indexOf(b)).forEach(l => {
         if (l.startsWith('sub:')) t += acaraBaris(l); else selepas += acaraPara(l);
@@ -2224,7 +2259,7 @@ async function agMuatTurunSenaraiHadiahExcel(majlis, penerima) {
       [b.no, absen ? 4 : 1],
       [b.luar ? '' : agDarjahKelas(b.tahun, b.kelas), s],
       [b.nama, absen ? 4 : 1],
-      [agTeksKe(b), s],
+      [b.jum > 1 ? [agTeksKe(b)].concat(agTeksSemuaGiliran(b.semua, b.no)).join(' | ') : '', s],
       [b.anugerah, s],
       [[agPenyelarasTeks(b.anugerahId, ''), agPenyelarasTeks(b.anugerahId, b.subId)].filter(Boolean).join(' · '), s],
       [(b.gabung.length ? '🎁 GABUNG · ' : '') + (tajuk || ''), s],
