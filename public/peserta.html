@@ -113,8 +113,6 @@
       <span class="lencana-gil">4 giliran</span> menunjukkan kesannya sebelum kau tekan.</div>
     </div>
 
-    <div id="nota-petugas"></div>
-
     <div class="kpi-grid" id="kpi"></div>
 
     <div class="kad">
@@ -181,7 +179,10 @@ function memuat(el, teks) {
       return;
     }
     MAJLIS = agMajlisPetugas(hasil.majlis);   // 🙈 sub disorok admin dibuang
-    agPasangNota($('nota-petugas'), MAJLIS.id, 'peserta');   // 📝 nota dikongsi
+    /* 📝 Papan Nota Petugas umum dibuang dari panel ini (4 Nov 2026, pengguna).
+       Pendengar tetap dipasang (bekas null) supaya ＋ nota pada tajuk anugerah
+       kekal berfungsi. */
+    agPasangNota(null, MAJLIS.id, 'peserta');
     $('p-isi').hidden = false;
     await muat(true);
     /* 🔴 Muat berkala 25s × 3 panel × berjam-jam majlis = puluhan ribu
