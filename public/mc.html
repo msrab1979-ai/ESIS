@@ -213,9 +213,18 @@ function capHadir(senarai) {
    hanya murid di setiap nombor bertukar. Tanpa ini butang merah tidak
    menyala dan MC terus membaca susunan lama. `mc` tetap TIDAK dimasukkan
    (lihat atas). */
-/* Tanda ✓ MC sahaja — untuk mengemas tanda MC lain di tempat. */
-function capMC(senarai) {
-  return senarai.map(b => b.no + ':' + (b.mc ? 1 : 0)).join('|');
+/* Salin tanda ✓ dari data segar ke BARIS di tempat, ikut docId|subId
+   (bukan nombor — selamat walaupun susunan berubah). Pulang true bila
+   ada yang berubah. */
+function kemasMC(senarai) {
+  const peta = {};
+  senarai.forEach(b => { peta[b.docId + '|' + b.subId] = b.mc; });
+  let ubah = false;
+  BARIS.forEach(b => {
+    const k = b.docId + '|' + b.subId;
+    if (k in peta && (b.mc === true) !== (peta[k] === true)) { b.mc = peta[k]; ubah = true; }
+  });
+  return ubah;
 }
 
 /* Tanda tertunggak (luar talian) + sedang dihantar disapu ke atas data
@@ -328,14 +337,11 @@ async function muat(pertama, senyap, sedia) {
         /* 🔴 ✓ dari MC LAIN (beberapa MC guna link sama): kemas tanda
            di tempat — senarai tidak bergerak, accordion kekal. Perubahan
            kehadiran / susunan masih melalui butang merah. */
-        if (capMC(senarai) !== capMC(BARIS)) {
-          const peta = {};
-          senarai.forEach(b => { peta[b.docId + '|' + b.subId] = b.mc; });
-          BARIS.forEach(b => { const k = b.docId + '|' + b.subId; if (k in peta) b.mc = peta[k]; });
-          lukis(); kemasSari();
-        }
+        if (kemasMC(senarai)) { lukis(); kemasSari(); }
         return;
       }
+      /* butang merah menyala — ✓ MC lain tetap dikemas terus */
+      if (kemasMC(senarai)) { lukis(); kemasSari(); }
       TERTUNDA = senarai;
       tandaPerlu(true, bezaHadir(BARIS, senarai));
       return;
