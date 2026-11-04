@@ -160,16 +160,13 @@ function memuat(el, teks) {
        pendengar kekal supaya ＋ nota pada tajuk anugerah berfungsi. */
     agPasangNota(null, MAJLIS.id, 'hadiah');
     $('p-isi').hidden = false;
-    await muat(true);
-    /* 🔴 Muat berkala 25s × 3 panel × berjam-jam majlis = puluhan ribu
-       bacaan Firestore dan kuota harian boleh habis DI TENGAH MAJLIS
-       (disahkan berlaku semasa ujian: 'resource-exhausted Quota exceeded',
-       semua tulisan ditolak senyap). 90s sudah cukup pantas untuk dewan —
-       tanda sendiri tetap muncul serta-merta melalui tulisan optimistik,
-       yang disegarkan di sini hanyalah tanda petugas LAIN. */
-    /* Muat berkala adalah SENYAP — ia menyalakan butang merah, tidak
-       melukis semula. Lihat nota pada muat(). */
-    setInterval(() => muat(false, true), 90000);
+    /* 🔴 Pemantau langsung (agPantauPetugas) ganti muat berkala 90s:
+       tanda petugas LAIN sampai dalam 1–2s, dan hanya doc yang berubah
+       dibaca semula — lebih jimat kuota. Masih SENYAP: menyalakan
+       butang merah, tidak melukis semula (lihat nota pada muat()). */
+    let awal = true;
+    memuat($('senarai'), 'Memuatkan…');
+    await agPantauPetugas(MAJLIS, r => { const p = awal; awal = false; return muat(p, !p, r); });
   } catch (e) {
     console.error(e);
     $('sari').textContent = 'Gagal: ' + e.message;
@@ -197,13 +194,13 @@ function capSusun(b) {
    butang merah kalau ada perubahan. Melukis semula di tengah majlis
    menukar jadual di bawah tangan petugas yang sedang mengira hadiah —
    dia mesti memilih bila hendak mengambil data baharu. */
-async function muat(pertama, senyap) {
+async function muat(pertama, senyap, sedia) {
   if (pertama) memuat($('senarai'), 'Memuatkan…');
   try {
     /* 🙈 majlis segar + penerima tanpa anugerah disorok admin. MAJLIS
        hanya ditukar bila senarai DIPAKAI (lihat TERTUNDA), supaya
        accordion tidak berubah di bawah tangan petugas. */
-    const r = await agMuatPetugas(MAJLIS);
+    const r = sedia || await agMuatPetugas(MAJLIS);   // sedia = dari pemantau langsung
     const penerima = r.penerima;
     const senarai = [];
     penerima.forEach(p => {
@@ -245,7 +242,7 @@ async function muat(pertama, senyap) {
       senyap = false; agToast('Admin telah reset tanda — senarai dikemas kini', 'ok');
     }
     if (senyap && BARIS.length) {
-      if (capBaris(senarai) === capBaris(BARIS)) { tandaPerlu(false); return; }
+      if (capBaris(senarai) === capBaris(BARIS)) { TERTUNDA = null; tandaPerlu(false); return; }
       TERTUNDA = senarai;
       tandaPerlu(true, bezaRingkas(BARIS, senarai));
       return;

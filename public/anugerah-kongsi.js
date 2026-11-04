@@ -971,6 +971,54 @@ async function agMuatPetugas(majlis) {
            penerima: agTapisPenerimaPetugas(penuh, penerima) };
 }
 
+/* 🔴 Pemantau langsung MC/Hadiah (4 Nov 2026) — ganti muat berkala 90s.
+   onSnapshot membaca senarai penuh SEKALI; selepas itu Firestore hanya
+   menghantar (dan mengebil) doc yang berubah. Tanda ✕ pengurus peserta
+   sampai dalam 1–2s, dan lebih jimat daripada membaca semua penerima
+   setiap 90s. `panggil(r)` menerima bentuk sama dengan agMuatPetugas.
+   Dilambatkan 400ms supaya batch (Jana Semula, reset) = satu panggilan.
+   Gagal (kuota / indeks / rangkaian) → jatuh balik ke muat berkala 90s
+   dengan `panggil(null)` — panel membaca sendiri. Pulang Promise yang
+   selesai selepas panggilan pertama. */
+function agPantauPetugas(majlis, panggil) {
+  return new Promise(selesai => {
+    let dm = null, pen = null, adaDm = false, adaPen = false;
+    let tunda = null, pertama = true, jatuh = false;
+    const henti = [];
+    const hantar = async r => {
+      try { await panggil(r); }
+      finally { if (pertama) { pertama = false; selesai(); } }
+    };
+    const jadual = () => {
+      if (!adaDm || !adaPen) return;
+      clearTimeout(tunda);
+      tunda = setTimeout(() => {
+        const penuh = dm || majlis._penuh || majlis;
+        hantar({ majlis: agMajlisPetugas(penuh), penuh,
+                 penerima: agTapisPenerimaPetugas(penuh, pen) });
+      }, pertama ? 0 : 400);
+    };
+    const gagal = err => {
+      if (jatuh) return;
+      jatuh = true;
+      console.warn('Pemantau gagal — guna muat berkala 90s:', err);
+      henti.forEach(f => f());
+      clearTimeout(tunda);
+      hantar(null);
+      setInterval(() => hantar(null), 90000);
+    };
+    henti.push(agDb.collection('anugerah_majlis').doc(majlis.id).onSnapshot(d => {
+      dm = d.exists ? { id: d.id, ...d.data() } : null;
+      adaDm = true; jadual();
+    }, gagal));
+    henti.push(agDb.collection('anugerah_penerima').where('majlisId', '==', majlis.id)
+      .onSnapshot(snap => {
+        pen = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
+        adaPen = true; jadual();
+      }, gagal));
+  });
+}
+
 /* Murid yang memegang sekurang-kurangnya satu anugerah naik pentas. */
 function agPenerimaPentas(p, subPentas) {
   return (p.anugerah || []).some(x => subPentas.has(x.subId));

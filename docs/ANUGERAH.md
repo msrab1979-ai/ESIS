@@ -524,7 +524,9 @@ Anugerah dengan **satu sub sahaja** tidak mendapat aras dalam — tajuk dalam ak
 
 #### Butang muat MERAH — perubahan diambil bila petugas sedia
 
-Auto-muat 90s kini **senyap**: ia menyemak dan menyalakan butang, **tidak melukis semula**. Jadual yang bertukar di bawah tangan petugas semasa dia mengira hadiah atau membaca nama ke mikrofon ialah tepat apa yang tidak boleh berlaku semasa majlis berjalan.
+Kemas kini kini **senyap**: ia menyemak dan menyalakan butang, **tidak melukis semula**.
+
+**Pemantau langsung (4 Nov 2026)** — MC & Hadiah tidak lagi muat berkala 90s. `agPantauPetugas(majlis, panggil)` (`anugerah-kongsi.js`) memasang `onSnapshot` pada doc majlis + `anugerah_penerima where majlisId`; panggilan dilambatkan 400ms (batch = satu panggilan) dan dihantar ke `muat(pertama, senyap, sedia)` — `sedia` menggantikan `agMuatPetugas`. Tanda ✕ Peserta menyalakan butang merah dalam 1–2s. **Lebih jimat kuota**: senarai penuh dibaca sekali, kemudian hanya doc yang berubah dibil (polling lama membaca semua penerima setiap 90s). Pemantau gagal → jatuh balik ke muat berkala 90s (`panggil(null)` → panel baca sendiri). Bila cap jari kembali sama, `TERTUNDA` dikosongkan supaya butang tidak memakai data lapuk. Peserta & tayang tidak diubah. Jadual yang bertukar di bawah tangan petugas semasa dia mengira hadiah atau membaca nama ke mikrofon ialah tepat apa yang tidak boleh berlaku semasa majlis berjalan.
 
 | Panel | Cap jari | Sebab |
 |---|---|---|

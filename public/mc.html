@@ -165,14 +165,13 @@ function memuat(el, teks) {
        pendengar kekal supaya ＋ nota pada tajuk anugerah berfungsi. */
     agPasangNota(null, MAJLIS.id, 'mc');
     $('p-isi').hidden = false;
-    await muat(true);
-    /* 🔴 Muat berkala 25s × 3 panel × berjam-jam majlis = puluhan ribu
-       bacaan Firestore dan kuota harian boleh habis DI TENGAH MAJLIS
-       (disahkan berlaku semasa ujian: 'resource-exhausted Quota exceeded',
-       semua tulisan ditolak senyap). 90s sudah cukup pantas untuk dewan —
-       tanda sendiri tetap muncul serta-merta melalui tulisan optimistik,
-       yang disegarkan di sini hanyalah tanda petugas LAIN. */
-    setInterval(() => muat(false, true), 90000);
+    /* 🔴 Pemantau langsung (agPantauPetugas) ganti muat berkala 90s:
+       tanda petugas LAIN sampai dalam 1–2s, dan hanya doc yang berubah
+       dibaca semula — lebih jimat kuota. Masih SENYAP: menyalakan
+       butang merah, tidak melukis semula (lihat nota pada muat()). */
+    let awal = true;
+    memuat($('senarai'), 'Memuatkan giliran…');
+    await agPantauPetugas(MAJLIS, r => { const p = awal; awal = false; return muat(p, !p, r); });
     setInterval(cubaHantarSemula, 20000);
   } catch (e) {
     console.error(e);
@@ -230,13 +229,13 @@ function bezaHadir(lama, baru) {
 /* `senyap` = muat berkala: menyalakan butang merah, TIDAK melukis
    semula. Jadual yang bertukar di bawah tangan MC semasa dia membaca
    nama ke mikrofon ialah tepat apa yang tidak boleh berlaku. */
-async function muat(pertama, senyap) {
+async function muat(pertama, senyap, sedia) {
   if (pertama) memuat($('senarai'), 'Memuatkan giliran…');
   try {
     /* 🙈 majlis segar + penerima tanpa anugerah disorok admin. MAJLIS
        hanya ditukar bila senarai DIPAKAI (lihat TERTUNDA), supaya
        accordion tidak berubah di bawah tangan petugas. */
-    const r = await agMuatPetugas(MAJLIS);
+    const r = sedia || await agMuatPetugas(MAJLIS);   // sedia = dari pemantau langsung
     const penerima = r.penerima;
 
     /* satu baris satu GILIRAN. Hanya medan yang MC perlukan dibentuk —
@@ -290,7 +289,7 @@ async function muat(pertama, senyap) {
     });
 
     if (senyap && BARIS.length) {
-      if (capHadir(senarai) === capHadir(BARIS)) { tandaPerlu(false); return; }
+      if (capHadir(senarai) === capHadir(BARIS)) { TERTUNDA = null; tandaPerlu(false); return; }
       TERTUNDA = senarai;
       tandaPerlu(true, bezaHadir(BARIS, senarai));
       return;
