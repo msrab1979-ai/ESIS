@@ -158,6 +158,11 @@
 let MAJLIS = null;
 let MURID = [];            // [{docId, nama, tahun, kelas, giliran[], status}]
 const MENUNGGU = [];       // baris gilir luar talian
+/* 🔴 Tanda SEDANG dihantar (docId → nilai). Pemantau langsung boleh membawa
+   data pengurus lain sebelum transaksi kita siap — tanpa ini tanda yang
+   baru ditekan melompat balik sekejap. */
+const TERBANG = {};
+let CAP = '';              // cap jari paparan terakhir — langkau lukis bila sama
 /* Blok mana terbuka. Kekal antara lukisan — muat berkala 90s akan
    menutup semula apa yang pengurus peserta baru buka tanpa ini. */
 const BUKA_AN = {};
@@ -184,14 +189,12 @@ function memuat(el, teks) {
        kekal berfungsi. */
     agPasangNota(null, MAJLIS.id, 'peserta');
     $('p-isi').hidden = false;
-    await muat(true);
-    /* 🔴 Muat berkala 25s × 3 panel × berjam-jam majlis = puluhan ribu
-       bacaan Firestore dan kuota harian boleh habis DI TENGAH MAJLIS
-       (disahkan berlaku semasa ujian: 'resource-exhausted Quota exceeded',
-       semua tulisan ditolak senyap). 90s sudah cukup pantas untuk dewan —
-       tanda sendiri tetap muncul serta-merta melalui tulisan optimistik,
-       yang disegarkan di sini hanyalah tanda petugas LAIN. */
-    setInterval(() => muat(false), 90000);   // segar sendiri semasa majlis
+    /* 🔴 Pemantau langsung (agPantauPetugas) ganti muat berkala 90s: tanda
+       pengurus peserta LAIN sampai dalam 1–2s, dan hanya doc yang berubah
+       dibaca semula — lebih jimat kuota. */
+    let awal = true;
+    memuat($('senarai'), 'Memuatkan senarai murid…');
+    await agPantauPetugas(MAJLIS, r => { const p = awal; awal = false; return muat(p, r); });
     setInterval(cubaHantarSemula, 20000);
   } catch (e) {
     console.error(e);
@@ -202,11 +205,11 @@ function memuat(el, teks) {
 })();
 
 /* ---------- muat ---------- */
-async function muat(pertama) {
+async function muat(pertama, sedia) {
   if (pertama) memuat($('senarai'), 'Memuatkan senarai murid…');
   try {
     /* 🙈 majlis segar + penerima tanpa anugerah disorok admin */
-    const r = await agMuatPetugas(MAJLIS);
+    const r = sedia || await agMuatPetugas(MAJLIS);   // sedia = dari pemantau langsung
     MAJLIS = r.majlis;
     /* 🚫 Murid yang SEMUA anugerahnya tidak naik pentas tiada giliran —
        dahulu jatuh ke blok "(tiada anugerah)". Dikira atas majlis SEGAR
@@ -231,13 +234,24 @@ async function muat(pertama) {
        nota sama dalam mc.html. Tanda yang belum sampai ke DB disapu balik
        ke atas data segar, kalau tidak ia hilang dari skrin 25 saat selepas
        guru menekan. */
-    MENUNGGU.forEach(t => {
+    const sapu = t => {
       const m = MURID.find(x => x.docId === t.docId);
       if (m) {
         m.status = t.nilai === null ? 'belum' : (t.nilai ? 'hadir' : 'absen');
         m.giliran = m.giliran.map(g => ({ ...g, hadir: t.nilai }));
       }
-    });
+    };
+    MENUNGGU.forEach(sapu);
+    Object.keys(TERBANG).forEach(docId => sapu({ docId, nilai: TERBANG[docId] }));
+
+    /* 🔴 Pemantau membawa SETIAP perubahan penerima, termasuk ✓ MC yang
+       tiada kena-mengena dengan panel ini. Lukis hanya bila apa yang
+       dipapar di sini berubah. */
+    const cap = JSON.stringify((r.penuh || MAJLIS).anugerah || []) + '#' +
+      MURID.map(m => m.docId + ':' + m.status + ':' + m.nama + ':' + m.tahun + ':' + m.kelas + ':' +
+        m.giliran.map(g => g.no + '/' + g.subId).join(',')).join('|');
+    if (!pertama && cap === CAP) return;
+    CAP = cap;
 
     isiDropdownDarjah();
     lukis();
@@ -623,6 +637,7 @@ $('senarai').addEventListener('click', e => {
 });
 
 async function hantarTanda(m, nilai) {
+  TERBANG[m.docId] = nilai;
   try {
     await agDb.runTransaction(async tx => {
       const ref = agDb.collection('anugerah_penerima').doc(m.docId);
@@ -638,6 +653,8 @@ async function hantarTanda(m, nilai) {
        Masuk baris gilir dan dicuba semula.                             */
     MENUNGGU.push({ docId: m.docId, nilai, nama: m.nama });
     agToast('Rangkaian bermasalah — ' + agEsc(m.nama) + ' dalam baris gilir', 'ralat');
+  } finally {
+    if (TERBANG[m.docId] === nilai) delete TERBANG[m.docId];
   }
 }
 

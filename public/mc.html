@@ -150,6 +150,10 @@
 let MAJLIS = null;
 let BARIS = [];          // [{docId, no, nama, tahun, kelas, anugerah, sub, hadiah, hadir, mc}]
 const MENUNGGU = [];
+/* 🔴 Tanda yang SEDANG dihantar (transaksi belum selesai), kunci docId|subId.
+   Pemantau langsung boleh membawa data MC lain sebelum transaksi kita siap —
+   tanpa ini tanda yang baru ditekan melompat balik sekejap. */
+const TERBANG = {};
 let KIRA = null;           // agKiraSkripMC — tiket / murid / >1 anugerah
 let TERTUNDA = null;       // data baharu yang menunggu MC menekan muat
 /* Blok mana terbuka — kekal antara lukisan supaya menanda ✓ (yang
@@ -206,6 +210,24 @@ function capHadir(senarai) {
    hanya murid di setiap nombor bertukar. Tanpa ini butang merah tidak
    menyala dan MC terus membaca susunan lama. `mc` tetap TIDAK dimasukkan
    (lihat atas). */
+/* Tanda ✓ MC sahaja — untuk mengemas tanda MC lain di tempat. */
+function capMC(senarai) {
+  return senarai.map(b => b.no + ':' + (b.mc ? 1 : 0)).join('|');
+}
+
+/* Tanda tertunggak (luar talian) + sedang dihantar disapu ke atas data
+   segar, supaya tanda MC ini tidak hilang dari skrinnya sendiri. */
+function sapuTertunggak(senarai) {
+  MENUNGGU.forEach(t => {
+    const b = senarai.find(x => x.docId === t.docId && x.subId === t.subId);
+    if (b) b.mc = t.nilai ? true : null;
+  });
+  senarai.forEach(b => {
+    const k = b.docId + '|' + b.subId;
+    if (k in TERBANG) b.mc = TERBANG[k];
+  });
+}
+
 function capSusun(b) {
   return b.docId + '@' + b.subId + '+' + (b.lain || []).join(',');
 }
@@ -295,13 +317,22 @@ async function muat(pertama, senyap, sedia) {
        balik) dan lukis terus, bukan butang merah. */
     const reset = BARIS.length && agAdaResetTanda(BARIS, senarai);
     if (reset) { MENUNGGU.length = 0; senyap = false; agToast('Admin telah reset tanda — senarai dikemas kini', 'ok'); }
-    MENUNGGU.forEach(t => {
-      const b = senarai.find(x => x.docId === t.docId && x.subId === t.subId);
-      if (b) b.mc = t.nilai ? true : null;
-    });
+    sapuTertunggak(senarai);
 
     if (senyap && BARIS.length) {
-      if (capHadir(senarai) === capHadir(BARIS)) { TERTUNDA = null; tandaPerlu(false); return; }
+      if (capHadir(senarai) === capHadir(BARIS)) {
+        TERTUNDA = null; tandaPerlu(false);
+        /* 🔴 ✓ dari MC LAIN (beberapa MC guna link sama): kemas tanda
+           di tempat — senarai tidak bergerak, accordion kekal. Perubahan
+           kehadiran / susunan masih melalui butang merah. */
+        if (capMC(senarai) !== capMC(BARIS)) {
+          const peta = {};
+          senarai.forEach(b => { peta[b.docId + '|' + b.subId] = b.mc; });
+          BARIS.forEach(b => { const k = b.docId + '|' + b.subId; if (k in peta) b.mc = peta[k]; });
+          lukis(); kemasSari();
+        }
+        return;
+      }
       TERTUNDA = senarai;
       tandaPerlu(true, bezaHadir(BARIS, senarai));
       return;
@@ -330,6 +361,7 @@ async function muat(pertama, senyap, sedia) {
 $('b-muat-apung').addEventListener('click', () => $('b-muat').click());
 $('b-muat').addEventListener('click', () => {
   if (TERTUNDA) {
+    sapuTertunggak(TERTUNDA);   // tanda yang ditekan selepas TERTUNDA dibina
     BARIS = TERTUNDA;
     MAJLIS = TERTUNDA.majlis;
     KIRA = TERTUNDA.kira;
@@ -606,6 +638,8 @@ function tandaMC(gil, subId, nilai) {
 }
 
 async function hantar(baris, nilai) {
+  const kunci = baris.docId + '|' + baris.subId;
+  TERBANG[kunci] = nilai ? true : null;
   try {
     await agDb.runTransaction(async tx => {
       const ref = agDb.collection('anugerah_penerima').doc(baris.docId);
@@ -618,6 +652,8 @@ async function hantar(baris, nilai) {
     console.error('Tanda MC gagal:', e.code, e.message);
     MENUNGGU.push({ docId: baris.docId, subId: baris.subId, nilai, no: baris.no });
     agToast('Rangkaian bermasalah — giliran ' + baris.no + ' dalam baris gilir', 'ralat');
+  } finally {
+    if (TERBANG[kunci] === (nilai ? true : null)) delete TERBANG[kunci];
   }
 }
 
