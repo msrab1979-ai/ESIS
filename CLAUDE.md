@@ -319,6 +319,7 @@ Peraturan paling berbahaya (ringkasan — butiran dalam `docs/ANUGERAH.md`):
 - **Batch Firestore ≤500 operasi** — pecah pada `RESET_CHUNK = 400`.
 - **Lalai = kelakuan lama**: medan baharu yang tiada mesti bermaksud kelakuan sebelum ciri itu wujud (`[]` = semua subjek, tiada `gayaGiliran` = `'asal'`, tiada `pentas` = naik pentas).
 - **Pendengar klik: butang disemak SEBELUM `.induk[data-togol]`** — butang duduk dalam baris accordion.
+- **`anugerah_nota` membawa tiga jenis** (4 Nov 2026): nota biasa (`!jenis`), `jenis:'penyelaras'` (teks bebas per anugerah/kategori), `jenis:'acara'` (persembahan/ucapan diselit di mana-mana). Penapis nota biasa mesti `!n.jenis`; 🗑 Padam semua nota hanya memadam nota biasa. Papan Nota Petugas umum sudah dibuang.
 - **Modul Anugerah TIDAK ditapis `diterbit`** (`agMuatMarkah`) dan **tiada dark mode** (termasuk `markah-guru.html`, yang berkongsi `anugerah-kongsi.css`).
 
 ### Markah Ujian Khas (`public/markah-guru.html` + `markah-guru.js`)

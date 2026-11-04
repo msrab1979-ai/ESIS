@@ -677,6 +677,8 @@ Untuk anugerah kejutan (contoh Tokoh Murid). `a.rahsia === true` / `s.rahsia` (b
 
 #### 📝 Nota Petugas (2 Nov 2026)
 
+> **4 Nov 2026: papan umum DIBUANG** dari Peserta, MC, Hadiah dan Admin (pengguna). Yang kekal: nota pada tajuk anugerah (＋ nota), 👤 penyelaras dan 🎭 acara — semuanya pada enjin yang sama. `agPasangNota(null, …)` = pendengar sahaja, tanpa papan. Butiran papan di bawah ialah sejarah.
+
 Papan nota dikongsi **Peserta · MC · Hadiah · Admin** (tab 🔗 Link Petugas). Tayang tiada (skrin dewan). **Semua boleh tulis dan padam** (keputusan pengguna). Satu enjin `agPasangNota(bekas, majlisId, panel)` dalam `anugerah-kongsi.js`; DOM `#nota-petugas` (panel) / `#nota-admin`.
 
 - Koleksi **`anugerah_nota`** = `{majlisId, teks (≤500), nama (≤40), panel, masa: Date.now()}` — **bukan** dalam dokumen majlis (`simpanMajlis()` admin akan memadamnya).
