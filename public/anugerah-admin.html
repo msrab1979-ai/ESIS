@@ -728,11 +728,6 @@ tr.pg-gab td{background:var(--amaran-bg)}
         <span class="sub" id="an-ulang-sub"></span></div>
       <div id="an-ulang"></div>
     </div>
-    <div class="kad" id="an-tanpa-kad" hidden>
-      <div class="kad-kepala"><h3>Murid Tidak Naik Pentas 🚫</h3>
-        <span class="sub" id="an-tanpa-sub"></span></div>
-      <div id="an-tanpa"></div>
-    </div>
   </section>
 
   <!-- ============ TAB 6 : GILIRAN ============ -->
@@ -5251,7 +5246,7 @@ function kiraAnalisa() {
 
   let murid = 0, luar = 0, tiket = 0, tiketLuar = 0, ulang = 0, anugerah = 0, naik = 0, tanpaPentas = 0;
   let anPentas = 0, anTidak = 0, belum = 0, gabung = 0;
-  const senaraiUlang = [], senaraiTanpa = [];
+  const senaraiUlang = [], senaraiTanpa = [], senaraiLuar = [], senaraiTiadaTiket = [];
   PENERIMA.forEach(p => {
     const an = (p.anugerah || []).filter(x => subWujud.has(x.subId));
     if (!an.length) return;
@@ -5270,8 +5265,10 @@ function kiraAnalisa() {
     gabung += Math.max(0, anP.length - belumP - bilNaik);
     if (adaTiket) tiket++;
     if (!anP.length) { tanpaPentas++; senaraiTanpa.push({ p, an }); }
-    if (agAdalahLuar(p)) { luar++; if (adaTiket) tiketLuar++; return; }
+    if (agAdalahLuar(p)) { luar++; if (adaTiket) tiketLuar++; senaraiLuar.push({ p, an }); return; }
     murid++;
+    if (!adaTiket) senaraiTiadaTiket.push({ p, an,
+      sebab: !anP.length ? '🚫 tidak naik pentas' : (!gil.length ? 'belum bernombor' : '🤫 rahsia') });
     if (an.length > 1) {
       ulang++;
       senaraiUlang.push({ p, an });
@@ -5301,7 +5298,7 @@ function kiraAnalisa() {
     String(a.p.kelas).localeCompare(String(b.p.kelas)) || String(a.p.nama).localeCompare(String(b.p.nama), 'ms'));
 
   return { murid, luar, tiket, tiketLuar, ulang, anugerah, naik, tanpaPentas, barisKelas, senaraiUlang,
-           anPentas, anTidak, belum, gabung, senaraiTanpa,
+           anPentas, anTidak, belum, gabung, senaraiTanpa, senaraiLuar, senaraiTiadaTiket,
            bilMuridSekolah: (MURID_SEMUA || []).filter(m => m.tahun && m.kelas).length };
 }
 
@@ -5326,16 +5323,18 @@ function anPeratus(a, b) { return b ? Math.round(a / b * 100) + '%' : '—'; }
 function lukisAnalisa() {
   const d = AN_DATA;
   $('an-masa').textContent = 'Dikira ' + new Date().toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' });
+  const k = (id, angka, label, kecil, jenis) => kad(angka, label, kecil + ' · ⓘ klik', jenis)
+    .replace('<div class="kpi', '<div data-an-kad="' + id + '" role="button" tabindex="0" ' +
+      'title="Klik untuk butiran" style="cursor:pointer" class="kpi');
   $('an-kpi').innerHTML =
     '<div class="kpi-grid" style="padding:0 19px 15px">' +
-      kad(d.murid, 'Jumlah semua murid', anPeratus(d.murid, d.bilMuridSekolah) + ' dari ' + d.bilMuridSekolah + ' murid sekolah') +
-      kad(d.tiket, 'Jumlah tiket dikeluarkan', anKetTiket(d)) +
-      kad(d.ulang, 'Jumlah murid lebih dari 1 anugerah', d.ulang ? 'naik pentas lebih sekali' : 'seorang satu anugerah', d.ulang ? '' : 'ok') +
-      kad(d.anugerah, 'Jumlah anugerah', d.anPentas + ' naik pentas' +
-          (d.anTidak ? ' + ' + d.anTidak + ' tidak naik pentas 🚫' : '')) +
-      kad(d.naik, 'Jumlah kali naik pentas', anKetNaik(d)) +
-      (d.luar ? kad(d.luar, 'Bukan murid', 'contoh ibu bapa') : '') +
-      (d.tanpaPentas ? kad(d.tanpaPentas, 'Murid tidak naik pentas', 'semua anugerahnya 🚫 · tiada tiket') : '') +
+      k('murid', d.murid, 'Jumlah semua murid', anPeratus(d.murid, d.bilMuridSekolah) + ' murid sekolah') +
+      k('tiket', d.tiket, 'Jumlah tiket dikeluarkan', 'seorang satu tiket') +
+      k('ulang', d.ulang, 'Jumlah murid lebih dari 1 anugerah', 'naik pentas lebih sekali', d.ulang ? '' : 'ok') +
+      k('anugerah', d.anugerah, 'Jumlah anugerah', 'semua anugerah diterima') +
+      k('naik', d.naik, 'Jumlah kali naik pentas', 'satu kali naik = satu hadiah') +
+      (d.luar ? k('luar', d.luar, 'Bukan murid', 'contoh ibu bapa') : '') +
+      (d.tanpaPentas ? k('tanpa', d.tanpaPentas, 'Murid tidak naik pentas', 'tiada tiket') : '') +
     '</div>';
 
   /* ---- ikut darjah & kelas ---- */
@@ -5393,20 +5392,77 @@ function lukisAnalisa() {
       '</tbody></table></div>'
     : '<div class="kad-isi"><p class="hint">Tiada murid menerima lebih dari satu anugerah.</p></div>';
 
-  /* ---- tidak naik pentas ---- */
-  tunjuk($('an-tanpa-kad'), d.senaraiTanpa.length > 0);
-  $('an-tanpa-sub').textContent = d.senaraiTanpa.length + ' penerima · tiada tiket';
-  $('an-tanpa').innerHTML = '<div class="gulung"><table><thead><tr><th class="num">#</th><th>Nama</th>' +
-    '<th>Kelas</th><th>Anugerah</th></tr></thead><tbody>' +
-    d.senaraiTanpa.map((x, i) => '<tr><td class="num">' + (i + 1) + '</td>' +
-      '<td class="nama-murid lajur-teks">' + agEsc(x.p.nama) + '</td>' +
-      '<td>' + agEsc(agKelasPenerima(x.p)) + '</td>' +
-      '<td class="lajur-teks">' + x.an.map(a => '<span class="pil tunggu" title="' + agEsc(a.anugerah) + '">' +
-        agEsc(a.sub) + '</span>').join(' ') + '</td></tr>').join('') +
-    '</tbody></table></div>';
 }
 
 $('an-segar').onclick = () => initAnalisa(true);
+
+/* Kad = angka + label pendek sahaja; pecahan dan nama di dalam modal. */
+function anModalButiran(id) {
+  const d = AN_DATA;
+  if (!d) return;
+  const baris = (l, n, tebal) => '<tr' + (tebal ? ' style="font-weight:700;border-top:2px solid var(--garis)"' : '') +
+    '><td>' + l + '</td><td class="num">' + n + '</td></tr>';
+  const pecah = rows => '<div class="gulung"><table><tbody>' + rows.join('') + '</tbody></table></div>';
+  const senarai = (xs, lajurLain) => xs.length
+    ? '<div class="gulung" style="max-height:55vh;overflow:auto"><table><thead><tr><th class="num">#</th><th>Nama</th>' +
+      '<th>Kelas</th><th>Anugerah</th>' + (lajurLain ? '<th>' + lajurLain + '</th>' : '') + '</tr></thead><tbody>' +
+      xs.map((x, i) => '<tr><td class="num">' + (i + 1) + '</td><td class="lajur-teks">' + agEsc(x.p.nama) + '</td>' +
+        '<td>' + agEsc(agKelasPenerima(x.p)) + '</td><td class="lajur-teks">' +
+        x.an.map(a => agEsc(a.sub)).join('<br>') + '</td>' +
+        (lajurLain ? '<td>' + agEsc(x.sebab || '') + '</td>' : '') + '</tr>').join('') +
+      '</tbody></table></div>'
+    : '<p class="hint">Tiada.</p>';
+  const tm = d.tiket - d.tiketLuar;
+  let tajuk = '', isi = '';
+  if (id === 'murid') {
+    tajuk = 'Jumlah semua murid — ' + d.murid;
+    const ikut = {};
+    d.barisKelas.forEach(k => { const x = ikut[k.tahun] = ikut[k.tahun] || { m: 0, d: 0 }; x.m += k.bilMurid; x.d += k.dapat; });
+    isi = pecah(Object.keys(ikut).sort((a, b) => agWordDarjah(a) - agWordDarjah(b)).map(t =>
+        baris('Darjah ' + (agWordDarjah(t) || '—'), ikut[t].d + ' dari ' + ikut[t].m + ' (' + anPeratus(ikut[t].d, ikut[t].m) + ')'))
+      .concat([baris('JUMLAH', d.murid + ' dari ' + d.bilMuridSekolah + ' (' + anPeratus(d.murid, d.bilMuridSekolah) + ')', true)])) +
+      '<p class="hint" style="margin-top:11px">Murid ESIS sahaja. Bukan murid (' + d.luar + ') dikira berasingan.</p>';
+  } else if (id === 'tiket') {
+    tajuk = 'Jumlah tiket dikeluarkan — ' + d.tiket;
+    isi = pecah([baris('Tiket murid', tm), baris('Tiket bukan murid', d.tiketLuar), baris('JUMLAH TIKET', d.tiket, true)]) +
+      '<p style="margin:15px 0 6px"><strong>' + d.senaraiTiadaTiket.length + ' murid tiada tiket</strong> ' +
+      '(' + d.murid + ' murid − ' + tm + ' tiket murid)</p>' + senarai(d.senaraiTiadaTiket, 'Sebab');
+  } else if (id === 'ulang') {
+    tajuk = 'Murid lebih dari 1 anugerah — ' + d.ulang;
+    isi = senarai(d.senaraiUlang);
+  } else if (id === 'anugerah') {
+    tajuk = 'Jumlah anugerah — ' + d.anugerah;
+    isi = pecah([baris('Anugerah naik pentas', d.anPentas), baris('Anugerah tidak naik pentas 🚫', d.anTidak),
+      baris('JUMLAH ANUGERAH', d.anugerah, true)]);
+  } else if (id === 'naik') {
+    tajuk = 'Jumlah kali naik pentas — ' + d.naik;
+    isi = pecah([baris('Anugerah naik pentas', d.anPentas),
+      baris('− digabung (beberapa anugerah, naik sekali)', d.gabung),
+      baris('− belum bernombor', d.belum),
+      baris('JUMLAH KALI NAIK PENTAS', d.naik, true)]) +
+      '<p class="hint" style="margin-top:11px">Satu kali naik = satu hadiah.</p>';
+  } else if (id === 'luar') {
+    tajuk = 'Bukan murid — ' + d.luar;
+    isi = senarai(d.senaraiLuar);
+  } else if (id === 'tanpa') {
+    tajuk = 'Murid tidak naik pentas — ' + d.tanpaPentas;
+    isi = '<p class="hint" style="margin:0 0 9px">Semua anugerah murid ini ditanda 🚫 Tidak naik pentas, jadi tiada tiket.</p>' +
+      senarai(d.senaraiTanpa);
+  }
+  bukaModal('<div class="kad-kepala"><h3>' + agEsc(tajuk) + '</h3>' +
+    '<button class="b-tutup" id="mx" aria-label="Tutup">×</button></div>' +
+    '<div class="kad-isi">' + isi + '</div>');
+  $('mx').onclick = tutupModal;
+}
+
+$('an-kpi').addEventListener('click', e => {
+  const c = e.target.closest('[data-an-kad]');
+  if (c) anModalButiran(c.dataset.anKad);
+});
+$('an-kpi').addEventListener('keydown', e => {
+  const c = e.target.closest('[data-an-kad]');
+  if (c && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); anModalButiran(c.dataset.anKad); }
+});
 
 $('an-csv').onclick = () => {
   const d = AN_DATA;
