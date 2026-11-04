@@ -154,6 +154,9 @@ const MENUNGGU = [];
    Pemantau langsung boleh membawa data MC lain sebelum transaksi kita siap —
    tanpa ini tanda yang baru ditekan melompat balik sekejap. */
 const TERBANG = {};
+/* 🎯 Giliran pertama yang belum ✓ — dibuka & ditatal SEKALI selepas halaman
+   dimuat (refresh). Bukan semasa MC bekerja: accordion tidak bertukar sendiri. */
+let AUTO_BUKA = null;
 let KIRA = null;           // agKiraSkripMC — tiket / murid / >1 anugerah
 let TERTUNDA = null;       // data baharu yang menunggu MC menekan muat
 /* Blok mana terbuka — kekal antara lukisan supaya menanda ✓ (yang
@@ -338,6 +341,7 @@ async function muat(pertama, senyap, sedia) {
       return;
     }
 
+    if (!BARIS.length) AUTO_BUKA = senarai.find(b => statusBaris(b) === 'belum') || null;
     BARIS = senarai;
     MAJLIS = senarai.majlis;
     KIRA = senarai.kira;
@@ -479,6 +483,13 @@ function lukis() {
     A.sub.push(g);
   });
 
+  /* 🎯 buka anugerah + kategori yang memegang giliran sasaran */
+  const sasar = AUTO_BUKA;
+  AUTO_BUKA = null;
+  if (sasar) blok.forEach(A => A.sub.forEach(g => {
+    if (g.baris.includes(sasar)) { BUKA_AN[A.kunci] = true; BUKA_SUB[g.anugerahId + '|' + g.sub] = true; }
+  }));
+
   const kiraTeks = baris => {
     const absen = baris.filter(b => statusBaris(b) === 'absen').length;
     const sudah = baris.filter(b => statusBaris(b) === 'sudah').length;
@@ -528,6 +539,12 @@ function lukis() {
       (bukaAn ? '<div class="grup-isi">' + A.sub.map(blokSub).join('') + '</div>' : '') +
       (anAkhir[A.anugerahId] === bi ? agAcaraHtml('an:' + A.anugerahId) : '');
   }).join('') + agAcaraAkhir(tapis.length === BARIS.length);
+
+  if (sasar) {
+    const li = [...$('senarai').querySelectorAll('li.baris')]
+      .find(x => x.dataset.doc === sasar.docId && x.dataset.sub === sasar.subId);
+    if (li) requestAnimationFrame(() => li.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+  }
 
   /* simpan kumpulan untuk butang pukal */
   $('senarai')._grup = grup;
