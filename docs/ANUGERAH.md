@@ -797,3 +797,12 @@ Acara bukan-anugerah (persembahan, ucapan, doa…) **diselit di mana-mana**: di 
 - Acara yang tempatnya tidak dilukis (kategori tiada murid / anugerah dibuang) dipapar di **hujung** bila tiada tapisan (`agAcaraAkhir`) dan dicetak di hujung (`agAcaraBaki`) — tidak pernah hilang senyap.
 - Perubahan acara mengubah struktur → `agNotaSegar` memanggil `window.lukis()` bila tandatangan acara berubah. Editor di luar `#senarai`.
 - Diuji 4 Nov 2026 dengan acara dalam memori (tiada tulisan): kedudukan awal/an/sub/yatim betul dalam Peserta dan cetakan Skrip MC + Senarai Hadiah PDF. Word belum diuji.
+
+#### 📊 Analisa (tab admin, 4 Nov 2026)
+
+Tab baca sahaja `p-analisa`, `initAnalisa` → `kiraAnalisa` → `lukisAnalisa`, DOM id `an-`. Penerima dibaca **segar** setiap buka tab / 🔄.
+- **Kad ringkasan:** Jumlah semua murid (murid ESIS, bukan `luar`; % daripada murid sekolah dalam `MURID_SEMUA`) · Jumlah tiket dikeluarkan (peraturan `lukisTiket`: ≥1 nombor pada sub naik pentas bukan 🤫 rahsia — termasuk bukan murid) · Jumlah murid lebih dari 1 anugerah (`anugerah[]` > 1) · Jumlah anugerah · Jumlah naik pentas (nombor berbeza per murid pada sub naik pentas = satu hadiah) · Bukan murid · Tidak naik pentas (muncul bila > 0).
+- Anugerah dikira hanya pada `subId` yang masih wujud dalam majlis (entri yatim tidak dikira).
+- **Ikut darjah & kelas:** kunci `DARJAH|KELAS` (nama kelas berulang), susunan `AG_SUSUN_KELAS`, jumlah per darjah + JUMLAH. Kelas 0 penerima = baris merah `⚠ tiada penerima`. Footer Tiket = tiket murid sahaja (tanpa bukan murid), jadi boleh kurang daripada kad.
+- **Murid lebih dari 1 anugerah:** susun bil. menurun, kemudian nama.
+- CSV (`agMuatTurunCSV`) + PDF (dialog cetak) mengandungi ketiga-tiga bahagian.
