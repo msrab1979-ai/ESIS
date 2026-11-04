@@ -360,3 +360,5 @@ code{
   white-space:normal;word-break:break-word;max-width:100%}
 .grup-kepala .nota-tajuk:hover{background:#fff}
 .grup-kepala .nota-tajuk.ada{color:#6b4500;background:#fff1b8;border:1px solid #e8c46a}
+/* 👤 penyelaras — biru, supaya tidak keliru dengan 📝 nota (kuning) */
+.grup-kepala .nota-tajuk.pny.ada{color:#0b3d6b;background:#e3effc;border:1px solid #9cc3ea}

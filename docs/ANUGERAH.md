@@ -774,3 +774,12 @@ Kini: purata **markah per subjek** dahulu (sama peraturan dengan cabang `asas:'s
 
 Oracle 40,000 kes · 0 beza · 6 mutasi ditangkap (termasuk kod lama: 25,656 beza).
 
+
+#### 👤 Penyelaras per anugerah (4 Nov 2026)
+
+Butang **＋ penyelaras** (biru bila diisi) sebaris nama anugerah, sebelum ＋ nota, di Peserta · MC · Hadiah. **Semua petugas boleh tulis/ubah/padam terus dari bar** (pengguna) — bukan dari Panel Admin. Seorang atau lebih, teks bebas dipisah koma.
+
+- Menumpang enjin nota: koleksi `anugerah_nota`, `jenis:'penyelaras'`, doc id `${majlisId}__${anugerahId}__penyelaras`. `agNotaAnugerah` / `agNotaUntuk` **mesti** menapis `jenis !== 'penyelaras'`, jika tidak penyelaras muncul sebagai nota.
+- Dicetak: Skrip MC PDF, Senarai Hadiah PDF/Word, lajur **Penyelaras** dalam Excel. Admin memasang pendengar nota (`agPasangNota(null, …)`) dalam `lukisPetugas` supaya cetakan dari admin membawanya.
+- **🗑 Padam semua nota TIDAK memadam penyelaras** (`agPadamSemuaNota` / `agBilNota` menapisnya) — ia tetapan majlis.
+- Papan 📝 Nota Petugas umum dibuang dari keempat-empat panel (4 Nov 2026); nota anugerah (＋ nota) kekal.

@@ -6862,7 +6862,9 @@ function lukisPetugas() {
   lukisResetStatus();
   lukisGuruKelas();
   /* 📝 Papan Nota Petugas umum dibuang (4 Nov 2026, pengguna) — butang
-     🗑 Padam semua nota di bawah kekal untuk nota anugerah. */
+     🗑 Padam semua nota di bawah kekal untuk nota anugerah. Pendengar
+     (bekas null) kekal: 👤 penyelaras dicetak dalam Skrip MC / Senarai Hadiah. */
+  agPasangNota(null, MAJLIS.id, 'admin');
 
   $('link-grid').innerHTML = peranan.map(r => {
     const kod = mod[r.k];
