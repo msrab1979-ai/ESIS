@@ -1637,7 +1637,8 @@ function agCetakSkripMC(w, majlis, penerima) {
 
   /* blok BERTURUT-TURUT ikut nombor (anugerah › sub) — itulah susunan
      sebenar MC membaca, dalam ketiga-tiga gaya giliran. */
-  let html = '', anAkhir = null, subAkhir = null;
+  const dipapar = new Set();   // 🎭 acara
+  let html = r.baris.length ? agAcaraCetakTr('awal', 5, dipapar) : '', anAkhir = null, subAkhir = null;
   const bilDalam = (i, kunci) => {
     let n = 0;
     for (let k = i; k < r.baris.length && kunci(r.baris[k]); k++) n++;
@@ -1672,7 +1673,9 @@ function agCetakSkripMC(w, majlis, penerima) {
       '<td class="kotak">☐</td><td class="no">' + b.no + '</td>' +
       '<td class="nama">' + E(b.nama) + '</td><td class="kls">' + E(kelasOf(b)) + '</td>' +
       '<td class="nota">' + nota.join('<br>') + '</td></tr>';
+    agAcaraLepasBaris(r.baris, i).forEach(l => { html += agAcaraCetakTr(l, 5, dipapar); });
   });
+  if (r.baris.length) agAcaraBaki(dipapar).forEach(l => { html += agAcaraCetakTr(l, 5, null); });
 
   const amaran = [];
   if (r.pendua.length) amaran.push('Nombor berulang: ' + r.pendua.join(', '));
@@ -1713,6 +1716,8 @@ function agCetakSkripMC(w, majlis, penerima) {
     'td.kotak{width:16px;font-size:14px;line-height:1;text-align:center}' +
     'td.no{width:34px;font-weight:800;font-size:14px;text-align:right}' +
     'td.nama{font-weight:700;font-size:12.5px}td.kls{width:88px;white-space:nowrap}' +
+    'tr.acara td{border:1.5px dashed #111;padding:6px 8px;font-size:12px;background:#fff}' +
+    '.acara-teks{font-size:10.5px;margin-top:2px;line-height:1.35;font-weight:400}' +
     'td.nota{width:190px;font-size:10px;color:#333}tr.absen td{color:#888;text-decoration:line-through}tr.absen td.nota{text-decoration:none}' +
     '.akhir{margin-top:10px;border-top:2px solid #111;padding-top:5px;font-weight:700;text-align:right}' +
     '</style></head><body>' +
@@ -1811,7 +1816,10 @@ function agCetakSenaraiHadiah(w, majlis, penerima) {
   });
 
   const lajur = 6;
-  const html = blok.map(B => {
+  const dipapar = new Set();   // 🎭 acara
+  const jadualAcara = trs => trs ? '<table class="pendek"><tbody>' + trs + '</tbody></table>' : '';
+  const html = (r.baris.length ? jadualAcara(agAcaraCetakTr('awal', lajur, dipapar)) : '') + blok.map(B => {
+    let selepas = '';
     const n = B.baris.length;
     let isi = '', kunciAkhir = null;
     B.baris.forEach((b, i) => {
@@ -1841,6 +1849,10 @@ function agCetakSenaraiHadiah(w, majlis, penerima) {
         '<td class="nama">' + E(b.nama) +
           (b.jum > 1 ? '<div class="ke">' + E(agTeksKe(b)) + '</div>' : '') +
         '</td><td class="st">' + st + '</td></tr>';
+      agAcaraLepasBaris(r.baris, r.baris.indexOf(b)).forEach(l => {
+        const tr = agAcaraCetakTr(l, lajur, dipapar);
+        if (l.startsWith('sub:')) isi += tr; else selepas += tr;
+      });
     });
     const a = B.baris[0].no, z = B.baris[n - 1].no;
     return '<table class="' + (n <= 30 ? 'pendek' : '') + '"><thead>' +
@@ -1850,8 +1862,8 @@ function agCetakSenaraiHadiah(w, majlis, penerima) {
         '</th></tr>' +
       '<tr class="lj"><th>Sedia</th><th>Serah</th><th style="text-align:right">No</th>' +
         '<th>Darjah/Kelas</th><th>Nama</th><th>Status</th></tr>' +
-      '</thead><tbody>' + isi + '</tbody></table>';
-  }).join('');
+      '</thead><tbody>' + isi + '</tbody></table>' + jadualAcara(selepas);
+  }).join('') + jadualAcara(agAcaraBaki(dipapar).map(l => agAcaraCetakTr(l, lajur, null)).join(''));
 
   const amaran = [];
   if (r.pendua.length) amaran.push('Nombor berulang: ' + r.pendua.join(', '));
@@ -1891,6 +1903,8 @@ function agCetakSenaraiHadiah(w, majlis, penerima) {
     'td.st{width:88px;font-size:10px}' +
     'tr.absen td{color:#888;text-decoration:line-through}tr.absen td.st{text-decoration:none;color:#900}' +
     '.akhir{margin-top:10px;border-top:2px solid #111;padding-top:5px;font-weight:700;text-align:right}' +
+    'tr.acara td{border:1.5px dashed #111;padding:6px 8px;font-size:12px;background:#fff}' +
+    '.acara-teks{font-size:10.5px;margin-top:2px;line-height:1.35;font-weight:400}' +
     '</style></head><body>' +
     '<div class="kepala">' + (majlis.sekolah ? '<div class="s">' + E(majlis.sekolah) + '</div>' : '') +
       '<h1>' + E(majlis.nama || 'Majlis Anugerah') + '</h1>' +
@@ -1986,8 +2000,27 @@ async function agMuatTurunSenaraiHadiahWord(majlis, penerima) {
     badan += para(run('Belum ada giliran bernombor. Admin perlu tekan 🔢 Beri Nombor dahulu.', { sz: 22 }), { jc: 'center' });
   }
 
+  /* 🎭 acara — perenggan berbingkai di antara jadual; baris dalam jadual
+     bila di antara kategori. */
+  const dipapar = new Set();
+  const acaraTeks = n => [run('🎭 ' + (n.tajuk || 'Acara'), { b: true, sz: 21 })]
+    .concat(String(n.teks || '').split('\n').map(x => x.trim()).filter(Boolean).map(x => run(x, { sz: 18 })));
+  const acaraPara = l => { dipapar.add(l); return agAcaraDi(l).map(n => {
+    const [t, ...isi] = acaraTeks(n);
+    return '<w:p><w:pPr><w:pBdr>' + ['top', 'left', 'bottom', 'right'].map(k =>
+      '<w:' + k + ' w:val="dashed" w:sz="8" w:space="4" w:color="000000"/>').join('') +
+      '</w:pBdr><w:spacing w:before="60" w:after="120"/></w:pPr>' + t +
+      isi.map(x => '<w:r><w:br/></w:r>' + x).join('') + '</w:p>';
+  }).join(''); };
+  const acaraBaris = l => { dipapar.add(l); return agAcaraDi(l).map(n => {
+    const [t, ...isi] = acaraTeks(n);
+    return baris(sel(para(t) + isi.map(x => para(x)).join(''), { w: 10660, span: 6, isi: 'FFFFFF' }));
+  }).join(''); };
+  if (r.baris.length) badan += acaraPara('awal');
+
   blok.forEach(B => {
     const n = B.baris.length, a = B.baris[0].no, z = B.baris[n - 1].no;
+    let selepas = '';
     let t = '<w:tbl><w:tblPr><w:tblW w:w="10660" w:type="dxa"/><w:tblLayout w:type="fixed"/>' + sempadan +
       '<w:tblCellMar><w:left w:w="70" w:type="dxa"/><w:right w:w="70" w:type="dxa"/></w:tblCellMar></w:tblPr>' +
       '<w:tblGrid>' + LEBAR.map(w => '<w:gridCol w:w="' + w + '"/>').join('') + '</w:tblGrid>';
@@ -2031,10 +2064,14 @@ async function agMuatTurunSenaraiHadiahWord(majlis, penerima) {
         sel(para(run(b.nama, Object.assign({ b: true, sz: 21 }, o))) +
           (b.jum > 1 ? para(run(agTeksKe(b), { sz: 16, warna: '333333' })) : ''), { w: LEBAR[4] }) +
         sel(para(st), { w: LEBAR[5] }));
+      agAcaraLepasBaris(r.baris, r.baris.indexOf(b)).forEach(l => {
+        if (l.startsWith('sub:')) t += acaraBaris(l); else selepas += acaraPara(l);
+      });
     });
     t += '</w:tbl>';
-    badan += t + para('', { after: 120 });
+    badan += t + para('', { after: 120 }) + selepas;
   });
+  if (r.baris.length) agAcaraBaki(dipapar).forEach(l => { badan += acaraPara(l); });
 
   if (r.baris.length) {
     badan += para(run('Jumlah hadiah: ' + r.baris.length + ' · ' + julat + ' · Tidak hadir: ' + r.bilAbsen +
@@ -2263,7 +2300,7 @@ function agNotaNama() {
 }
 
 function agNotaUntuk(anId) {
-  return _agNotaS.nota.filter(n => n.jenis !== AG_PNY && (n.anugerahId || '') === (anId || ''));
+  return _agNotaS.nota.filter(n => !n.jenis && (n.anugerahId || '') === (anId || ''));
 }
 
 function agNotaSenaraiHtml(anId) {
@@ -2291,7 +2328,7 @@ function agNotaBorangHtml(anId, teksPh) {
 }
 
 function agNotaAnugerah(anId) {
-  return _agNotaS.nota.find(n => n.jenis !== AG_PNY && n.anugerahId === anId) || null;
+  return _agNotaS.nota.find(n => !n.jenis && n.anugerahId === anId) || null;
 }
 
 /* ---------- 👤 PENYELARAS (4 Nov 2026) ----------
@@ -2428,6 +2465,227 @@ function _agNotaTajukDalam(anId) {
   return n ? '📝 ' + agEsc(n.teks) : '＋ nota';
 }
 
+/* ---------- 🎭 ACARA (4 Nov 2026) ----------
+   Acara bukan-anugerah (persembahan, ucapan, doa…) diselit DI MANA-MANA
+   dalam senarai petugas: di awal, selepas sesuatu anugerah, atau selepas
+   sesuatu kategori. Semua petugas boleh tambah/ubah/pindah/padam
+   (pengguna). Dipapar di Peserta · MC · Hadiah + dicetak dalam Skrip MC
+   dan Senarai Hadiah PDF/Word. Tiada ✓ Selesai, tiada tayangan (pengguna).
+   Menumpang enjin nota: `anugerah_nota`, `jenis:'acara'`,
+   {tajuk, teks, letak, urutan}. `letak` = 'awal' | 'an:<anId>' |
+   'sub:<anId>|<subId>'. 🔴 Nombor giliran, tiket & susunan anugerah TIDAK
+   disentuh — acara hanya diselit dalam paparan.
+   Acara yang tempatnya tidak dilukis (kategori tiada murid / anugerah
+   dibuang) dipapar di HUJUNG bila tiada tapisan — tidak pernah hilang. */
+const AG_ACARA = 'acara';
+let _agAcaraTT = null;           // tandatangan untuk lukis semula
+let _agAcaraDipapar = new Set(); // letak yang dilukis dalam lukisan semasa
+
+function agAcaraSemua() {
+  return _agNotaS.nota.filter(n => n.jenis === AG_ACARA)
+    .sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
+}
+
+function agAcaraDi(letak) {
+  return agAcaraSemua().filter(n => n.letak === letak);
+}
+
+function _agAcaraTeksHtml(teks) {
+  return String(teks || '').split('\n').map(x => x.trim()).filter(Boolean)
+    .map(_agPnyBarisHtml).join('<br>');
+}
+
+function _agAcaraBar(n, sekumpul) {
+  const i = sekumpul.indexOf(n);
+  const gerak = sekumpul.length > 1
+    ? (i > 0 ? '<button class="btn sunyi kecil" data-acara-gerak="' + agEsc(n.id) + '" data-arah="-1" title="Naik">↑</button>' : '') +
+      (i < sekumpul.length - 1 ? '<button class="btn sunyi kecil" data-acara-gerak="' + agEsc(n.id) + '" data-arah="1" title="Turun">↓</button>' : '')
+    : '';
+  return '<div class="acara-bar">' +
+      '<span class="acara-ikon">🎭</span>' +
+      '<div class="acara-isi"><div class="acara-tajuk">' + agEsc(n.tajuk || 'Acara') + '</div>' +
+        (n.teks ? '<div class="acara-teks">' + _agAcaraTeksHtml(n.teks) + '</div>' : '') + '</div>' +
+      '<span class="acara-aksi">' + gerak +
+        '<button class="btn sunyi kecil" data-acara-ubah="' + agEsc(n.id) + '" title="Ubah / pindah / padam">✏️</button></span>' +
+    '</div>';
+}
+
+/* Bar acara pada `letak` + tanda sebagai dilukis. */
+function agAcaraHtml(letak) {
+  _agAcaraDipapar.add(letak);
+  const l = agAcaraDi(letak);
+  return l.map(n => _agAcaraBar(n, l)).join('');
+}
+
+/* Kepala senarai: butang ＋ Acara + acara 'awal'. Memulakan lukisan. */
+function agAcaraMula() {
+  _agAcaraDipapar = new Set();
+  if (!_agNotaS.majlisId) return '';
+  return '<div class="acara-tambah-bar"><button class="btn sunyi kecil" data-acara-tambah="awal">' +
+    '＋ 🎭 Acara</button><span class="kecil">persembahan, ucapan, doa… — letak di mana-mana</span></div>' +
+    agAcaraHtml('awal');
+}
+
+/* Kategori dalam anugerah yang TERTUTUP tetap dikira dilukis (acaranya
+   tersorok di dalam, bukan hilang) — lencana pada bar anugerah. */
+function agAcaraLencana(anId, subIds) {
+  (subIds || []).forEach(id => _agAcaraDipapar.add('sub:' + anId + '|' + id));
+  const n = agAcaraSemua().filter(x => (subIds || []).some(id => x.letak === 'sub:' + anId + '|' + id)).length;
+  return n ? '<span class="acara-lencana" title="Acara di antara kategori — buka anugerah ini">🎭 ' + n + ' acara</span>' : '';
+}
+
+/* Hujung senarai: acara yang tempatnya tidak dilukis. Hanya bila paparan
+   PENUH — bawah tapisan carian, tempatnya memang tersorok. */
+function agAcaraAkhir(penuh) {
+  if (!penuh) return '';
+  const l = agAcaraSemua().filter(n => !_agAcaraDipapar.has(n.letak));
+  if (!l.length) return '';
+  return '<div class="acara-yatim kecil">🎭 Acara yang tempatnya tiada dalam senarai (kategori tiada murid / anugerah dibuang) — tekan ✏️ untuk pindah:</div>' +
+    l.map(n => _agAcaraBar(n, [n])).join('');
+}
+
+/* Pilihan tempat: ikut susunan sub naik pentas, dikumpul ikut anugerah.
+   [nilai, label, kumpulan] — kumpulan = <optgroup> nama anugerah. */
+function _agAcaraPilihan(majlis) {
+  const op = [['awal', 'Di awal — sebelum anugerah pertama', '']];
+  if (!majlis) return op;
+  const ikutAn = [];
+  agSusunanSub(majlis).forEach(({ a, s }) => {
+    let A = ikutAn.find(x => x.a.id === a.id);
+    if (!A) { A = { a, sub: [] }; ikutAn.push(A); }
+    A.sub.push(s);
+  });
+  ikutAn.forEach(({ a, sub }) => {
+    if (sub.length > 1) sub.forEach(s =>
+      op.push(['sub:' + a.id + '|' + s.id, 'selepas kategori ' + (s.nama || ''), a.nama]));
+    op.push(['an:' + a.id, sub.length > 1 ? '▸ selepas HABIS anugerah ini' : 'selepas anugerah ini', a.nama]);
+  });
+  return op;
+}
+
+function agAcaraUbah(id, letakAwal) {
+  _agPnyTutup();
+  const majlis = typeof MAJLIS !== 'undefined' ? MAJLIS : null;
+  const ada = id ? agAcaraSemua().find(n => n.id === id) : null;
+  if (id && !ada) return;
+  const letak = ada ? ada.letak : (letakAwal || 'awal');
+  const op = _agAcaraPilihan(majlis);
+  if (!op.some(o => o[0] === letak)) op.unshift([letak, '(tempat asal tiada lagi — pilih tempat baharu)', '']);
+  let kump = null;
+  const opsiHtml = op.map(o => {
+    let h = '';
+    if (o[2] !== kump) { h += (kump ? '</optgroup>' : '') + (o[2] ? '<optgroup label="' + agEsc(o[2]) + '">' : ''); kump = o[2]; }
+    return h + '<option value="' + agEsc(o[0]) + '"' + (o[0] === letak ? ' selected' : '') + '>' + agEsc(o[1]) + '</option>';
+  }).join('') + (kump ? '</optgroup>' : '');
+  const k = document.createElement('div');
+  k.id = 'ag-pny-kotak';
+  k.innerHTML =
+    '<div class="pny-kad" role="dialog" aria-label="Acara">' +
+      '<div class="pny-tajuk">🎭 ' + (ada ? 'Ubah acara' : 'Tambah acara') + '</div>' +
+      '<input type="text" data-acara-f="tajuk" maxlength="120" placeholder="Tajuk — cth Persembahan Tarian Zapin" value="' +
+        agEsc(ada ? ada.tajuk : '') + '">' +
+      '<textarea rows="3" data-acara-f="teks" maxlength="' + AG_PNY_HAD + '" placeholder="Butiran (bebas, satu baris satu perkara) — cth\nOleh : Murid Tahun 4\nPerlu : 2 mikrofon wayarles">' +
+        agEsc(ada ? ada.teks : '') + '</textarea>' +
+      '<label class="pny-lbl-f">Letak</label>' +
+      '<select data-acara-f="letak">' + opsiHtml + '</select>' +
+      '<div class="pny-butang">' +
+        (ada ? '<button class="btn sunyi kecil" data-pny-aksi="padam">🗑 Padam</button>' : '') +
+        '<span style="flex:1"></span>' +
+        '<button class="btn sunyi kecil" data-pny-aksi="batal">Batal</button>' +
+        '<button class="btn kecil" data-pny-aksi="simpan">Simpan</button>' +
+      '</div>' +
+      '<div class="pny-ket">Dipapar kepada SEMUA petugas & dalam cetakan · nombor giliran tidak berubah</div>' +
+    '</div>';
+  document.body.appendChild(k);
+  const f = n => k.querySelector('[data-acara-f="' + n + '"]');
+  f('tajuk').focus();
+  const kol = agDb.collection(AG_NOTA_KOL);
+  const simpan = async () => {
+    const tajuk = f('tajuk').value.trim();
+    if (!tajuk) { f('tajuk').focus(); agToast('Sila isi tajuk acara', 'ralat'); return; }
+    const teks = f('teks').value.split('\n').map(x => x.replace(/\s+$/, '')).join('\n').trim();
+    const letakBaru = f('letak').value;
+    k.querySelectorAll('button').forEach(b => { b.disabled = true; });
+    try {
+      const data = {
+        majlisId: _agNotaS.majlisId, jenis: AG_ACARA, anugerahId: '',
+        tajuk: tajuk.slice(0, 120), teks: teks.slice(0, AG_PNY_HAD), letak: letakBaru,
+        nama: agNotaNama().slice(0, 40), panel: _agNotaS.panel || '', masa: Date.now()
+      };
+      /* pindah tempat / baharu → paling bawah di tempat itu */
+      data.urutan = ada && ada.letak === letakBaru ? (ada.urutan || 0) : Date.now();
+      if (ada) await kol.doc(ada.id).set(data);
+      else await kol.add(data);
+      _agPnyTutup();
+    } catch (e) {
+      k.querySelectorAll('button').forEach(b => { b.disabled = false; });
+      agToast('Acara TIDAK disimpan: ' + e.message, 'ralat');
+    }
+  };
+  k.addEventListener('click', async e => {
+    if (e.target === k) return _agPnyTutup();
+    const b = e.target.closest('[data-pny-aksi]');
+    if (!b) return;
+    const aksi = b.dataset.pnyAksi;
+    if (aksi === 'batal') _agPnyTutup();
+    else if (aksi === 'simpan') simpan();
+    else if (aksi === 'padam' && confirm('Padam acara "' + (ada.tajuk || '') + '" untuk SEMUA petugas?')) {
+      try { await kol.doc(ada.id).delete(); _agPnyTutup(); }
+      catch (err) { agToast('Gagal padam: ' + err.message, 'ralat'); }
+    }
+  });
+  k.addEventListener('keydown', e => {
+    if (e.key === 'Escape') _agPnyTutup();
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); simpan(); }
+  });
+}
+
+/* ↑↓ dalam tempat yang sama — tukar `urutan` dengan jiran. */
+async function agAcaraGerak(id, arah) {
+  const n = agAcaraSemua().find(x => x.id === id);
+  if (!n) return;
+  const l = agAcaraDi(n.letak);
+  const j = l.indexOf(n) + arah;
+  if (j < 0 || j >= l.length) return;
+  const m = l[j];
+  let un = n.urutan || 0, um = m.urutan || 0;
+  if (un === um) um = un + arah;   // urutan sama — paksa beza
+  const kol = agDb.collection(AG_NOTA_KOL);
+  try {
+    const b = agDb.batch();
+    b.update(kol.doc(n.id), { urutan: um });
+    b.update(kol.doc(m.id), { urutan: un });
+    await b.commit();
+  } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
+}
+
+/* ---- cetakan ----
+   `rows` = baris bernombor (ada anugerahId + subId), disusun. Selepas
+   baris i: acara kategori bila kategori bertukar; acara anugerah bila
+   ini baris TERAKHIR anugerah itu dalam keseluruhan senarai. */
+function agAcaraLepasBaris(rows, i) {
+  const b = rows[i], nx = rows[i + 1];
+  const out = [];
+  if (!nx || nx.anugerahId !== b.anugerahId || nx.subId !== b.subId)
+    out.push('sub:' + b.anugerahId + '|' + b.subId);
+  if (!rows.slice(i + 1).some(x => x.anugerahId === b.anugerahId))
+    out.push('an:' + b.anugerahId);
+  return out;
+}
+
+/* Satu baris jadual cetakan HTML untuk acara di `letak`. */
+function agAcaraCetakTr(letak, colspan, dipapar) {
+  if (dipapar) dipapar.add(letak);
+  return agAcaraDi(letak).map(n =>
+    '<tr class="acara"><td colspan="' + colspan + '">🎭 <b>' + agEsc(n.tajuk || 'Acara') + '</b>' +
+      (n.teks ? '<div class="acara-teks">' + _agAcaraTeksHtml(n.teks) + '</div>' : '') + '</td></tr>').join('');
+}
+
+/* letak (unik) yang belum dicetak — kategori tiada murid / anugerah dibuang */
+function agAcaraBaki(dipapar) {
+  return [...new Set(agAcaraSemua().filter(n => !dipapar.has(n.letak)).map(n => n.letak))];
+}
+
 /* Nota anugerah SEBARIS nama dalam .grup-kepala. Klik = tulis / ubah /
    padam (semua petugas). `anNama` untuk dialog sahaja. */
 function agNotaTajuk(anId, anNama) {
@@ -2470,6 +2728,16 @@ async function agNotaUbahAnugerah(anId, anNama) {
 
 /* Kemas kini di tempat bila nota berubah. */
 function agNotaSegar() {
+  /* 🎭 acara mengubah STRUKTUR senarai (bar baharu), bukan teks di tempat —
+     panel melukis semula bila tandatangan acara berubah. */
+  const tt = JSON.stringify(agAcaraSemua().map(n => [n.id, n.letak, n.urutan, n.tajuk, n.teks]));
+  if (tt !== _agAcaraTT) {
+    const pertama = _agAcaraTT === null;
+    _agAcaraTT = tt;
+    if (!(pertama && tt === '[]') && typeof window.lukis === 'function') {
+      try { window.lukis(); } catch (e) { console.error(e); }
+    }
+  }
   document.querySelectorAll('[data-pny-an]').forEach(b => {
     const id = b.dataset.pnyAn, sub = b.dataset.pnySub || '';
     b.innerHTML = _agPnyDalam(id, sub);
@@ -2523,6 +2791,13 @@ function _agNotaPasangPendengar() {
   if (window._agNotaPasang) return;
   window._agNotaPasang = true;
   document.addEventListener('click', async e => {
+    const ac = e.target.closest('[data-acara-tambah],[data-acara-ubah],[data-acara-gerak]');
+    if (ac) {
+      e.stopPropagation(); e.preventDefault();
+      if (ac.dataset.acaraGerak) agAcaraGerak(ac.dataset.acaraGerak, Number(ac.dataset.arah));
+      else agAcaraUbah(ac.dataset.acaraUbah || null, ac.dataset.acaraTambah || '');
+      return;
+    }
     const py = e.target.closest('[data-pny-an]');
     if (py) {
       e.stopPropagation(); e.preventDefault();
@@ -2600,7 +2875,7 @@ function agPasangNota(bekas, majlisId, panel) {
    Dipecah 400 satu batch (had Firestore 500). Pulang bilangan. */
 async function agPadamSemuaNota(majlisId) {
   const snap = await agDb.collection(AG_NOTA_KOL).where('majlisId', '==', majlisId).get();
-  const docs = snap.docs.filter(d => d.data().jenis !== AG_PNY);   // 👤 penyelaras kekal
+  const docs = snap.docs.filter(d => !d.data().jenis);   // 👤 penyelaras + 🎭 acara kekal
   for (let i = 0; i < docs.length; i += 400) {
     const b = agDb.batch();
     docs.slice(i, i + 400).forEach(d => b.delete(d.ref));
@@ -2611,7 +2886,7 @@ async function agPadamSemuaNota(majlisId) {
 
 async function agBilNota(majlisId) {
   const snap = await agDb.collection(AG_NOTA_KOL).where('majlisId', '==', majlisId).get();
-  return snap.docs.filter(d => d.data().jenis !== AG_PNY).length;
+  return snap.docs.filter(d => !d.data().jenis).length;
 }
 
 function agEsc(s) {

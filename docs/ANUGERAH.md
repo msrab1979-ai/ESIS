@@ -785,3 +785,13 @@ Butang **＋ penyelaras** (biru bila diisi) pada bar **anugerah** (sebelum ＋ n
 - Dicetak: Skrip MC PDF + Senarai Hadiah PDF/Word di bawah tajuk anugerah dan tajuk kategori; Excel lajur **Penyelaras** = anugerah · kategori. Admin memasang pendengar nota (`agPasangNota(null, …)`) dalam `lukisPetugas` supaya cetakan dari admin membawanya.
 - **🗑 Padam semua nota TIDAK memadam penyelaras** (`agPadamSemuaNota` / `agBilNota` menapisnya) — ia tetapan majlis.
 - Papan 📝 Nota Petugas umum dibuang dari keempat-empat panel (4 Nov 2026); nota anugerah (＋ nota) kekal.
+
+#### 🎭 Acara di link petugas (4 Nov 2026)
+
+Acara bukan-anugerah (persembahan, ucapan, doa…) **diselit di mana-mana**: di awal, selepas sesuatu anugerah, atau selepas sesuatu kategori. **Semua petugas** tambah/ubah/pindah/padam dari Peserta · MC · Hadiah (butang **＋ 🎭 Acara** di atas senarai, ✏️ pada bar, ↑↓ bila >1 di tempat sama). **Dicetak** dalam Skrip MC + Senarai Hadiah PDF/Word (baris berbingkai putus-putus). Excel tidak (senarai rata per murid). Tiada ✓ Selesai, tiada tayangan (pengguna).
+
+- Data: `anugerah_nota`, `jenis:'acara'`, `{tajuk, teks, letak, urutan}`. `letak` = `'awal'` | `'an:<anId>'` | `'sub:<anId>|<subId>'`. **Nombor giliran, tiket, susunan TIDAK disentuh.** 🗑 Padam semua nota tidak memadamnya (nota biasa = `!jenis`).
+- `an:` dilukis selepas blok **terakhir** anugerah itu (gaya bebas boleh ada beberapa blok). `sub:` di dalam anugerah — bila anugerah tertutup, bar anugerah memapar lencana `🎭 N acara`.
+- Acara yang tempatnya tidak dilukis (kategori tiada murid / anugerah dibuang) dipapar di **hujung** bila tiada tapisan (`agAcaraAkhir`) dan dicetak di hujung (`agAcaraBaki`) — tidak pernah hilang senyap.
+- Perubahan acara mengubah struktur → `agNotaSegar` memanggil `window.lukis()` bila tandatangan acara berubah. Editor di luar `#senarai`.
+- Diuji 4 Nov 2026 dengan acara dalam memori (tiada tulisan): kedudukan awal/an/sub/yatim betul dalam Peserta dan cetakan Skrip MC + Senarai Hadiah PDF. Word belum diuji.

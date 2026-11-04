@@ -380,3 +380,26 @@ code{
   font:14px/1.5 "Public Sans",sans-serif;padding:9px 10px;border:1px solid #c9c2b0;border-radius:7px}
 #ag-pny-kotak .pny-butang{display:flex;gap:8px;margin-top:10px;align-items:center}
 #ag-pny-kotak .pny-ket{font-size:11.5px;color:#777;margin-top:8px}
+
+/* 🎭 ACARA — bar ungu di antara anugerah/kategori, beza jelas dgn anugerah */
+.acara-tambah-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 16px;
+  border-bottom:1px solid var(--garis-halus,#e5dfd0);background:#fbfaf7;font-family:"Public Sans",sans-serif}
+.acara-tambah-bar .kecil{font-size:11.5px;color:#888}
+.acara-bar{display:flex;align-items:flex-start;gap:10px;padding:9px 16px;margin:0;
+  background:#f3ecfb;border-left:5px solid #7b4bb7;border-bottom:1px solid #ddd0ee;
+  font-family:"Public Sans",sans-serif;color:#2e1a47}
+.grup-isi .acara-bar{padding-left:30px}
+.acara-bar .acara-ikon{font-size:18px;line-height:1.2}
+.acara-bar .acara-isi{flex:1;min-width:0}
+.acara-bar .acara-tajuk{font-weight:800;font-size:13.5px;letter-spacing:.02em;text-transform:uppercase}
+.acara-bar .acara-teks{font-size:12.5px;line-height:1.4;margin-top:2px;word-break:break-word}
+.acara-bar .acara-aksi{display:flex;gap:4px;flex-shrink:0}
+.acara-lencana{font-family:"Public Sans",sans-serif;font-size:11px;font-weight:700;color:#5a2d91;
+  background:#f3ecfb;border:1px solid #cdb6ea;border-radius:6px;padding:1px 7px}
+.acara-yatim{padding:8px 16px;background:#fff7e6;color:#7a4b00;font-family:"Public Sans",sans-serif;
+  border-bottom:1px solid #f0d9a8}
+#ag-pny-kotak input[type=text],#ag-pny-kotak select{width:100%;box-sizing:border-box;margin-bottom:8px;
+  font:14px/1.4 "Public Sans",sans-serif;padding:8px 10px;border:1px solid #c9c2b0;border-radius:7px;background:#fff}
+#ag-pny-kotak input[type=text]{font-weight:700}
+#ag-pny-kotak textarea{margin-bottom:8px}
+#ag-pny-kotak .pny-lbl-f{display:block;font-size:11.5px;font-weight:700;color:#555;margin:2px 0 4px}

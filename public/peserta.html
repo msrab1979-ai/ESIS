@@ -374,7 +374,10 @@ function lukis() {
       (a ? ' \u00b7 ' + a + ' tidak hadir' : '');
   };
 
-  $('senarai').innerHTML = ikutAn.map(blok => {
+  /* 🎭 acara 'an:' diletak selepas blok TERAKHIR anugerah itu */
+  const anAkhir = {};
+  ikutAn.forEach((b, i) => { anAkhir[b.anId] = i; });
+  $('senarai').innerHTML = agAcaraMula() + ikutAn.map((blok, bi) => {
     const semua = blok.sub.flatMap(g => g.baris);
     const bukaAn = !!BUKA_AN[blok.kunci];
 
@@ -384,8 +387,9 @@ function lukis() {
     const satuSub = blok.sub.length === 1;
 
     const dalam = blok.sub.map(g => {
+      const acS = agAcaraHtml('sub:' + blok.anId + '|' + g.subId);   // 🎭
       if (satuSub) return '<ul class="senarai">' +
-        g.baris.map(b => baris(b.m, b.no)).join('') + '</ul>';
+        g.baris.map(b => baris(b.m, b.no)).join('') + '</ul>' + acS;
       const bukaSub = !!BUKA_SUB[g.kunci];
       return '<div class="sub-kepala' + (bukaSub ? ' buka' : '') +
           '" data-sub-togol="' + agEsc(g.kunci) + '">' +
@@ -395,7 +399,7 @@ function lukis() {
           '<span class="bil-kep">' + kira(g.baris) + '</span>' +
         '</div>' +
         (bukaSub ? '<ul class="senarai">' +
-          g.baris.map(b => baris(b.m, b.no)).join('') + '</ul>' : '');
+          g.baris.map(b => baris(b.m, b.no)).join('') + '</ul>' : '') + acS;
     }).join('');
 
     /* 📝 nota anugerah — sebaris nama, semua petugas boleh tulis */
@@ -404,12 +408,13 @@ function lukis() {
         '" data-an-togol="' + agEsc(blok.kunci) + '">' +
         '<span class="anak-panah">\u25b6</span>' +
         '<span class="an-nama">' + agEsc(blok.anNama) + '</span>' +
-        nt +
+        nt + (bukaAn || satuSub ? '' : agAcaraLencana(blok.anId, blok.sub.map(g => g.subId))) +
         '<span class="bil-kep">' + kira(semua) +
           (satuSub ? '' : ' \u00b7 ' + blok.sub.length + ' kategori') + '</span>' +
       '</div>' +
-      (bukaAn ? '<div class="grup-isi">' + dalam + '</div>' : '');
-  }).join('');
+      (bukaAn ? '<div class="grup-isi">' + dalam + '</div>' : '') +
+      (anAkhir[blok.anId] === bi ? agAcaraHtml('an:' + blok.anId) : '');
+  }).join('') + agAcaraAkhir(tapis.length === MURID.length);
 }
 
 /* 🔴 SATU BARIS PER GILIRAN, bukan per murid. Murid yang menang dua
