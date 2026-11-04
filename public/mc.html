@@ -409,7 +409,7 @@ function lukis() {
     const akhir = grup[grup.length - 1];
     if (akhir && akhir.sub === b.sub && akhir.anugerah === b.anugerah) akhir.baris.push(b);
     else grup.push({ anugerahId: b.anugerahId || b.anugerah, anugerah: b.anugerah,
-                     sub: b.sub, hadiah: b.hadiah, baris: [b] });
+                     sub: b.sub, subId: b.subId, hadiah: b.hadiah, baris: [b] });
   });
 
   /* 🔴 ACCORDION DUA ARAS — sama corak dengan Pengurus Peserta dan
@@ -451,6 +451,7 @@ function lukis() {
         '" data-mc-sub="' + agEsc(kunci) + '">' +
         '<span class="anak-panah">\u25b6</span>' +
         '<span class="sub-nama">' + agEsc(nemaSub(g)) + '</span>' +
+        agPenyelarasTajuk(g.anugerahId, g.subId, nemaSub(g)) +   // 👤 per kategori
         (g.hadiah ? ' <span class="pil tunggu">' + agEsc(g.hadiah) + '</span>' : '') +
         '<span class="bil-kep">' + kiraTeks(g.baris) + '</span>' +
         /* 🔴 Tanda pukal hantar INDEKS kumpulan, bukan nama — nama anugerah

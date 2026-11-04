@@ -1599,7 +1599,7 @@ function agKiraSkripMC(penerima, majlis) {
     utama.forEach((g, i) => baris.push({
       no: g.no, docId: p.docId, nama: p.nama || '', tahun: p.tahun, kelas: p.kelas, luar: agAdalahLuar(p),
       anugerahId: g.anugerahId || g.anugerah, anugerah: g.anugerah || '', sub: g.sub || '',
-      hadiah: g.hadiah || '', hadir: g.hadir,
+      subId: g.subId || '', hadiah: g.hadiah || '', hadir: g.hadir,
       kali: i + 1, daripada: utama.length,
       lain: agPengikutGiliran(gil, g).map(x => x.sub || x.anugerah)
     }));
@@ -1647,19 +1647,21 @@ function agCetakSkripMC(w, majlis, penerima) {
     if (b.anugerahId !== anAkhir) {
       anAkhir = b.anugerahId; subAkhir = null;
       const n = bilDalam(i, x => x.anugerahId === b.anugerahId);
-      const py = agPenyelarasTeks(b.anugerahId);
+      const py = agPenyelarasHtml(b.anugerahId, '');
       html += '<tr class="an"><td colspan="5">' + E(b.anugerah) +
-        (py ? '<span class="pny">Penyelaras: ' + E(py) + '</span>' : '') +
-        '<span class="bil">' + n + ' giliran</span></td></tr>';
+        '<span class="bil">' + n + ' giliran</span>' +
+        (py ? '<div class="pny">👤 ' + py + '</div>' : '') + '</td></tr>';
     }
     if (b.sub !== subAkhir) {
       subAkhir = b.sub;
       const sn = subNama(b);
-      if (sn || b.hadiah) {
+      const pyS = agPenyelarasHtml(b.anugerahId, b.subId);
+      if (sn || b.hadiah || pyS) {
         const n = bilDalam(i, x => x.anugerahId === b.anugerahId && x.sub === b.sub);
         html += '<tr class="sub"><td colspan="5">' + E(sn || b.anugerah) +
           (b.hadiah ? ' <span class="hadiah">· ' + E(b.hadiah) + '</span>' : '') +
-          '<span class="bil">' + n + '</span></td></tr>';
+          '<span class="bil">' + n + '</span>' +
+          (pyS ? '<div class="pny">👤 ' + pyS + '</div>' : '') + '</td></tr>';
       }
     }
     const nota = [];
@@ -1707,7 +1709,7 @@ function agCetakSkripMC(w, majlis, penerima) {
     'tr.an td{background:#E4E4E4;font-weight:800;font-size:12px;border-top:1.5px solid #111;padding:5px}' +
     'tr.sub td{background:#F3F3F3;font-weight:700;font-size:11px;padding:3px 5px 3px 14px}' +
     '.bil{float:right;font-weight:600;font-size:10px;color:#444}.hadiah{font-weight:500;color:#444}' +
-    '.pny{margin-left:10px;font-weight:600;font-size:10.5px}' +
+    '.pny{font-weight:500;font-size:10.5px;margin-top:2px;line-height:1.35}' +
     'td.kotak{width:16px;font-size:14px;line-height:1;text-align:center}' +
     'td.no{width:34px;font-weight:800;font-size:14px;text-align:right}' +
     'td.nama{font-weight:700;font-size:12.5px}td.kls{width:88px;white-space:nowrap}' +
@@ -1750,7 +1752,7 @@ function agKiraSenaraiHadiah(penerima) {
       baris.push({
         no: g.no, docId: p.docId, nama: p.nama || '', tahun: p.tahun, kelas: p.kelas, luar: agAdalahLuar(p),
         anugerahId: g.anugerahId || g.anugerah, anugerah: g.anugerah || '', sub: g.sub || '',
-        gabung: ikut.map(x => x.sub || x.anugerah), hadiah: hadiah.join(' · '),
+        subId: g.subId || '', gabung: ikut.map(x => x.sub || x.anugerah), hadiah: hadiah.join(' · '),
         hadir: g.hadir, mc: g.mc
       });
     });
@@ -1819,11 +1821,13 @@ function agCetakSenaraiHadiah(w, majlis, penerima) {
         kunciAkhir = kunci;
         let bil = 0;
         for (let k = i; k < n && agTajukSubHadiah(B.baris[k]) + '|' + B.baris[k].hadiah === kunci; k++) bil++;
-        if (tajuk || b.hadiah) {
+        const pyS = agPenyelarasHtml(b.anugerahId, b.subId);
+        if (tajuk || b.hadiah || pyS) {
           isi += '<tr class="sub' + (b.gabung.length ? ' gab' : '') + '"><td colspan="' + lajur + '">' +
             (b.gabung.length ? '🎁 GABUNG · ' : '') + E(tajuk || b.anugerah) +
             (b.hadiah ? ' <span class="hadiah">· ' + E(b.hadiah) + '</span>' : '') +
             '<span class="bil">' + bil + ' hadiah</span>' +
+            (pyS ? '<div class="pny">👤 ' + pyS + '</div>' : '') +
             (b.gabung.length ? '<div class="ket-gab">1 hadiah untuk semua anugerah di atas</div>' : '') +
             '</td></tr>';
         }
@@ -1841,8 +1845,9 @@ function agCetakSenaraiHadiah(w, majlis, penerima) {
     const a = B.baris[0].no, z = B.baris[n - 1].no;
     return '<table class="' + (n <= 30 ? 'pendek' : '') + '"><thead>' +
       '<tr class="an"><th colspan="' + lajur + '">' + E(B.anugerah) +
-        (agPenyelarasTeks(B.anugerahId) ? '<span class="pny">Penyelaras: ' + E(agPenyelarasTeks(B.anugerahId)) + '</span>' : '') +
-        '<span class="bil">' + n + ' hadiah · giliran ' + (a === z ? a : a + '–' + z) + '</span></th></tr>' +
+        '<span class="bil">' + n + ' hadiah · giliran ' + (a === z ? a : a + '–' + z) + '</span>' +
+        (agPenyelarasHtml(B.anugerahId, '') ? '<div class="pny">👤 ' + agPenyelarasHtml(B.anugerahId, '') + '</div>' : '') +
+        '</th></tr>' +
       '<tr class="lj"><th>Sedia</th><th>Serah</th><th style="text-align:right">No</th>' +
         '<th>Darjah/Kelas</th><th>Nama</th><th>Status</th></tr>' +
       '</thead><tbody>' + isi + '</tbody></table>';
@@ -1878,7 +1883,7 @@ function agCetakSenaraiHadiah(w, majlis, penerima) {
     'tr.sub.gab td{background:#FFF3D6;border-left:3px solid #111}' +
     '.ket-gab{font-weight:500;font-size:9.5px;color:#444}' +
     '.bil{float:right;font-weight:600;font-size:10px;color:#444}.hadiah{font-weight:500;color:#444}' +
-    '.pny{margin-left:10px;font-weight:600;font-size:10.5px}' +
+    '.pny{font-weight:500;font-size:10.5px;margin-top:2px;line-height:1.35}' +
     'td.kotak{width:30px;font-size:15px;line-height:1;text-align:center}' +
     'td.no{width:34px;font-weight:800;font-size:14px;text-align:right}' +
     'td.kls{width:100px;white-space:nowrap}td.nama{font-weight:700;font-size:12px}' +
@@ -1986,9 +1991,9 @@ async function agMuatTurunSenaraiHadiahWord(majlis, penerima) {
     let t = '<w:tbl><w:tblPr><w:tblW w:w="10660" w:type="dxa"/><w:tblLayout w:type="fixed"/>' + sempadan +
       '<w:tblCellMar><w:left w:w="70" w:type="dxa"/><w:right w:w="70" w:type="dxa"/></w:tblCellMar></w:tblPr>' +
       '<w:tblGrid>' + LEBAR.map(w => '<w:gridCol w:w="' + w + '"/>').join('') + '</w:tblGrid>';
-    const py = agPenyelarasTeks(B.anugerahId);
+    const py = agPenyelarasTeks(B.anugerahId, '');
     t += baris(sel(para(run(B.anugerah, { b: true, sz: 22 }) +
-      (py ? run('   Penyelaras: ' + py, { b: true, sz: 18 }) : '') +
+      (py ? run('   👤 ' + py, { b: true, sz: 18 }) : '') +
       run('   (' + n + ' hadiah · giliran ' + (a === z ? a : a + '–' + z) + ')', { sz: 18, warna: '444444' }), { keep: true }),
       { w: 10660, span: 6, isi: 'D9D9D9' }), { kepala: true });
     const lj = ['Sedia', 'Serah', 'No', 'Darjah/Kelas', 'Nama', 'Status'];
@@ -2003,11 +2008,13 @@ async function agMuatTurunSenaraiHadiahWord(majlis, penerima) {
         kunciAkhir = kunci;
         let bil = 0;
         for (let k = i; k < n && agTajukSubHadiah(B.baris[k]) + '|' + B.baris[k].hadiah === kunci; k++) bil++;
-        if (tajuk || b.hadiah) {
+        const pyS = agPenyelarasTeks(b.anugerahId, b.subId);
+        if (tajuk || b.hadiah || pyS) {
           let isi = run((b.gabung.length ? '🎁 GABUNG · ' : '') + (tajuk || b.anugerah), { b: true, sz: 19 }) +
             (b.hadiah ? run(' · ' + b.hadiah, { sz: 18, warna: '444444' }) : '') +
             run('   (' + bil + ' hadiah)', { sz: 17, warna: '444444' });
           let p = para(isi, { keep: true });
+          if (pyS) p += para(run('👤 ' + pyS, { sz: 17 }), { keep: true });
           if (b.gabung.length) p += para(run('1 hadiah untuk semua anugerah di atas', { sz: 16, warna: '444444' }), { keep: true });
           t += baris(sel(p, { w: 10660, span: 6, isi: b.gabung.length ? 'FFF3D6' : 'F7F7F7' }));
         }
@@ -2134,7 +2141,7 @@ async function agMuatTurunSenaraiHadiahExcel(majlis, penerima) {
       [b.nama, absen ? 4 : 1],
       [agTeksKe(b), s],
       [b.anugerah, s],
-      [agPenyelarasTeks(b.anugerahId), s],
+      [[agPenyelarasTeks(b.anugerahId, ''), agPenyelarasTeks(b.anugerahId, b.subId)].filter(Boolean).join(' · '), s],
       [(b.gabung.length ? '🎁 GABUNG · ' : '') + (tajuk || ''), s],
       [b.hadiah, s],
       [absen ? 'TIDAK HADIR' : b.mc === true ? 'Sudah diambil' : '', absen ? 5 : 0],
@@ -2288,85 +2295,132 @@ function agNotaAnugerah(anId) {
 }
 
 /* ---------- 👤 PENYELARAS (4 Nov 2026) ----------
-   Nama penyelaras per ANUGERAH, sebaris nama anugerah sebelum ＋ nota.
-   Semua petugas boleh tulis/ubah/padam terus dari bar (pengguna) — jadi
-   ia menumpang enjin nota: koleksi `anugerah_nota`, `jenis:'penyelaras'`,
-   doc id tetap `${majlisId}__${anugerahId}__penyelaras`. Seorang atau
-   lebih, ditulis bebas ("ALI BIN ABU, SITI BINTI AHMAD"). Dicetak dalam
-   Skrip MC + Senarai Hadiah (PDF/Word/Excel). 🔴 TIDAK dipadam oleh
-   🗑 Padam semua nota — ia tetapan majlis, bukan catatan hari majlis. */
+   TEKS BEBAS, beberapa baris, pada bar ANUGERAH dan setiap bar KATEGORI
+   (sub). Pengguna menulis perkataan sendiri ("Tahun 1–3 : Cikgu A") —
+   tiada label/struktur dipaksa, tiada warisan anugerah → sub. Semua
+   petugas boleh tulis/ubah/padam terus dari bar (pengguna).
+   Menumpang enjin nota: koleksi `anugerah_nota`, `jenis:'penyelaras'`,
+   `subId` ('' = aras anugerah). Doc id tetap
+   `${majlisId}__${anugerahId}[__${subId}]__penyelaras`.
+   Editor = kotak terapung sendiri (prompt() satu baris sahaja); ia di
+   luar #senarai supaya muat berkala 90s tidak memusnahkan draf.
+   Dicetak dalam Skrip MC + Senarai Hadiah (PDF/Word/Excel).
+   🔴 TIDAK dipadam oleh 🗑 Padam semua nota — tetapan majlis. */
 const AG_PNY = 'penyelaras';
+const AG_PNY_HAD = 1000;
 
-function agPenyelaras(anId) {
-  const n = _agNotaS.nota.find(x => x.jenis === AG_PNY && x.anugerahId === anId);
-  return n ? n.teks : '';
+function _agPnyDoc(anId, subId) {
+  return _agNotaS.nota.find(x => x.jenis === AG_PNY && x.anugerahId === anId &&
+    (x.subId || '') === (subId || '')) || null;
 }
 
-/* Senarai nama. Pemisah: , ; & + baris baharu. 🔴 BUKAN '/' — A/L, A/P
-   ialah sebahagian nama. Huruf besar supaya sama dengan nama ESIS lain. */
-function agPenyelarasSenarai(teks) {
-  return String(teks || '').split(/\s*(?:[,;&+\n])\s*/)
-    .map(x => x.trim().replace(/\s+/g, ' ').toUpperCase()).filter(Boolean);
+function agPenyelaras(anId, subId) {
+  const n = _agPnyDoc(anId, subId);
+  return n ? String(n.teks || '') : '';
 }
 
-/* Cetakan: "A · B" */
-function agPenyelarasTeks(anId) {
-  return agPenyelarasSenarai(agPenyelaras(anId)).join(' · ');
+/* baris tidak kosong, seperti ditulis */
+function agPenyelarasBaris(anId, subId) {
+  return agPenyelaras(anId, subId).split('\n').map(x => x.trim()).filter(Boolean);
 }
 
-/* Satu nama satu baris dalam butang — dua nama sebaris tanpa pemisah
-   dibaca sebagai seorang (aduan pengguna 4 Nov 2026). */
-function _agPnyDalam(anId) {
-  const l = agPenyelarasSenarai(agPenyelaras(anId));
+/* Cetakan HTML: baris demi baris, label sebelum ':' tebal. */
+function agPenyelarasHtml(anId, subId) {
+  return agPenyelarasBaris(anId, subId).map(_agPnyBarisHtml).join('<br>');
+}
+
+/* Teks satu baris (Word/Excel). */
+function agPenyelarasTeks(anId, subId) {
+  return agPenyelarasBaris(anId, subId).join(' · ');
+}
+
+function _agPnyBarisHtml(l) {
+  const i = l.indexOf(':');
+  return i > 0 ? '<b>' + agEsc(l.slice(0, i).trim()) + '</b> : ' + agEsc(l.slice(i + 1).trim())
+    : agEsc(l);
+}
+
+function _agPnyDalam(anId, subId) {
+  const l = agPenyelarasBaris(anId, subId);
   if (!l.length) return '＋ penyelaras';
-  return '<span class="pny-lbl">👤 Penyelaras</span>' +
-    l.map(n => '<span class="pny-nama">' + agEsc(n) + '</span>').join('');
+  return '<span class="pny-ikon">👤</span><span class="pny-isi">' +
+    l.map(x => '<span class="pny-baris">' + _agPnyBarisHtml(x) + '</span>').join('') + '</span>';
 }
 
-/* Dua gelaran bin/binti/bt/a/l/a/p dalam SATU nama = hampir pasti dua
-   orang yang lupa koma. */
-function _agPnyNampakDua(nama) {
-  return (nama.match(/(?:^|\s)(?:BIN|BINTI|BT|BTE|BINTE|A\/L|A\/P)(?=\s|$)/g) || []).length >= 2;
-}
-
-function _agPnyTajukTitle(anId) {
-  const n = _agNotaS.nota.find(x => x.jenis === AG_PNY && x.anugerahId === anId);
+function _agPnyTitle(anId, subId) {
+  const n = _agPnyDoc(anId, subId);
   return n ? (n.nama ? n.nama + ' · ' : '') + (AG_NOTA_PANEL[n.panel] || n.panel || '') + ' · ' +
-    agNotaMasa(n.masa) + ' — tekan untuk ubah / padam' : 'Tekan untuk tulis nama penyelaras anugerah ini';
+    agNotaMasa(n.masa) + ' — tekan untuk ubah / padam' : 'Tekan untuk tulis penyelaras';
 }
 
-function agPenyelarasUbah(anId, anNama) {
-  return agPenyelarasUbah2(anId, anNama, agPenyelaras(anId));
+/* Butang penyelaras — `subId` kosong = aras anugerah. */
+function agPenyelarasTajuk(anId, subId, nama) {
+  if (!_agNotaS.majlisId || !anId) return '';
+  const ada = agPenyelarasBaris(anId, subId).length;
+  return '<span class="nota-tajuk pny' + (ada ? ' ada' : '') + '" role="button" tabindex="0" ' +
+    'data-pny-an="' + agEsc(anId) + '" data-pny-sub="' + agEsc(subId || '') + '" ' +
+    'data-pny-nama="' + agEsc(nama || '') + '" title="' + agEsc(_agPnyTitle(anId, subId)) + '">' +
+    _agPnyDalam(anId, subId) + '</span>';
 }
 
-async function agPenyelarasUbah2(anId, anNama, awal) {
-  const ada = agPenyelaras(anId);
-  const teks = prompt('Penyelaras ' + (anNama || 'anugerah ini') +
-    '\n\nLebih dari seorang: pisahkan dengan KOMA\ncth: ALI BIN ABU, SITI BINTI AHMAD\n\n(kosongkan untuk padam)', awal || '');
-  if (teks === null) return;
-  const ref = agDb.collection(AG_NOTA_KOL).doc(_agNotaS.majlisId + '__' + anId + '__' + AG_PNY);
-  const senarai = agPenyelarasSenarai(teks);
-  const syak = senarai.filter(_agPnyNampakDua);
-  if (syak.length && !confirm('Nama ini nampak macam DUA orang tanpa koma:\n\n' + syak.join('\n') +
-      '\n\nLetak koma di antara nama, cth:\nALI BIN ABU, SITI BINTI AHMAD\n\n' +
-      'OK = simpan juga sebagai seorang · Batal = betulkan')) {
-    return agPenyelarasUbah2(anId, anNama, teks);
-  }
-  try {
-    if (!senarai.length) { if (ada) await ref.delete(); return; }
-    await ref.set({
-      majlisId: _agNotaS.majlisId, anugerahId: anId, jenis: AG_PNY,
-      teks: senarai.join(', ').slice(0, 300), nama: agNotaNama().slice(0, 40),
-      panel: _agNotaS.panel || '', masa: Date.now()
-    });
-  } catch (e) {
-    agToast('Penyelaras TIDAK disimpan: ' + e.message, 'ralat');
-  }
+function _agPnyTutup() {
+  const k = document.getElementById('ag-pny-kotak');
+  if (k) k.remove();
 }
 
-function _agNotaTajukDalam(anId) {
-  const n = agNotaAnugerah(anId);
-  return n ? '📝 ' + agEsc(n.teks) : '＋ nota';
+function agPenyelarasUbah(anId, subId, nama) {
+  _agPnyTutup();
+  const k = document.createElement('div');
+  k.id = 'ag-pny-kotak';
+  k.innerHTML =
+    '<div class="pny-kad" role="dialog" aria-label="Penyelaras">' +
+      '<div class="pny-tajuk">👤 Penyelaras — ' + agEsc(nama || 'anugerah ini') + '</div>' +
+      '<textarea rows="5" maxlength="' + AG_PNY_HAD + '" placeholder="Tulis bebas, satu baris satu perkara. Contoh:\n' +
+        'Tahun 1–3 : Juliana bt Mohamed\nTahun 4–6 : Roliza bt Md Kesah, Ali bin Abu">' +
+        agEsc(agPenyelaras(anId, subId)) + '</textarea>' +
+      '<div class="pny-butang">' +
+        (agPenyelaras(anId, subId) ? '<button class="btn sunyi kecil" data-pny-aksi="padam">🗑 Padam</button>' : '') +
+        '<span style="flex:1"></span>' +
+        '<button class="btn sunyi kecil" data-pny-aksi="batal">Batal</button>' +
+        '<button class="btn kecil" data-pny-aksi="simpan">Simpan</button>' +
+      '</div>' +
+      '<div class="pny-ket">Dipapar kepada SEMUA petugas · Ctrl/⌘+Enter = Simpan</div>' +
+    '</div>';
+  document.body.appendChild(k);
+  const ta = k.querySelector('textarea');
+  ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+
+  const ref = agDb.collection(AG_NOTA_KOL)
+    .doc(_agNotaS.majlisId + '__' + anId + (subId ? '__' + subId : '') + '__' + AG_PNY);
+  const simpan = async teks => {
+    const bersih = String(teks || '').split('\n').map(x => x.replace(/\s+$/, '')).join('\n').trim();
+    k.querySelectorAll('button').forEach(b => { b.disabled = true; });
+    try {
+      if (!bersih) { if (_agPnyDoc(anId, subId)) await ref.delete(); }
+      else await ref.set({
+        majlisId: _agNotaS.majlisId, anugerahId: anId, subId: subId || '', jenis: AG_PNY,
+        teks: bersih.slice(0, AG_PNY_HAD), nama: agNotaNama().slice(0, 40),
+        panel: _agNotaS.panel || '', masa: Date.now()
+      });
+      _agPnyTutup();
+    } catch (e) {
+      k.querySelectorAll('button').forEach(b => { b.disabled = false; });
+      agToast('Penyelaras TIDAK disimpan: ' + e.message, 'ralat');
+    }
+  };
+  k.addEventListener('click', e => {
+    if (e.target === k) return _agPnyTutup();          // klik luar kad
+    const b = e.target.closest('[data-pny-aksi]');
+    if (!b) return;
+    const aksi = b.dataset.pnyAksi;
+    if (aksi === 'batal') _agPnyTutup();
+    else if (aksi === 'simpan') simpan(ta.value);
+    else if (aksi === 'padam' && confirm('Padam penyelaras ini untuk SEMUA petugas?')) simpan('');
+  });
+  k.addEventListener('keydown', e => {
+    if (e.key === 'Escape') _agPnyTutup();
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); simpan(ta.value); }
+  });
 }
 
 /* Nota anugerah SEBARIS nama dalam .grup-kepala. Klik = tulis / ubah /
@@ -2374,10 +2428,7 @@ function _agNotaTajukDalam(anId) {
 function agNotaTajuk(anId, anNama) {
   if (!_agNotaS.majlisId || !anId) return '';
   const n = agNotaAnugerah(anId);
-  const p = agPenyelaras(anId);
-  return '<span class="nota-tajuk pny' + (p ? ' ada' : '') + '" role="button" tabindex="0" ' +
-    'data-pny-an="' + agEsc(anId) + '" data-nota-an-nama="' + agEsc(anNama || '') + '" title="' +
-    agEsc(_agPnyTajukTitle(anId)) + '">' + _agPnyDalam(anId) + '</span>' +
+  return agPenyelarasTajuk(anId, '', anNama) +
     '<span class="nota-tajuk' + (n ? ' ada' : '') + '" role="button" tabindex="0" ' +
     'data-nota-an="' + agEsc(anId) + '" data-nota-an-nama="' + agEsc(anNama || '') + '" title="' +
     (n ? agEsc((n.nama || '') + ' · ' + (AG_NOTA_PANEL[n.panel] || n.panel || '') + ' · ' +
@@ -2415,10 +2466,10 @@ async function agNotaUbahAnugerah(anId, anNama) {
 /* Kemas kini di tempat bila nota berubah. */
 function agNotaSegar() {
   document.querySelectorAll('[data-pny-an]').forEach(b => {
-    const id = b.dataset.pnyAn;
-    b.innerHTML = _agPnyDalam(id);
-    b.classList.toggle('ada', !!agPenyelaras(id));
-    b.title = _agPnyTajukTitle(id);
+    const id = b.dataset.pnyAn, sub = b.dataset.pnySub || '';
+    b.innerHTML = _agPnyDalam(id, sub);
+    b.classList.toggle('ada', !!agPenyelarasBaris(id, sub).length);
+    b.title = _agPnyTitle(id, sub);
   });
   document.querySelectorAll('[data-nota-an]').forEach(b => {
     const n = agNotaAnugerah(b.dataset.notaAn);
@@ -2470,7 +2521,7 @@ function _agNotaPasangPendengar() {
     const py = e.target.closest('[data-pny-an]');
     if (py) {
       e.stopPropagation(); e.preventDefault();
-      agPenyelarasUbah(py.dataset.pnyAn, py.dataset.notaAnNama);
+      agPenyelarasUbah(py.dataset.pnyAn, py.dataset.pnySub || '', py.dataset.pnyNama);
       return;
     }
     const tj = e.target.closest('[data-nota-an]');
@@ -2501,7 +2552,7 @@ function _agNotaPasangPendengar() {
      tajuk (papan kekunci) = buka, sama seperti klik. */
   document.addEventListener('keydown', e => {
     const py = e.target.closest && e.target.closest('[data-pny-an]');
-    if (py && e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); agPenyelarasUbah(py.dataset.pnyAn, py.dataset.notaAnNama); return; }
+    if (py && e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); agPenyelarasUbah(py.dataset.pnyAn, py.dataset.pnySub || '', py.dataset.pnyNama); return; }
     const tj = e.target.closest && e.target.closest('[data-nota-an]');
     if (tj && e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); agNotaUbahAnugerah(tj.dataset.notaAn, tj.dataset.notaAnNama); return; }
     const ta = e.target.closest && e.target.closest('[data-nota-teks]');

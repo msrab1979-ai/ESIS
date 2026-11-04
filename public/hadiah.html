@@ -506,6 +506,7 @@ function lukisSenarai() {
           '" data-gil-sub="' + agEsc(kunci) + '">' +
           '<span class="anak-panah">\u25b6</span>' +
           '<span class="sub-nama">' + agEsc(nemaSub(S)) + '</span>' +
+          agPenyelarasTajuk(A.anugerahId, S.subId, nemaSub(S)) +   // 👤 per kategori
           '<span class="bil-kep">' + kira(S.baris) + '</span>' +
         '</div>' + (bukaSub ? jadual(S.baris) : '');
     }).join('');
