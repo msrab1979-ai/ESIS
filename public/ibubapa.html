@@ -274,6 +274,9 @@ function normTel(s) {
 }
 const telSah = t => /^0\d{8,10}$/.test(t);
 const kpSah = k => /^\d{12}$/.test(k);
+/* KP anak: 6–12 digit — ID ujian admin (cth 1234567890) bukan 12 digit.
+   Carian doc yang memutuskan sama ada ia wujud. */
+const kpAnakSah = k => /^\d{6,12}$/.test(k);
 function telSorok(t) { return t.length < 7 ? t : t.slice(0, 3) + '-***' + t.slice(-4); }
 function telPapar(t) { return t.length < 7 ? t : t.slice(0, 3) + '-' + t.slice(3, t.length - 4) + ' ' + t.slice(-4); }
 /* Nama separa disorok: perkataan pertama penuh, nama bapa = huruf awal. */
@@ -321,7 +324,10 @@ function baru(mod) {
 const pKel = tel => 'anugerah_ibubapa/' + M_ID + '__' + tel;
 const pIdx = kp => 'anugerah_ibubapa_kp/' + M_ID + '__' + kp;
 const pPen = kp => 'anugerah_penerima/' + M_ID + '__' + kp;
-const MEDAN_KEL = ['telefon', 'wakil', 'murid', 'hadir', 'dewasa', 'kanak', 'sumber', 'daftar', 'dihantar'];
+/* 🧪 ID ujian (tab admin 👪 Ibu Bapa) — koleksi BERASINGAN supaya murid
+   palsu tidak muncul dalam giliran/tiket/MC. Keluarga ditanda ujian:true. */
+const pUji = kp => 'anugerah_ibubapa_uji/' + M_ID + '__' + kp;
+const MEDAN_KEL = ['telefon', 'wakil', 'murid', 'hadir', 'dewasa', 'kanak', 'sumber', 'daftar', 'dihantar', 'ujian'];
 
 function fasaKini() {
   const t = Date.now(), b = CFG.bancian || {}, d = CFG.daftar || {};
@@ -523,7 +529,7 @@ function vKonflik() {
 async function cariAnak() {
   const kp = digit($('kp').value);
   S.ralat = '';
-  if (!kpSah(kp)) { S.ralat = 'No. KP mesti 12 digit.'; return vKP(); }
+  if (!kpAnakSah(kp)) { S.ralat = 'No. KP mesti 12 digit.'; return vKP(); }
   if (S.anak.some(a => a.kp === kp)) { S.ralat = 'Anak ini sudah ada dalam senarai anda.'; return vKP(); }
   const btn = $('b-cari'); sibuk(btn, true, 'Mencari…');
   try {
@@ -534,7 +540,8 @@ async function cariAnak() {
       const k0 = i0 && i0.telefon ? await baca(pKel(i0.telefon), MEDAN_KEL) : null;
       if (k0) { muatKeluarga(k0); return vDaftarKel(); }
     }
-    const [p, idx] = await Promise.all([baca(pPen(kp), ['nama', 'tahun', 'kelas', 'jenis']), baca(pIdx(kp), ['telefon'])]);
+    let [p, idx] = await Promise.all([baca(pPen(kp), ['nama', 'tahun', 'kelas', 'jenis']), baca(pIdx(kp), ['telefon'])]);
+    if (!p) { p = await baca(pUji(kp), ['nama', 'tahun', 'kelas']); if (p) p.ujian = true; }
     if (!p || p.jenis === 'luar') { S.ralat = 'No. KP ini tiada dalam senarai penerima anugerah majlis ini. Sila semak semula.'; return vKP(); }
     const telKini = [S.asal && S.asal.telefon, S.sasar && S.sasar.telefon].filter(Boolean);
     if (idx && idx.telefon && !telKini.includes(idx.telefon)) {
@@ -542,7 +549,7 @@ async function cariAnak() {
       const ada = await baca(pKel(idx.telefon), ['telefon']);
       if (ada) { S.konflik = { kp, tel: idx.telefon }; return vKP(); }
     }
-    S.anak.push({ kp, nama: String(p.nama || '').toUpperCase(), tahun: p.tahun || '', kelas: p.kelas || '' });
+    S.anak.push(Object.assign({ kp, nama: String(p.nama || '').toUpperCase(), tahun: p.tahun || '', kelas: p.kelas || '' }, p.ujian ? { ujian: true } : {}));
     vAnak();
   } catch (e) { S.ralat = e.message; vKP(); }
 }
@@ -670,7 +677,8 @@ async function hantar() {
   const doc = {
     majlisId: M_ID, telefon: tel,
     wakil: { nama: S.wakil.nama, kp: S.wakil.kp },
-    murid: S.anak.map(a => ({ kp: a.kp, nama: a.nama, tahun: a.tahun, kelas: a.kelas })),
+    murid: S.anak.map(a => Object.assign({ kp: a.kp, nama: a.nama, tahun: a.tahun, kelas: a.kelas }, a.ujian ? { ujian: true } : {})),
+    ujian: S.anak.some(a => a.ujian),
     hadir: walk ? true : S.hadir,
     dewasa: (walk || S.hadir) ? S.dewasa : 0,
     kanak: (walk || S.hadir) ? S.kanak : 0,

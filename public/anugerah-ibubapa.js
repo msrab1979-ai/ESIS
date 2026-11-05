@@ -20,7 +20,8 @@
       oleh ibubapa.html — lihat ulasan kepala fail itu.
    ========================================================================== */
 
-let IB_KEL = [];          // doc keluarga majlis aktif
+let IB_KEL = [];          // doc keluarga majlis aktif (termasuk ujian)
+let IB_UJI = [];          // 🧪 ID ujian majlis aktif
 let IB_SEDIA = false;     // pendengar dipasang sekali
 
 const ibP = s => String(s == null ? '' : s);
@@ -160,6 +161,22 @@ function ibBina() {
 </div>
 
 <div class="kad">
+  <div class="kad-kepala"><h3>🧪 ID Ujian — cuba apps tanpa murid sebenar</h3></div>
+  <div class="kad-isi">
+    <div class="baris-input">
+      <div class="medan"><label for="ib-u-kp">No. KP ujian (6–12 digit)</label><input type="text" id="ib-u-kp" inputmode="numeric" placeholder="1234567890" style="min-width:160px"></div>
+      <div class="medan"><label for="ib-u-nama">Nama murid ujian</label><input type="text" id="ib-u-nama" placeholder="MURID UJIAN 1"></div>
+      <div class="medan"><label for="ib-u-darjah">Darjah</label><select id="ib-u-darjah">${['SATU','DUA','TIGA','EMPAT','LIMA','ENAM'].map((d, i) => '<option value="' + d + '"' + (i === 4 ? ' selected' : '') + '>' + (i + 1) + '</option>').join('')}</select></div>
+      <div class="medan"><label for="ib-u-kelas">Kelas</label><input type="text" id="ib-u-kelas" value="UJIAN" style="min-width:110px"></div>
+      <button class="btn emas kecil" id="ib-u-tambah">＋ Tambah ID ujian</button>
+    </div>
+    <div class="gulung" style="margin-top:12px"><table id="ib-u-jadual"></table></div>
+    <p class="hint" style="margin:9px 0 0">ID ujian disimpan berasingan — <strong>tidak</strong> masuk senarai penerima, giliran, tiket atau MC.
+      Bancian yang memakai ID ujian <strong>tidak dikira</strong> dalam statistik &amp; CSV. Padam ID = padam bancian ujiannya sekali.</p>
+  </div>
+</div>
+
+<div class="kad">
   <div class="kad-kepala"><h3>📊 Bancian &amp; Pendaftaran</h3>
     <div class="kanan">
       <button class="btn sunyi kecil" id="ib-muat">🔄 Muat semula</button>
@@ -172,7 +189,7 @@ function ibBina() {
     <hr style="border:none;border-top:1px solid var(--garis-halus);margin:19px 0">
     <p class="eyebrow">Selepas pilot test / latihan</p>
     <button class="btn bahaya kecil" id="ib-padam">🗑 Padam semua data ibu bapa majlis ini</button>
-    <p class="hint" style="margin:8px 0 0">Memadam bancian &amp; pendaftaran sahaja. Penerima, giliran dan tetapan di atas <strong>tidak</strong> disentuh.</p>
+    <p class="hint" style="margin:8px 0 0">Memadam bancian &amp; pendaftaran sahaja (ID ujian kekal). Penerima, giliran dan tetapan di atas <strong>tidak</strong> disentuh.</p>
   </div>
 </div>`;
 }
@@ -247,12 +264,15 @@ async function ibMuat(paksa) {
   memuat($('ib-kpi'), 'Memuatkan bancian…');
   $('ib-jadual').innerHTML = '';
   try {
-    const [snap, pen] = await Promise.all([
+    const [snap, pen, uji] = await Promise.all([
       agDb.collection('anugerah_ibubapa').where('majlisId', '==', MAJLIS.id).get(),
-      paksa === true || !PENERIMA.length ? agMuatPenerima(MAJLIS.id) : PENERIMA
+      paksa === true || !PENERIMA.length ? agMuatPenerima(MAJLIS.id) : PENERIMA,
+      agDb.collection('anugerah_ibubapa_uji').where('majlisId', '==', MAJLIS.id).get()
     ]);
     IB_KEL = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
+    IB_UJI = uji.docs.map(d => ({ docId: d.id, ...d.data() }));
     PENERIMA = pen;
+    ibLukisUji();
     ibLukisStat();
   } catch (e) {
     console.error(e);
@@ -262,24 +282,28 @@ async function ibMuat(paksa) {
 function ibMuridPenerima() {
   return PENERIMA.filter(p => !agAdalahLuar(p) && p.no_kp);
 }
+/* Keluarga ujian (ada anak ID ujian) tidak dikira dalam statistik/CSV sebenar. */
+const ibSebenar = () => IB_KEL.filter(k => !k.ujian);
 function ibPetaAnak() {
   const m = {};
-  IB_KEL.forEach(k => (k.murid || []).forEach(a => { m[a.kp] = k; }));
+  ibSebenar().forEach(k => (k.murid || []).forEach(a => { m[a.kp] = k; }));
   return m;
 }
 function ibLukisStat() {
   const murid = ibMuridPenerima(), peta = ibPetaAnak();
-  const hadirK = IB_KEL.filter(k => k.hadir !== false);
+  const KEL = ibSebenar();
+  const hadirK = KEL.filter(k => k.hadir !== false);
   const orang = hadirK.reduce((j, k) => j + (k.dewasa || 0) + (k.kanak || 0), 0);
-  const daftarK = IB_KEL.filter(k => k.daftar && k.daftar.bil);
+  const daftarK = KEL.filter(k => k.daftar && k.daftar.bil);
   const orangDaftar = daftarK.reduce((j, k) => j + (k.daftar.bil || 0), 0);
   const jawab = murid.filter(p => peta[p.no_kp]).length;
-  const walk = IB_KEL.filter(k => k.sumber === 'walkin').length;
+  const walk = KEL.filter(k => k.sumber === 'walkin').length;
   const kpi = (angka, label, kecil, kls) => '<div class="kpi ' + (kls || '') + '"><div class="angka">' + angka +
     '</div><div class="label">' + label + '</div>' + (kecil ? '<div class="kecil">' + kecil + '</div>' : '') + '</div>';
   $('ib-kpi').innerHTML =
-    kpi(IB_KEL.length, 'Keluarga jawab', jawab + ' dari ' + murid.length + ' murid penerima') +
-    kpi(orang, 'Orang dijangka hadir', hadirK.length + ' keluarga hadir · ' + (IB_KEL.length - hadirK.length) + ' tidak', 'ok') +
+    kpi(KEL.length, 'Keluarga jawab', jawab + ' dari ' + murid.length + ' murid penerima' +
+      (IB_KEL.length > KEL.length ? ' · 🧪 ' + (IB_KEL.length - KEL.length) + ' ujian tidak dikira' : '')) +
+    kpi(orang, 'Orang dijangka hadir', hadirK.length + ' keluarga hadir · ' + (KEL.length - hadirK.length) + ' tidak', 'ok') +
     kpi(orangDaftar, 'Sudah daftar (hari majlis)', daftarK.length + ' keluarga' + (walk ? ' · ' + walk + ' walk-in' : ''), 'ok') +
     kpi(murid.length - jawab, 'Murid belum jawab', 'ibu bapa belum isi bancian', murid.length - jawab ? 'bahaya' : '');
 
@@ -312,10 +336,10 @@ function ibLukisStat() {
    (0123… → 123…) atau menukar KP 12 digit kepada 1.5E+11. */
 const ibTeks = s => (s ? '="' + s + '"' : '');
 function ibCSV() {
-  if (!IB_KEL.length) { agToast('Tiada bancian untuk dimuat turun', 'ralat'); return; }
+  if (!ibSebenar().length) { agToast('Tiada bancian untuk dimuat turun', 'ralat'); return; }
   const r = [['TELEFON', 'NAMA WAKIL', 'KP WAKIL', 'ANAK', 'KELAS', 'STATUS', 'DEWASA', 'KANAK-KANAK', 'JUMLAH',
     'DAFTAR (ORANG)', 'MASA DAFTAR', 'SUMBER', 'DIHANTAR']];
-  IB_KEL.slice().sort((a, b) => ibP((a.wakil || {}).nama).localeCompare(ibP((b.wakil || {}).nama))).forEach(k => {
+  ibSebenar().sort((a, b) => ibP((a.wakil || {}).nama).localeCompare(ibP((b.wakil || {}).nama))).forEach(k => {
     const d = k.daftar || {}, mD = ibMasa(d.masa), mH = ibMasa(k.dihantar);
     r.push([ibTeks(k.telefon), (k.wakil || {}).nama, ibTeks((k.wakil || {}).kp),
       (k.murid || []).map(a => a.nama).join(' | '),
@@ -334,6 +358,58 @@ function ibCSVBelum() {
   const r = [['DARJAH', 'KELAS', 'NAMA MURID', 'NO KP']];
   belum.forEach(p => r.push([agWordDarjah(p.tahun) || p.tahun, agDarjahKelas(p.tahun, p.kelas), p.nama, ibTeks(p.no_kp)]));
   agMuatTurunCSV(r, 'ibubapa-belum-jawab-' + ibFail() + '.csv');
+}
+
+/* ---------- 🧪 ID ujian ---------- */
+function ibLukisUji() {
+  const el = $('ib-u-jadual');
+  if (!IB_UJI.length) { el.innerHTML = '<tbody><tr><td class="hint">Tiada ID ujian.</td></tr></tbody>'; return; }
+  const kelOf = kp => IB_KEL.find(k => (k.murid || []).some(m => m.kp === kp));
+  el.innerHTML = '<thead><tr><th>No. KP ujian</th><th>Nama</th><th>Kelas</th><th>Bancian</th><th></th></tr></thead><tbody>' +
+    IB_UJI.slice().sort((a, b) => ibP(a.no_kp).localeCompare(ibP(b.no_kp))).map(u => {
+      const k = kelOf(u.no_kp);
+      const st = !k ? '—' : (k.daftar && k.daftar.bil ? '✅ Daftar ' + k.daftar.bil + ' orang' :
+        (k.hadir !== false ? 'Hadir ' + ((k.dewasa || 0) + (k.kanak || 0)) + ' orang' : 'Tidak hadir')) + ' · ' + agEsc(k.telefon);
+      return '<tr><td style="font-family:ui-monospace,Menlo,monospace">' + agEsc(u.no_kp) + '</td><td>' + agEsc(u.nama) +
+        '</td><td>' + agEsc(agDarjahKelas(u.tahun, u.kelas)) + '</td><td>' + st + '</td>' +
+        '<td><button class="btn bahaya kecil" data-ib-uji-padam="' + agEsc(u.no_kp) + '">🗑 Padam</button></td></tr>';
+    }).join('') + '</tbody>';
+}
+async function ibUjiTambah() {
+  const kp = $('ib-u-kp').value.replace(/\D/g, '');
+  const nama = ($('ib-u-nama').value.trim() || 'MURID UJIAN ' + (IB_UJI.length + 1)).toUpperCase();
+  const tahun = $('ib-u-darjah').value, kelas = ($('ib-u-kelas').value.trim() || 'UJIAN').toUpperCase();
+  if (!/^\d{6,12}$/.test(kp)) { agToast('No. KP ujian mesti 6–12 digit', 'ralat'); return; }
+  if (IB_UJI.some(u => u.no_kp === kp)) { agToast('ID ujian ini sudah ada', 'ralat'); return; }
+  /* KP murid sebenar tidak boleh dijadikan ID ujian — carian ibu bapa
+     memilih penerima dahulu, jadi ID itu tidak akan pernah dipakai. */
+  if (PENERIMA.some(p => p.no_kp === kp)) { agToast('KP ini milik murid penerima sebenar — guna nombor lain', 'ralat'); return; }
+  const b = $('ib-u-tambah'); b.disabled = true;
+  try {
+    await agDb.collection('anugerah_ibubapa_uji').doc(MAJLIS.id + '__' + kp)
+      .set({ majlisId: MAJLIS.id, no_kp: kp, nama, tahun, kelas, dibina: firebase.firestore.FieldValue.serverTimestamp() });
+    IB_UJI.push({ majlisId: MAJLIS.id, no_kp: kp, nama, tahun, kelas });
+    $('ib-u-kp').value = ''; $('ib-u-nama').value = '';
+    ibLukisUji();
+    agToast('ID ujian ' + kp + ' ditambah', 'ok');
+  } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
+  finally { b.disabled = false; }
+}
+/* Padam ID + indeksnya + bancian ujiannya. Keluarga yang tinggal anak lain
+   dikemas kini (anak ini dibuang), bukan dipadam. */
+async function ibUjiPadam(kp) {
+  if (!confirm('Padam ID ujian ' + kp + ' beserta bancian ujiannya?')) return;
+  const b = agDb.batch(), pfx = MAJLIS.id + '__';
+  b.delete(agDb.collection('anugerah_ibubapa_uji').doc(pfx + kp));
+  b.delete(agDb.collection('anugerah_ibubapa_kp').doc(pfx + kp));
+  IB_KEL.filter(k => (k.murid || []).some(m => m.kp === kp)).forEach(k => {
+    const baki = (k.murid || []).filter(m => m.kp !== kp);
+    const ref = agDb.collection('anugerah_ibubapa').doc(k.docId);
+    if (baki.length) b.update(ref, { murid: baki, ujian: baki.some(m => m.ujian) });
+    else b.delete(ref);
+  });
+  try { await b.commit(); agToast('ID ujian ' + kp + ' dipadam', 'ok'); ibMuat(); }
+  catch (e) { agToast('Gagal padam: ' + e.message, 'ralat'); }
 }
 
 /* 🔴 Taip PADAM, bukan confirm() — sama dengan reset penerima. */
@@ -369,6 +445,12 @@ function ibInit() {
     $('ib-csv').onclick = ibCSV;
     $('ib-csv-belum').onclick = ibCSVBelum;
     $('ib-padam').onclick = ibPadamSemua;
+    $('ib-u-tambah').onclick = ibUjiTambah;
+    $('ib-u-kp').addEventListener('keydown', e => { if (e.key === 'Enter') ibUjiTambah(); });
+    p.addEventListener('click', e => {
+      const x = e.target.closest('[data-ib-uji-padam]');
+      if (x) ibUjiPadam(x.dataset.ibUjiPadam);
+    });
     $('ib-salin').onclick = async () => {
       try { await navigator.clipboard.writeText(ibLink()); agToast('Link disalin', 'ok'); }
       catch { agToast('Gagal menyalin — salin manual dari paparan', 'ralat'); }
