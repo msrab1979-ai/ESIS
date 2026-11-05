@@ -361,8 +361,11 @@ function lukis() {
     return true;
   });
 
+  /* 🔴 Kira giliran sama dengan MC: satu NOMBOR = satu giliran. Pengikut
+     gaya Gabung berkongsi nombor utama, jadi bukan giliran sendiri —
+     dahulu dikira mentah (437 di sini, 425 di MC, 5 Nov 2026). */
   $('senarai-sub').textContent = MURID.length + ' murid · ' +
-    MURID.reduce((j, m) => j + m.giliran.length, 0) + ' giliran';
+    MURID.reduce((j, m) => j + agSemuaGiliran(m.giliran).length, 0) + ' giliran';
   $('tapis-kira').textContent = tapis.length === MURID.length
     ? '' : 'papar ' + tapis.length + ' dari ' + MURID.length;
 
