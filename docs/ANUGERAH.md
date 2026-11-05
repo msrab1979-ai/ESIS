@@ -841,3 +841,20 @@ Aduan: "giliran berterabur" dalam ANUGERAH TERBAIK MATA PELAJARAN. Nombor tidak 
 - **Paparan** (`agKumpulGiliran(majlis, gil, g)` → `{id:'gabung:<anId>:<darjah>:<bil>', nama:'🎁 TAHUN 5 · 3 SUBJEK'}` atau `null`): giliran utama yang ada pengikut dalam anugerah `gabungDahulu` dikumpul di bawah tajuk sendiri, satu blok per bilangan. Baris menyebut semua kategorinya (`agTeksKumpulBaris`). Dipakai di MC, Skrip MC (cetak), Hadiah, Peserta, Slaid. **Paparan sahaja** — `subId`, nombor dan tulisan hadir/mc tidak berubah; 👤 penyelaras tidak dipapar pada blok 🎁 (bukan kategori sebenar, id bermula `gabung:`).
 - **Senarai Hadiah PDF/Word/Excel juga diseragamkan** (pengguna: "mesti sama"): `agKiraSenaraiHadiah(penerima, majlis)` membawa `kumpul`; `agBlokHadiah(b)` memberi tajuk/kunci blok — `🎁 TAHUN 5 · 3 SUBJEK` + "1 hadiah setiap murid untuk semua subjek pada barisnya", subjek murid (`agTajukSubHadiah`) di bawah namanya. Excel kekal satu baris satu hadiah; lajur Sub/Gabung = `🎁 TAHUN 5 · 3 SUBJEK — TAHUN 5: BM + SN + SEJ`. Gabung biasa (anugerah tanpa 🎁 Paling banyak dahulu) kekal `🎁 GABUNG · …`.
 - Perubahan susunan → 16 entri lapuk (anugerah ini sahaja) sehingga admin tekan 🔁 Jana Semula.
+
+### 👪 Apps Ibu Bapa (`ibubapa.html` + tab admin `anugerah-ibubapa.js`) — 5 Nov 2026
+
+Satu link `ibubapa.html?m=<majlisId>` (tab 👪 Ibu Bapa → Salin link). Wajah halaman ikut **JAM**, bukan suis: `MAJLIS.ibubapa.bancian{buka,tutup}` dan `.daftar{buka,tutup}` (ms epoch, diisi `datetime-local`). Tetingkap bertindih → daftar menang. Tiada tetingkap = tertutup.
+
+- **Bancian:** KP anak → ＋ tambah anak → **wakil SEORANG** (nama + KP 12 digit + telefon, semua wajib) → hadir/tidak + dewasa (min 1) + kanak → ✓ + butang **Group WhatsApp** (`wa.on` + `wa.url` mesti `https://chat.whatsapp.com/`).
+- **Hari majlis:** Maklumat Majlis (dari `kadBaris` + `kadKaki` Kad Jemputan — tiada taip semula) + **Daftar Kehadiran** (cari no. telefon → bilangan sebenar → Daftar) + **Buku Program** (link Drive `buku`). Tiada QR, tiada atur cara, tiada giliran (pengguna).
+- **Walk-in:** "Cari dengan No. KP anak" — anak sudah ada keluarga → terus ke keluarga itu; tiada → aliran bancian yang terus mendaftar (`sumber:'walkin'`).
+
+**Data** — `anugerah_ibubapa/{majlis}__{telefon}` (satu doc SEKELUARGA) + `anugerah_ibubapa_kp/{majlis}__{kpAnak}` (indeks: **satu anak satu keluarga**, jadi adik-beradik tidak dikira dua kali). Peraturan "jangan regres":
+- KP anak sudah dalam keluarga lain → **tidak** ditambah; ibu bapa mesti menaip no. telefon keluarga itu (konflik) — kemudian dimuat & digabung.
+- Telefon sudah ada bancian → **digabung**, bukan ditindih. Tukar telefon → doc lama dipadam dalam commit yang sama. Anak dibuang → indeksnya dilepaskan.
+- Daftar menulis `updateMask:['daftar','hadir']` sahaja — bilangan bancian (dijangka) kekal untuk dibanding dengan bilangan sebenar.
+- **Tiada Firebase SDK** di halaman ibu bapa: Firestore REST + `fetch()` (±15 KB gzip seluruh halaman), carian satu doc ikut id dengan `mask.fieldPaths`. Jangan muat senarai murid ke telefon ibu bapa. Nama dipapar separa disorok (`sorok`).
+- Tetapan disimpan `update({ibubapa})`, **bukan** `simpanMajlis()` (merge mendalam mengekalkan medan yang dikosongkan). Kosong = lalai dari Tab Majlis (tajuk) — lalai = kelakuan lama.
+- Statistik per kelas dikira ikut **ANAK** (kunci darjah+kelas); bilangan orang hanya dalam KPI (keluarga merentas kelas). 🗑 Padam semua = taip PADAM.
+- Disahkan 5 Nov 2026 pada majlis ujian berasingan (dipadam selepas): 39 ujian unit + pilot bancian/konflik/gabung/tukar telefon/daftar/walk-in/5 keadaan jam + tab admin (KPI, simpan + 4 pengesahan, CSV, PADAM).

@@ -306,7 +306,7 @@ Symptom to recognise: console shows `❌ Cache read error: IndexedDB timeout (5s
 
 ### Modul Anugerah — rujukan penuh dalam `docs/ANUGERAH.md` (WAJIB BACA)
 
-**Sebelum mengubah mana-mana fail ini, baca `docs/ANUGERAH.md` dahulu:** `anugerah-admin.html`, `anugerah-kongsi.js`, `anugerah-kongsi.css`, `anugerah-sijil.js`, `anugerah-pptx.js`, `guru.html`, `guru-kelas.html`, `peserta.html`, `mc.html`, `hadiah.html`, `tayang.html` — dan juga `agKiraCalon` / tab 🏆 Anugerah dalam Guru Kelas (`gkaSemak`). Fail itu mengandungi setiap peraturan "jangan regres" modul ini; ia dipindah keluar (3 Nov 2026) hanya kerana CLAUDE.md melebihi had 150k aksara.
+**Sebelum mengubah mana-mana fail ini, baca `docs/ANUGERAH.md` dahulu:** `anugerah-admin.html`, `anugerah-kongsi.js`, `anugerah-kongsi.css`, `anugerah-sijil.js`, `anugerah-pptx.js`, `guru.html`, `guru-kelas.html`, `peserta.html`, `mc.html`, `hadiah.html`, `tayang.html`, `ibubapa.html`, `anugerah-ibubapa.js` — dan juga `agKiraCalon` / tab 🏆 Anugerah dalam Guru Kelas (`gkaSemak`). Fail itu mengandungi setiap peraturan "jangan regres" modul ini; ia dipindah keluar (3 Nov 2026) hanya kerana CLAUDE.md melebihi had 150k aksara.
 
 Peraturan paling berbahaya (ringkasan — butiran dalam `docs/ANUGERAH.md`):
 - **Penerima disimpan pada `subId`** — satu doc `anugerah_penerima` per MURID dengan array `anugerah[]` + `giliran[]`. Buang satu sub = tapis kedua-dua array seiring melalui `resetOps()`; padam doc hanya bila `anugerah[]` kosong.

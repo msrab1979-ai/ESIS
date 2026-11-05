@@ -497,6 +497,7 @@ tr.pg-gab td{background:var(--amaran-bg)}
       <button role="tab" aria-selected="false" data-t="kad">💌 Kad Jemputan</button>
       <button role="tab" aria-selected="false" data-t="sijil">🎓 Sijil</button>
       <button role="tab" aria-selected="false" data-t="petugas">🔗 Link Petugas</button>
+      <button role="tab" aria-selected="false" data-t="ibubapa">👪 Ibu Bapa</button>
     </nav>
   </div>
 </header>
@@ -1110,6 +1111,8 @@ tr.pg-gab td{background:var(--amaran-bg)}
       </div>
     </div>
   </section>
+  <!-- ============ 👪 IBU BAPA (anugerah-ibubapa.js) ============ -->
+  <section class="panel" id="p-ibubapa" hidden></section>
 </main>
 
 <div id="bekas-modal"></div>
@@ -1246,6 +1249,7 @@ function tukarTab(nama) {
   if (nama === 'kad') initKad();
   if (nama === 'sijil') sjInit();
   if (nama === 'petugas') lukisPetugas();
+  if (nama === 'ibubapa') ibInit();
 }
 
 
@@ -7947,5 +7951,6 @@ if (sessionStorage.getItem('ag_admin') === '1') mulaPanel();
 else $('sari').textContent = 'Masukkan kata laluan untuk mula.';
 </script>
 <script src="anugerah-sijil.js"></script>
+<script src="anugerah-ibubapa.js"></script>
 </body>
 </html>
