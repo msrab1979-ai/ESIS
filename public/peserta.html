@@ -172,6 +172,7 @@ const MENUNGGU = [];       // baris gilir luar talian [{docId, no, subId, nilai,
    yang baru ditekan melompat balik sekejap. */
 const TERBANG = {};
 const kunciTanda = t => t.docId + '|' + (t.no == null ? '' : t.no) + '|' + (t.subId || '');
+let ASAS = '';             // agTeksAsasPetugas — sama dgn MC / Hadiah / Slaid
 let CAP = '';              // cap jari paparan terakhir — langkau lukis bila sama
 /* Blok mana terbuka. Kekal antara lukisan — muat berkala 90s akan
    menutup semula apa yang pengurus peserta baru buka tanpa ini. */
@@ -252,6 +253,7 @@ async function muat(pertama, sedia) {
        setiap muat, jadi tukar 🎤 / 🙈 di admin terpakai pada 🔄. */
     const subPentas = agSubPentas(MAJLIS);
     const penerima = r.penerima.filter(p => agPenerimaPentas(p, subPentas));
+    ASAS = agTeksAsasPetugas(agKiraSkripMC(r.penerima, MAJLIS));
 
     MURID = penerima.map(p => {
       const gil = p.giliran || [];
@@ -308,7 +310,7 @@ function kemasSari() {
   const hadir = MURID.filter(m => m.status === 'hadir').length;
   $('sari').textContent = (MAJLIS.nama || '') +
     (MAJLIS.tarikh ? ' · ' + MAJLIS.tarikh : '') +
-    ' · ' + hadir + ' dari ' + MURID.length + ' murid sudah hadir';
+    ' · ' + ASAS + ' · ' + hadir + ' murid sudah hadir';
 }
 
 function isiDropdownDarjah() {
@@ -361,11 +363,10 @@ function lukis() {
     return true;
   });
 
-  /* 🔴 Kira giliran sama dengan MC: satu NOMBOR = satu giliran. Pengikut
-     gaya Gabung berkongsi nombor utama, jadi bukan giliran sendiri —
-     dahulu dikira mentah (437 di sini, 425 di MC, 5 Nov 2026). */
-  $('senarai-sub').textContent = MURID.length + ' murid · ' +
-    MURID.reduce((j, m) => j + agSemuaGiliran(m.giliran).length, 0) + ' giliran';
+  /* 🔴 Angka sama dengan MC: satu NOMBOR = satu giliran. Pengikut gaya
+     Gabung bukan giliran sendiri — dahulu dikira mentah (437 di sini,
+     425 di MC, 5 Nov 2026). */
+  $('senarai-sub').textContent = ASAS;
   $('tapis-kira').textContent = tapis.length === MURID.length
     ? '' : 'papar ' + tapis.length + ' dari ' + MURID.length;
 

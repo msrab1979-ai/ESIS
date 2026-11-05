@@ -246,6 +246,7 @@ async function muat(pertama, senyap, sedia) {
       b.lepas = nos.slice(b.ke);
     });
     senarai.majlis = r.majlis;
+    senarai.asas = agTeksAsasPetugas(agKiraSkripMC(penerima, r.majlis));
 
     /* 🧹 Admin reset → lukis terus, bukan butang merah. */
     if (BARIS.length && agAdaResetTanda(BARIS, senarai)) {
@@ -391,9 +392,11 @@ function status(b) {
 
 function kemasSari() {
   const perlu = BARIS.filter(b => status(b) !== 'absen').length;
+  const absen = BARIS.length - perlu;
   $('sari').textContent = (MAJLIS.nama || '') +
     (MAJLIS.tarikh ? ' · ' + MAJLIS.tarikh : '') +
-    ' · ' + perlu + ' hadiah perlu dibawa ke pentas';
+    ' · ' + BARIS.asas + ' · ' + perlu + ' hadiah perlu dibawa' +
+    (absen ? ' (' + absen + ' tidak hadir)' : '');
 }
 
 function isiDropdownAnugerah() {

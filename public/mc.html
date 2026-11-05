@@ -407,7 +407,7 @@ function kemasSari() {
   const sudah = BARIS.filter(b => b.mc === true).length;
   $('sari').textContent = (MAJLIS.nama || '') +
     (MAJLIS.tarikh ? ' · ' + MAJLIS.tarikh : '') +
-    ' · ' + sudah + ' dari ' + BARIS.length + ' giliran sudah naik';
+    ' · ' + agTeksAsasPetugas(KIRA) + ' · ' + sudah + ' sudah naik';
 }
 
 function isiDropdownAnugerah() {

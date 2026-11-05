@@ -828,3 +828,7 @@ Angka sebenar 4 Nov 2026: 312 murid, 333 tiket = 307 murid + 26 bukan murid, 5 m
 - **Murid lebih dari 1 anugerah:** jadual di skrin, susun bil. menurun kemudian nama.
 - CSV (`agMuatTurunCSV`) + PDF (dialog cetak) memuat semua pecahan + senarai (termasuk tidak naik pentas).
 - Angka di sini boleh berbeza dgn Skrip MC: Skrip MC menapis 🙈 sorok petugas, Analisa tidak.
+
+#### Angka asas sama di semua link petugas (5 Nov 2026)
+
+Pengguna: "mesti sama". Baris tajuk (`#sari`) Peserta · MC · Hadiah · Slaid kini bermula dengan teks yang SAMA — `agTeksAsasPetugas(agKiraSkripMC(penerima, majlis))` → `325 murid · 425 giliran` — kemudian angka tugas panel itu (hadir / sudah naik / perlu dibawa (N tidak hadir) / slaid). **Giliran = satu nombor**; pengikut gaya Gabung tidak dikira. Dahulu Peserta mengira `giliran[]` mentah (437) sedangkan MC 425 — beza tepat 12 pengikut. Panel baharu mesti memakai helper yang sama, bukan kiraan sendiri.

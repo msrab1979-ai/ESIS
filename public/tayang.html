@@ -159,6 +159,7 @@ body.penuh .pentas{
 let MAJLIS = null;
 let SLAID = [];          // [{anugerah, sub, orang:[{nama,tahun,kelas,no,mc,hadir}]}]
 let IDX = 0;
+let ASAS = '';             // agTeksAsasPetugas — sama dgn Peserta / MC / Hadiah
 let MOD = 'manual';
 let pemantau = null;
 
@@ -197,6 +198,7 @@ async function muat(pertama) {
     const r = await agMuatPetugas(MAJLIS);
     MAJLIS = r.majlis;
     const penerima = r.penerima;
+    ASAS = agTeksAsasPetugas(agKiraSkripMC(penerima, MAJLIS));
     bina(penerima);
     isiLompat();
     lukis();
@@ -247,7 +249,7 @@ function bina(penerima) {
 function kemasSari() {
   $('sari').textContent = (MAJLIS.nama || '') +
     (MAJLIS.tarikh ? ' · ' + MAJLIS.tarikh : '') +
-    ' · ' + SLAID.length + ' slaid';
+    ' · ' + ASAS + ' · ' + SLAID.length + ' slaid';
 }
 
 function isiLompat() {
@@ -368,9 +370,12 @@ function pasangMod() {
   pemantau = agDb.collection('anugerah_penerima')
     .where('majlisId', '==', MAJLIS.id)
     .onSnapshot(snap => {
-      bina(agTapisPenerimaPetugas(MAJLIS._penuh, snap.docs.map(d => ({ docId: d.id, ...d.data() }))));
+      const pen = agTapisPenerimaPetugas(MAJLIS._penuh, snap.docs.map(d => ({ docId: d.id, ...d.data() })));
+      ASAS = agTeksAsasPetugas(agKiraSkripMC(pen, MAJLIS));
+      bina(pen);
       majuAuto();
       lukis();
+      kemasSari();
     }, err => {
       console.error('Pemantau:', err.message);
       agToast('Pemantauan terputus — tukar ke manual kalau berterusan', 'ralat');

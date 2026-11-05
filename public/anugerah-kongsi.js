@@ -1697,6 +1697,14 @@ function agKiraSkripMC(penerima, majlis) {
            bilAnugerah, bilUlang, bilTiket, tanpaPentas, maks, jurang, pendua };
 }
 
+/* 🔴 Angka asas SAMA di Peserta · MC · Hadiah · Slaid (5 Nov 2026,
+   pengguna: "mesti sama"). Satu enjin — agKiraSkripMC: murid = orang
+   berbeza dgn ≥1 nombor, giliran = satu baris naik pentas (pengikut gaya
+   Gabung tidak dikira). Setiap panel menambah angka tugasnya SELEPAS ini. */
+function agTeksAsasPetugas(k) {
+  return k ? k.bilMurid + ' murid \u00b7 ' + k.bilBaris + ' giliran' : '';
+}
+
 /* Cetak melalui dialog cetak pelayar (Simpan sebagai PDF dari situ) —
    sama seperti sijil & Semak Penerima; tiada pustaka PDF dimuat.
    `w` = tetingkap yang SUDAH dibuka oleh pemanggil secara serentak dengan
