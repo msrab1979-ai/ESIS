@@ -1122,12 +1122,17 @@ function agGabungDahulu(majlis, turutan) {
     susunDj.forEach(d => {
       const kump = ikutDj[d];
       const bintang = [];
-      kump.forEach(x => {
+      kump.forEach((x, k) => {
         const id = x.p.docId;
         if (bil[id] >= 2 && pertama[id] === a.id && !bintang.some(b => b.p.docId === id))
-          bintang.push({ p: x.p, bil: bil[id] });
+          bintang.push({ p: x.p, bil: bil[id], k });
       });
-      bintang.sort((x, y) => y.bil - x.bil ||
+      /* paling banyak dahulu → kemudian ikut KATEGORI PERTAMA murid itu
+         dalam Susunan Naik Pentas (BM → BI → MT…) → nama. Tanpa langkah
+         kedua (ikut nama sahaja) bintang berselang BI, BM, BM, MT, BI, MT
+         (5 Nov 2026, pengguna: "giliran berterabur"). `k` = kedudukan
+         entri pertama murid itu dalam darjah ini = kategori pertamanya. */
+      bintang.sort((x, y) => y.bil - x.bil || x.k - y.k ||
         String(x.p.nama).localeCompare(String(y.p.nama), 'ms'));
       const ambil = new Set();
       bintang.forEach(b => kump.forEach((x, k) => {
@@ -1138,6 +1143,34 @@ function agGabungDahulu(majlis, turutan) {
     slot.forEach((i, k) => { keluar[i] = baru[k]; });
   });
   return keluar;
+}
+
+/* 🎁 Kumpulan PAPARAN bagi satu giliran utama (5 Nov 2026).
+   Anugerah 🎁 Paling banyak dahulu menaikkan murid pelbagai kategori
+   DAHULU dalam darjahnya, tetapi gilirannya berlabel kategori PERTAMA dia
+   — jadi bila panel mengumpul ikut sub, blok BM/BI/MT muncul, hilang dan
+   muncul semula (BM T5 = 157, 158, 162). Murid itu kini dikumpul di bawah
+   tajuk sendiri "🎁 TAHUN 5 · 3 SUBJEK", satu blok per bilangan.
+   🔴 PAPARAN sahaja: subId, nombor dan tulisan (hadir/mc) tidak berubah.
+   → null (baris biasa, kumpul ikut sub) atau { id, nama }. */
+function agKumpulGiliran(majlis, gil, g) {
+  if (!g || agGaya(majlis) !== 'gabung') return null;
+  const a = ((majlis && majlis.anugerah) || []).find(x => x.id === g.anugerahId);
+  if (!a || a.gabungDahulu !== true) return null;
+  if ((majlis.gabungKecuali || []).includes(a.id)) return null;
+  const ikut = agPengikutGiliran(gil, g);
+  if (!ikut.length) return null;
+  const bil = ikut.length + 1;
+  const dj = agDarjahSub((a.sub || []).find(s => s.id === g.subId));
+  const samaAn = ikut.every(x => x.anugerahId === g.anugerahId);
+  const jenis = !samaAn ? 'ANUGERAH' : a.asas === 'subjek' ? 'SUBJEK' : 'KATEGORI';
+  return { id: 'gabung:' + a.id + ':' + dj + ':' + bil,
+           nama: '\ud83c\udf81 ' + (dj ? 'TAHUN ' + dj + ' \u00b7 ' : '') + bil + ' ' + jenis };
+}
+
+/* Teks kategori bagi baris dalam blok 🎁: "TAHUN 5: BAHASA MELAYU + SAINS". */
+function agTeksKumpulBaris(b) {
+  return agTajukSubHadiah({ anugerah: b.anugerah, sub: b.sub, gabung: b.lain || b.gabung || [] });
 }
 
 /* 🔴 SATU-SATUNYA tempat yang memutuskan susunan murid dalam satu sub.
@@ -1674,6 +1707,7 @@ function agKiraSkripMC(penerima, majlis) {
     if (gil.length > 1) bilUlang++;
     if (gil.some(g => pentas.has(g.subId) && !rahsia.has(g.subId))) bilTiket++;
     utama.forEach((g, i) => baris.push({
+      kumpul: agKumpulGiliran(majlis, gil, g),
       no: g.no, docId: p.docId, nama: p.nama || '', tahun: p.tahun, kelas: p.kelas, luar: agAdalahLuar(p),
       anugerahId: g.anugerahId || g.anugerah, anugerah: g.anugerah || '', sub: g.sub || '',
       subId: g.subId || '', hadiah: g.hadiah || '', hadir: g.hadir,
@@ -1739,12 +1773,14 @@ function agCetakSkripMC(w, majlis, penerima) {
         '<span class="bil">' + n + ' giliran</span>' +
         (py ? '<div class="pny">👤 ' + py + '</div>' : '') + '</td></tr>';
     }
-    if (b.sub !== subAkhir) {
-      subAkhir = b.sub;
-      const sn = subNama(b);
-      const pyS = agPenyelarasHtml(b.anugerahId, b.subId);
+    /* 🎁 blok pelbagai kategori (agKumpulGiliran) = tajuk sendiri */
+    const kunciSub = x => x.kumpul ? x.kumpul.id : x.sub;
+    if (kunciSub(b) !== subAkhir) {
+      subAkhir = kunciSub(b);
+      const sn = b.kumpul ? b.kumpul.nama : subNama(b);
+      const pyS = b.kumpul ? '' : agPenyelarasHtml(b.anugerahId, b.subId);
       if (sn || b.hadiah || pyS) {
-        const n = bilDalam(i, x => x.anugerahId === b.anugerahId && x.sub === b.sub);
+        const n = bilDalam(i, x => x.anugerahId === b.anugerahId && kunciSub(x) === subAkhir);
         html += '<tr class="sub"><td colspan="5">' + E(sn || b.anugerah) +
           (b.hadiah ? ' <span class="hadiah">· ' + E(b.hadiah) + '</span>' : '') +
           '<span class="bil">' + n + '</span>' +
@@ -1754,7 +1790,8 @@ function agCetakSkripMC(w, majlis, penerima) {
     const nota = [];
     if (b.jum > 1) nota.push('<b>' + E(agTeksKe(b)) + '</b>',
       agTeksSemuaGiliran(b.semua, b.no).map(E).join('<br>'));
-    if (b.lain.length) nota.push('+ turut menerima: ' + b.lain.map(E).join(' · '));
+    if (b.kumpul) nota.push('<b>' + E(agTeksKumpulBaris(b)) + '</b>');
+    else if (b.lain.length) nota.push('+ turut menerima: ' + b.lain.map(E).join(' · '));
     if (b.hadir === false) nota.push('<b>TIDAK HADIR</b>');
     html += '<tr class="m' + (b.hadir === false ? ' absen' : '') + '">' +
       '<td class="kotak">☐</td><td class="no">' + b.no + '</td>' +

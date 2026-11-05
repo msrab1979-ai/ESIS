@@ -301,7 +301,8 @@ async function muat(pertama, senyap, sedia) {
           anugerah: g.anugerah, anugerahId: g.anugerahId,
           sub: g.sub, hadiah: g.hadiah || '',
           hadir: g.hadir, mc: g.mc,
-          lain: agPengikutGiliran(p.giliran, g).map(x => x.sub || x.anugerah)
+          lain: agPengikutGiliran(p.giliran, g).map(x => x.sub || x.anugerah),
+          kumpul: agKumpulGiliran(r.majlis, p.giliran, g)   // 🎁 blok pelbagai kategori
         });
       });
     });
@@ -461,9 +462,13 @@ function lukis() {
   const grup = [];
   tapis.forEach(b => {
     const akhir = grup[grup.length - 1];
-    if (akhir && akhir.sub === b.sub && akhir.anugerah === b.anugerah) akhir.baris.push(b);
+    /* 🎁 murid pelbagai kategori = blok sendiri (agKumpulGiliran), bukan
+       di bawah kategori pertamanya — kalau tidak BM/BI/MT berselang-seli */
+    const sub = b.kumpul ? b.kumpul.nama : b.sub;
+    if (akhir && akhir.sub === sub && akhir.anugerah === b.anugerah) akhir.baris.push(b);
     else grup.push({ anugerahId: b.anugerahId || b.anugerah, anugerah: b.anugerah,
-                     sub: b.sub, subId: b.subId, hadiah: b.hadiah, baris: [b] });
+                     sub, subId: b.kumpul ? b.kumpul.id : b.subId,
+                     hadiah: b.kumpul ? '' : b.hadiah, baris: [b] });
   });
 
   /* 🔴 ACCORDION DUA ARAS — sama corak dengan Pengurus Peserta dan
@@ -513,7 +518,8 @@ function lukis() {
         '" data-mc-sub="' + agEsc(kunci) + '">' +
         '<span class="anak-panah">\u25b6</span>' +
         '<span class="sub-nama">' + agEsc(nemaSub(g)) + '</span>' +
-        agPenyelarasTajuk(g.anugerahId, g.subId, nemaSub(g)) +   // 👤 per kategori
+        (String(g.subId).startsWith('gabung:') ? ''               // 🎁 blok bukan kategori sebenar
+          : agPenyelarasTajuk(g.anugerahId, g.subId, nemaSub(g))) +   // 👤 per kategori
         (g.hadiah ? ' <span class="pil tunggu">' + agEsc(g.hadiah) + '</span>' : '') +
         '<span class="bil-kep">' + kiraTeks(g.baris) + '</span>' +
         /* 🔴 Tanda pukal hantar INDEKS kumpulan, bukan nama — nama anugerah
@@ -576,7 +582,9 @@ function baris(b) {
     ? ' · <span class="pil absen">Tidak hadir — langkau</span>'
     : '';
   /* gaya GABUNG: anugerah lain yang MC umumkan serentak */
-  const lain = (b.lain || []).length
+  const lain = b.kumpul
+    ? '<div class="k">\ud83c\udf81 <strong>' + agEsc(agTeksKumpulBaris(b)) + '</strong></div>'
+    : (b.lain || []).length
     ? '<div class="k">+ turut menerima: <strong>' +
       b.lain.map(agEsc).join(' · ') + '</strong></div>'
     : '';

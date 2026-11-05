@@ -441,17 +441,18 @@ function lukis() {
     const dalam = blok.sub.map(g => {
       const acS = agAcaraHtml('sub:' + blok.anId + '|' + g.subId);   // 🎭
       if (satuSub) return '<ul class="senarai">' +
-        g.baris.map(b => baris(b.m, b.no, b.subId, b.st)).join('') + '</ul>' + acS;
+        g.baris.map(b => baris(b.m, b.no, b.subId, b.st, b.kump)).join('') + '</ul>' + acS;
       const bukaSub = !!BUKA_SUB[g.kunci];
       return '<div class="sub-kepala' + (bukaSub ? ' buka' : '') +
           '" data-sub-togol="' + agEsc(g.kunci) + '">' +
           '<span class="anak-panah">\u25b6</span>' +
           '<span class="sub-nama">' + agEsc(g.subNama) + '</span>' +
-          agPenyelarasTajuk(blok.anId, g.subId, g.subNama) +   // 👤 per kategori
+          (String(g.subId).startsWith('gabung:') ? ''
+            : agPenyelarasTajuk(blok.anId, g.subId, g.subNama)) +   // 👤 per kategori
           '<span class="bil-kep">' + kira(g.baris) + '</span>' +
         '</div>' +
         (bukaSub ? '<ul class="senarai">' +
-          g.baris.map(b => baris(b.m, b.no, b.subId, b.st)).join('') + '</ul>' : '') + acS;
+          g.baris.map(b => baris(b.m, b.no, b.subId, b.st, b.kump)).join('') + '</ul>' : '') + acS;
     }).join('');
 
     /* 📝 nota anugerah — sebaris nama, semua petugas boleh tulis */
@@ -483,8 +484,9 @@ function kumpulIkutGiliran(tapis, status) {
   tapis.forEach(m => { ikutDoc[m.docId] = m; });
 
   const keluar = [];
-  /* agSusunanSub: gaya ASAL = urutan anugerah → array a.sub (sama tepat
-     dengan kod lama); gaya Bebas = senarai susunanPentas admin. */
+  /* 🎁 murid pelbagai kategori (agKumpulGiliran) = kumpulan sendiri, bukan
+     di bawah kategori pertamanya — kalau tidak BM T5 memegang 157, 158, 162 */
+  const ikutKump = {};
   agSusunanSub(MAJLIS).forEach(({ a, s }) => {
     const baris = MURID
       .filter(m => (m.anugerah || []).some(x => x.subId === s.id))
@@ -494,9 +496,21 @@ function kumpulIkutGiliran(tapis, status) {
       .map(m => {
         const g = (m.giliran || []).find(x => x.subId === s.id);
         const mm = ikutDoc[m.docId] || m, no = g && g.no != null ? g.no : null;
-        return { m: mm, no, subId: s.id, st: statusBaris(mm, no, s.id) };
+        return { m: mm, no, subId: s.id, st: statusBaris(mm, no, s.id),
+                 kump: agKumpulGiliran(MAJLIS, m.giliran, g) };
       })
       .filter(b => !status || b.st === status)
+      .filter(b => {
+        if (!b.kump) return true;
+        let K = ikutKump[b.kump.id];
+        if (!K) {
+          K = ikutKump[b.kump.id] = { anId: a.id, anNama: a.nama, subNama: b.kump.nama,
+            subId: b.kump.id, kunci: a.id + '|' + b.kump.id, baris: [] };
+          keluar.push(K);
+        }
+        K.baris.push(b);
+        return false;
+      })
       /* Ikut NOMBOR GILIRAN — sama dengan MC. Sub yang disusun ikut
          kedudukan tidak lagi abjad, jadi menyusun nama di sini akan
          memberi pengurus peserta susunan berbeza daripada yang dipanggil.
@@ -524,6 +538,7 @@ function kumpulIkutGiliran(tapis, status) {
      dan slaid. Kalau admin menyeret Susunan Naik Pentas tanpa Jana Semula,
      panel ini dahulu mengikut susunan BAHARU sementara MC memanggil ikut
      nombor LAMA. Sub tanpa nombor kekal di bawah, ikut susunan admin. */
+  Object.values(ikutKump).forEach(K => K.baris.sort((x, y) => x.no - y.no));
   const noMin = g => {
     const n = g.baris.map(b => b.no).filter(x => typeof x === 'number');
     return n.length ? Math.min.apply(null, n) : Infinity;
@@ -552,7 +567,7 @@ function kad(angka, label, kecil, jenis) {
 
 /* `no` = nombor giliran BARIS INI (bukan semua nombor murid itu).
    `st` = status giliran ini sahaja. */
-function baris(m, no, subId, st) {
+function baris(m, no, subId, st, kump) {
   /* bilangan kali NAIK PENTAS — gaya GABUNG berkongsi satu nombor */
   const bil = agBilNaik(m.giliran);
   /* Murid berulang ditanda MERAH — dia perlu ditanda lagi pada
@@ -588,7 +603,12 @@ function baris(m, no, subId, st) {
   const utama = m.giliran.find(g => g.no === no && !agIkutSah(m.giliran, g));
   const serentak = utama ? agPengikutGiliran(m.giliran, utama) : [];
   /* murid berulang: "turut menerima" sudah ada dalam senarai giliran di bawah */
-  const notaGabung = serentak.length && !ulang
+  /* 🎁 dalam blok pelbagai kategori: tajuk tidak menyebut subjek, jadi
+     baris menyebut SEMUA kategori murid ini (termasuk yang pertama) */
+  const notaGabung = kump && utama
+    ? '<div class="k">\ud83c\udf81 <strong>' + agEsc(agTeksKumpulBaris({ anugerah: utama.anugerah,
+        sub: utama.sub, lain: serentak.map(g => g.sub || g.anugerah) })) + '</strong></div>'
+    : serentak.length && !ulang
     ? '<div class="k">+ turut menerima: ' +
       serentak.map(g => agEsc(agNamaGiliran(g))).join(' · ') + '</div>'
     : '';

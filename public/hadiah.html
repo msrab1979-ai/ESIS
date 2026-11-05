@@ -229,7 +229,8 @@ async function muat(pertama, senyap, sedia) {
           anugerah: g.anugerah, anugerahId: g.anugerahId,
           sub: g.sub, subId: g.subId,
           hadiah: hadiah.join(' \u00b7 '), hadir: g.hadir, mc: g.mc,
-          gabung: ikut.map(x => x.sub || x.anugerah)
+          gabung: ikut.map(x => x.sub || x.anugerah),
+          kumpul: agKumpulGiliran(r.majlis, gil, g)   // 🎁 blok pelbagai kategori
         });
       });
     });
@@ -467,9 +468,11 @@ function lukisSenarai() {
             kunci: asal || !ulang ? anId : anId + '#' + ulang };
       blok.push(A);
     }
-    const sId = b.subId || b.sub;
+    /* 🎁 murid pelbagai kategori = kumpulan sendiri (agKumpulGiliran);
+       tanpanya jadual BM T5 memegang 157, 158, 162 — nombor melompat */
+    const sId = b.kumpul ? b.kumpul.id : (b.subId || b.sub);
     let S = A.sub.find(x => x.subId === sId);
-    if (!S) { S = { subId: sId, sub: b.sub, anugerah: b.anugerah, baris: [] }; A.sub.push(S); }
+    if (!S) { S = { subId: sId, sub: b.kumpul ? b.kumpul.nama : b.sub, anugerah: b.anugerah, baris: [] }; A.sub.push(S); }
     S.baris.push(b);
   });
 
@@ -523,7 +526,8 @@ function lukisSenarai() {
           '" data-gil-sub="' + agEsc(kunci) + '">' +
           '<span class="anak-panah">\u25b6</span>' +
           '<span class="sub-nama">' + agEsc(nemaSub(S)) + '</span>' +
-          agPenyelarasTajuk(A.anugerahId, S.subId, nemaSub(S)) +   // 👤 per kategori
+          (String(S.subId).startsWith('gabung:') ? ''
+            : agPenyelarasTajuk(A.anugerahId, S.subId, nemaSub(S))) +   // 👤 per kategori
           '<span class="bil-kep">' + kira(S.baris) + '</span>' +
         '</div>' + (bukaSub ? jadual(S.baris) : '') + acS;
     }).join('');

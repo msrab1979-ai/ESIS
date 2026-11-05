@@ -832,3 +832,12 @@ Angka sebenar 4 Nov 2026: 312 murid, 333 tiket = 307 murid + 26 bukan murid, 5 m
 #### Angka asas sama di semua link petugas (5 Nov 2026)
 
 Pengguna: "mesti sama". Baris tajuk (`#sari`) Peserta · MC · Hadiah · Slaid kini bermula dengan teks yang SAMA — `agTeksAsasPetugas(agKiraSkripMC(penerima, majlis))` → `325 murid · 425 giliran` — kemudian angka tugas panel itu (hadir / sudah naik / perlu dibawa (N tidak hadir) / slaid). **Giliran = satu nombor**; pengikut gaya Gabung tidak dikira. Dahulu Peserta mengira `giliran[]` mentah (437) sedangkan MC 425 — beza tepat 12 pengikut. Panel baharu mesti memakai helper yang sama, bukan kiraan sendiri.
+
+#### 🎁 Paling banyak dahulu — blok sendiri, tidak berterabur (5 Nov 2026)
+
+Aduan: "giliran berterabur" dalam ANUGERAH TERBAIK MATA PELAJARAN. Nombor tidak rosak (0 lapuk) — puncanya **label**: murid pelbagai subjek naik dahulu tetapi gilirannya berlabel subjek PERTAMA dia, jadi panel yang mengumpul ikut sub memaparkan BM/BI/MT berselang-seli (BM T5 = 157, 158, 162). Pengguna mahu **kekal** paling banyak dahulu.
+
+- **Susunan** (`agGabungDahulu`): bilangan menurun → **kategori pertama murid dalam Susunan Naik Pentas** (`k`) → nama. Dahulu bilangan → nama sahaja.
+- **Paparan** (`agKumpulGiliran(majlis, gil, g)` → `{id:'gabung:<anId>:<darjah>:<bil>', nama:'🎁 TAHUN 5 · 3 SUBJEK'}` atau `null`): giliran utama yang ada pengikut dalam anugerah `gabungDahulu` dikumpul di bawah tajuk sendiri, satu blok per bilangan. Baris menyebut semua kategorinya (`agTeksKumpulBaris`). Dipakai di MC, Skrip MC (cetak), Hadiah, Peserta, Slaid. **Paparan sahaja** — `subId`, nombor dan tulisan hadir/mc tidak berubah; 👤 penyelaras tidak dipapar pada blok 🎁 (bukan kategori sebenar, id bermula `gabung:`).
+- Senarai Hadiah PDF/Word/Excel tidak diubah — tajuk per baris (`🎁 GABUNG · TAHUN 5: BM + SN + SEJ`) sudah jelas.
+- Perubahan susunan → 16 entri lapuk (anugerah ini sahaja) sehingga admin tekan 🔁 Jana Semula.
