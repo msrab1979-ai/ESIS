@@ -81,6 +81,15 @@ function ibBina() {
   #ib-jadual td.n,#ib-jadual th.n{text-align:right;font-variant-numeric:tabular-nums}
   #ib-jadual tfoot td{font-weight:700;border-top:2px solid var(--garis)}
   .ib-merah{color:var(--absen);font-weight:700}
+  .ib-klik{cursor:pointer}
+  .ib-klik:hover td{background:var(--kertas-3)}
+  .ibm-chip{border:1px solid var(--garis);background:var(--kertas-2);border-radius:20px;padding:5px 12px;font-size:12.5px;font-weight:600;color:var(--neutral)}
+  .ibm-chip.on{background:var(--tinta);border-color:var(--tinta);color:#fff}
+  .ibm-ok{color:var(--hadir);font-weight:700}
+  .ibm-borang td{background:var(--kertas-3)}
+  .ibm-borang .ib-medan{margin:0}
+  .ibm-borang input,.ibm-borang select{min-width:0;width:100%}
+  .ibm-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:end}
 </style>
 <div class="kad">
   <div class="kad-kepala"><h3>👪 Link Ibu Bapa</h3></div>
@@ -179,6 +188,7 @@ function ibBina() {
 <div class="kad">
   <div class="kad-kepala"><h3>📊 Bancian &amp; Pendaftaran</h3>
     <div class="kanan">
+      <span class="hint" style="align-self:center">Klik baris kelas untuk senarai murid</span>
       <button class="btn sunyi kecil" id="ib-muat">🔄 Muat semula</button>
       <button class="btn sunyi kecil" id="ib-csv">⬇ CSV keluarga</button>
       <button class="btn sunyi kecil" id="ib-csv-belum">⬇ CSV belum jawab</button>
@@ -326,9 +336,9 @@ function ibLukisStat() {
   $('ib-jadual').innerHTML = baris.length ?
     '<thead><tr><th>Kelas</th><th class="n">Murid penerima</th><th class="n">Sudah jawab</th><th class="n">Akan hadir</th>' +
     '<th class="n">Tidak hadir</th><th class="n">Belum jawab</th><th class="n">Daftar hari majlis</th></tr></thead><tbody>' +
-    baris.map(r => '<tr><td>' + agEsc(r.kelas) + '</td>' + td(r.pen) + td(r.jawab) + td(r.hadir) + td(r.tidak) +
+    baris.map(r => '<tr class="ib-klik" data-ib-kelas="' + agEsc(r.kelas) + '" title="Klik untuk senarai murid"><td><strong>' + agEsc(r.kelas) + '</strong> ›</td>' + td(r.pen) + td(r.jawab) + td(r.hadir) + td(r.tidak) +
       td(r.pen - r.jawab, true) + td(r.daftar) + '</tr>').join('') + '</tbody>' +
-    '<tfoot><tr><td>JUMLAH</td>' + td(jum.pen) + td(jum.jawab) + td(jum.hadir) + td(jum.tidak) + td(jum.pen - jum.jawab, true) + td(jum.daftar) + '</tr></tfoot>'
+    '<tfoot><tr class="ib-klik" data-ib-kelas="*" title="Klik untuk semua murid"><td>JUMLAH ›</td>' + td(jum.pen) + td(jum.jawab) + td(jum.hadir) + td(jum.tidak) + td(jum.pen - jum.jawab, true) + td(jum.daftar) + '</tr></tfoot>'
     : '<tbody><tr><td>Tiada murid penerima dalam majlis ini.</td></tr></tbody>';
 }
 
@@ -345,7 +355,7 @@ function ibCSV() {
       (k.murid || []).map(a => a.nama).join(' | '),
       (k.murid || []).map(a => agDarjahKelas(a.tahun, a.kelas)).join(' | '),
       k.hadir !== false ? 'HADIR' : 'TIDAK HADIR', k.dewasa || 0, k.kanak || 0, (k.dewasa || 0) + (k.kanak || 0),
-      d.bil || '', mD ? mD.toLocaleString('ms-MY') : '', k.sumber === 'walkin' ? 'WALK-IN' : 'BANCIAN',
+      d.bil || '', mD ? mD.toLocaleString('ms-MY') : '', ({ walkin: 'WALK-IN', admin: 'ADMIN' })[k.sumber] || 'BANCIAN',
       mH ? mH.toLocaleString('ms-MY') : '']);
   });
   agMuatTurunCSV(r, 'ibubapa-' + ibFail() + '.csv');
@@ -358,6 +368,203 @@ function ibCSVBelum() {
   const r = [['DARJAH', 'KELAS', 'NAMA MURID', 'NO KP']];
   belum.forEach(p => r.push([agWordDarjah(p.tahun) || p.tahun, agDarjahKelas(p.tahun, p.kelas), p.nama, ibTeks(p.no_kp)]));
   agMuatTurunCSV(r, 'ibubapa-belum-jawab-' + ibFail() + '.csv');
+}
+
+/* ==========================================================================
+   SENARAI MURID SATU KELAS — klik baris jadual (5 Nov 2026)
+   --------------------------------------------------------------------------
+   Sudah/belum daftar per murid + tindakan admin: ✅ Daftar · ✚ Daftar manual
+   (tiada bancian) · ✎ Ubah · ✕ Batal daftar · 🗑 Padam bancian.
+   🔴 Satu doc SEKELUARGA: tindakan pada seorang murid mengenai adik-beradiknya
+      juga (kelas lain). Baris menyebutnya supaya admin tidak terkejut.
+   🔴 Telefon = id doc keluarga, jadi TIDAK boleh diubah di sini (ibu bapa
+      sendiri boleh, melalui Ubah bancian — doc lama dipadam di sana).
+   🔴 Data ujian (🧪) tidak dipapar — ia bukan murid penerima.
+   ========================================================================== */
+let IBM = null;   // { kunci, tapis, cari, borang:{kp, mod} }
+
+function ibmBuka(kunci) {
+  IBM = { kunci, tapis: 'semua', cari: '', borang: null };
+  const lapis = bukaModal('<div class="kad-kepala"><h3 id="ibm-tajuk"></h3>' +
+    '<button class="b-tutup" data-ibm="tutup" aria-label="Tutup">×</button></div>' +
+    '<div class="kad-isi" id="ibm-isi"></div>', 'luas');
+  lapis.addEventListener('click', ibmKlik);
+  lapis.addEventListener('input', e => {
+    if (e.target.id === 'ibm-cari') { IBM.cari = e.target.value; ibmLukis(true); }
+  });
+  ibmLukis();
+}
+function ibmMurid() {
+  const peta = ibPetaAnak();
+  return ibMuridPenerima()
+    .filter(p => IBM.kunci === '*' || (agDarjahKelas(p.tahun, p.kelas) || '—') === IBM.kunci)
+    .map(p => ({ p, k: peta[p.no_kp] || null }))
+    .sort((a, b) => ibP(a.p.nama).localeCompare(ibP(b.p.nama)));
+}
+const ibmDaftar = k => !!(k && k.daftar && k.daftar.bil);
+const IBM_TAPIS = [
+  ['semua', 'Semua', () => true],
+  ['daftar', '✅ Sudah daftar', r => ibmDaftar(r.k)],
+  ['belum', 'Belum daftar', r => !ibmDaftar(r.k)],
+  ['tiada', 'Belum jawab bancian', r => !r.k],
+  ['tidak', 'Tidak hadir', r => r.k && r.k.hadir === false]
+];
+function ibmLukis(kekalCari) {
+  if (!IBM || !$('ibm-isi')) return;
+  const semua = ibmMurid();
+  const t = (IBM_TAPIS.find(x => x[0] === IBM.tapis) || IBM_TAPIS[0])[2];
+  const q = IBM.cari.trim().toUpperCase();
+  const rows = semua.filter(t).filter(r => !q || ibP(r.p.nama).toUpperCase().includes(q) || ibP(r.p.no_kp).includes(q));
+  const dft = semua.filter(r => ibmDaftar(r.k));
+  $('ibm-tajuk').textContent = (IBM.kunci === '*' ? 'Semua kelas' : IBM.kunci) + ' · ' + dft.length + ' / ' + semua.length + ' murid sudah daftar · ' +
+    dft.reduce((j, r) => j + (r.k.daftar.bil || 0), 0) + ' orang';
+  const chip = IBM_TAPIS.map(([id, lbl, f]) => '<button class="ibm-chip' + (IBM.tapis === id ? ' on' : '') + '" data-ibm="tapis" data-v="' + id + '">' +
+    lbl + ' (' + semua.filter(f).length + ')</button>').join(' ');
+  const kepala = '<div class="baris-input" style="align-items:center;margin-bottom:12px">' + chip +
+    '<input type="text" id="ibm-cari" placeholder="Cari nama / KP…" style="margin-left:auto;min-width:180px" value="' + agEsc(IBM.cari) + '"></div>';
+  const badan = rows.length ? rows.map(ibmBaris).join('') : '<tr><td colspan="6" class="hint">Tiada murid.</td></tr>';
+  const html = kepala + '<div class="gulung"><table><thead><tr><th>Nama murid</th>' + (IBM.kunci === '*' ? '<th>Kelas</th>' : '') +
+    '<th>Wakil · telefon</th><th>Bancian</th><th>Daftar hari majlis</th><th></th></tr></thead><tbody>' + badan + '</tbody></table></div>';
+  if (kekalCari && $('ibm-cari')) {   // jangan musnahkan kotak carian semasa menaip
+    $('ibm-isi').querySelector('tbody').innerHTML = badan;
+    $('ibm-isi').querySelectorAll('[data-ibm=tapis]').forEach((b, i) => {
+      b.textContent = IBM_TAPIS[i][1] + ' (' + semua.filter(IBM_TAPIS[i][2]).length + ')';
+    });
+  } else $('ibm-isi').innerHTML = html;
+}
+function ibmBaris(r) {
+  const { p, k } = r, kp = p.no_kp, sem = IBM.kunci === '*';
+  const adik = k ? (k.murid || []).filter(m => m.kp !== kp) : [];
+  const banc = !k ? '<span class="hint">Belum jawab</span>' :
+    (k.hadir !== false ? 'Hadir · ' + ((k.dewasa || 0) + (k.kanak || 0)) + ' orang' : '<span class="ib-merah">Tidak hadir</span>') +
+    (k.sumber === 'walkin' ? ' <span class="hint">(walk-in)</span>' : k.sumber === 'admin' ? ' <span class="hint">(admin)</span>' : '');
+  const d = k && k.daftar, m = d && ibMasa(d.masa);
+  const dft = ibmDaftar(k) ? '<span class="ibm-ok">✅ ' + d.bil + ' orang</span>' +
+    (m ? ' <span class="hint">' + agEsc(m.toLocaleTimeString('ms-MY', { hour: 'numeric', minute: '2-digit' })) +
+      (d.oleh === 'admin' ? ' · admin' : '') + '</span>' : '') : '—';
+  const btn = (aksi, lbl, kls) => '<button class="btn ' + (kls || 'sunyi') + ' kecil" data-ibm="' + aksi + '" data-kp="' + agEsc(kp) + '">' + lbl + '</button>';
+  const aksi = !k ? btn('baru', '✚ Daftar manual', 'emas')
+    : (ibmDaftar(k) ? btn('ubah', '✎ Ubah') + ' ' + btn('batal', '✕ Batal daftar')
+                    : btn('daftar', '✅ Daftar', 'emas') + ' ' + btn('ubah', '✎ Ubah'));
+  const kol = sem ? 6 : 5;
+  return '<tr><td><strong>' + agEsc(p.nama) + '</strong>' +
+    (adik.length ? '<div class="hint">+ adik-beradik: ' + adik.map(a => agEsc(agDarjahKelas(a.tahun, a.kelas))).join(', ') + '</div>' : '') + '</td>' +
+    (sem ? '<td>' + agEsc(agDarjahKelas(p.tahun, p.kelas)) + '</td>' : '') +
+    '<td>' + (k ? agEsc((k.wakil || {}).nama || '') + '<div class="hint">' + agEsc(k.telefon || '') + '</div>' : '—') + '</td>' +
+    '<td>' + banc + '</td><td>' + dft + '</td><td style="white-space:nowrap">' + aksi + '</td></tr>' +
+    (IBM.borang && IBM.borang.kp === kp ? '<tr class="ibm-borang"><td colspan="' + kol + '">' + ibmBorang(IBM.borang.mod, k) + '</td></tr>' : '');
+}
+function ibmBorang(mod, k) {
+  const f = (id, lbl, v, attr) => '<div class="ib-medan"><label for="' + id + '">' + lbl + '</label><input type="text" id="' + id + '" value="' + agEsc(v == null ? '' : v) + '"' + (attr || '') + '></div>';
+  const n = (id, lbl, v, min) => '<div class="ib-medan"><label for="' + id + '">' + lbl + '</label><input type="number" id="' + id + '" min="' + min + '" max="20" value="' + agEsc(v) + '"></div>';
+  const kaki = (lbl) => '<div style="display:flex;gap:8px;align-items:end"><button class="btn emas kecil" data-ibm="simpan">' + lbl + '</button>' +
+    '<button class="btn sunyi kecil" data-ibm="tutupBorang">Batal</button></div>';
+  if (mod === 'baru') return '<div class="ibm-g">' +
+    f('ibm-nama', 'Nama wakil *', '') + f('ibm-tel', 'No. telefon *', '', ' inputmode="tel"') +
+    f('ibm-wkp', 'No. KP wakil', '', ' inputmode="numeric"') + n('ibm-bil', 'Bilangan hadir *', 1, 1) + kaki('✅ Daftar') + '</div>' +
+    '<p class="hint" style="margin:8px 0 0">Tiada bancian — keluarga baharu dicipta dan terus berdaftar. Jika no. telefon sudah ada bancian, murid ini digabung ke keluarga itu.</p>';
+  const jum = k.hadir !== false ? (k.dewasa || 0) + (k.kanak || 0) : 0;
+  if (mod === 'daftar') return '<div class="ibm-g">' + n('ibm-bil', 'Bilangan hadir hari ini *', (k.daftar && k.daftar.bil) || jum || 1, 1) + kaki('✅ Daftar') + '</div>';
+  const w = k.wakil || {};
+  return '<div class="ibm-g">' + f('ibm-nama', 'Nama wakil', w.nama) + f('ibm-wkp', 'No. KP wakil', w.kp, ' inputmode="numeric"') +
+    '<div class="ib-medan"><label for="ibm-hadir">Bancian</label><select id="ibm-hadir"><option value="1"' + (k.hadir !== false ? ' selected' : '') +
+      '>Hadir</option><option value="0"' + (k.hadir === false ? ' selected' : '') + '>Tidak hadir</option></select></div>' +
+    n('ibm-dewasa', 'Dewasa', k.dewasa || 0, 0) + n('ibm-kanak', 'Kanak-kanak', k.kanak || 0, 0) +
+    f('ibm-bil', 'Daftar (orang) — kosong = belum', (k.daftar && k.daftar.bil) || '', ' inputmode="numeric"') + kaki('💾 Simpan') + '</div>' +
+    '<p class="hint" style="margin:8px 0 0">Telefon <strong>' + agEsc(k.telefon) + '</strong> tidak boleh diubah di sini (ibu bapa boleh, melalui Ubah bancian). ' +
+    ((k.murid || []).length > 1 ? 'Perubahan mengenai <strong>' + k.murid.length + ' anak</strong> dalam keluarga ini. ' : '') +
+    '<button class="btn bahaya kecil" data-ibm="padamKel" data-kp="' + agEsc(IBM.borang.kp) + '" style="margin-left:6px">🗑 Padam bancian keluarga</button></p>';
+}
+
+async function ibmKlik(e) {
+  const b = e.target.closest('[data-ibm]');
+  if (!b) return;
+  const aksi = b.dataset.ibm, kp = b.dataset.kp;
+  if (aksi === 'tutup') { tutupModal(); IBM = null; return; }
+  if (aksi === 'tapis') { IBM.tapis = b.dataset.v; IBM.borang = null; return ibmLukis(); }
+  if (aksi === 'tutupBorang') { IBM.borang = null; return ibmLukis(); }
+  if (['baru', 'daftar', 'ubah'].includes(aksi)) { IBM.borang = { kp, mod: aksi }; ibmLukis(); const f = $('ibm-isi').querySelector('.ibm-borang input'); if (f) f.focus(); return; }
+  const k = kp ? ibPetaAnak()[kp] : null;
+  if (aksi === 'batal') {
+    if (!confirm('Batal pendaftaran keluarga ' + ((k.wakil || {}).nama || k.telefon) + '?\nBancian (bilangan dijangka) kekal.')) return;
+    return ibmTulis(b, () => agDb.collection('anugerah_ibubapa').doc(k.docId).update({ daftar: null }), 'Pendaftaran dibatalkan');
+  }
+  if (aksi === 'padamKel') {
+    const kp2 = b.dataset.kp, k2 = ibPetaAnak()[kp2];
+    if (!confirm('Padam bancian keluarga ' + ((k2.wakil || {}).nama || k2.telefon) + ' (' + (k2.murid || []).length + ' anak)?\nIbu bapa perlu isi semula.')) return;
+    const bt = agDb.batch();
+    bt.delete(agDb.collection('anugerah_ibubapa').doc(k2.docId));
+    (k2.murid || []).forEach(m => bt.delete(agDb.collection('anugerah_ibubapa_kp').doc(MAJLIS.id + '__' + m.kp)));
+    IBM.borang = null;
+    return ibmTulis(b, () => bt.commit(), 'Bancian keluarga dipadam');
+  }
+  if (aksi === 'simpan') return ibmSimpan(b);
+}
+
+async function ibmSimpan(b) {
+  const { kp, mod } = IBM.borang, k = ibPetaAnak()[kp];
+  const v = id => ($(id) ? $(id).value.trim() : '');
+  const bil = parseInt(v('ibm-bil'), 10);
+  const masa = new Date();
+  if (mod === 'daftar') {
+    if (!(bil >= 1)) return agToast('Bilangan hadir mesti sekurang-kurangnya 1', 'ralat');
+    return ibmTulis(b, () => agDb.collection('anugerah_ibubapa').doc(k.docId)
+      .update({ daftar: { bil, masa, oleh: 'admin' }, hadir: true, dikemaskini: masa }), 'Didaftar · ' + bil + ' orang');
+  }
+  if (mod === 'ubah') {
+    const dewasa = parseInt(v('ibm-dewasa'), 10) || 0, kanak = parseInt(v('ibm-kanak'), 10) || 0;
+    const hadir = v('ibm-hadir') === '1';
+    if (v('ibm-bil') && !(bil >= 1)) return agToast('Daftar (orang) mesti nombor ≥ 1, atau kosong', 'ralat');
+    if (hadir && dewasa < 1) return agToast('Hadir: dewasa sekurang-kurangnya 1', 'ralat');
+    const daftar = v('ibm-bil') ? { bil, masa: (k.daftar && k.daftar.masa) || masa, oleh: (k.daftar && k.daftar.oleh) || 'admin' } : null;
+    return ibmTulis(b, () => agDb.collection('anugerah_ibubapa').doc(k.docId).update({
+      wakil: { nama: v('ibm-nama').toUpperCase(), kp: v('ibm-wkp').replace(/\D/g, '') },
+      hadir, dewasa: hadir ? dewasa : 0, kanak: hadir ? kanak : 0, daftar, dikemaskini: masa
+    }), 'Disimpan');
+  }
+  /* baru: tiada bancian → cipta keluarga (atau gabung ke no. telefon sedia ada) */
+  const nama = v('ibm-nama').toUpperCase().replace(/\s+/g, ' ');
+  let tel = v('ibm-tel').replace(/\D/g, '');
+  if (tel.startsWith('60')) tel = tel.slice(1);
+  if (nama.length < 3) return agToast('Isi nama wakil', 'ralat');
+  if (!/^0\d{8,10}$/.test(tel)) return agToast('No. telefon tidak sah (cth 0123456789)', 'ralat');
+  if (!(bil >= 1)) return agToast('Bilangan hadir mesti sekurang-kurangnya 1', 'ralat');
+  const p = ibMuridPenerima().find(x => x.no_kp === kp);
+  const anak = { kp, nama: ibP(p.nama).toUpperCase(), tahun: p.tahun || '', kelas: p.kelas || '' };
+  const ref = agDb.collection('anugerah_ibubapa').doc(MAJLIS.id + '__' + tel);
+  return ibmTulis(b, async () => {
+    const ada = await ref.get();
+    const bt = agDb.batch();
+    if (ada.exists) {
+      const x = ada.data();
+      bt.update(ref, { murid: (x.murid || []).filter(m => m.kp !== kp).concat([anak]),
+        daftar: { bil, masa, oleh: 'admin' }, hadir: true, dikemaskini: masa });
+    } else {
+      bt.set(ref, { majlisId: MAJLIS.id, telefon: tel, wakil: { nama, kp: v('ibm-wkp').replace(/\D/g, '') },
+        murid: [anak], hadir: true, dewasa: bil, kanak: 0, sumber: 'admin', ujian: false,
+        daftar: { bil, masa, oleh: 'admin' }, dihantar: masa, dikemaskini: masa });
+    }
+    bt.set(agDb.collection('anugerah_ibubapa_kp').doc(MAJLIS.id + '__' + kp), { majlisId: MAJLIS.id, no_kp: kp, telefon: tel });
+    await bt.commit();
+    if (ada.exists) agToast('No. telefon ini sudah ada bancian — murid digabung ke keluarga itu', 'ok');
+  }, 'Didaftar · ' + bil + ' orang');
+}
+
+/* Tulis → baca semula keluarga (satu pertanyaan) → lukis semula jadual & modal. */
+async function ibmTulis(btn, kerja, mesej) {
+  btn.disabled = true;
+  try {
+    await kerja();
+    const snap = await agDb.collection('anugerah_ibubapa').where('majlisId', '==', MAJLIS.id).get();
+    IB_KEL = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
+    if (IBM) IBM.borang = null;
+    ibLukisStat(); ibLukisUji(); ibmLukis();
+    agToast(mesej, 'ok');
+  } catch (e) {
+    console.error(e);
+    agToast('Gagal: ' + e.message, 'ralat');
+    btn.disabled = false;
+  }
 }
 
 /* ---------- 🧪 ID ujian ---------- */
@@ -449,7 +656,9 @@ function ibInit() {
     $('ib-u-kp').addEventListener('keydown', e => { if (e.key === 'Enter') ibUjiTambah(); });
     p.addEventListener('click', e => {
       const x = e.target.closest('[data-ib-uji-padam]');
-      if (x) ibUjiPadam(x.dataset.ibUjiPadam);
+      if (x) return ibUjiPadam(x.dataset.ibUjiPadam);
+      const r = e.target.closest('[data-ib-kelas]');
+      if (r) ibmBuka(r.dataset.ibKelas);
     });
     $('ib-salin').onclick = async () => {
       try { await navigator.clipboard.writeText(ibLink()); agToast('Link disalin', 'ok'); }
