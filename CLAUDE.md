@@ -50,7 +50,7 @@ The entire application lives in a **single file**: `public/index.html` (~10,070 
 4. **Murid Terbaik** — Student rankings
 5. **Guru Kelas** — Manage student roster (4 tabs: Tambah / Lihat-Edit / Status Pengisian / **Markah Kelas**)
 6. **Headcount** — Target tracking (TOV/OTI/ETR/AR)
-7. **Anugerah** — Award ceremony module, separate pages (`anugerah-admin.html` + peserta/hadiah/mc/tayang)
+7. **Anugerah** — Award ceremony module, separate pages (`anugerah-admin.html` + peserta/hadiah/mc/tayang + **`ibubapa.html`** apps ibu bapa: bancian & daftar hari majlis, tab admin 👪 Ibu Bapa)
 8. **ESIS Helper** — Install guide for the ESIS→SPPB mark helper (`helper-sppb.html`); see its section below
 9. **Markah Ujian Khas** — Guru subjek isi markah kelasnya sendiri (`markah-guru.html`); pentadbir lihat semua. Lihat bahagiannya di bawah
 10. **Admin Panel** (password-protected) — System configuration
@@ -320,6 +320,7 @@ Peraturan paling berbahaya (ringkasan — butiran dalam `docs/ANUGERAH.md`):
 - **Lalai = kelakuan lama**: medan baharu yang tiada mesti bermaksud kelakuan sebelum ciri itu wujud (`[]` = semua subjek, tiada `gayaGiliran` = `'asal'`, tiada `pentas` = naik pentas).
 - **Pendengar klik: butang disemak SEBELUM `.induk[data-togol]`** — butang duduk dalam baris accordion.
 - **`anugerah_nota` membawa tiga jenis** (4 Nov 2026): nota biasa (`!jenis`), `jenis:'penyelaras'` (teks bebas per anugerah/kategori), `jenis:'acara'` (persembahan/ucapan diselit di mana-mana). Penapis nota biasa mesti `!n.jenis`; 🗑 Padam semua nota hanya memadam nota biasa. Papan Nota Petugas umum sudah dibuang.
+- **👪 `ibubapa.html` tiada Firebase SDK** (REST + fetch, ±15 KB gzip) — carian satu doc ikut id; satu doc SEKELUARGA (`anugerah_ibubapa`, id = telefon) + indeks satu anak satu keluarga (`anugerah_ibubapa_kp`); ID ujian dalam koleksi berasingan `anugerah_ibubapa_uji`, keluarga `ujian:true` dikecualikan dari statistik. Tetapan `MAJLIS.ibubapa` ditulis `update()`, bukan merge.
 - **Modul Anugerah TIDAK ditapis `diterbit`** (`agMuatMarkah`) dan **tiada dark mode** (termasuk `markah-guru.html`, yang berkongsi `anugerah-kongsi.css`).
 
 ### Markah Ujian Khas (`public/markah-guru.html` + `markah-guru.js`)
