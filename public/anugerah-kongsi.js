@@ -1871,7 +1871,7 @@ function agCetakSkripMC(w, majlis, penerima) {
       ("TAHUN 5: BAHASA MELAYU + SAINS"). Sama peraturan dgn hadiah.html.
    🔴 Tidak hadir KEKAL dicetak (dicoret) — nombor tidak melompat dan
       petugas tidak hilang tempat. */
-function agKiraSenaraiHadiah(penerima) {
+function agKiraSenaraiHadiah(penerima, majlis) {
   const baris = [];
   (penerima || []).forEach(p => {
     const gil = (p.giliran || []).filter(g => g.no != null);
@@ -1882,6 +1882,7 @@ function agKiraSenaraiHadiah(penerima) {
         no: g.no, docId: p.docId, nama: p.nama || '', tahun: p.tahun, kelas: p.kelas, luar: agAdalahLuar(p),
         anugerahId: g.anugerahId || g.anugerah, anugerah: g.anugerah || '', sub: g.sub || '',
         subId: g.subId || '', gabung: ikut.map(x => x.sub || x.anugerah), hadiah: hadiah.join(' · '),
+        kumpul: agKumpulGiliran(majlis, gil, g),   // 🎁 blok sama dgn MC/Slaid/Peserta
         hadir: g.hadir, mc: g.mc, semua: agSemuaGiliran(gil)
       });
     });
@@ -1922,9 +1923,18 @@ function agTajukSubHadiah(b) {
   return semua.map(pendek).map((n, i) => n || semua[i]).join(' + ');
 }
 
+/* Tajuk + kunci blok dalam Senarai Hadiah (PDF/Word). 🎁 blok pelbagai
+   kategori = "🎁 TAHUN 5 · 3 SUBJEK", SAMA dengan MC / Slaid / Peserta
+   (5 Nov 2026, pengguna: "mesti sama"); subjek murid disebut pada barisnya. */
+function agBlokHadiah(b) {
+  if (b.kumpul) return { tajuk: b.kumpul.nama, kunci: b.kumpul.id, gab: true };
+  const tajuk = agTajukSubHadiah(b);
+  return { tajuk, kunci: tajuk + '|' + b.hadiah, gab: b.gabung.length > 0 };
+}
+
 /* `w` = tetingkap yang SUDAH dibuka oleh pemanggil sebelum await. */
 function agCetakSenaraiHadiah(w, majlis, penerima) {
-  const r = agKiraSenaraiHadiah(agTapisPenerimaPetugas(majlis, penerima));
+  const r = agKiraSenaraiHadiah(agTapisPenerimaPetugas(majlis, penerima), majlis);
   const E = agEsc;
   const dijana = new Date().toLocaleString('ms-MY', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -1947,20 +1957,20 @@ function agCetakSenaraiHadiah(w, majlis, penerima) {
     const n = B.baris.length;
     let isi = '', kunciAkhir = null;
     B.baris.forEach((b, i) => {
-      const tajuk = agTajukSubHadiah(b);
-      const kunci = tajuk + '|' + b.hadiah;
+      const { tajuk, kunci, gab } = agBlokHadiah(b);
       if (kunci !== kunciAkhir) {
         kunciAkhir = kunci;
         let bil = 0;
-        for (let k = i; k < n && agTajukSubHadiah(B.baris[k]) + '|' + B.baris[k].hadiah === kunci; k++) bil++;
-        const pyS = agPenyelarasHtml(b.anugerahId, b.subId);
+        for (let k = i; k < n && agBlokHadiah(B.baris[k]).kunci === kunci; k++) bil++;
+        const pyS = b.kumpul ? '' : agPenyelarasHtml(b.anugerahId, b.subId);
         if (tajuk || b.hadiah || pyS) {
-          isi += '<tr class="sub' + (b.gabung.length ? ' gab' : '') + '"><td colspan="' + lajur + '">' +
-            (b.gabung.length ? '🎁 GABUNG · ' : '') + E(tajuk || b.anugerah) +
-            (b.hadiah ? ' <span class="hadiah">· ' + E(b.hadiah) + '</span>' : '') +
+          isi += '<tr class="sub' + (gab ? ' gab' : '') + '"><td colspan="' + lajur + '">' +
+            (gab && !b.kumpul ? '🎁 GABUNG · ' : '') + E(tajuk || b.anugerah) +
+            (b.hadiah && !b.kumpul ? ' <span class="hadiah">· ' + E(b.hadiah) + '</span>' : '') +
             '<span class="bil">' + bil + ' hadiah</span>' +
             (pyS ? '<div class="pny">👤 ' + pyS + '</div>' : '') +
-            (b.gabung.length ? '<div class="ket-gab">1 hadiah untuk semua anugerah di atas</div>' : '') +
+            (b.kumpul ? '<div class="ket-gab">1 hadiah setiap murid untuk semua subjek pada barisnya</div>'
+              : gab ? '<div class="ket-gab">1 hadiah untuk semua anugerah di atas</div>' : '') +
             '</td></tr>';
         }
       }
@@ -1971,6 +1981,8 @@ function agCetakSenaraiHadiah(w, majlis, penerima) {
         '<td class="no">' + b.no + '</td>' +
         '<td class="kls">' + E(b.luar ? '' : agDarjahKelas(b.tahun, b.kelas)) + '</td>' +
         '<td class="nama">' + E(b.nama) +
+          (b.kumpul ? '<div class="ke">🎁 ' + E(agTajukSubHadiah(b)) +
+            (b.hadiah ? ' · ' + E(b.hadiah) : '') + '</div>' : '') +
           (b.jum > 1 ? '<div class="ke">' + E(agTeksKe(b)) + '</div>' +
             '<div class="gil">' + agTeksSemuaGiliran(b.semua, b.no).map(E).join('<br>') + '</div>' : '') +
         '</td><td class="st">' + st + '</td></tr>';
@@ -2070,7 +2082,7 @@ async function agMuatTurunSenaraiHadiahWord(majlis, penerima) {
       document.head.appendChild(s);
     });
   }
-  const r = agKiraSenaraiHadiah(agTapisPenerimaPetugas(majlis, penerima));
+  const r = agKiraSenaraiHadiah(agTapisPenerimaPetugas(majlis, penerima), majlis);
   const X = s => agEsc(String(s == null ? '' : s).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ''));
   const dijana = new Date().toLocaleString('ms-MY', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -2161,21 +2173,21 @@ async function agMuatTurunSenaraiHadiahWord(majlis, penerima) {
 
     let kunciAkhir = null;
     B.baris.forEach((b, i) => {
-      const tajuk = agTajukSubHadiah(b);
-      const kunci = tajuk + '|' + b.hadiah;
+      const { tajuk, kunci, gab } = agBlokHadiah(b);
       if (kunci !== kunciAkhir) {
         kunciAkhir = kunci;
         let bil = 0;
-        for (let k = i; k < n && agTajukSubHadiah(B.baris[k]) + '|' + B.baris[k].hadiah === kunci; k++) bil++;
-        const pyS = agPenyelarasTeks(b.anugerahId, b.subId);
+        for (let k = i; k < n && agBlokHadiah(B.baris[k]).kunci === kunci; k++) bil++;
+        const pyS = b.kumpul ? '' : agPenyelarasTeks(b.anugerahId, b.subId);
         if (tajuk || b.hadiah || pyS) {
-          let isi = run((b.gabung.length ? '🎁 GABUNG · ' : '') + (tajuk || b.anugerah), { b: true, sz: 19 }) +
-            (b.hadiah ? run(' · ' + b.hadiah, { sz: 18, warna: '444444' }) : '') +
+          let isi = run((gab && !b.kumpul ? '🎁 GABUNG · ' : '') + (tajuk || b.anugerah), { b: true, sz: 19 }) +
+            (b.hadiah && !b.kumpul ? run(' · ' + b.hadiah, { sz: 18, warna: '444444' }) : '') +
             run('   (' + bil + ' hadiah)', { sz: 17, warna: '444444' });
           let p = para(isi, { keep: true });
           if (pyS) p += para(run('👤 ' + pyS, { sz: 17 }), { keep: true });
-          if (b.gabung.length) p += para(run('1 hadiah untuk semua anugerah di atas', { sz: 16, warna: '444444' }), { keep: true });
-          t += baris(sel(p, { w: 10660, span: 6, isi: b.gabung.length ? 'FFF3D6' : 'F7F7F7' }));
+          if (gab) p += para(run(b.kumpul ? '1 hadiah setiap murid untuk semua subjek pada barisnya'
+            : '1 hadiah untuk semua anugerah di atas', { sz: 16, warna: '444444' }), { keep: true });
+          t += baris(sel(p, { w: 10660, span: 6, isi: gab ? 'FFF3D6' : 'F7F7F7' }));
         }
       }
       const absen = b.hadir === false;
@@ -2188,6 +2200,8 @@ async function agMuatTurunSenaraiHadiahWord(majlis, penerima) {
         sel(para(run(b.no, Object.assign({ b: true, sz: 24 }, o)), { jc: 'right' }), { w: LEBAR[2] }) +
         sel(para(run(b.luar ? '' : agDarjahKelas(b.tahun, b.kelas), Object.assign({ sz: 18 }, o))), { w: LEBAR[3] }) +
         sel(para(run(b.nama, Object.assign({ b: true, sz: 21 }, o))) +
+          (b.kumpul ? para(run('🎁 ' + agTajukSubHadiah(b) + (b.hadiah ? ' · ' + b.hadiah : ''),
+            { b: true, sz: 16, warna: '333333' })) : '') +
           (b.jum > 1 ? para(run(agTeksKe(b), { sz: 16, warna: '333333' })) +
             agTeksSemuaGiliran(b.semua, b.no).map(t => para(run(t, { sz: 15, warna: '333333' }))).join('') : ''),
           { w: LEBAR[4] }) +
@@ -2264,7 +2278,7 @@ async function agMuatTurunSenaraiHadiahExcel(majlis, penerima) {
       document.head.appendChild(s);
     });
   }
-  const r = agKiraSenaraiHadiah(agTapisPenerimaPetugas(majlis, penerima));
+  const r = agKiraSenaraiHadiah(agTapisPenerimaPetugas(majlis, penerima), majlis);
   const X = s => agEsc(String(s == null ? '' : s).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ''));
   const dijana = new Date().toLocaleString('ms-MY', { dateStyle: 'medium', timeStyle: 'short' });
   const huruf = i => String.fromCharCode(65 + i);
@@ -2307,7 +2321,7 @@ async function agMuatTurunSenaraiHadiahExcel(majlis, penerima) {
       [b.jum > 1 ? [agTeksKe(b)].concat(agTeksSemuaGiliran(b.semua, b.no)).join(' | ') : '', s],
       [b.anugerah, s],
       [[agPenyelarasTeks(b.anugerahId, ''), agPenyelarasTeks(b.anugerahId, b.subId)].filter(Boolean).join(' · '), s],
-      [(b.gabung.length ? '🎁 GABUNG · ' : '') + (tajuk || ''), s],
+      [b.kumpul ? b.kumpul.nama + ' — ' + tajuk : (b.gabung.length ? '🎁 GABUNG · ' : '') + (tajuk || ''), s],
       [b.hadiah, s],
       [absen ? 'TIDAK HADIR' : b.mc === true ? 'Sudah diambil' : '', absen ? 5 : 0],
       ['☐', 0], ['☐', 0]
