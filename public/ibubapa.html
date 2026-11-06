@@ -641,8 +641,13 @@ async function simpanWakil() {
   vHadir();
 }
 
+/* Had orang sekeluarga (MAJLIS.ibubapa.had). 0/tiada = had lama (10 dewasa/10 kanak, 15 daftar). */
+const hadMaks = () => (CFG.had > 0 ? CFG.had : 0);
+
 function vHadir() {
-  const walk = S.mod === 'walkin';
+  const walk = S.mod === 'walkin', had = hadMaks();
+  /* Bancian lama boleh melebihi had baharu → dipotong (kanak-kanak dahulu). */
+  if (had) { S.dewasa = Math.min(S.dewasa, had); S.kanak = Math.min(S.kanak, had - S.dewasa); }
   lukis(kepalaKecil(walk ? 'semak' : 'daftar', walk ? 'PENDAFTARAN' : 'BANCIAN', walk ? 'Bilangan hadir hari ini' : 'Adakah anda akan hadir?') +
     '<div class="badan">' +
     (S.gabung ? '<div class="ok-nota">Bancian sedia ada untuk no. telefon ini dijumpai — anak digabungkan dalam satu keluarga.</div>' : '') +
@@ -651,6 +656,7 @@ function vHadir() {
     (S.hadir ? '<div class="kad" style="padding:6px 15px">' +
       '<div class="step"><div class="lbl">Dewasa<small>Termasuk wakil</small></div><div class="ctr"><button data-k="dewasa" data-d="-1">−</button><b id="n-dewasa">' + S.dewasa + '</b><button class="p" data-k="dewasa" data-d="1">+</button></div></div>' +
       '<div class="step"><div class="lbl">Kanak-kanak<small>Selain penerima anugerah</small></div><div class="ctr"><button data-k="kanak" data-d="-1">−</button><b id="n-kanak">' + S.kanak + '</b><button class="p" data-k="kanak" data-d="1">+</button></div></div>' +
+      (had ? '<div class="kecil" style="padding:4px 0 8px">Maksimum <b style="color:var(--teks)">' + had + ' orang</b> sekeluarga (dewasa + kanak-kanak).</div>' : '') +
       '</div>' : '') +
     '<div class="kad" style="padding:11px 15px"><div class="kecil">Wakil: <b style="color:var(--teks)">' + esc(S.wakil.nama) + '</b><br>Anak: ' +
       S.anak.map(a => esc(sorok(a.nama).split(' ').slice(0, 2).join(' '))).join(' · ') + '</div></div>' +
@@ -663,7 +669,8 @@ function vHadir() {
   }
   $('app').querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
     const k = b.dataset.k, min = k === 'dewasa' ? 1 : 0;
-    S[k] = Math.min(10, Math.max(min, S[k] + Number(b.dataset.d)));
+    const maks = had ? had - (k === 'dewasa' ? S.kanak : S.dewasa) : 10;
+    S[k] = Math.min(maks, Math.max(min, S[k] + Number(b.dataset.d)));
     $('n-' + k).textContent = S[k];
   });
   $('b-balik').onclick = () => { S.ralat = ''; vWakil(); };
@@ -777,18 +784,20 @@ function vDaftarKel() {
   const k = S.asal, d = k.daftar;
   if (d && d.bil) S.bil = d.bil;
   else S.bil = Math.max(1, (k.hadir !== false ? (k.dewasa || 0) + (k.kanak || 0) : 0) || 1);
+  const had = hadMaks();
+  if (had) S.bil = Math.min(S.bil, had);
   lukis(kepalaKecil('keluarga', 'PENDAFTARAN', 'Keluarga anda') +
     '<div class="badan">' + senaraiAnak(false) +
     (d ? '<div class="ok-nota">Sudah berdaftar pada ' + esc(jam(masaJadi(d.masa))) + ' · ' + d.bil + ' orang. Anda boleh kemas kini bilangan.</div>' : '') +
     '<div class="kad" style="padding:6px 15px"><div class="step"><div class="lbl">Hadir hari ini<small>' +
-      (k.hadir !== false ? 'Bancian: ' + ((k.dewasa || 0) + (k.kanak || 0)) + ' orang' : 'Bancian: tidak hadir') +
+      (k.hadir !== false ? 'Bancian: ' + ((k.dewasa || 0) + (k.kanak || 0)) + ' orang' : 'Bancian: tidak hadir') + (had ? ' · maksimum ' + had + ' orang' : '') +
     '</small></div><div class="ctr"><button data-d="-1">−</button><b id="n-bil">' + S.bil + '</b><button class="p" data-d="1">+</button></div></div></div>' +
     '<div class="kecil">Wakil: <b style="color:var(--teks)">' + esc((k.wakil || {}).nama) + '</b></div>' +
     ralatHTML() + '<div style="flex:1"></div>' +
     '<div style="display:flex;gap:8px"><button class="btn garis pejal" id="b-balik" style="flex:1">' + ik('kiri') + '</button>' +
     '<button class="btn emas" id="b-daftar" style="flex:4">' + ik('semak') + (d ? 'Kemas kini' : 'Daftar') + '</button></div></div>');
   $('app').querySelectorAll('[data-d]').forEach(b => b.onclick = () => {
-    S.bil = Math.min(15, Math.max(1, S.bil + Number(b.dataset.d))); $('n-bil').textContent = S.bil;
+    S.bil = Math.min(had || 15, Math.max(1, S.bil + Number(b.dataset.d))); $('n-bil').textContent = S.bil;
   });
   $('b-balik').onclick = () => { S = baru(); vDaftarTel(); };
   $('b-daftar').onclick = daftar;

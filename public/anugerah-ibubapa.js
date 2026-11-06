@@ -9,6 +9,7 @@
      daftar:  { buka, tutup }
      buku:    'https://drive.google.com/…'
      wa:      { on, url, teks }
+     had:     2                           // maksimum orang sekeluarga di ibubapa.html; 0/tiada = tiada had
    }
 
    🔴 Ditulis dengan update({ibubapa}) — BUKAN simpanMajlis() (set merge).
@@ -162,6 +163,13 @@ function ibBina() {
       <p class="hint" style="margin:0">OFF = butang hilang dari telefon ibu bapa (link kekal disimpan).</p>
     </div>
   </div>
+  <div class="kad">
+    <div class="kad-kepala"><h3>👥 Had Kehadiran</h3></div>
+    <div class="kad-isi">
+      <div class="ib-medan"><label for="ib-had">Maksimum orang sekeluarga (dewasa + kanak-kanak)</label><input type="number" id="ib-had" min="1" max="20" placeholder="Tiada had"></div>
+      <p class="hint" style="margin:0">Cth <strong>2</strong> = ibu bapa hanya boleh pilih sehingga 2 orang (bancian &amp; daftar hari majlis). Kosong = tiada had. Admin (✚ Daftar manual / ✎ Ubah) tidak dihadkan.</p>
+    </div>
+  </div>
 </div>
 
 <div class="baris-input" style="margin:2px 0 22px">
@@ -221,6 +229,7 @@ function ibIsiBorang() {
   $('ib-wa-on').checked = !!w.on;
   $('ib-wa-url').value = w.url || '';
   $('ib-wa-teks').value = w.teks || '';
+  $('ib-had').value = c.had || '';
   ibPratonton();
 }
 function ibBacaBorang() {
@@ -230,7 +239,8 @@ function ibBacaBorang() {
     bancian: { buka: ibDariInput(v('ib-b-buka')), tutup: ibDariInput(v('ib-b-tutup')) },
     daftar: { buka: ibDariInput(v('ib-d-buka')), tutup: ibDariInput(v('ib-d-tutup')) },
     buku: v('ib-buku'),
-    wa: { on: $('ib-wa-on').checked, url: v('ib-wa-url'), teks: v('ib-wa-teks') }
+    wa: { on: $('ib-wa-on').checked, url: v('ib-wa-url'), teks: v('ib-wa-teks') },
+    had: parseInt(v('ib-had'), 10) || 0
   };
 }
 function ibPratonton() {
@@ -254,6 +264,7 @@ async function ibSimpan() {
   if (c.buku && !/^https:\/\//i.test(c.buku)) salah.push('Link buku program mesti bermula https://');
   if (c.wa.url && !/^https:\/\/chat\.whatsapp\.com\/\S+/.test(c.wa.url)) salah.push('Link WhatsApp mesti bermula https://chat.whatsapp.com/');
   if (c.wa.on && !c.wa.url) salah.push('WhatsApp ON tetapi link group kosong.');
+  if (c.had < 0 || c.had > 20) salah.push('Had kehadiran mesti 1–20, atau kosong (tiada had).');
   if (salah.length) { agToast(salah[0], 'ralat'); $('ib-simpan-st').textContent = salah.join(' '); return; }
   const b = $('ib-simpan'); b.disabled = true;
   try {
