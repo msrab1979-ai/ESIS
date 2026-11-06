@@ -9,7 +9,7 @@
      daftar:  { buka, tutup }
      buku:    'https://drive.google.com/…'
      wa:      { on, url, teks }
-     had:     2                           // maksimum orang sekeluarga di ibubapa.html; 0/tiada = tiada had
+     had:     2                           // maksimum orang bagi SETIAP anak penerima (keluarga = had × bil. anak); 0/tiada = tiada had
    }
 
    🔴 Ditulis dengan update({ibubapa}) — BUKAN simpanMajlis() (set merge).
@@ -166,8 +166,8 @@ function ibBina() {
   <div class="kad">
     <div class="kad-kepala"><h3>👥 Had Kehadiran</h3></div>
     <div class="kad-isi">
-      <div class="ib-medan"><label for="ib-had">Maksimum orang sekeluarga (dewasa + kanak-kanak)</label><input type="number" id="ib-had" min="1" max="20" placeholder="Tiada had"></div>
-      <p class="hint" style="margin:0">Cth <strong>2</strong> = ibu bapa hanya boleh pilih sehingga 2 orang (bancian &amp; daftar hari majlis). Kosong = tiada had. Admin (✚ Daftar manual / ✎ Ubah) tidak dihadkan.</p>
+      <div class="ib-medan"><label for="ib-had">Maksimum orang bagi setiap anak penerima (dewasa + kanak-kanak)</label><input type="number" id="ib-had" min="1" max="20" placeholder="Tiada had"></div>
+      <p class="hint" style="margin:0">Cth <strong>2</strong> = 1 anak → 2 orang, 2 anak → 4 orang, 3 anak → 6 orang (bancian &amp; daftar hari majlis). Kosong = tiada had. Admin (✚ Daftar manual / ✎ Ubah) tidak dihadkan.</p>
     </div>
   </div>
 </div>

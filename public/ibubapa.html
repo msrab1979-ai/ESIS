@@ -118,6 +118,7 @@ input.medan.teks{letter-spacing:0;text-transform:uppercase}
 .ctr{display:flex;align-items:center;gap:14px}
 .ctr button{width:38px;height:38px;border-radius:50%;border:1px solid var(--garis);font-size:20px;font-weight:700;background:#fff;line-height:1}
 .ctr button.p{background:var(--gelap);border-color:var(--gelap);color:var(--emas-a)}
+.ctr button[disabled]{opacity:.3;cursor:not-allowed}
 .ctr b{font-size:19px;min-width:20px;text-align:center}
 
 .besar-ok{width:84px;height:84px;border-radius:50%;margin:4px auto 0;display:grid;place-items:center;background:linear-gradient(135deg,var(--emas-a),var(--emas-b));box-shadow:0 0 0 6px var(--gading),0 0 0 7px var(--emas)}
@@ -581,6 +582,7 @@ function senaraiAnak(boleh) {
 function vAnak() {
   lukis(kepalaKecil('keluarga', 'KELUARGA ANDA', S.anak.length + ' orang anak') +
     '<div class="badan">' + senaraiAnak(true) +
+    (hadAnak() ? '<div class="kecil tengah">👥 ' + S.anak.length + ' anak penerima → boleh bawa <b style="color:var(--teks)">' + hadMaks() + ' orang</b></div>' : '') +
     '<button class="btn garis" id="b-tambah">' + ik('tambah') + 'Tambah anak lain (No. KP)</button>' +
     (S.anak.length > 1 ? '<div class="kecil tengah">Adik-beradik digabung dalam satu keluarga — bilangan hadir diisi sekali sahaja.</div>' : '') +
     '<div style="flex:1"></div>' +
@@ -641,8 +643,11 @@ async function simpanWakil() {
   vHadir();
 }
 
-/* Had orang sekeluarga (MAJLIS.ibubapa.had). 0/tiada = had lama (10 dewasa/10 kanak, 15 daftar). */
-const hadMaks = () => (CFG.had > 0 ? CFG.had : 0);
+/* MAJLIS.ibubapa.had = orang bagi SETIAP anak penerima; had keluarga = had × bilangan anak.
+   0/tiada = had lama (10 dewasa/10 kanak, 15 daftar). */
+const hadAnak = () => (CFG.had > 0 ? CFG.had : 0);
+const hadMaks = () => hadAnak() * Math.max(1, S.anak.length);
+const hadNota = () => hadAnak() + ' orang × ' + Math.max(1, S.anak.length) + ' anak penerima';
 
 function vHadir() {
   const walk = S.mod === 'walkin', had = hadMaks();
@@ -656,7 +661,7 @@ function vHadir() {
     (S.hadir ? '<div class="kad" style="padding:6px 15px">' +
       '<div class="step"><div class="lbl">Dewasa<small>Termasuk wakil</small></div><div class="ctr"><button data-k="dewasa" data-d="-1">−</button><b id="n-dewasa">' + S.dewasa + '</b><button class="p" data-k="dewasa" data-d="1">+</button></div></div>' +
       '<div class="step"><div class="lbl">Kanak-kanak<small>Selain penerima anugerah</small></div><div class="ctr"><button data-k="kanak" data-d="-1">−</button><b id="n-kanak">' + S.kanak + '</b><button class="p" data-k="kanak" data-d="1">+</button></div></div>' +
-      (had ? '<div class="kecil" style="padding:4px 0 8px">Maksimum <b style="color:var(--teks)">' + had + ' orang</b> sekeluarga (dewasa + kanak-kanak).</div>' : '') +
+      (had ? '<div class="kecil" style="padding:4px 0 8px">Jumlah <b style="color:var(--teks)" id="n-jum">' + (S.dewasa + S.kanak) + '</b> / <b style="color:var(--teks)">' + had + ' orang</b><br>' + hadNota() + ' (dewasa + kanak-kanak)</div>' : '') +
       '</div>' : '') +
     '<div class="kad" style="padding:11px 15px"><div class="kecil">Wakil: <b style="color:var(--teks)">' + esc(S.wakil.nama) + '</b><br>Anak: ' +
       S.anak.map(a => esc(sorok(a.nama).split(' ').slice(0, 2).join(' '))).join(' · ') + '</div></div>' +
@@ -672,7 +677,14 @@ function vHadir() {
     const maks = had ? had - (k === 'dewasa' ? S.kanak : S.dewasa) : 10;
     S[k] = Math.min(maks, Math.max(min, S[k] + Number(b.dataset.d)));
     $('n-' + k).textContent = S[k];
+    kunciTambah();
   });
+  /* Jumlah sudah penuh → butang + dikelabukan. */
+  function kunciTambah() {
+    if ($('n-jum')) $('n-jum').textContent = S.dewasa + S.kanak;
+    $('app').querySelectorAll('[data-k][data-d="1"]').forEach(b => b.disabled = !!had && S.dewasa + S.kanak >= had);
+  }
+  kunciTambah();
   $('b-balik').onclick = () => { S.ralat = ''; vWakil(); };
   $('b-hantar').onclick = hantar;
 }
@@ -790,7 +802,7 @@ function vDaftarKel() {
     '<div class="badan">' + senaraiAnak(false) +
     (d ? '<div class="ok-nota">Sudah berdaftar pada ' + esc(jam(masaJadi(d.masa))) + ' · ' + d.bil + ' orang. Anda boleh kemas kini bilangan.</div>' : '') +
     '<div class="kad" style="padding:6px 15px"><div class="step"><div class="lbl">Hadir hari ini<small>' +
-      (k.hadir !== false ? 'Bancian: ' + ((k.dewasa || 0) + (k.kanak || 0)) + ' orang' : 'Bancian: tidak hadir') + (had ? ' · maksimum ' + had + ' orang' : '') +
+      (k.hadir !== false ? 'Bancian: ' + ((k.dewasa || 0) + (k.kanak || 0)) + ' orang' : 'Bancian: tidak hadir') + (had ? '<br>Maksimum ' + had + ' orang (' + hadNota() + ')' : '') +
     '</small></div><div class="ctr"><button data-d="-1">−</button><b id="n-bil">' + S.bil + '</b><button class="p" data-d="1">+</button></div></div></div>' +
     '<div class="kecil">Wakil: <b style="color:var(--teks)">' + esc((k.wakil || {}).nama) + '</b></div>' +
     ralatHTML() + '<div style="flex:1"></div>' +
@@ -798,7 +810,10 @@ function vDaftarKel() {
     '<button class="btn emas" id="b-daftar" style="flex:4">' + ik('semak') + (d ? 'Kemas kini' : 'Daftar') + '</button></div></div>');
   $('app').querySelectorAll('[data-d]').forEach(b => b.onclick = () => {
     S.bil = Math.min(had || 15, Math.max(1, S.bil + Number(b.dataset.d))); $('n-bil').textContent = S.bil;
+    kunciBil();
   });
+  const kunciBil = () => { const p = $('app').querySelector('[data-d="1"]'); if (p) p.disabled = S.bil >= (had || 15); };
+  kunciBil();
   $('b-balik').onclick = () => { S = baru(); vDaftarTel(); };
   $('b-daftar').onclick = daftar;
 }
