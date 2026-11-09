@@ -150,6 +150,22 @@ input.medan.teks{letter-spacing:0;text-transform:uppercase}
 @keyframes p{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 .kaki-hal{text-align:center;font-size:11px;color:#A8A294;padding:0 0 18px;letter-spacing:.06em}
+
+/* 📣 Giliran (9 Nov 2026) */
+.lg{background:linear-gradient(165deg,var(--gelap),var(--gelap-2));color:var(--gading);border-radius:16px;padding:16px;text-align:center}
+.lg small{display:block;font-size:10.5px;letter-spacing:.2em;font-weight:700;color:var(--emas)}
+.lg .no{font-family:var(--serif);font-size:58px;line-height:1.05;font-weight:700;color:var(--emas-a);font-variant-numeric:tabular-nums;margin-top:4px}
+.lg .no i{font-style:normal;color:rgba(250,247,240,.45);padding:0 6px;font-size:40px}
+.lg .ket{font-size:12.5px;color:rgba(250,247,240,.7);margin-top:4px}
+.lg .no.kecil{font-size:22px;color:var(--gading)}
+.gno{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.gno span{font-size:12px;border-radius:20px;padding:3px 9px;border:1px solid var(--garis);background:#fff;color:var(--teks)}
+.gno span b{font-variant-numeric:tabular-nums}
+.gno span.kini{background:var(--emas);border-color:var(--emas-b);color:var(--gelap);font-weight:700}
+.gno span.ok{background:var(--hijau-bg);border-color:#BFD8C8;color:var(--hijau)}
+.gno span.lepas{color:var(--kelabu)}
+.lg-ubah{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:20;width:calc(100% - 36px);max-width:444px;
+  background:var(--merah);color:#fff;border-radius:14px;padding:15px;font-weight:700;font-size:15px;box-shadow:0 6px 22px rgba(155,44,44,.45)}
 </style>
 </head>
 <body>
@@ -196,6 +212,8 @@ input.medan.teks{letter-spacing:0;text-transform:uppercase}
 </svg>
 
 <div id="app"><div class="memuat"><div class="pusing"></div>Memuatkan…</div></div>
+<!-- 📣 Di LUAR #app: lukis() menggantikan seluruh isi #app. -->
+<button class="lg-ubah" id="b-lg" hidden>🔄 Ada perubahan giliran — sila tekan</button>
 
 <script>
 'use strict';
@@ -316,6 +334,9 @@ function masaJadi(x) { return x instanceof Date ? x : (x && x.seconds ? new Date
 const M_ID = new URLSearchParams(location.search).get('m') || '';
 const SIMPAN = 'ib_' + M_ID + '_tel';
 let MJ = null, CFG = {}, FASA = '';
+/* 📣 Giliran: LG = yang DIPAPAR, LG_BARU = semakan terkini. ULANG = fungsi
+   melukis semula skrin semasa (null = skrin ini tidak memapar giliran). */
+let LG = null, LG_BARU = null, ULANG = null, LG_PEMASA = null;
 let S = baru();
 function baru(mod) {
   return { mod: mod || 'bancian', anak: [], asal: null, sasar: null,
@@ -399,6 +420,8 @@ const kepalaKecil = (ikon, sek, h) =>
   '</div><h2>' + esc(h) + '</h2></header>';
 
 function lukis(html) {
+  ULANG = null;                 // skrin baharu — view giliran memasangnya semula
+  $('b-lg').hidden = true;
   $('app').innerHTML = html + '<div class="kaki-hal">' + esc(tajuk().sek) + '</div>';
   window.scrollTo(0, 0);
   const f = $('app').querySelector('input.medan');
@@ -435,8 +458,127 @@ async function laman() {
   FASA = fasaKini();
   S = baru();
   if (FASA === 'bancian') return mulaBancian();
-  if (FASA === 'daftar') return vUtama();
+  if (FASA === 'daftar') { await mulaLg(); return vUtama(); }
   vTutup();
+}
+
+/* ==========================================================================
+   📣 GILIRAN — nombor dari Pengurus Peserta (9 Nov 2026)
+   --------------------------------------------------------------------------
+   anugerah_langsung/{majlisId} = {langsung, mula, akhir, masa}, ditulis oleh
+   peserta.html. Semak SATU doc kecil setiap 30s (REST — kekal tanpa SDK).
+   🔴 Paparan TIDAK bertukar sendiri: nilai berubah → butang merah; ibu bapa
+      tekan → baru dilukis semula. Skrin yang bertukar di bawah jari ibu bapa
+      yang sedang menaip ialah apa yang tidak boleh berlaku.
+   ========================================================================== */
+const capLg = l => l ? [l.langsung ? 1 : 0, l.mula || '', l.akhir || ''].join('|') : '';
+const lgBuka = () => !!(LG && LG.langsung);
+async function bacaLg() {
+  return baca('anugerah_langsung/' + M_ID, ['langsung', 'mula', 'akhir', 'masa']);
+}
+async function mulaLg() {
+  try { LG_BARU = await bacaLg(); } catch (e) { LG_BARU = null; }
+  LG = LG_BARU;
+  if (!LG_PEMASA) LG_PEMASA = setInterval(semakLg, 30000);
+}
+async function semakLg() {
+  if (document.hidden || FASA !== 'daftar') return;
+  try { LG_BARU = await bacaLg(); } catch (e) { return; }   // gagal = cuba lagi 30s
+  $('b-lg').hidden = !(ULANG && capLg(LG_BARU) !== capLg(LG));
+}
+$('b-lg').onclick = () => {
+  LG = LG_BARU;
+  $('b-lg').hidden = true;
+  if (ULANG) ULANG();
+};
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && LG_PEMASA) semakLg();
+});
+
+/* Kad nombor besar. Majlis dibuka tetapi julat belum ditetapkan → teks. */
+function kadLg() {
+  if (!lgBuka()) return '';
+  const m = LG.mula, a = LG.akhir || LG.mula;
+  return '<div class="lg"><small>SEDANG DIPANGGIL</small>' +
+    (m ? '<div class="no">' + m + (a !== m ? '<i>–</i>' + a : '') + '</div><div class="ket">Nombor giliran naik pentas</div>'
+       : '<div class="no kecil">Majlis akan bermula</div><div class="ket">Nombor giliran akan dipapar di sini</div>') +
+    '</div>';
+}
+/* Status satu nombor giliran anak berbanding julat semasa. */
+function statusNo(g) {
+  const m = LG && LG.mula, a = LG && (LG.akhir || LG.mula);
+  if (g.mc === true) return { k: 'ok', t: '✓ sudah naik pentas' };
+  if (m && g.no >= m && g.no <= a) return { k: 'kini', t: '🔔 sedang dipanggil — sila bersedia' };
+  if (m && g.no < m) return { k: 'lepas', t: 'sudah dipanggil' };
+  if (m) return { k: '', t: (g.no - a) + ' giliran lagi' };
+  return { k: '', t: 'belum bermula' };
+}
+
+/* Semak Giliran: kad nombor + giliran setiap anak. Keluarga dikenali
+   melalui no. telefon (S.asal selepas daftar, atau yang diingati). */
+async function vGiliran(segar) {
+  const tel = (S.asal && S.asal.telefon) || localStorage.getItem(SIMPAN) || '';
+  if (segar) { try { LG = LG_BARU = await bacaLg(); } catch (e) { /* kekal yang lama */ } }
+  if (!tel) return vGiliranTel();
+  lukis(kepalaKecil('jam', 'GILIRAN', 'Semak giliran') + '<div class="badan">' + kadLg() +
+    '<div class="memuat" style="padding:24px 0"><div class="pusing"></div>Memuatkan giliran anak…</div></div>');
+  let k = S.asal && S.asal.telefon === tel ? S.asal : null, anak = [];
+  try {
+    if (!k) k = await baca(pKel(tel), MEDAN_KEL);
+    if (k) anak = await Promise.all((k.murid || []).map(async m => {
+      const p = await baca(pPen(m.kp), ['giliran']).catch(() => null);
+      const lihat = {}, gil = [];
+      ((p && p.giliran) || []).forEach(g => {
+        if (typeof g.no !== 'number' || lihat[g.no]) return;   // gabung: satu nombor sekali
+        lihat[g.no] = 1; gil.push(g);
+      });
+      return { m, gil: gil.sort((x, y) => x.no - y.no) };
+    }));
+  } catch (e) { S.ralat = e.message; }
+  if (!k && !S.ralat) { localStorage.removeItem(SIMPAN); return vGiliranTel(); }
+  if (k) muatKeluarga(k);
+  lukis(kepalaKecil('jam', 'GILIRAN', 'Semak giliran') + '<div class="badan">' + kadLg() +
+    ralatHTML() +
+    (anak.length ? '<div class="kad">' + anak.map(({ m, gil }) =>
+      '<div class="anak" style="align-items:flex-start"><div class="av">' + ik('topi') + '</div><div style="flex:1">' +
+      '<b>' + esc(sorok(m.nama)) + '</b><span>' + esc(kelasPapar(m.tahun, m.kelas)) + '</span>' +
+      (gil.length ? '<div class="gno">' + gil.map(g => {
+        const st = statusNo(g);
+        return '<span class="' + st.k + '">Giliran <b>' + g.no + '</b> · ' + esc(st.t) + '</span>';
+      }).join('') + '</div>' : '<div class="kecil">Tiada nombor giliran.</div>') +
+      '</div></div>').join('') + '</div>' : '') +
+    '<div class="kecil tengah">Paparan tidak bertukar sendiri. Butang merah akan muncul bila ada nombor baharu.</div>' +
+    '<button class="btn garis pejal" id="b-segar">🔄 Semak semula</button>' +
+    '<div style="flex:1"></div><button class="btn garis pejal" id="b-utama">' + ik('kiri') + 'Kembali</button></div>');
+  S.ralat = '';
+  ULANG = () => vGiliran(false);
+  $('b-segar').onclick = () => vGiliran(true);
+  $('b-utama').onclick = vUtama;
+}
+function vGiliranTel() {
+  lukis(kepalaKecil('jam', 'GILIRAN', 'Semak giliran') + '<div class="badan">' + kadLg() +
+    '<div><div class="lab">' + ik('tel') + 'No. telefon (untuk lihat giliran anak)</div>' +
+    '<input class="medan" id="tel" inputmode="tel" autocomplete="tel" maxlength="16" placeholder="Contoh: 0123456789"></div>' +
+    ralatHTML() +
+    '<button class="btn emas" id="b-cari">' + ik('cari') + 'Lihat giliran anak</button>' +
+    '<div style="flex:1"></div><button class="btn garis pejal" id="b-utama">' + ik('kiri') + 'Kembali</button></div>');
+  S.ralat = '';
+  ULANG = vGiliranTel;
+  const pergi = async () => {
+    const tel = normTel($('tel').value);
+    if (!telSah(tel)) { S.ralat = 'No. telefon tidak sah. Contoh: 0123456789'; return vGiliranTel(); }
+    const btn = $('b-cari'); sibuk(btn, true, 'Mencari…');
+    try {
+      const k = await baca(pKel(tel), MEDAN_KEL);
+      if (!k) { S.ralat = 'Tiada keluarga dengan no. telefon ini.'; return vGiliranTel(); }
+      localStorage.setItem(SIMPAN, tel);
+      muatKeluarga(k);
+      vGiliran(false);
+    } catch (e) { S.ralat = e.message; vGiliranTel(); }
+  };
+  $('tel').addEventListener('keydown', e => { if (e.key === 'Enter') pergi(); });
+  $('b-cari').onclick = pergi;
+  $('b-utama').onclick = vUtama;
 }
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && MJ && fasaKini() !== FASA && document.querySelector('[data-laman]')) laman();
@@ -753,12 +895,15 @@ function vSiap() {
    ========================================================================== */
 function vUtama() {
   S = baru();
-  lukis(kepalaBesar() + '<div class="badan" data-laman>' + kadMajlis(false) +
+  lukis(kepalaBesar() + '<div class="badan" data-laman>' + kadLg() + kadMajlis(false) +
     '<div class="menu">' +
+    (lgBuka() ? '<button id="b-giliran"><div class="mi">' + ik('jam', 'ik-e') + '</div><div><b>Semak Giliran</b><span>Bila anak anda naik pentas</span></div>' + ik('kanan', 'ik pn') + '</button>' : '') +
     '<button id="b-daftar"><div class="mi">' + ik('daftar', 'ik-e') + '</div><div><b>Daftar Kehadiran</b><span>Guna no. telefon bancian</span></div>' + ik('kanan', 'ik pn') + '</button>' +
     (CFG.buku ? '<a href="' + esc(CFG.buku) + '" target="_blank" rel="noopener"><div class="mi">' + ik('buku', 'ik-e') + '</div><div><b>Buku Program</b><span>Buka dalam Google Drive</span></div>' + ik('pautan', 'ik pn') + '</a>' : '') +
     '</div></div>');
   $('b-daftar').onclick = () => vDaftarTel();
+  if ($('b-giliran')) $('b-giliran').onclick = () => vGiliran(false);
+  ULANG = vUtama;
 }
 
 function vDaftarTel() {
@@ -836,10 +981,13 @@ function vDaftarSiap() {
     '<div><b style="font-size:18px">Berdaftar · ' + (d.bil || 0) + ' orang</b><div class="kecil">' + esc(jam(masaJadi(d.masa) || new Date())) + '</div></div>' +
     '<div class="kecil">Tahniah atas kecemerlangan<br><b style="color:var(--teks)">' +
       (k.murid || []).map(m => esc(sorok(m.nama).split(' ').slice(0, 2).join(' '))).join(' & ') + '</b></div>' +
-    kadMajlis(true) + '<div style="flex:1"></div>' +
+    kadLg() + kadMajlis(true) + '<div style="flex:1"></div>' +
+    (lgBuka() ? '<button class="btn emas" id="b-giliran">' + ik('jam') + 'Semak Giliran Anak</button>' : '') +
     (CFG.buku ? bukuBtn() : '') +
     '<button class="btn garis pejal" id="b-utama">Laman utama</button></div>');
   $('b-utama').onclick = vUtama;
+  if ($('b-giliran')) $('b-giliran').onclick = () => vGiliran(false);
+  ULANG = vDaftarSiap;
 }
 
 mula();

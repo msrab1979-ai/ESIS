@@ -80,17 +80,38 @@
 .gst.ok{color:#1f7a3a}
 .gst.ini{color:var(--emas)}
 .gst.absen{color:var(--absen)}
+
+/* ---------- 📣 Giliran Ibu Bapa ---------- */
+.lgs-kini{display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  background:var(--kertas-3); border:1px solid var(--garis); border-radius:12px; padding:14px 18px}
+.lgs-no{font-size:44px; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; color:var(--tinta)}
+.lgs-no i{font-style:normal; color:var(--neutral); padding:0 6px}
+.lgs-ket{font-size:13px; color:var(--neutral); line-height:1.45}
+.lgs-ket b{color:var(--tinta); display:block; font-size:14px}
+.lgs-taip{display:flex; align-items:center; gap:10px; margin-top:16px}
+.lgs-taip input{width:110px; font-size:22px; font-weight:700; text-align:center; padding:10px}
+.lgs-taip .smp{font-size:22px; color:var(--neutral)}
+.lgs-jalur{display:flex; gap:9px; flex-wrap:wrap; margin-top:12px}
+.lgs-bantu{font-size:12.5px; color:var(--neutral); margin:12px 0 0; line-height:1.55}
+.lgs-tutup{text-align:center; padding:18px 8px}
+.lgs-tutup b{display:block; font-size:17px; margin-bottom:6px}
 </style>
 </head>
 <body>
 
-<header class="tajuk tanpa-tab">
+<header class="tajuk">
   <div class="tajuk-dlm">
     <div class="jenama">
       <h1>Pengurus Peserta</h1>
       <span class="cap">Pintu Dewan</span>
     </div>
     <p class="sari" id="sari">Memuatkan…</p>
+    <!-- 📣 Dua menu (9 Nov 2026, pengguna): nombor giliran untuk telefon
+         ibu bapa, dan kerja asal panel ini. -->
+    <nav class="tab" role="tablist" id="bar-tab" hidden>
+      <button role="tab" aria-selected="false" data-t="giliran">📣 Giliran Ibu Bapa</button>
+      <button role="tab" aria-selected="true" data-t="kehadiran">✅ Kehadiran &amp; Giliran</button>
+    </nav>
   </div>
 </header>
 
@@ -112,6 +133,17 @@
   </div>
 
   <div id="p-isi" hidden>
+  <div id="t-giliran" hidden>
+    <div class="kad">
+      <div class="kad-kepala">
+        <h3>📣 Nombor giliran — paparan telefon ibu bapa</h3>
+        <span class="sub" id="lgs-sub"></span>
+      </div>
+      <div class="kad-isi" id="lgs"><div class="memuat"><div class="pusing"></div>Memuatkan…</div></div>
+    </div>
+  </div>
+
+  <div id="t-kehadiran">
     <div class="nota">
       <span class="sym">▸</span>
       <div><strong>Kau menanda GILIRAN, bukan murid.</strong> Murid yang menang beberapa
@@ -143,6 +175,7 @@
       </div>
       <div class="kad-isi rapat" id="senarai"></div>
     </div>
+  </div>
   </div>
 </main>
 
@@ -178,6 +211,11 @@ let CAP = '';              // cap jari paparan terakhir — langkau lukis bila s
    menutup semula apa yang pengurus peserta baru buka tanpa ini. */
 const BUKA_AN = {};
 const BUKA_SUB = {};
+/* 📣 anugerah_langsung/{majlisId} — {majlisId, langsung, mula, akhir, masa}.
+   Dokumen AWAM: ibubapa.html membacanya tanpa log masuk setiap ±30s.
+   🔴 Nombor sahaja — JANGAN tambah nama, KP atau kelas di sini. */
+let LGS = null;
+let LGS_BINA = '';         // struktur yang sedang dilukis: 'tutup' | 'buka'
 
 const $ = id => document.getElementById(id);
 function memuat(el, teks) {
@@ -226,6 +264,8 @@ function sapuTanda(m, t) {
        kekal berfungsi. */
     agPasangNota(null, MAJLIS.id, 'peserta');
     $('p-isi').hidden = false;
+    $('bar-tab').hidden = false;
+    pantauLgs();
     /* 🔴 Pemantau langsung (agPantauPetugas) ganti muat berkala 90s: tanda
        pengurus peserta LAIN sampai dalam 1–2s, dan hanya doc yang berubah
        dibaca semula — lebih jimat kuota. */
@@ -289,6 +329,7 @@ async function muat(pertama, sedia) {
     isiDropdownDarjah();
     lukis();
     kemasSari();
+    if (LGS && LGS.langsung) kemasLgs();   // 📣 maks giliran & petunjuk MC
   } catch (e) {
     console.error('Muat:', e);
     /* 🔴 JANGAN kosongkan paparan — toast sahaja. */
@@ -322,6 +363,188 @@ function isiDropdownDarjah() {
     ada.map(t => '<option value="' + agEsc(t) + '">Darjah ' + agWordDarjah(t) + '</option>').join('');
   if (dipilih) sel.value = dipilih;
 }
+
+/* ==========================================================================
+   📣 GILIRAN IBU BAPA (9 Nov 2026)
+   --------------------------------------------------------------------------
+   Pengurus peserta menaip JULAT (mula–akhir) kumpulan yang akan naik —
+   ibu bapa perlu tahu siapa DIPANGGIL SETERUSNYA supaya sempat bersiap.
+   ▶ Mula Majlis membuka panel di telefon ibu bapa; ⏹ Henti mengosongkan
+   julat; ⏸ Tutup panel menyorok kad giliran sepenuhnya.
+
+   🔴 Ditulis ke koleksi SENDIRI, bukan dokumen majlis — simpanMajlis()
+      admin menulis seluruh dokumen majlis dan akan menindihnya.
+   🔴 Ramai pengurus peserta boleh guna link sama → onSnapshot, supaya
+      julat yang ditukar seorang terus nampak pada yang lain.
+   ========================================================================== */
+const lgsRef = () => agDb.collection('anugerah_langsung').doc(MAJLIS.id);
+
+function tukarTab(t) {
+  document.querySelectorAll('#bar-tab [data-t]').forEach(b =>
+    b.setAttribute('aria-selected', String(b.dataset.t === t)));
+  $('t-giliran').hidden = t !== 'giliran';
+  $('t-kehadiran').hidden = t !== 'kehadiran';
+  if (t === 'giliran') lukisLgs();
+}
+$('bar-tab').addEventListener('click', e => {
+  const b = e.target.closest('[data-t]');
+  if (b) tukarTab(b.dataset.t);
+});
+
+function pantauLgs() {
+  lgsRef().onSnapshot(d => {
+    LGS = d.exists ? d.data() : null;
+    lukisLgs();
+  }, err => {
+    console.warn('Pemantau giliran gagal:', err);
+    lgsRef().get().then(d => { LGS = d.exists ? d.data() : null; lukisLgs(); })
+      .catch(e => { $('lgs').innerHTML = '<div class="kosong">Gagal memuat: ' + agEsc(e.message) + '</div>'; });
+  });
+}
+
+/* Nombor giliran terbesar & giliran pertama yang MC belum ✓ — dari senarai
+   yang sudah dimuat (tiada bacaan tambahan). */
+function lgsMaks() {
+  let n = 0;
+  MURID.forEach(m => m.giliran.forEach(g => { if (typeof g.no === 'number' && g.no > n) n = g.no; }));
+  return n || null;
+}
+function lgsMC() {
+  let n = Infinity;
+  MURID.forEach(m => m.giliran.forEach(g => {
+    if (typeof g.no === 'number' && g.mc !== true && g.hadir !== false && g.no < n) n = g.no;
+  }));
+  return n === Infinity ? null : n;
+}
+
+function lukisLgs() {
+  const el = $('lgs');
+  if (!el || !MAJLIS) return;
+  const buka = !!(LGS && LGS.langsung);
+  const jenis = buka ? 'buka' : 'tutup';
+  /* Bina semula struktur HANYA bila buka/tutup bertukar — kalau tidak,
+     julat yang ditukar pengurus lain memusnahkan kotak yang sedang ditaip. */
+  if (LGS_BINA !== jenis) {
+    LGS_BINA = jenis;
+    el.innerHTML = buka ? `
+      <div class="lgs-kini" id="lgs-kini"></div>
+      <div class="lgs-taip">
+        <input type="number" id="lgs-mula" inputmode="numeric" min="1" placeholder="Mula" autocomplete="off">
+        <span class="smp">–</span>
+        <input type="number" id="lgs-akhir" inputmode="numeric" min="1" placeholder="Akhir" autocomplete="off">
+      </div>
+      <div class="lgs-jalur">
+        <button class="btn emas" data-lgs="papar">📣 Papar kepada ibu bapa</button>
+        <button class="btn sunyi" data-lgs="seterus" id="b-lgs-seterus">▶ Seterusnya</button>
+        <button class="btn sunyi" data-lgs="henti" id="b-lgs-henti">⏹ Henti</button>
+      </div>
+      <p class="lgs-bantu" id="lgs-bantu"></p>
+      <p class="lgs-bantu" style="border-top:1px dashed var(--garis); padding-top:12px; margin-top:16px">
+        Panel di telefon ibu bapa: <b>DIBUKA</b>.
+        <button class="btn sunyi kecil" data-lgs="tutup" style="margin-left:6px">⏸ Tutup panel</button></p>` : `
+      <div class="lgs-tutup">
+        <b>Majlis belum bermula</b>
+        <div class="kecil">Kad giliran di telefon ibu bapa masih DITUTUP. Tekan butang di bawah
+        bila majlis bermula, kemudian masukkan nombor giliran yang akan naik.</div>
+        <button class="btn emas" data-lgs="mula" style="margin-top:14px">▶ Mula Majlis — buka panel ibu bapa</button>
+      </div>`;
+    if (buka) {
+      ['lgs-mula', 'lgs-akhir'].forEach(id => $(id).addEventListener('keydown', e => {
+        if (e.key === 'Enter') lgsPapar();
+      }));
+      $('lgs-mula').value = LGS.mula || '';
+      $('lgs-akhir').value = LGS.akhir || '';
+    }
+  }
+  if (buka) kemasLgs();
+  $('lgs-sub').textContent = buka ? 'panel DIBUKA' : 'panel ditutup';
+}
+function kemasLgs() {
+  if (!$('lgs-kini')) return;
+  const m = LGS.mula, a = LGS.akhir || LGS.mula, maks = lgsMaks(), mc = lgsMC();
+  $('lgs-kini').innerHTML = m
+    ? '<span class="lgs-no">' + m + (a !== m ? '<i>–</i>' + a : '') + '</span>' +
+      '<span class="lgs-ket"><b>Sedang dipapar kepada ibu bapa</b>' + (a - m + 1) + ' nombor' +
+      (LGS.masa ? ' · dikemas kini ' + new Date(LGS.masa).toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }) : '') + '</span>'
+    : '<span class="lgs-ket"><b>Belum ditetapkan</b>Ibu bapa nampak "majlis akan bermula".</span>';
+  /* Julat yang ditukar pengurus LAIN masuk ke kotak — kecuali kotak yang
+     sedang ditaip di telefon ini. */
+  const fokus = document.activeElement && document.activeElement.id;
+  if (fokus !== 'lgs-mula' && fokus !== 'lgs-akhir') {
+    $('lgs-mula').value = m || '';
+    $('lgs-akhir').value = m && a !== m ? a : '';
+  }
+  const seterus = $('b-lgs-seterus');
+  if (m) {
+    const lebar = a - m + 1, sm = a + 1, sa = Math.min(maks || Infinity, a + lebar);
+    seterus.disabled = !!(maks && sm > maks);
+    seterus.textContent = seterus.disabled ? '▶ Seterusnya (tamat)' : '▶ Seterusnya: ' + sm + (sa !== sm ? '–' + sa : '');
+  } else {
+    seterus.disabled = true; seterus.textContent = '▶ Seterusnya';
+  }
+  $('b-lgs-henti').hidden = !m;
+  $('lgs-bantu').innerHTML = 'Masukkan nombor <b>mula</b> dan <b>akhir</b> kumpulan yang akan naik. ' +
+    'Seorang sahaja? Isi Mula, biar Akhir kosong.' +
+    (maks ? ' Giliran ada <b>1–' + maks + '</b>.' : '') +
+    (mc ? '<br>Panel MC: giliran pertama belum ✓ ialah <b>#' + mc + '</b>.' : '') +
+    '<br>Ibu bapa nampak butang merah "Ada perubahan" dalam ±30 saat.';
+}
+
+async function tulisLgs(ubah, mesej) {
+  const baru = {
+    majlisId: MAJLIS.id,
+    langsung: !!(LGS && LGS.langsung),
+    mula: (LGS && LGS.mula) || null,
+    akhir: (LGS && LGS.akhir) || null,
+    ...ubah,
+    masa: Date.now()
+  };
+  try {
+    await lgsRef().set(baru);
+    LGS = baru;
+    lukisLgs();
+    if (mesej) agToast(mesej, 'ok');
+    return true;
+  } catch (e) {
+    console.error('Tulis giliran:', e);
+    agToast('Gagal simpan — ibu bapa BELUM nampak perubahan ini: ' + agEsc(e.message), 'ralat');
+    return false;
+  }
+}
+async function lgsPapar() {
+  const maks = lgsMaks();
+  const m = parseInt($('lgs-mula').value, 10);
+  const aTaip = $('lgs-akhir').value.trim();
+  const a = aTaip === '' ? m : parseInt(aTaip, 10);
+  if (!(m >= 1)) return agToast('Masukkan nombor Mula', 'ralat');
+  if (!(a >= m)) return agToast('Akhir mesti sama atau lebih besar daripada Mula', 'ralat');
+  if (maks && a > maks) return agToast('Giliran hanya sehingga ' + maks, 'ralat');
+  if (await tulisLgs({ mula: m, akhir: a }, 'Dipapar: giliran ' + m + (a !== m ? '–' + a : ''))) {
+    $('lgs-mula').value = m; $('lgs-akhir').value = a !== m ? a : '';
+  }
+}
+$('lgs').addEventListener('click', async e => {
+  const b = e.target.closest('[data-lgs]');
+  if (!b || b.disabled) return;
+  const k = b.dataset.lgs;
+  b.disabled = true;
+  try {
+    if (k === 'mula') await tulisLgs({ langsung: true }, 'Panel ibu bapa DIBUKA');
+    else if (k === 'tutup') await tulisLgs({ langsung: false }, 'Panel ibu bapa ditutup');
+    else if (k === 'henti') await tulisLgs({ mula: null, akhir: null }, 'Julat dikosongkan');
+    else if (k === 'papar') await lgsPapar();
+    else if (k === 'seterus' && LGS && LGS.mula) {
+      const a = LGS.akhir || LGS.mula, lebar = a - LGS.mula + 1, maks = lgsMaks();
+      const sm = a + 1, sa = Math.min(maks || Infinity, a + lebar);
+      if (await tulisLgs({ mula: sm, akhir: sa }, 'Dipapar: giliran ' + sm + (sa !== sm ? '–' + sa : ''))) {
+        $('lgs-mula').value = sm; $('lgs-akhir').value = sa !== sm ? sa : '';
+      }
+    }
+  } finally {
+    if (document.body.contains(b)) b.disabled = false;
+    if (LGS && LGS.langsung) kemasLgs();
+  }
+});
 
 /* ---------- lukis ---------- */
 ['t-cari', 't-darjah', 't-status'].forEach(id =>
