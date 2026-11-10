@@ -178,6 +178,7 @@ async function mula() {
     const r = await agBukaDenganKod('guruKelas');
     if (!r) { $('sari').textContent = ''; papar('p-ralat'); return; }
     MAJLIS = r.majlis;
+    agPantauSelesai(MAJLIS);                  // 🏁
   } catch (e) {
     $('ralat-teks').textContent = 'Gagal memuatkan: ' + e.message;
     papar('p-ralat'); return;

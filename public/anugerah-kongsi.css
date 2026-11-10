@@ -403,3 +403,15 @@ code{
 #ag-pny-kotak input[type=text]{font-weight:700}
 #ag-pny-kotak textarea{margin-bottom:8px}
 #ag-pny-kotak .pny-lbl-f{display:block;font-size:11.5px;font-weight:700;color:#555;margin:2px 0 4px}
+
+/* 🏁 Tirai MAJLIS SELESAI — semua panel petugas (agTiraiSelesai) */
+#ag-tirai-selesai{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:24px;text-align:center;
+  background:radial-gradient(ellipse at top,#2A2833,#121216 70%);color:#FAF7F0;animation:atsMasuk .6s ease-out}
+#ag-tirai-selesai .ats-dlm{max-width:620px}
+#ag-tirai-selesai .ats-ikon{font-size:54px;line-height:1;margin-bottom:12px}
+#ag-tirai-selesai .ats-sek{font-size:12px;letter-spacing:.28em;color:#C6A867;font-weight:700;text-transform:uppercase}
+#ag-tirai-selesai h1{font-family:"Fraunces","Iowan Old Style",Georgia,serif;font-size:clamp(40px,7vw,72px);font-weight:700;margin:8px 0 0;color:#EAD7A4;letter-spacing:.01em}
+#ag-tirai-selesai .ats-garis{height:1px;width:180px;margin:18px auto;background:linear-gradient(90deg,transparent,#C6A867,transparent)}
+#ag-tirai-selesai p{font-size:clamp(15px,2.2vw,20px);color:rgba(250,247,240,.82);margin:0;line-height:1.5}
+#ag-tirai-selesai .ats-nama{font-family:"Fraunces","Iowan Old Style",Georgia,serif;font-style:italic;color:#EAD7A4;font-size:clamp(19px,3vw,28px);margin-top:10px}
+@keyframes atsMasuk{from{opacity:0}to{opacity:1}}

@@ -166,6 +166,7 @@ function memuat(el, teks) {
       return;
     }
     MAJLIS = agMajlisPetugas(hasil.majlis);   // 🙈 sub disorok admin dibuang
+    agPantauSelesai(MAJLIS);                  // 🏁
     /* 📝 Papan Nota Petugas umum dibuang (4 Nov 2026, pengguna). Bekas null:
        pendengar kekal supaya ＋ nota pada tajuk anugerah berfungsi. */
     agPasangNota(null, MAJLIS.id, 'hadiah');

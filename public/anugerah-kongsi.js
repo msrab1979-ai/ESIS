@@ -584,6 +584,29 @@ const AG_PERANAN_MEDAN = {
   guruKelas: 'kodGuruKelas',
   eventManager: 'kodEventManager'    // 🎯 event-manager.html (10 Nov 2026)
 };
+/* 🏁 MAJLIS SELESAI (10 Nov 2026) — Event Manager menulis
+   anugerah_langsung/{majlisId}.selesai = {masa}. Setiap panel petugas
+   memasang SATU pemantau doc kecil ini; selesai → tirai penuh skrin.
+   Batal di Event Manager → tirai hilang sendiri. */
+function agPantauSelesai(majlis) {
+  if (!majlis || window.__agSelesai) return;
+  window.__agSelesai = true;
+  agDb.collection('anugerah_langsung').doc(majlis.id).onSnapshot(d => {
+    const x = d.exists ? d.data() : null;
+    agTiraiSelesai(x && x.selesai ? majlis : null);
+  }, e => console.warn('Pemantau selesai:', e));
+}
+function agTiraiSelesai(majlis) {
+  let t = document.getElementById('ag-tirai-selesai');
+  if (!majlis) { if (t) t.remove(); return; }
+  if (!t) { t = document.createElement('div'); t.id = 'ag-tirai-selesai'; document.body.appendChild(t); }
+  t.innerHTML = '<div class="ats-dlm"><div class="ats-ikon">🏆</div>' +
+    (majlis.sekolah ? '<div class="ats-sek">' + agEsc(majlis.sekolah) + '</div>' : '') +
+    '<h1>Majlis Selesai</h1><div class="ats-garis"></div>' +
+    '<p>Terima kasih atas kerjasama dan komitmen menjayakan majlis</p>' +
+    '<p class="ats-nama">“' + agEsc(majlis.nama || 'Majlis Anugerah') + '”</p></div>';
+}
+
 /* 🎯 Cap kata laluan Event Manager — SHA-256, disimpan pada
    modPetugas.pwEventManager. Dipakai admin (simpan) & event-manager.html (semak). */
 async function agCapPwEM(majlisId, pw) {

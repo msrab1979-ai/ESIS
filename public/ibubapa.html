@@ -599,9 +599,11 @@ function lukisBarUji() {
 async function laman() {
   FASA = fasaKini();
   S = baru();
+  /* 🏁 Event Manager menekan Majlis Selesai — menang atas jam (1 bacaan doc kecil). */
+  if (!LG_PEMASA) await mulaLg(); else LG = LG_BARU;   // pemasa 30s menjaga LG_BARU segar
+  if (LG && LG.selesai) return vSelesai();
   if (FASA === 'bancian') return mulaBancian();
   if (FASA === 'daftar') {
-    await mulaLg();
     /* 🚪 Pas dibuka + telefon ini pernah daftar → terus ke pas (1 bacaan keluarga). */
     /* Telefon ini pernah daftar → terus ke skrin berstamp / pas (1 bacaan keluarga). */
     const tel = localStorage.getItem(SIMPAN);
@@ -702,7 +704,7 @@ async function sahPas() {
 const capLg = l => l ? [l.langsung ? 1 : 0, l.mula || '', l.akhir || ''].join('|') : '';
 const lgBuka = () => !!(LG && LG.langsung);
 async function bacaLg() {
-  return baca('anugerah_langsung/' + M_ID, ['langsung', 'mula', 'akhir', 'masa']);
+  return baca('anugerah_langsung/' + M_ID, ['langsung', 'mula', 'akhir', 'masa', 'selesai']);
 }
 async function mulaLg() {
   try { LG_BARU = await bacaLg(); } catch (e) { LG_BARU = null; }
@@ -710,9 +712,11 @@ async function mulaLg() {
   if (!LG_PEMASA) LG_PEMASA = setInterval(semakLg, 30000);
 }
 async function semakLg() {
-  if (document.hidden || FASA !== 'daftar') return;
+  if (document.hidden || (FASA !== 'daftar' && !(LG && LG.selesai))) return;
   if (!DW_AUTO && dewanBuka() && ULANG === vUtama) { DW_AUTO = true; return laman(); }   // 🚪 jam pas tiba
   try { LG_BARU = await bacaLg(); } catch (e) { return; }   // gagal = cuba lagi 30s
+  /* 🏁 Majlis selesai / dibatalkan → tukar terus (tiada borang yang perlu dijaga lagi) */
+  if (!!(LG_BARU && LG_BARU.selesai) !== !!(LG && LG.selesai)) { LG = LG_BARU; return laman(); }
   $('b-lg').hidden = !(ULANG && capLg(LG_BARU) !== capLg(LG));
 }
 $('b-lg').onclick = () => {
@@ -816,6 +820,14 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && MJ && fasaKini() !== FASA && document.querySelector('[data-laman]')) laman();
 });
 
+function vSelesai() {
+  lukis(kepalaBesar() + '<div class="badan tengah" data-laman>' +
+    '<svg class="ik-e jam-besar"><use href="#i-pingat"/></svg>' +
+    '<h3 style="font-size:26px">Majlis Selesai</h3>' +
+    '<div class="kecil">Terima kasih atas kerjasama dan komitmen menjayakan majlis<br>' +
+    '<b style="color:var(--teks);font-family:var(--serif);font-size:16px">“' + esc(MJ.nama || tajuk().utama.replace(/\*/g, '')) + '”</b></div>' +
+    (CFG.buku ? bukuBtn() : '') + '</div>');
+}
 function vTutup() {
   const b = CFG.bancian || {}, d = CFG.daftar || {};
   let tjk, isi;

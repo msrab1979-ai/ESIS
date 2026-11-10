@@ -259,6 +259,7 @@ function sapuTanda(m, t) {
       return;
     }
     MAJLIS = agMajlisPetugas(hasil.majlis);   // 🙈 sub disorok admin dibuang
+    agPantauSelesai(MAJLIS);                  // 🏁
     /* 📝 Papan Nota Petugas umum dibuang dari panel ini (4 Nov 2026, pengguna).
        Pendengar tetap dipasang (bekas null) supaya ＋ nota pada tajuk anugerah
        kekal berfungsi. */
@@ -496,6 +497,7 @@ async function tulisLgs(ubah, mesej) {
     langsung: !!(LGS && LGS.langsung),
     mula: (LGS && LGS.mula) || null,
     akhir: (LGS && LGS.akhir) || null,
+    selesai: (LGS && LGS.selesai) || null,    // 🏁 milik Event Manager — set() penuh mesti membawanya
     ...ubah,
     masa: Date.now()
   };

@@ -89,8 +89,10 @@
     <section class="em-panel" id="t-ringkasan">
       <div class="kad">
         <div class="kad-kepala"><h3>📊 Ringkasan Majlis</h3>
-          <span class="sub">baca sahaja · dikemas kini sendiri</span></div>
+          <span class="sub">baca sahaja · dikemas kini sendiri</span>
+          <div class="kanan" id="em-selesai-btn"></div></div>
         <div class="kad-isi">
+          <div id="em-selesai-nota"></div>
           <div class="kpi-grid" id="em-kpi"></div>
         </div>
       </div>
@@ -199,6 +201,36 @@ $('bar-tab').addEventListener('click', e => {
   $('t-panel').appendChild(f);
 });
 
+/* ---------- 🏁 Majlis Selesai ----------
+   SATU-SATUNYA tulisan halaman ini. `set(merge)` medan `selesai` sahaja pada
+   anugerah_langsung — julat giliran Peserta tidak disentuh. Semua panel
+   petugas (agPantauSelesai) + apps ibu bapa memaparkan tirai selesai. */
+async function tulisSelesai(ya) {
+  const b = document.querySelector('[data-em-selesai]');
+  if (ya && !confirm('Tamatkan majlis "' + (MAJLIS.nama || '') + '"?\n\nSEMUA link petugas dan apps ibu bapa akan memaparkan:\nMAJLIS SELESAI — Terima kasih atas kerjasama dan komitmen.\n\nBoleh dibatalkan semula di sini.')) return;
+  if (!ya && !confirm('Batal "Majlis Selesai"? Semua panel kembali seperti biasa.')) return;
+  if (b) b.disabled = true;
+  try {
+    await agDb.collection('anugerah_langsung').doc(MAJLIS.id)
+      .set({ majlisId: MAJLIS.id, selesai: ya ? { masa: Date.now() } : null }, { merge: true });
+    agToast(ya ? '🏁 Majlis selesai — dipapar kepada semua' : 'Majlis dibuka semula', 'ok');
+  } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); if (b) b.disabled = false; }
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-em-selesai]');
+  if (b) tulisSelesai(b.dataset.emSelesai === '1');
+});
+function lukisSelesai() {
+  const s = LGS && LGS.selesai;
+  $('em-selesai-btn').innerHTML = s
+    ? '<button class="btn sunyi kecil" data-em-selesai="0">↩ Batal Majlis Selesai</button>'
+    : '<button class="btn bahaya kecil" data-em-selesai="1">🏁 Majlis Selesai</button>';
+  $('em-selesai-nota').innerHTML = s
+    ? '<div class="nota" style="margin:0 0 14px"><span class="sym">🏁</span><div><strong>Majlis ditandakan SELESAI</strong> pada ' +
+      agEsc(new Date(s.masa).toLocaleString('ms-MY', { hour: 'numeric', minute: '2-digit', day: 'numeric', month: 'short' })) +
+      ' — semua link petugas & apps ibu bapa memaparkan tirai terima kasih.</div></div>' : '';
+}
+
 /* ---------- ringkasan ---------- */
 const kpi = (angka, label, kecil, kls) => '<div class="kpi ' + (kls || '') + '"><div class="angka">' + angka +
   '</div><div class="label">' + agEsc(label) + '</div>' + (kecil ? '<div class="kecil">' + kecil + '</div>' : '') + '</div>';
@@ -217,6 +249,7 @@ function kira() {
 
 function lukis() {
   if (TAB !== 'ringkasan' || !MAJLIS) return;
+  lukisSelesai();
   const { murid, kel, peta, subPentas } = kira();
   const daftar = kel.filter(k => k.daftar && k.daftar.bil);
   const masuk = kel.filter(k => k.masuk);
