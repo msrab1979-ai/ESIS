@@ -389,7 +389,7 @@ async function asingSorok(k) {
   return k;
 }
 async function bacaKel(tel) {
-  const k = await bacaKel(tel);
+  const k = await baca(pKel(tel), MEDAN_KEL);
   if (UJI && k && !k.ujian) throw new Error('🧪 Mod uji: no. telefon ini milik keluarga SEBENAR. Guna no. telefon lain untuk ujian.');
   return k;
 }
