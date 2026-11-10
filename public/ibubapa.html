@@ -348,6 +348,9 @@ function sorok(nama) {
     return r;
   }).join(' ');
 }
+/* Nama anak: PENUH bila keluarga dikenal pasti melalui no. telefon (S.telSah,
+   pengguna 10 Nov 2026); separa disorok bila baru ditaip dengan KP sahaja. */
+const namaAnak = n => (S.telSah ? String(n || '').toUpperCase() : sorok(n));
 const DARJAH = { SATU: 1, DUA: 2, TIGA: 3, EMPAT: 4, LIMA: 5, ENAM: 6 };
 function kelasPapar(tahun, kelas) {
   const d = DARJAH[String(tahun || '').toUpperCase()] || Number(tahun) || '';
@@ -390,7 +393,7 @@ let S = baru();
 function baru(mod) {
   return { mod: mod || 'bancian', anak: [], asal: null, sasar: null,
            wakil: { nama: '', kp: '', tel: '' }, hadir: true, dewasa: 1, kanak: 0,
-           konflik: null, ralat: '', sorokAnak: [] };
+           konflik: null, ralat: '', sorokAnak: [], telSah: false };
 }
 const pKel = tel => 'anugerah_ibubapa/' + M_ID + '__' + tel;
 const pIdx = kp => 'anugerah_ibubapa_kp/' + M_ID + '__' + kp;
@@ -634,11 +637,10 @@ function vPas() {
     '<input class="medan" id="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="Diisi oleh AJK di pintu dewan"></div>' +
     ralatHTML() +
     '<button class="btn emas" id="b-sah">' + ik('semak') + 'Sahkan Masuk</button>' +
-    '<div class="kecil tengah">Bilangan salah? <button class="pautan" id="b-ubah-bil">Kemas kini pendaftaran</button></div></div>');
+    '<div class="kecil tengah">Bilangan salah? Sila jumpa AJK di kaunter pendaftaran.</div></div>');
   S.ralat = '';
   $('pin').addEventListener('keydown', e => { if (e.key === 'Enter') sahPas(); });
   $('b-sah').onclick = sahPas;
-  $('b-ubah-bil').onclick = vDaftarKel;
 }
 async function sahPas() {
   const pin = digit($('pin').value);
@@ -746,7 +748,7 @@ async function vGiliran(segar) {
     ralatHTML() +
     (anak.length ? '<div class="kad">' + anak.map(({ m, gil }) =>
       '<div class="anak" style="align-items:flex-start"><div class="av">' + ik('topi') + '</div><div style="flex:1">' +
-      '<b>' + esc(sorok(m.nama)) + '</b><span>' + esc(kelasPapar(m.tahun, m.kelas)) + '</span>' +
+      '<b>' + esc(namaAnak(m.nama)) + '</b><span>' + esc(kelasPapar(m.tahun, m.kelas)) + '</span>' +
       (gil.length ? '<div class="gno">' + gil.map(g => {
         const st = statusNo(g);
         return '<span class="' + st.k + '">Giliran <b>' + g.no + '</b> · ' + esc(st.t) + '</span>';
@@ -844,6 +846,7 @@ async function mulaBancian() {
 }
 function muatKeluarga(k) {
   S.asal = k; S.sasar = null;
+  S.telSah = true;          // dimuat ikut no. telefon (walk-in KP menetapkan semula false)
   const sk = new Set(k._sorok || []);
   S.anak = (k.murid || []).filter(x => !sk.has(x.kp)).map(x => Object.assign({}, x));
   S.sorokAnak = (k.murid || []).filter(x => sk.has(x.kp)).map(x => Object.assign({}, x));
@@ -907,7 +910,7 @@ async function cariAnak() {
     if (!p || p.jenis === 'luar' || (!p.ujian && !penerimaPapar(p))) { S.ralat = 'No. KP ini tiada dalam senarai penerima anugerah majlis ini. Sila semak semula.'; return vKP(); }
     if (S.mod === 'walkin' && !S.anak.length && idx && idx.telefon) {
       const k0 = await bacaKel(idx.telefon);
-      if (k0) { await asingSorok(k0); muatKeluarga(k0); return keKeluarga(); }
+      if (k0) { await asingSorok(k0); muatKeluarga(k0); S.telSah = false; return keKeluarga(); }
     }
     const telKini = [S.asal && S.asal.telefon, S.sasar && S.sasar.telefon].filter(Boolean);
     if (idx && idx.telefon && !telKini.includes(idx.telefon)) {
@@ -942,7 +945,7 @@ async function sahKonflik() {
 function senaraiAnak(boleh) {
   return '<div class="kad">' + S.anak.map((a, i) =>
     '<div class="anak"><div class="av">' + ik('topi') + '<svg class="bt"><use href="#i-bintang"/></svg></div>' +
-    '<div><b>' + esc(sorok(a.nama)) + '</b><span>' + esc(kelasPapar(a.tahun, a.kelas)) + '</span></div>' +
+    '<div><b>' + esc(namaAnak(a.nama)) + '</b><span>' + esc(kelasPapar(a.tahun, a.kelas)) + '</span></div>' +
     (boleh && S.anak.length > 1 ? '<button class="x" data-buang="' + i + '" aria-label="Buang">✕</button>' : '') + '</div>').join('') + '</div>';
 }
 function vAnak() {
@@ -1035,7 +1038,7 @@ function vHadir() {
       (had ? '<div class="kecil" style="padding:4px 0 8px">Jumlah <b style="color:var(--teks)" id="n-jum">' + (S.dewasa + S.kanak) + '</b> / <b style="color:var(--teks)">' + had + ' orang</b><br>' + hadNota() + ' (dewasa + kanak-kanak)</div>' : '') +
       '</div>' : '') +
     '<div class="kad" style="padding:11px 15px"><div class="kecil">Wakil: <b style="color:var(--teks)">' + esc(S.wakil.nama) + '</b><br>Anak: ' +
-      S.anak.map(a => esc(sorok(a.nama).split(' ').slice(0, 2).join(' '))).join(' · ') + '</div></div>' +
+      S.anak.map(a => esc(namaAnak(a.nama).split(' ').slice(0, 2).join(' '))).join(' · ') + '</div></div>' +
     ralatHTML() + '<div style="flex:1"></div>' +
     '<div style="display:flex;gap:8px"><button class="btn garis pejal" id="b-balik" style="flex:1">' + ik('kiri') + '</button>' +
     '<button class="btn emas" id="b-hantar" style="flex:4">' + ik(walk ? 'semak' : 'daftar') + (walk ? 'Daftar' : 'Hantar bancian') + '</button></div></div>');
@@ -1169,31 +1172,26 @@ async function cariTel() {
   } catch (e) { S.ralat = e.message; vDaftarTel(); }
 }
 
+/* 🔒 Bilangan hadir DIKUNCI = bancian (pengguna 10 Nov 2026, sama dengan
+   suratkebenaranko) — tiada −/+. Bilangan salah / bancian "tidak hadir" →
+   AJK di kaunter (admin ✎ Ubah / ✅ Daftar dalam tab 👪). */
 function vDaftarKel() {
   const k = S.asal, d = k.daftar;
-  if (k.masuk) return vDaftarSiap();          // 🚪 sudah masuk dewan — bilangan dikunci
-  if (d && d.bil) S.bil = d.bil;
-  else S.bil = Math.max(1, (k.hadir !== false ? (k.dewasa || 0) + (k.kanak || 0) : 0) || 1);
-  const had = hadMaks();
-  if (had) S.bil = Math.min(S.bil, had);
+  if (k.masuk) return vDaftarSiap();          // 🚪 sudah masuk dewan
+  const banc = k.hadir !== false ? (k.dewasa || 0) + (k.kanak || 0) : 0, had = hadMaks();
+  S.bil = d && d.bil ? d.bil : (had ? Math.min(banc, had) : banc);
+  const kaunter = '<div class="kecil tengah">Bilangan salah? Sila jumpa <b style="color:var(--teks)">AJK di kaunter pendaftaran</b>.</div>';
   lukis(kepalaKecil('keluarga', 'PENDAFTARAN', 'Keluarga anda') +
     '<div class="badan">' + senaraiAnak(false) +
-    (d ? '<div class="ok-nota">Sudah berdaftar pada ' + esc(jam(masaJadi(d.masa))) + ' · ' + d.bil + ' orang. Anda boleh kemas kini bilangan.</div>' : '') +
-    '<div class="kad" style="padding:6px 15px"><div class="step"><div class="lbl">Hadir hari ini<small>' +
-      (k.hadir !== false ? 'Bancian: ' + ((k.dewasa || 0) + (k.kanak || 0)) + ' orang' : 'Bancian: tidak hadir') + (had ? '<br>Maksimum ' + had + ' orang (' + hadNota() + ')' : '') +
-    '</small></div><div class="ctr"><button data-d="-1">−</button><b id="n-bil">' + S.bil + '</b><button class="p" data-d="1">+</button></div></div></div>' +
     '<div class="kecil">Wakil: <b style="color:var(--teks)">' + esc((k.wakil || {}).nama) + '</b></div>' +
+    (S.bil
+      ? '<div class="lg"><small>BILANGAN HADIR</small><div class="no">' + S.bil + '</div><div class="ket">orang · ikut bancian anda</div></div>' + kaunter
+      : '<div class="ralat">Bancian anda: <b>TIDAK HADIR</b>. Sila jumpa AJK di kaunter pendaftaran untuk didaftarkan.</div>') +
     ralatHTML() + '<div style="flex:1"></div>' +
     '<div style="display:flex;gap:8px"><button class="btn garis pejal" id="b-balik" style="flex:1">' + ik('kiri') + '</button>' +
-    '<button class="btn emas" id="b-daftar" style="flex:4">' + ik('semak') + (d ? 'Kemas kini' : 'Daftar') + '</button></div></div>');
-  $('app').querySelectorAll('[data-d]').forEach(b => b.onclick = () => {
-    S.bil = Math.min(had || 15, Math.max(1, S.bil + Number(b.dataset.d))); $('n-bil').textContent = S.bil;
-    kunciBil();
-  });
-  const kunciBil = () => { const p = $('app').querySelector('[data-d="1"]'); if (p) p.disabled = S.bil >= (had || 15); };
-  kunciBil();
+    (S.bil ? '<button class="btn emas" id="b-daftar" style="flex:4">' + ik('semak') + 'Daftar</button>' : '') + '</div></div>');
   $('b-balik').onclick = () => { S = baru(); vDaftarTel(); };
-  $('b-daftar').onclick = daftar;
+  if ($('b-daftar')) $('b-daftar').onclick = daftar;
 }
 async function daftar() {
   const btn = $('b-daftar'); sibuk(btn, true, 'Mendaftar…');
@@ -1217,11 +1215,10 @@ function vDaftarSiap() {
     kadLg() + kadMajlis(true) + '<div style="flex:1"></div>' +
     (lgBuka() ? '<button class="btn emas" id="b-giliran">' + ik('jam') + (mk ? 'Teruskan ke giliran anak' : 'Semak Giliran Anak') + '</button>' : '') +
     (bukuBoleh(k) ? bukuBtn() : '') +
-    (!mk ? '<button class="pautan" id="b-ubah-bil" style="align-self:center">Kemas kini bilangan</button>' : '') +
+
     '<button class="btn garis pejal" id="b-utama">Laman utama</button></div>');
   $('b-utama').onclick = vUtama;
   if ($('b-giliran')) $('b-giliran').onclick = () => vGiliran(false);
-  if ($('b-ubah-bil')) $('b-ubah-bil').onclick = vDaftarKel;
   ULANG = vDaftarSiap;
 }
 
