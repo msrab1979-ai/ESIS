@@ -919,3 +919,13 @@ Pengguna mahu menguji tanpa menukar tarikh (cara lama membuka skrin Daftar kepad
 #### 🎟 Tiket kehormat — skrin status ibu bapa (10 Nov 2026, pengguna pilih "A")
 
 Cap getah senget dibuang ("x cantik — ini anugerah, mesti profesional"). `tiket(o)` dipakai oleh **`vDaftarSiap`** (Sudah Berdaftar · emas / Disahkan Masuk · hijau), **`vPas`** (bilangan besar ganti meterai) dan **`vSiap`** (Bancian Diterima). Kepala = `kepalaBesar()` (laurel + sekolah + tajuk). Struktur: meterai bulat emas/hijau + status serif + masa → garis tebuk berlekuk (`.tebuk`) → senarai penerima (`tajukNama` huruf awal besar, bin/binti/a/l kecil; `kelasTiket` = "Tahun 1 · Celeron (DLP)") → garis tebuk → kaki 3 lajur (Penjaga / Hadir / Masuk|Daftar) → `majlisRingkas()` 2 baris gelap (hari·tarikh·masa, tempat) ganti `kadMajlis` 4 baris. Buku Program = butang emas; Laman utama = pautan.
+
+### 🎯 Event Manager (`event-manager.html`) — 10 Nov 2026
+
+Satu link petugas baharu (tab 🔗 Link Petugas, baris 🎯) + **kata laluan** yang admin tetapkan di baris itu (`modPetugas.pwEventManager` = cap SHA-256 `agCapPwEM`; diingati 12 jam di peranti, `localStorage em_<majlisId>`). Nama **"Event Manager"** dikekalkan (pengguna) — sama di menu, link dan tajuk halaman.
+
+- **📊 Ringkasan — BACA SAHAJA.** KPI: Sudah daftar (keluarga · orang) · Belum daftar (keluarga ada bancian · murid tiada bancian) · 🚪 Masuk dewan · ✅ Murid hadir (Pengurus Peserta) · 📣 Giliran semasa (`anugerah_langsung`) · 🎤 Sudah naik pentas (MC, satu nombor = satu giliran, pengikut gabung tidak dikira). Jadual per kelas ikut ANAK (Murid / Sudah daftar / Belum / 🚪 Masuk); klik kelas → senarai belum daftar + wakil + telefon (pautan `tel:`).
+- **Peraturan murid penerima SAMA dengan tab 👪 & apps ibu bapa** (🎤 tidak naik pentas / 🙈 disorok dikecualikan; keluarga 🧪 ujian dikecualikan). Disahkan pada data live 10 Nov: 307 murid penerima — sama dengan tab 👪.
+- **Tiga pemantau** (`agPantauPetugas`, `anugerah_ibubapa where majlisId`, `anugerah_langsung/{id}`) — selepas bacaan pertama hanya doc berubah dibil.
+- **Tab panel** ✅ Peserta / 🎤 MC / 🎁 Hadiah / 📺 Slaid / 🏫 Guru Kelas = **iframe panel sebenar**, `src` dibina dari `modPetugas.kod*` semasa (jadi 🔄 Tukar Link panel lain tidak memerlukan link Event Manager baharu). Iframe dibina **bila tab pertama kali dibuka** dan dikekalkan — jangan bina semua serentak (setiap panel memasang pemantau sendiri). Panel dalam iframe berfungsi penuh (boleh menulis, seperti link asal).
+- `AG_PERANAN_MEDAN.eventManager = 'kodEventManager'`; termasuk dalam 🔄 Tukar SEMUA link. `firebase.json` no-cache.

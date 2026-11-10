@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="color-scheme" content="only light">
+<meta name="darkreader-lock">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Event Manager — Anugerah</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="anugerah-kongsi.css">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<!--
+  ==========================================================================
+  event-manager.html — 🎯 Event Manager (10 Nov 2026)
+  --------------------------------------------------------------------------
+  Satu link + kata laluan (admin › 🔗 Link Petugas) untuk:
+    📊 Ringkasan — pendaftaran ibu bapa, masuk dewan, kehadiran murid,
+       giliran semasa, kemajuan MC. BACA SAHAJA (pengguna).
+    ✅ 🎤 🎁 📺 🏫 — panel petugas sebenar dalam iframe, kod dibaca dari
+       doc majlis. Admin tekan 🔄 Tukar Link pada panel → di sini tetap boleh
+       dibuka (tiada link lain perlu ditukar).
+  🔴 Kata laluan: cap SHA-256 dalam modPetugas.pwEventManager (agCapPwEM).
+     Diingati 12 jam di peranti ini (localStorage em_<majlisId>).
+  🔴 Iframe dibina BILA tab pertama kali dibuka, kemudian dikekalkan — setiap
+     panel memasang pemantau sendiri; jangan buka semuanya serentak.
+  ==========================================================================
+-->
+<style>
+.tab button{cursor:pointer}
+.em-bingkai{display:block;width:100%;height:calc(100vh - 150px);min-height:520px;border:1px solid var(--garis);border-radius:10px;background:#fff}
+.em-panel[hidden]{display:none}
+#em-jadual td.n,#em-jadual th.n{text-align:right;font-variant-numeric:tabular-nums}
+#em-jadual tfoot td{font-weight:700;border-top:2px solid var(--garis)}
+#em-jadual tbody tr{cursor:pointer}
+#em-jadual tbody tr:hover td{background:var(--kertas-3)}
+.em-merah{color:var(--absen);font-weight:700}
+.em-buka td{background:var(--kertas-2)!important;cursor:default}
+.em-senarai{margin:4px 0 6px;font-size:13px;line-height:1.6}
+.em-senarai div{padding:3px 0;border-bottom:1px dashed var(--garis-halus)}
+.em-senarai .hint{margin-left:6px}
+.em-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+</style>
+</head>
+<body>
+
+<header class="tajuk">
+  <div class="tajuk-dlm">
+    <div class="jenama">
+      <h1>Event Manager</h1>
+      <span class="cap">Majlis</span>
+    </div>
+    <p class="sari" id="sari">Memuatkan…</p>
+    <nav class="tab" role="tablist" id="bar-tab" hidden>
+      <button role="tab" aria-selected="true" data-t="ringkasan">📊 Ringkasan</button>
+      <button role="tab" aria-selected="false" data-t="peserta">✅ Peserta</button>
+      <button role="tab" aria-selected="false" data-t="mc">🎤 MC</button>
+      <button role="tab" aria-selected="false" data-t="hadiah">🎁 Hadiah</button>
+      <button role="tab" aria-selected="false" data-t="tayang">📺 Slaid</button>
+      <button role="tab" aria-selected="false" data-t="guruKelas">🏫 Guru Kelas</button>
+    </nav>
+  </div>
+</header>
+
+<main class="badan lebar">
+  <div id="p-ralat" hidden>
+    <div class="kad login-kotak">
+      <div class="kad-kepala"><h3>Link tidak sah</h3></div>
+      <div class="kad-isi">
+        <div class="nota ralat" style="margin:0"><span class="sym">✕</span><div id="ralat-teks">Kod dalam link ini tidak dikenali.</div></div>
+        <p class="kecil" style="margin:13px 0 0">Minta link baharu dari admin: Panel Anugerah → <strong>🔗 Link Petugas</strong> → 🎯 Event Manager.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="p-masuk" hidden>
+    <div class="kad login-kotak">
+      <div class="kad-kepala"><h3>🎯 Event Manager</h3></div>
+      <div class="kad-isi">
+        <div class="medan" style="margin-bottom:12px"><label for="em-pw">Kata laluan</label>
+          <input type="password" id="em-pw" autocomplete="current-password"></div>
+        <button class="btn emas" id="b-masuk" style="width:100%">Masuk</button>
+        <p class="kecil" id="masuk-st" style="margin:10px 0 0">Diingati 12 jam di peranti ini.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="p-isi" hidden>
+    <section class="em-panel" id="t-ringkasan">
+      <div class="kad">
+        <div class="kad-kepala"><h3>📊 Ringkasan Majlis</h3>
+          <span class="sub">baca sahaja · dikemas kini sendiri</span></div>
+        <div class="kad-isi">
+          <div class="kpi-grid" id="em-kpi"></div>
+        </div>
+      </div>
+      <div class="kad">
+        <div class="kad-kepala"><h3>👪 Pendaftaran ibu bapa ikut kelas</h3>
+          <span class="sub">klik kelas = senarai belum daftar</span></div>
+        <div class="kad-isi">
+          <div class="gulung"><table id="em-jadual"></table></div>
+        </div>
+      </div>
+    </section>
+    <section class="em-panel" id="t-panel" hidden></section>
+  </div>
+</main>
+
+<script src="anugerah-kongsi.js"></script>
+<script>
+let MAJLIS = null;        // majlis penuh terkini (pemantau)
+let PENERIMA = [];        // penerima ditapis 🙈 (agPantauPetugas)
+let KEL = [];             // anugerah_ibubapa (bukan ujian)
+let LGS = null;           // anugerah_langsung
+let BUKA_KELAS = '';      // baris kelas yang dikembangkan
+let TAB = 'ringkasan';
+const IFRAME = {};        // peranan → iframe (dibina sekali)
+const FAIL = { peserta: 'peserta.html', mc: 'mc.html', hadiah: 'hadiah.html', tayang: 'tayang.html', guruKelas: 'guru-kelas.html' };
+const $ = id => document.getElementById(id);
+
+/* ---------- mula: kod → kata laluan ---------- */
+(async function mula() {
+  try {
+    const hasil = await agBukaDenganKod('eventManager');
+    if (!hasil) { $('sari').textContent = 'Kod tidak sah.'; $('p-ralat').hidden = false; return; }
+    MAJLIS = hasil.majlis;
+    $('sari').textContent = MAJLIS.nama || '';
+    const cap = (MAJLIS.modPetugas || {}).pwEventManager;
+    if (!cap) {
+      $('ralat-teks').textContent = 'Kata laluan Event Manager belum ditetapkan oleh admin.';
+      $('p-ralat').hidden = false; return;
+    }
+    const ingat = JSON.parse(localStorage.getItem('em_' + MAJLIS.id) || 'null');
+    if (ingat && ingat.cap === cap && ingat.sampai > Date.now()) return masuk();
+    $('p-masuk').hidden = false;
+    $('em-pw').focus();
+  } catch (e) {
+    console.error(e);
+    $('sari').textContent = 'Gagal: ' + e.message;
+    $('ralat-teks').textContent = 'Gagal menyambung: ' + e.message;
+    $('p-ralat').hidden = false;
+  }
+})();
+async function cubaMasuk() {
+  const pw = $('em-pw').value;
+  if (!pw) return;
+  const cap = await agCapPwEM(MAJLIS.id, pw);
+  if (cap !== (MAJLIS.modPetugas || {}).pwEventManager) {
+    $('masuk-st').textContent = 'Kata laluan salah.'; $('masuk-st').style.color = 'var(--absen)'; return;
+  }
+  localStorage.setItem('em_' + MAJLIS.id, JSON.stringify({ cap, sampai: Date.now() + 12 * 3600 * 1000 }));
+  masuk();
+}
+$('b-masuk').addEventListener('click', cubaMasuk);
+$('em-pw').addEventListener('keydown', e => { if (e.key === 'Enter') cubaMasuk(); });
+
+function masuk() {
+  $('p-masuk').hidden = true;
+  $('p-isi').hidden = false;
+  $('bar-tab').hidden = false;
+  $('em-kpi').innerHTML = '<div class="memuat"><div class="pusing"></div>Memuatkan…</div>';
+  /* Tiga pemantau, semuanya baca sahaja: majlis + penerima, keluarga ibu
+     bapa, giliran semasa. Hanya doc yang berubah dibil selepas bacaan pertama. */
+  agPantauPetugas(MAJLIS, r => {
+    if (r) { MAJLIS = r.penuh || r.majlis; PENERIMA = r.penerima; lukis(); return; }
+    return agMuatPetugas(MAJLIS).then(x => { MAJLIS = x.penuh || x.majlis; PENERIMA = x.penerima; lukis(); });
+  });
+  agDb.collection('anugerah_ibubapa').where('majlisId', '==', MAJLIS.id).onSnapshot(snap => {
+    KEL = snap.docs.map(d => ({ docId: d.id, ...d.data() })).filter(k => !k.ujian);
+    lukis();
+  }, e => console.warn('Pemantau ibu bapa:', e));
+  agDb.collection('anugerah_langsung').doc(MAJLIS.id).onSnapshot(d => {
+    LGS = d.exists ? d.data() : null; lukis();
+  }, e => console.warn('Pemantau giliran:', e));
+}
+
+/* ---------- tab ---------- */
+$('bar-tab').addEventListener('click', e => {
+  const b = e.target.closest('[data-t]');
+  if (!b) return;
+  TAB = b.dataset.t;
+  document.querySelectorAll('#bar-tab [data-t]').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+  $('t-ringkasan').hidden = TAB !== 'ringkasan';
+  $('t-panel').hidden = TAB === 'ringkasan';
+  if (TAB === 'ringkasan') return lukis();
+  Object.entries(IFRAME).forEach(([k, f]) => { f.hidden = k !== TAB; });
+  if (IFRAME[TAB]) return;
+  const kod = (MAJLIS.modPetugas || {})[AG_PERANAN_MEDAN[TAB]];
+  if (!kod) {
+    const p = document.createElement('div');
+    p.className = 'kad'; p.innerHTML = '<div class="kad-isi"><p class="kosong">Link panel ini belum dijana / dibatalkan oleh admin.</p></div>';
+    IFRAME[TAB] = p; $('t-panel').appendChild(p); return;
+  }
+  const f = document.createElement('iframe');
+  f.className = 'em-bingkai';
+  f.src = FAIL[TAB] + '?kod=' + encodeURIComponent(kod);
+  f.title = b.textContent;
+  IFRAME[TAB] = f;
+  $('t-panel').appendChild(f);
+});
+
+/* ---------- ringkasan ---------- */
+const kpi = (angka, label, kecil, kls) => '<div class="kpi ' + (kls || '') + '"><div class="angka">' + angka +
+  '</div><div class="label">' + agEsc(label) + '</div>' + (kecil ? '<div class="kecil">' + kecil + '</div>' : '') + '</div>';
+
+function kira() {
+  /* Murid penerima = sama dengan tab 👪 admin & apps ibu bapa: ada anugerah
+     naik pentas yang tidak disorok (PENERIMA sudah ditapis 🙈). */
+  const subPentas = agSubPentas(MAJLIS);
+  const murid = PENERIMA.filter(p => !agAdalahLuar(p) && p.no_kp && agPenerimaPentas(p, subPentas));
+  const kpMurid = new Set(murid.map(p => p.no_kp));
+  const kel = KEL.filter(k => (k.murid || []).some(a => kpMurid.has(a.kp)));
+  const peta = {};
+  kel.forEach(k => (k.murid || []).forEach(a => { peta[a.kp] = k; }));
+  return { murid, kel, peta, subPentas };
+}
+
+function lukis() {
+  if (TAB !== 'ringkasan' || !MAJLIS) return;
+  const { murid, kel, peta, subPentas } = kira();
+  const daftar = kel.filter(k => k.daftar && k.daftar.bil);
+  const masuk = kel.filter(k => k.masuk);
+  const orang = a => a.reduce((j, k) => j + ((k.daftar && k.daftar.bil) || 0), 0);
+  const orangMasuk = masuk.reduce((j, k) => j + ((k.masuk && k.masuk.bil) || 0), 0);
+  const belumDtg = kel.filter(k => !(k.daftar && k.daftar.bil) && k.hadir !== false).length;
+  const tiadaBanc = murid.filter(p => !peta[p.no_kp]).length;
+
+  /* Murid hadir (Pengurus Peserta) + kemajuan MC — satu nombor = satu giliran (pengikut gabung tidak dikira). */
+  let gil = 0, gilMC = 0, hadirM = 0;
+  const pentas = PENERIMA.filter(p => agPenerimaPentas(p, subPentas));   // sama dengan Pengurus Peserta
+  pentas.forEach(p => {
+    const g = (p.giliran || []).filter(x => typeof x.no === 'number' && !agIkutSah(p.giliran, x));
+    gil += g.length; gilMC += g.filter(x => x.mc === true).length;
+    if ((p.giliran || []).some(x => x.hadir === true)) hadirM++;
+  });
+  const lg = LGS && LGS.langsung ? (LGS.mula ? LGS.mula + (LGS.akhir && LGS.akhir !== LGS.mula ? '–' + LGS.akhir : '') : 'Belum ditetapkan') : 'Panel ditutup';
+
+  $('sari').textContent = (MAJLIS.nama || '') + (MAJLIS.tarikh ? ' · ' + MAJLIS.tarikh : '');
+  $('em-kpi').innerHTML =
+    kpi(daftar.length, 'Sudah daftar', orang(daftar) + ' orang · keluarga', 'ok') +
+    kpi(belumDtg, 'Belum daftar', 'keluarga ada bancian · ' + tiadaBanc + ' murid tiada bancian', belumDtg ? 'bahaya' : '') +
+    kpi(masuk.length, '🚪 Masuk dewan', orangMasuk + ' orang · dari ' + daftar.length + ' berdaftar', 'ok') +
+    kpi(hadirM, '✅ Murid hadir', 'dari ' + pentas.length + ' penerima (Pengurus Peserta)') +
+    kpi(agEsc(lg), '📣 Giliran semasa', 'paparan telefon ibu bapa') +
+    kpi(gilMC, '🎤 Sudah naik pentas', 'dari ' + gil + ' giliran (MC)');
+
+  /* Per kelas ikut ANAK (kunci darjah + kelas). */
+  const kum = {};
+  murid.forEach(p => {
+    const kunci = agDarjahKelas(p.tahun, p.kelas) || '—';
+    const r = kum[kunci] = kum[kunci] || { kelas: kunci, d: agWordDarjah(p.tahun), murid: [], daftar: 0, masuk: 0 };
+    r.murid.push(p);
+    const k = peta[p.no_kp];
+    if (k && k.daftar && k.daftar.bil) r.daftar++;
+    if (k && k.masuk) r.masuk++;
+  });
+  const baris = Object.values(kum).sort((a, b) => a.d - b.d || a.kelas.localeCompare(b.kelas));
+  const jum = baris.reduce((j, r) => ({ m: j.m + r.murid.length, d: j.d + r.daftar, s: j.s + r.masuk }), { m: 0, d: 0, s: 0 });
+  const td = (n, merah) => '<td class="n' + (merah && n ? ' em-merah' : '') + '">' + n + '</td>';
+  $('em-jadual').innerHTML = baris.length
+    ? '<thead><tr><th>Kelas</th><th class="n">Murid</th><th class="n">Sudah daftar</th><th class="n">Belum daftar</th><th class="n">🚪 Masuk</th></tr></thead><tbody>' +
+      baris.map(r => '<tr data-kelas="' + agEsc(r.kelas) + '"><td><strong>' + agEsc(r.kelas) + '</strong> ' + (BUKA_KELAS === r.kelas ? '▾' : '›') + '</td>' +
+        td(r.murid.length) + td(r.daftar) + td(r.murid.length - r.daftar, true) + td(r.masuk) + '</tr>' +
+        (BUKA_KELAS === r.kelas ? '<tr class="em-buka"><td colspan="5">' + senaraiBelum(r.murid, peta) + '</td></tr>' : '')).join('') +
+      '</tbody><tfoot><tr><td>JUMLAH</td>' + td(jum.m) + td(jum.d) + td(jum.m - jum.d, true) + td(jum.s) + '</tr></tfoot>'
+    : '<tbody><tr><td class="hint">Belum ada murid penerima.</td></tr></tbody>';
+}
+function senaraiBelum(murid, peta) {
+  const belum = murid.filter(p => { const k = peta[p.no_kp]; return !(k && k.daftar && k.daftar.bil); })
+    .sort((a, b) => String(a.nama).localeCompare(String(b.nama), 'ms'));
+  if (!belum.length) return '<div class="em-senarai">✅ Semua murid kelas ini sudah daftar.</div>';
+  return '<div class="em-senarai"><strong>Belum daftar (' + belum.length + ')</strong>' + belum.map(p => {
+    const k = peta[p.no_kp];
+    const ket = !k ? 'belum jawab bancian'
+      : (k.hadir === false ? 'bancian: tidak hadir' : 'bancian ' + ((k.dewasa || 0) + (k.kanak || 0)) + ' orang') +
+        ' · ' + agEsc((k.wakil || {}).nama || '') + ' · <a href="tel:' + agEsc(k.telefon) + '">' + agEsc(k.telefon) + '</a>';
+    return '<div>' + agEsc(p.nama) + '<span class="hint">' + ket + '</span></div>';
+  }).join('') + '</div>';
+}
+$('em-jadual').addEventListener('click', e => {
+  if (e.target.closest('a')) return;
+  const r = e.target.closest('tr[data-kelas]');
+  if (!r) return;
+  BUKA_KELAS = BUKA_KELAS === r.dataset.kelas ? '' : r.dataset.kelas;
+  lukis();
+});
+</script>
+</body>
+</html>

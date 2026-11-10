@@ -7218,7 +7218,10 @@ function lukisPetugas() {
     { k: 'kodTayang', fail: 'tayang.html', ikon: '📺', nama: 'Slaid Dewan',
       tulis: 'Menulis: tiada · Paparan projektor sahaja' },
     { k: 'kodGuruKelas', fail: 'guru-kelas.html', ikon: '🏫', nama: 'Guru Kelas',
-      tulis: 'Lihat sahaja · Guru daftar sendiri, satu kelas satu guru · Nampak murid kelasnya sahaja' }
+      tulis: 'Lihat sahaja · Guru daftar sendiri, satu kelas satu guru · Nampak murid kelasnya sahaja' },
+    /* 🎯 10 Nov 2026 — semua panel dalam satu link + ringkasan pendaftaran (baca sahaja) */
+    { k: 'kodEventManager', fail: 'event-manager.html', ikon: '🎯', nama: 'Event Manager',
+      tulis: 'Lihat: 📊 ringkasan pendaftaran ibu bapa, masuk dewan, kehadiran, giliran & MC · Buka SEMUA panel petugas dalam satu link · Perlu kata laluan' }
   ];
 
   lukisBorangGuru();
@@ -7237,6 +7240,10 @@ function lukisPetugas() {
       '<div class="lb-teks"><div class="lb-nama">' + agEsc(r.nama) + '</div>' +
         '<div class="lb-url">' + (kod ? agEsc(url) : '<em>kod dibatalkan</em>') + '</div>' +
         '<div class="lb-tulis">' + r.tulis + '</div></div>' +
+      (r.k === 'kodEventManager'
+        ? '<input type="password" id="em-pw-baru" autocomplete="new-password" placeholder="' +
+            (mod.pwEventManager ? 'Kata laluan ✓ — taip untuk tukar' : 'Tetapkan kata laluan') + '" style="max-width:190px">' +
+          '<button class="btn ' + (mod.pwEventManager ? 'sunyi' : 'emas') + ' kecil" data-em-pw>💾 Kata laluan</button>' : '') +
       (r.k === 'kodHadiah'
         ? '<button class="btn sunyi kecil" data-cetak-hadiah>🖨 Cetak Senarai Hadiah (PDF)</button>' +
           '<button class="btn sunyi kecil" data-word-hadiah>📄 Muat Turun (Word)</button>' +
@@ -7415,6 +7422,17 @@ $('link-grid').addEventListener('click', async e => {
   }
   /* 🔄 Tukar = Batal + Jana dalam SATU langkah. Kod lama terus ditolak
      oleh agBukaDenganKod (padanan kod tepat). */
+  /* 🎯 Kata laluan Event Manager — cap SHA-256 sahaja disimpan (agCapPwEM) */
+  if (e.target.closest('button[data-em-pw]')) {
+    const pw = ($('em-pw-baru').value || '').trim();
+    if (pw.length < 4) { agToast('Kata laluan sekurang-kurangnya 4 aksara', 'ralat'); return; }
+    const mod = MAJLIS.modPetugas = MAJLIS.modPetugas || {};
+    const lama = mod.pwEventManager;
+    mod.pwEventManager = await agCapPwEM(MAJLIS.id, pw);
+    try { await simpanMajlis(); lukisPetugas(); agToast('Kata laluan Event Manager disimpan', 'ok'); }
+    catch (err) { mod.pwEventManager = lama; agToast('Gagal: ' + err.message, 'ralat'); }
+    return;
+  }
   const tukar = e.target.closest('button[data-tukar]');
   if (tukar) {
     if (!confirm('Tukar link ini?\n\nLink LAMA terus tidak boleh dibuka. ' +
@@ -7850,13 +7868,13 @@ $('b-reset-mc').addEventListener('click', () => resetTanda('mc', 'MC'));
 $('b-tukar-semua-link').addEventListener('click', async () => {
   if (!MAJLIS) return;
   const taip = prompt('Tukar SEMUA link petugas?\n\n' +
-    'Peserta, MC, Hadiah, Tayang dan Guru Kelas dapat link BAHARU.\n' +
+    'Peserta, MC, Hadiah, Tayang, Guru Kelas dan Event Manager dapat link BAHARU.\n' +
     'Semua link lama terus tidak boleh dibuka.\n' +
     'Borang guru tidak disentuh.\n\nTaip RESET untuk teruskan:');
   if (taip !== 'RESET') { if (taip !== null) agToast('Dibatalkan'); return; }
   const mod = MAJLIS.modPetugas = MAJLIS.modPetugas || {};
   const lama = { ...mod };
-  ['kodPeserta', 'kodMC', 'kodHadiah', 'kodTayang', 'kodGuruKelas']
+  ['kodPeserta', 'kodMC', 'kodHadiah', 'kodTayang', 'kodGuruKelas', 'kodEventManager']
     .forEach(k => { mod[k] = agKodBaru(); });
   try { await simpanMajlis(); lukisPetugas(); agToast('Semua link petugas ditukar — kongsi link baharu', 'ok'); }
   catch (err) { MAJLIS.modPetugas = lama; agToast('Gagal: ' + err.message, 'ralat'); }

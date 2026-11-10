@@ -581,8 +581,15 @@ const AG_PERANAN_MEDAN = {
   mc: 'kodMC',
   hadiah: 'kodHadiah',
   tayang: 'kodTayang',
-  guruKelas: 'kodGuruKelas'
+  guruKelas: 'kodGuruKelas',
+  eventManager: 'kodEventManager'    // 🎯 event-manager.html (10 Nov 2026)
 };
+/* 🎯 Cap kata laluan Event Manager — SHA-256, disimpan pada
+   modPetugas.pwEventManager. Dipakai admin (simpan) & event-manager.html (semak). */
+async function agCapPwEM(majlisId, pw) {
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('esis-em:' + majlisId + ':' + pw));
+  return Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2, '0')).join('');
+}
 
 /* 🏫 Guru Kelas — senarai ditutup oleh admin? `g.tutup` (per kelas)
    menang; tiada medan → lalai majlis `guruKelasTutup` (ditetapkan oleh
