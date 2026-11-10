@@ -1086,6 +1086,9 @@ tr.pg-gab td{background:var(--amaran-bg)}
         <p class="eyebrow">Borang serahan guru — anugerah yang diuruskan oleh orang lain</p>
         <div id="borang-grid"></div>
         <hr style="border:none;border-top:1px solid var(--garis-halus);margin:19px 0">
+        <p class="eyebrow">🏁 Status majlis — tirai "Majlis Selesai" di semua link petugas &amp; apps ibu bapa</p>
+        <div class="baris-input" id="selesai-status" style="align-items:center"></div>
+        <hr style="border:none;border-top:1px solid var(--garis-halus);margin:19px 0">
         <p class="eyebrow">Reset tanda — selepas majlis sebenar, ini satu-satunya rekod siapa naik pentas</p>
         <div id="reset-status"></div>
         <div class="baris-input" style="margin-top:9px">
@@ -7226,6 +7229,7 @@ function lukisPetugas() {
 
   lukisBorangGuru();
   lukisResetStatus();
+  lukisSelesaiAdmin();
   lukisGuruKelas();
   /* 📝 Papan Nota Petugas umum dibuang (4 Nov 2026, pengguna) — butang
      🗑 Padam semua nota di bawah kekal untuk nota anugerah. Pendengar
@@ -7257,6 +7261,31 @@ function lukisPetugas() {
     '</div>';
   }).join('');
 }
+
+/* ---------- 🏁 Status majlis (sama dengan butang Event Manager) ---------- */
+async function lukisSelesaiAdmin() {
+  const el = $('selesai-status');
+  if (!el || !MAJLIS) return;
+  let s = null;
+  try { const d = await agDb.collection('anugerah_langsung').doc(MAJLIS.id).get(); s = d.exists ? d.data().selesai : null; }
+  catch (e) { el.innerHTML = '<span class="kecil">Gagal membaca status: ' + agEsc(e.message) + '</span>'; return; }
+  el.innerHTML = s
+    ? '<span class="pil absen">● SELESAI · ' + agEsc(new Date(s.masa).toLocaleString('ms-MY', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })) + '</span>' +
+      '<button class="btn emas kecil" data-selesai-admin="0">↩ Buka semula majlis</button>'
+    : '<span class="pil">○ Berjalan</span>' +
+      '<button class="btn sunyi kecil" data-selesai-admin="1">🏁 Majlis Selesai</button>';
+}
+$('selesai-status').addEventListener('click', async e => {
+  const b = e.target.closest('[data-selesai-admin]');
+  if (!b || !MAJLIS) return;
+  const ya = b.dataset.selesaiAdmin === '1';
+  if (!confirm(ya ? 'Tamatkan majlis "' + (MAJLIS.nama || '') + '"?\n\nSemua link petugas & apps ibu bapa memaparkan tirai MAJLIS SELESAI.'
+                  : 'Buka semula majlis? Tirai "Majlis Selesai" hilang dari semua link petugas & apps ibu bapa.')) return;
+  b.disabled = true;
+  try { await agTulisSelesai(MAJLIS.id, ya); agToast(ya ? '🏁 Majlis selesai' : 'Majlis dibuka semula', 'ok'); }
+  catch (err) { agToast('Gagal: ' + err.message, 'ralat'); }
+  lukisSelesaiAdmin();
+});
 
 /* ---------- 🏫 Guru Kelas berdaftar ----------
    Pendaftaran dalam koleksi sendiri (`anugerah_guruKelas`), satu doc per

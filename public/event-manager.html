@@ -211,8 +211,7 @@ async function tulisSelesai(ya) {
   if (!ya && !confirm('Batal "Majlis Selesai"? Semua panel kembali seperti biasa.')) return;
   if (b) b.disabled = true;
   try {
-    await agDb.collection('anugerah_langsung').doc(MAJLIS.id)
-      .set({ majlisId: MAJLIS.id, selesai: ya ? { masa: Date.now() } : null }, { merge: true });
+    await agTulisSelesai(MAJLIS.id, ya);
     agToast(ya ? '🏁 Majlis selesai — dipapar kepada semua' : 'Majlis dibuka semula', 'ok');
   } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); if (b) b.disabled = false; }
 }

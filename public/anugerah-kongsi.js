@@ -596,6 +596,11 @@ function agPantauSelesai(majlis) {
     agTiraiSelesai(x && x.selesai ? majlis : null);
   }, e => console.warn('Pemantau selesai:', e));
 }
+/* SATU laluan tulis — Event Manager DAN admin. merge: julat giliran Peserta tidak disentuh. */
+function agTulisSelesai(majlisId, ya) {
+  return agDb.collection('anugerah_langsung').doc(majlisId)
+    .set({ majlisId, selesai: ya ? { masa: Date.now() } : null }, { merge: true });
+}
 function agTiraiSelesai(majlis) {
   let t = document.getElementById('ag-tirai-selesai');
   if (!majlis) { if (t) t.remove(); return; }
