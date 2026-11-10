@@ -23,6 +23,7 @@
 
 let IB_KEL = [];          // doc keluarga majlis aktif (termasuk ujian)
 let IB_UJI = [];          // 🧪 ID ujian majlis aktif
+let IB_SANDAR = [];       // ♻️ sandaran ujian data SEBENAR (anugerah_ibubapa_ujisandar)
 let IB_SEDIA = false;     // pendengar dipasang sekali
 
 const ibP = s => String(s == null ? '' : s);
@@ -201,9 +202,11 @@ function ibBina() {
       <button class="btn emas kecil" id="ib-u-tambah">＋ Tambah ID ujian</button>
       <a class="btn sunyi kecil" id="ib-u-buka" target="_blank" rel="noopener">🧪 Buka apps mod uji ↗</a>
     </div>
+    <div id="ib-u-sandar" style="margin-top:12px"></div>
     <div class="gulung" style="margin-top:12px"><table id="ib-u-jadual"></table></div>
     <p class="hint" style="margin:9px 0 0"><strong>🧪 Mod uji</strong> = tarikh diabaikan; pilih skrin (Bancian / Hari majlis / 🚪 Pas dewan / Belum / Selesai) dari bar oren di atas.
-      Hanya ID ujian diterima — keluarga sebenar tidak boleh dibuka atau ditindih, jadi selamat walaupun link tersebar. Ibu bapa sebenar tidak terjejas.</p>
+      Lalai <strong>ID ujian sahaja</strong> — keluarga sebenar tidak boleh dibuka atau ditindih. Pilih <strong>⚠ Data SEBENAR</strong> dalam bar untuk menguji keluarga sebenar:
+      setiap rekod disandar sebelum ditulis, dan <strong>♻️ Pulihkan</strong> (muncul di sini) mengembalikan semuanya seperti sebelum ujian.</p>
     <p class="hint" style="margin:6px 0 0">ID ujian disimpan berasingan — <strong>tidak</strong> masuk senarai penerima, giliran, tiket atau MC.
       Bancian yang memakai ID ujian <strong>tidak dikira</strong> dalam statistik &amp; CSV. Padam ID = padam bancian ujiannya sekali.</p>
   </div>
@@ -333,13 +336,15 @@ async function ibMuat(paksa) {
   memuat($('ib-kpi'), 'Memuatkan bancian…');
   $('ib-jadual').innerHTML = '';
   try {
-    const [snap, pen, uji] = await Promise.all([
+    const [snap, pen, uji, sandar] = await Promise.all([
       agDb.collection('anugerah_ibubapa').where('majlisId', '==', MAJLIS.id).get(),
       paksa === true || !PENERIMA.length ? agMuatPenerima(MAJLIS.id) : PENERIMA,
-      agDb.collection('anugerah_ibubapa_uji').where('majlisId', '==', MAJLIS.id).get()
+      agDb.collection('anugerah_ibubapa_uji').where('majlisId', '==', MAJLIS.id).get(),
+      agDb.collection('anugerah_ibubapa_ujisandar').where('majlisId', '==', MAJLIS.id).get()
     ]);
     IB_KEL = snap.docs.map(d => ({ docId: d.id, ...d.data() }));
     IB_UJI = uji.docs.map(d => ({ docId: d.id, ...d.data() }));
+    IB_SANDAR = sandar.docs.map(d => ({ docId: d.id, ...d.data() }));
     PENERIMA = pen;
     ibLukisUji();
     ibLukisStat();
@@ -668,7 +673,45 @@ async function ibmTulis(btn, kerja, mesej) {
 }
 
 /* ---------- 🧪 ID ujian ---------- */
+/* ♻️ Mod uji dengan data SEBENAR menyandar setiap doc sebelum ia ditulis
+   (salinan pertama = keadaan sebelum ujian). Pulihkan = tulis semula doc
+   asal (atau padam doc yang dicipta semasa ujian) melalui REST dengan
+   medan MENTAH — jenis (timestamp, integer) kekal tepat. */
+function ibLukisSandar() {
+  const el = $('ib-u-sandar');
+  if (!IB_SANDAR.length) { el.innerHTML = ''; return; }
+  const kel = IB_SANDAR.filter(x => /^anugerah_ibubapa\//.test(x.laluan)).length;
+  el.innerHTML = '<div class="nota ralat" style="margin:0"><span class="sym">⚠</span><div><strong>Ujian data SEBENAR belum dipulihkan</strong> — ' +
+    IB_SANDAR.length + ' rekod disandar (' + kel + ' keluarga). Statistik di bawah termasuk perubahan ujian.' +
+    '<div style="margin-top:8px"><button class="btn emas kecil" id="ib-pulih">♻️ Pulihkan data seperti sebelum ujian</button></div></div></div>';
+  $('ib-pulih').onclick = ibPulih;
+}
+async function ibPulih() {
+  const snap = await agDb.collection('anugerah_ibubapa_ujisandar').where('majlisId', '==', MAJLIS.id).get();
+  if (!snap.size) { agToast('Tiada sandaran ujian', 'ok'); return ibMuat(); }
+  const taip = prompt('Pulihkan ' + snap.size + ' rekod kepada keadaan SEBELUM ujian?\n\n' +
+    'Perubahan ibu bapa sebenar pada rekod yang sama sejak ujian bermula juga akan dikembalikan.\n\nTaip PULIH untuk mengesahkan.');
+  if (taip !== 'PULIH') { if (taip !== null) agToast('Dibatalkan', 'ralat'); return; }
+  const o = firebase.app().options, akar = 'projects/' + o.projectId + '/databases/(default)/documents';
+  const writes = [];
+  snap.docs.forEach(d => {
+    const x = d.data(), nama = akar + '/' + x.laluan;
+    writes.push(x.ada ? { update: { name: nama, fields: JSON.parse(x.data || '{}') } } : { delete: nama });
+    writes.push({ delete: akar + '/anugerah_ibubapa_ujisandar/' + d.id });
+  });
+  try {
+    for (let i = 0; i < writes.length; i += 400) {
+      const r = await fetch('https://firestore.googleapis.com/v1/' + akar + ':commit?key=' + o.apiKey, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ writes: writes.slice(i, i + 400) })
+      });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error?.message || 'HTTP ' + r.status);
+    }
+    agToast(snap.size + ' rekod dipulihkan', 'ok');
+  } catch (e) { agToast('Gagal pulih: ' + e.message, 'ralat'); }
+  ibMuat();
+}
 function ibLukisUji() {
+  ibLukisSandar();
   const el = $('ib-u-jadual');
   if (!IB_UJI.length) { el.innerHTML = '<tbody><tr><td class="hint">Tiada ID ujian.</td></tr></tbody>'; return; }
   const kelOf = kp => IB_KEL.find(k => (k.murid || []).some(m => m.kp === kp));

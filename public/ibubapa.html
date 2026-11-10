@@ -276,7 +276,34 @@ async function baca(laluan, medan) {
   return decF(j.fields || {});
 }
 /* Satu commit = atomik: keluarga + indeks anak berjaya bersama atau gagal bersama. */
+/* 🧪 Mod uji + data SEBENAR: setiap doc yang hendak ditulis disandar dahulu
+   (sekali sahaja — salinan PERTAMA = keadaan sebelum ujian) ke
+   anugerah_ibubapa_ujisandar. Tab 👪 › ♻️ Pulihkan mengembalikannya.
+   🔴 Sandaran gagal (selain "sudah ada") → tulisan DIBATALKAN. */
 async function commit(writes) {
+  if (UJI && UJI_DATA === 'sebenar') await sandarUji(writes);
+  return commitAsal(writes);
+}
+async function sandarUji(writes) {
+  const laluan = Array.from(new Set(writes.map(w => (w.update ? w.update.name : w.delete).slice(IB_DOC.length + 1))));
+  for (const l of laluan) {
+    if (l.startsWith('anugerah_ibubapa_ujisandar/')) continue;
+    const id = M_ID + '__' + l.replace(/\//g, '|');
+    let r = await fetch(IB_URL + '/' + l + '?key=' + IB_KEY).catch(() => null);
+    if (!r || (r.status !== 404 && !r.ok)) throw new Error('Sandaran ujian gagal — tiada apa ditulis. Cuba lagi.');
+    const ada = r.status !== 404, data = ada ? JSON.stringify((await r.json()).fields || {}) : '';
+    r = await fetch(IB_URL + ':commit?key=' + IB_KEY, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ writes: [{ update: { name: IB_DOC + '/anugerah_ibubapa_ujisandar/' + id,
+        fields: encF({ majlisId: M_ID, laluan: l, ada, data, masa: new Date() }) }, currentDocument: { exists: false } }] })
+    }).catch(() => null);
+    if (r && r.ok) continue;
+    const j = r && await r.json().catch(() => null);
+    if (j && j.error && /FAILED_PRECONDITION|ALREADY_EXISTS/.test(j.error.status || '')) continue;   // sudah disandar
+    throw new Error('Sandaran ujian gagal — tiada apa ditulis. Cuba lagi.');
+  }
+}
+async function commitAsal(writes) {
   let r;
   try {
     r = await fetch(IB_URL + ':commit?key=' + IB_KEY, {
@@ -352,6 +379,8 @@ const UJI = new URLSearchParams(location.search).get('uji') === '1';
 const UJI_FASA = [['bancian', 'Bancian'], ['daftar', 'Hari majlis (daftar)'], ['pas', 'Hari majlis + 🚪 Pas dewan'],
                   ['belum', 'Belum dibuka'], ['selesai', 'Majlis selesai']];
 let UJI_PILIH = (UJI && sessionStorage.getItem('ib_uji_fasa')) || 'bancian';
+/* 'uji' = ID ujian sahaja (lalai) · 'sebenar' = data sebenar, setiap tulisan disandar */
+let UJI_DATA = (UJI && sessionStorage.getItem('ib_uji_data')) || 'uji';
 const SIMPAN = 'ib_' + M_ID + (UJI ? '_uji' : '') + '_tel';
 let MJ = null, CFG = {}, FASA = '';
 /* 📣 Giliran: LG = yang DIPAPAR, LG_BARU = semakan terkini. ULANG = fungsi
@@ -398,7 +427,7 @@ async function asingSorok(k) {
 }
 async function bacaKel(tel) {
   const k = await baca(pKel(tel), MEDAN_KEL);
-  if (UJI && k && !k.ujian) throw new Error('🧪 Mod uji: no. telefon ini milik keluarga SEBENAR. Guna no. telefon lain untuk ujian.');
+  if (UJI && UJI_DATA === 'uji' && k && !k.ujian) throw new Error('🧪 Mod uji: no. telefon ini milik keluarga SEBENAR. Guna no. telefon lain untuk ujian.');
   return k;
 }
 const MEDAN_KEL = ['telefon', 'wakil', 'murid', 'hadir', 'dewasa', 'kanak', 'sumber', 'daftar', 'dihantar', 'ujian', 'masuk'];
@@ -512,9 +541,23 @@ async function mula() {
 function lukisBarUji() {
   const bar = $('uji-bar');
   bar.hidden = false;
-  bar.innerHTML = '<b>🧪 MOD UJI</b> · tarikh diabaikan · ID ujian sahaja · ' +
+  bar.style.background = UJI_DATA === 'sebenar' ? '#8E1B1B' : '';
+  bar.innerHTML = '<b>🧪 MOD UJI</b> · tarikh diabaikan · ' +
     '<select id="uji-fasa">' + UJI_FASA.map(([v, l]) => '<option value="' + v + '"' + (v === UJI_PILIH ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
+    '<select id="uji-data"><option value="uji"' + (UJI_DATA === 'uji' ? ' selected' : '') + '>🧪 ID ujian sahaja</option>' +
+      '<option value="sebenar"' + (UJI_DATA === 'sebenar' ? ' selected' : '') + '>⚠ Data SEBENAR (disandar)</option></select>' +
+    (UJI_DATA === 'sebenar' ? ' <b>Selepas uji: tab 👪 › ♻️ Pulihkan</b>' : '') +
     (UJI_PILIH === 'pas' && !(CFG.dewan || {}).pin ? ' <b style="color:#FFB4A8">⚠ PIN belum ditetapkan di tab 👪</b>' : '');
+  $('uji-data').onchange = e => {
+    if (e.target.value === 'sebenar' && !confirm('Uji dengan data SEBENAR?\n\nSetiap keluarga yang anda ubah disandar dahulu. Selepas selesai, pulihkan di tab 👪 › 🧪 › ♻️ Pulihkan.')) {
+      e.target.value = UJI_DATA; return;
+    }
+    UJI_DATA = e.target.value;
+    sessionStorage.setItem('ib_uji_data', UJI_DATA);
+    S = baru(); DW_AUTO = false;
+    lukisBarUji();
+    laman();
+  };
   $('uji-fasa').onchange = e => {
     UJI_PILIH = e.target.value;
     sessionStorage.setItem('ib_uji_fasa', UJI_PILIH);
@@ -857,9 +900,9 @@ async function cariAnak() {
   try {
     /* Walk-in hari majlis melalui KP: anak sudah ada keluarga → terus ke
        keluarga itu. Tiada → aliran bancian (wakil + bilangan) yang terus mendaftar. */
-    let [p, idx] = await Promise.all([UJI ? null : baca(pPen(kp), ['nama', 'tahun', 'kelas', 'jenis', 'anugerah']), baca(pIdx(kp), ['telefon'])]);
+    let [p, idx] = await Promise.all([UJI && UJI_DATA === 'uji' ? null : baca(pPen(kp), ['nama', 'tahun', 'kelas', 'jenis', 'anugerah']), baca(pIdx(kp), ['telefon'])]);
     if (!p) { p = await baca(pUji(kp), ['nama', 'tahun', 'kelas']); if (p) p.ujian = true; }
-    if (UJI && !p) { S.ralat = '🧪 Mod uji: hanya ID ujian (tab 👪 › 🧪 ID Ujian) boleh dipakai.'; return vKP(); }
+    if (UJI && UJI_DATA === 'uji' && !p) { S.ralat = '🧪 Mod uji: hanya ID ujian (tab 👪 › 🧪 ID Ujian) boleh dipakai.'; return vKP(); }
     /* 🎤/🙈 semua anugerah tidak naik pentas / disorok = bukan penerima di sini */
     if (!p || p.jenis === 'luar' || (!p.ujian && !penerimaPapar(p))) { S.ralat = 'No. KP ini tiada dalam senarai penerima anugerah majlis ini. Sila semak semula.'; return vKP(); }
     if (S.mod === 'walkin' && !S.anak.length && idx && idx.telefon) {
