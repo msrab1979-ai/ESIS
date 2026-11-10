@@ -199,9 +199,12 @@ function ibBina() {
       <div class="medan"><label for="ib-u-darjah">Darjah</label><select id="ib-u-darjah">${['SATU','DUA','TIGA','EMPAT','LIMA','ENAM'].map((d, i) => '<option value="' + d + '"' + (i === 4 ? ' selected' : '') + '>' + (i + 1) + '</option>').join('')}</select></div>
       <div class="medan"><label for="ib-u-kelas">Kelas</label><input type="text" id="ib-u-kelas" value="UJIAN" style="min-width:110px"></div>
       <button class="btn emas kecil" id="ib-u-tambah">＋ Tambah ID ujian</button>
+      <a class="btn sunyi kecil" id="ib-u-buka" target="_blank" rel="noopener">🧪 Buka apps mod uji ↗</a>
     </div>
     <div class="gulung" style="margin-top:12px"><table id="ib-u-jadual"></table></div>
-    <p class="hint" style="margin:9px 0 0">ID ujian disimpan berasingan — <strong>tidak</strong> masuk senarai penerima, giliran, tiket atau MC.
+    <p class="hint" style="margin:9px 0 0"><strong>🧪 Mod uji</strong> = tarikh diabaikan; pilih skrin (Bancian / Hari majlis / 🚪 Pas dewan / Belum / Selesai) dari bar oren di atas.
+      Hanya ID ujian diterima — keluarga sebenar tidak boleh dibuka atau ditindih, jadi selamat walaupun link tersebar. Ibu bapa sebenar tidak terjejas.</p>
+    <p class="hint" style="margin:6px 0 0">ID ujian disimpan berasingan — <strong>tidak</strong> masuk senarai penerima, giliran, tiket atau MC.
       Bancian yang memakai ID ujian <strong>tidak dikira</strong> dalam statistik &amp; CSV. Padam ID = padam bancian ujiannya sekali.</p>
   </div>
 </div>
@@ -230,6 +233,7 @@ function ibIsiBorang() {
   const c = MAJLIS.ibubapa || {}, t = c.tajuk || {}, w = c.wa || {};
   $('ib-url').textContent = ibLink();
   $('ib-buka').href = ibLink();
+  $('ib-u-buka').href = ibLink() + '&uji=1';
   $('ib-sek').value = t.sek || ''; $('ib-sek').placeholder = MAJLIS.sekolah || '';
   $('ib-utama').value = t.utama || ''; $('ib-utama').placeholder = MAJLIS.nama || 'Majlis Anugerah';
   $('ib-info').value = t.info || ''; $('ib-info').placeholder = ibInfoLalai();

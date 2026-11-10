@@ -164,6 +164,8 @@ input.medan.teks{letter-spacing:0;text-transform:uppercase}
 .gno span.kini{background:var(--emas);border-color:var(--emas-b);color:var(--gelap);font-weight:700}
 .gno span.ok{background:var(--hijau-bg);border-color:#BFD8C8;color:var(--hijau)}
 .gno span.lepas{color:var(--kelabu)}
+.uji-bar{position:sticky;top:0;z-index:30;background:#7A3E00;color:#FFE9C7;font-size:12.5px;padding:8px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center}
+.uji-bar select{font:inherit;font-size:12.5px;border-radius:7px;border:0;padding:4px 6px}
 .lg-ubah{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:20;width:calc(100% - 36px);max-width:444px;
   background:var(--merah);color:#fff;border-radius:14px;padding:15px;font-weight:700;font-size:15px;box-shadow:0 6px 22px rgba(155,44,44,.45)}
 </style>
@@ -211,6 +213,7 @@ input.medan.teks{letter-spacing:0;text-transform:uppercase}
  </symbol>
 </svg>
 
+<div id="uji-bar" class="uji-bar" hidden></div>
 <div id="app"><div class="memuat"><div class="pusing"></div>Memuatkan…</div></div>
 <!-- 📣 Di LUAR #app: lukis() menggantikan seluruh isi #app. -->
 <button class="lg-ubah" id="b-lg" hidden>🔄 Ada perubahan giliran — sila tekan</button>
@@ -325,6 +328,7 @@ function jam(d) {
   return ((h % 12) || 12) + ':' + m + ' ' + w;
 }
 function tarikhMasa(ms) {
+  if (!ms) return '(tarikh belum ditetapkan)';
   const d = new Date(ms);
   return HARI[d.getDay()] + ', ' + d.getDate() + ' ' + BULAN[d.getMonth()] + ' ' + d.getFullYear() + ' · ' + jam(d);
 }
@@ -332,7 +336,15 @@ function masaJadi(x) { return x instanceof Date ? x : (x && x.seconds ? new Date
 
 /* ---------- keadaan ---------- */
 const M_ID = new URLSearchParams(location.search).get('m') || '';
-const SIMPAN = 'ib_' + M_ID + '_tel';
+/* 🧪 MOD UJI (10 Nov 2026, pengguna) — ibubapa.html?m=<id>&uji=1 (butang di tab 👪).
+   Wajah halaman dipilih dari bar atas, BUKAN jam. Selamat walaupun link
+   tersebar: hanya 🧪 ID ujian diterima, dan keluarga SEBENAR tidak boleh
+   dibaca atau ditindih (bacaKel melontar). Telefon diingati berasingan. */
+const UJI = new URLSearchParams(location.search).get('uji') === '1';
+const UJI_FASA = [['bancian', 'Bancian'], ['daftar', 'Hari majlis (daftar)'], ['pas', 'Hari majlis + 🚪 Pas dewan'],
+                  ['belum', 'Belum dibuka'], ['selesai', 'Majlis selesai']];
+let UJI_PILIH = (UJI && sessionStorage.getItem('ib_uji_fasa')) || 'bancian';
+const SIMPAN = 'ib_' + M_ID + (UJI ? '_uji' : '') + '_tel';
 let MJ = null, CFG = {}, FASA = '';
 /* 📣 Giliran: LG = yang DIPAPAR, LG_BARU = semakan terkini. ULANG = fungsi
    melukis semula skrin semasa (null = skrin ini tidak memapar giliran). */
@@ -376,9 +388,15 @@ async function asingSorok(k) {
   k._sorok = (k.murid || []).filter((m, i) => p[i] && !penerimaPapar(p[i])).map(m => m.kp);
   return k;
 }
+async function bacaKel(tel) {
+  const k = await bacaKel(tel);
+  if (UJI && k && !k.ujian) throw new Error('🧪 Mod uji: no. telefon ini milik keluarga SEBENAR. Guna no. telefon lain untuk ujian.');
+  return k;
+}
 const MEDAN_KEL = ['telefon', 'wakil', 'murid', 'hadir', 'dewasa', 'kanak', 'sumber', 'daftar', 'dihantar', 'ujian', 'masuk'];
 
 function fasaKini() {
+  if (UJI) return UJI_PILIH === 'pas' ? 'daftar' : UJI_PILIH;
   const t = Date.now(), b = CFG.bancian || {}, d = CFG.daftar || {};
   const dalam = w => w.buka && w.tutup && t >= w.buka && t < w.tutup;
   if (dalam(d)) return 'daftar';
@@ -477,11 +495,26 @@ async function mula() {
     '<div class="badan"><div class="ralat">Link ini sudah tidak sah. Sila hubungi pihak sekolah.</div></div>');
   CFG = MJ.ibubapa || {};
   siapSub();
+  if (UJI) lukisBarUji();
   document.title = tajuk().utama.replace(/\*/g, '') + ' — Ibu Bapa';
   laman();
 }
 
 /* Laman ikut jam. Disemak semula bila telefon dibuka kembali (tab tidur). */
+function lukisBarUji() {
+  const bar = $('uji-bar');
+  bar.hidden = false;
+  bar.innerHTML = '<b>🧪 MOD UJI</b> · tarikh diabaikan · ID ujian sahaja · ' +
+    '<select id="uji-fasa">' + UJI_FASA.map(([v, l]) => '<option value="' + v + '"' + (v === UJI_PILIH ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>' +
+    (UJI_PILIH === 'pas' && !(CFG.dewan || {}).pin ? ' <b style="color:#FFB4A8">⚠ PIN belum ditetapkan di tab 👪</b>' : '');
+  $('uji-fasa').onchange = e => {
+    UJI_PILIH = e.target.value;
+    sessionStorage.setItem('ib_uji_fasa', UJI_PILIH);
+    DW_AUTO = false;
+    lukisBarUji();
+    laman();
+  };
+}
 async function laman() {
   FASA = fasaKini();
   S = baru();
@@ -494,7 +527,7 @@ async function laman() {
       DW_AUTO = true;
       lukis(kepalaBesar() + '<div class="memuat"><div class="pusing"></div>Memuatkan pas anda…</div>');
       try {
-        const k = await baca(pKel(tel), MEDAN_KEL);
+        const k = await bacaKel(tel);
         if (k) { await asingSorok(k); muatKeluarga(k); }
         if (k && S.anak.length && k.daftar && k.daftar.bil) return keKeluarga();
       } catch (e) { /* jatuh ke laman utama */ }
@@ -519,6 +552,7 @@ async function laman() {
 let DW_AUTO = false, PIN_SALAH = 0, PIN_KUNCI = 0;
 const dewanBuka = () => {
   const d = CFG.dewan || {};
+  if (UJI) return UJI_PILIH === 'pas' && !!d.pin;
   return FASA === 'daftar' && !!d.buka && !!d.pin && Date.now() >= d.buka;
 };
 async function capPin(pin) {
@@ -640,7 +674,7 @@ async function vGiliran(segar) {
     '<div class="memuat" style="padding:24px 0"><div class="pusing"></div>Memuatkan giliran anak…</div></div>');
   let k = S.asal && S.asal.telefon === tel ? S.asal : null, anak = [];
   try {
-    if (!k) k = await baca(pKel(tel), MEDAN_KEL);
+    if (!k) k = await bacaKel(tel);
     if (k) anak = await Promise.all((k.murid || []).map(async m => {
       const p = await baca(pPen(m.kp), ['giliran', 'anugerah']).catch(() => null);
       const lihat = {}, gil = [];
@@ -687,7 +721,7 @@ function vGiliranTel() {
     if (!telSah(tel)) { S.ralat = 'No. telefon tidak sah. Contoh: 0123456789'; return vGiliranTel(); }
     const btn = $('b-cari'); sibuk(btn, true, 'Mencari…');
     try {
-      const k = await baca(pKel(tel), MEDAN_KEL);
+      const k = await bacaKel(tel);
       if (k) await asingSorok(k);
       if (!k || (k._sorok || []).length >= (k.murid || []).length) { S.ralat = 'Tiada keluarga dengan no. telefon ini.'; return vGiliranTel(); }
       localStorage.setItem(SIMPAN, tel);
@@ -734,7 +768,7 @@ async function mulaBancian() {
   if (tel) {
     lukis(kepalaBesar() + '<div class="memuat"><div class="pusing"></div>Memuatkan bancian anda…</div>');
     try {
-      const k = await baca(pKel(tel), MEDAN_KEL);
+      const k = await bacaKel(tel);
       if (k) {
         await asingSorok(k); muatKeluarga(k);
         if (S.anak.length) return vSiap();
@@ -804,12 +838,13 @@ async function cariAnak() {
   try {
     /* Walk-in hari majlis melalui KP: anak sudah ada keluarga → terus ke
        keluarga itu. Tiada → aliran bancian (wakil + bilangan) yang terus mendaftar. */
-    let [p, idx] = await Promise.all([baca(pPen(kp), ['nama', 'tahun', 'kelas', 'jenis', 'anugerah']), baca(pIdx(kp), ['telefon'])]);
+    let [p, idx] = await Promise.all([UJI ? null : baca(pPen(kp), ['nama', 'tahun', 'kelas', 'jenis', 'anugerah']), baca(pIdx(kp), ['telefon'])]);
     if (!p) { p = await baca(pUji(kp), ['nama', 'tahun', 'kelas']); if (p) p.ujian = true; }
+    if (UJI && !p) { S.ralat = '🧪 Mod uji: hanya ID ujian (tab 👪 › 🧪 ID Ujian) boleh dipakai.'; return vKP(); }
     /* 🎤/🙈 semua anugerah tidak naik pentas / disorok = bukan penerima di sini */
     if (!p || p.jenis === 'luar' || (!p.ujian && !penerimaPapar(p))) { S.ralat = 'No. KP ini tiada dalam senarai penerima anugerah majlis ini. Sila semak semula.'; return vKP(); }
     if (S.mod === 'walkin' && !S.anak.length && idx && idx.telefon) {
-      const k0 = await baca(pKel(idx.telefon), MEDAN_KEL);
+      const k0 = await bacaKel(idx.telefon);
       if (k0) { await asingSorok(k0); muatKeluarga(k0); return keKeluarga(); }
     }
     const telKini = [S.asal && S.asal.telefon, S.sasar && S.sasar.telefon].filter(Boolean);
@@ -827,7 +862,7 @@ async function sahKonflik() {
   if (tel !== S.konflik.tel) { S.ralat = 'No. telefon tidak sepadan dengan bancian anak ini.'; return vKP(); }
   const btn = $('b-sah'); sibuk(btn, true);
   try {
-    const k = await baca(pKel(tel), MEDAN_KEL);
+    const k = await bacaKel(tel);
     if (!k) { S.konflik = null; S.ralat = 'Bancian itu tidak dijumpai. Cuba lagi.'; return vKP(); }
     const lain = S.anak.filter(a => !(k.murid || []).some(m => m.kp === a.kp));
     const asalLama = S.asal;
@@ -900,7 +935,7 @@ async function simpanWakil() {
   if (!dahTahu) {
     const btn = $('b-seterus'); sibuk(btn, true);
     try {
-      const k = await baca(pKel(tel), MEDAN_KEL);
+      const k = await bacaKel(tel);
       S.sasar = k || null;
       if (k) {
         await asingSorok(k);
@@ -1065,7 +1100,7 @@ async function cariTel() {
   if (!telSah(tel)) { S.ralat = 'No. telefon tidak sah. Contoh: 0123456789'; return vDaftarTel(); }
   const btn = $('b-cari'); sibuk(btn, true, 'Mencari…');
   try {
-    const k = await baca(pKel(tel), MEDAN_KEL);
+    const k = await bacaKel(tel);
     if (k) { await asingSorok(k); muatKeluarga(k); }
     if (!k || !S.anak.length) { S = baru(); S.ralat = 'Tiada bancian dengan no. telefon ini. Cuba no. lain, atau cari dengan No. KP anak.'; return vDaftarTel(); }
     keKeluarga();
