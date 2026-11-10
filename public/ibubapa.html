@@ -376,7 +376,7 @@ async function asingSorok(k) {
   k._sorok = (k.murid || []).filter((m, i) => p[i] && !penerimaPapar(p[i])).map(m => m.kp);
   return k;
 }
-const MEDAN_KEL = ['telefon', 'wakil', 'murid', 'hadir', 'dewasa', 'kanak', 'sumber', 'daftar', 'dihantar', 'ujian'];
+const MEDAN_KEL = ['telefon', 'wakil', 'murid', 'hadir', 'dewasa', 'kanak', 'sumber', 'daftar', 'dihantar', 'ujian', 'masuk'];
 
 function fasaKini() {
   const t = Date.now(), b = CFG.bancian || {}, d = CFG.daftar || {};
@@ -486,8 +486,95 @@ async function laman() {
   FASA = fasaKini();
   S = baru();
   if (FASA === 'bancian') return mulaBancian();
-  if (FASA === 'daftar') { await mulaLg(); return vUtama(); }
+  if (FASA === 'daftar') {
+    await mulaLg();
+    /* 🚪 Pas dibuka + telefon ini pernah daftar → terus ke pas (1 bacaan keluarga). */
+    const tel = dewanBuka() && localStorage.getItem(SIMPAN);
+    if (tel) {
+      DW_AUTO = true;
+      lukis(kepalaBesar() + '<div class="memuat"><div class="pusing"></div>Memuatkan pas anda…</div>');
+      try {
+        const k = await baca(pKel(tel), MEDAN_KEL);
+        if (k) { await asingSorok(k); muatKeluarga(k); }
+        if (k && S.anak.length && k.daftar && k.daftar.bil) return keKeluarga();
+      } catch (e) { /* jatuh ke laman utama */ }
+      S = baru();
+    }
+    return vUtama();
+  }
   vTutup();
+}
+
+/* ==========================================================================
+   🚪 PAS MASUK DEWAN (10 Nov 2026) — MAJLIS.ibubapa.dewan = {buka, pin}
+   --------------------------------------------------------------------------
+   Selepas `buka`, keluarga yang SUDAH daftar dipaksa ke skrin pas. AJK / guru
+   di pintu menaip PIN pada telefon ibu bapa → Sahkan → `masuk:{masa,bil}`.
+   🔴 PIN disemak DI TELEFON terhadap cap SHA-256 dalam tetapan yang sudah
+      dimuat — TIADA bacaan tambahan pada hari majlis yang sesak (pengguna:
+      tanpa Cloud Functions). Satu tulisan sahaja, updateMask ['masuk'].
+      PIN salah → baca semula tetapan SEKALI (admin mungkin baru menukar PIN).
+   🔴 Bilangan masuk = bilangan daftar (tiada −/+ di pintu).
+   ========================================================================== */
+let DW_AUTO = false, PIN_SALAH = 0, PIN_KUNCI = 0;
+const dewanBuka = () => {
+  const d = CFG.dewan || {};
+  return FASA === 'daftar' && !!d.buka && !!d.pin && Date.now() >= d.buka;
+};
+async function capPin(pin) {
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('esis-dewan:' + M_ID + ':' + pin));
+  return Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2, '0')).join('');
+}
+/* Selepas keluarga dikenal pasti: sudah masuk → hijau; pas dibuka & sudah daftar → pas; lain → daftar. */
+function keKeluarga() {
+  const k = S.asal;
+  if (k.masuk) return vDaftarSiap();
+  if (dewanBuka() && k.daftar && k.daftar.bil) return vPas();
+  vDaftarKel();
+}
+const lepasDaftar = () => (dewanBuka() && !S.asal.masuk ? vPas() : vDaftarSiap());
+
+function vPas() {
+  const k = S.asal, bil = (k.daftar && k.daftar.bil) || 1;
+  lukis(kepalaKecil('kad', 'PAS MASUK DEWAN', 'Tunjuk kepada AJK') +
+    '<div class="badan">' +
+    '<div class="kad">' + S.anak.map(a =>
+      '<div class="anak"><div class="av">' + ik('topi') + '<svg class="bt"><use href="#i-bintang"/></svg></div>' +
+      '<div><b>' + esc(a.nama) + '</b><span>' + esc(kelasPapar(a.tahun, a.kelas)) + '</span></div></div>').join('') +
+    '<div class="anak"><div class="av">' + ik('orang') + '</div><div><span>Penjaga berdaftar</span><b>' + esc((k.wakil || {}).nama || '') + '</b></div></div></div>' +
+    '<div class="lg"><small>BILANGAN MASUK</small><div class="no">' + bil + '</div><div class="ket">orang</div></div>' +
+    '<div><div class="lab">' + ik('kad') + 'PIN AJK / guru</div>' +
+    '<input class="medan" id="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="Diisi oleh AJK di pintu dewan"></div>' +
+    ralatHTML() +
+    '<button class="btn emas" id="b-sah">' + ik('semak') + 'Sahkan Masuk</button>' +
+    '<div class="kecil tengah">Bilangan salah? <button class="pautan" id="b-ubah-bil">Kemas kini pendaftaran</button></div></div>');
+  S.ralat = '';
+  $('pin').addEventListener('keydown', e => { if (e.key === 'Enter') sahPas(); });
+  $('b-sah').onclick = sahPas;
+  $('b-ubah-bil').onclick = vDaftarKel;
+}
+async function sahPas() {
+  const pin = digit($('pin').value);
+  if (Date.now() < PIN_KUNCI) { S.ralat = 'Terlalu banyak cubaan. Tunggu ' + Math.ceil((PIN_KUNCI - Date.now()) / 1000) + ' saat.'; return vPas(); }
+  if (!/^\d{4,6}$/.test(pin)) { S.ralat = 'Masukkan PIN 4–6 digit.'; return vPas(); }
+  const btn = $('b-sah'); sibuk(btn, true, 'Menyemak…');
+  try {
+    let cap = await capPin(pin);
+    if (cap !== (CFG.dewan || {}).pin) {
+      /* Admin mungkin baru menukar PIN selepas telefon ini dibuka — semak tetapan terkini sekali. */
+      const t = await baca('anugerah_majlis/' + M_ID, ['ibubapa']).catch(() => null);
+      if (t && t.ibubapa) CFG = t.ibubapa;
+      if (cap !== (CFG.dewan || {}).pin) {
+        if (++PIN_SALAH >= 5) { PIN_SALAH = 0; PIN_KUNCI = Date.now() + 30000; }
+        S.ralat = 'PIN salah.'; return vPas();
+      }
+    }
+    PIN_SALAH = 0;
+    const k = S.asal, m = { masa: new Date(), bil: (k.daftar && k.daftar.bil) || 1, oleh: 'ajk' };
+    await commit([wSet(pKel(k.telefon), { masuk: m }, ['masuk'])]);
+    k.masuk = m;
+    vDaftarSiap();
+  } catch (e) { S.ralat = e.message; vPas(); }
 }
 
 /* ==========================================================================
@@ -511,6 +598,7 @@ async function mulaLg() {
 }
 async function semakLg() {
   if (document.hidden || FASA !== 'daftar') return;
+  if (!DW_AUTO && dewanBuka() && ULANG === vUtama) { DW_AUTO = true; return laman(); }   // 🚪 jam pas tiba
   try { LG_BARU = await bacaLg(); } catch (e) { return; }   // gagal = cuba lagi 30s
   $('b-lg').hidden = !(ULANG && capLg(LG_BARU) !== capLg(LG));
 }
@@ -722,7 +810,7 @@ async function cariAnak() {
     if (!p || p.jenis === 'luar' || (!p.ujian && !penerimaPapar(p))) { S.ralat = 'No. KP ini tiada dalam senarai penerima anugerah majlis ini. Sila semak semula.'; return vKP(); }
     if (S.mod === 'walkin' && !S.anak.length && idx && idx.telefon) {
       const k0 = await baca(pKel(idx.telefon), MEDAN_KEL);
-      if (k0) { await asingSorok(k0); muatKeluarga(k0); return vDaftarKel(); }
+      if (k0) { await asingSorok(k0); muatKeluarga(k0); return keKeluarga(); }
     }
     const telKini = [S.asal && S.asal.telefon, S.sasar && S.sasar.telefon].filter(Boolean);
     if (idx && idx.telefon && !telKini.includes(idx.telefon)) {
@@ -909,7 +997,7 @@ async function hantar() {
     localStorage.setItem(SIMPAN, tel);
     doc._sorok = S.sorokAnak.map(a => a.kp);
     S.asal = doc; S.sasar = null; S.lama = null; S.gabung = false;
-    walk ? vDaftarSiap() : vSiap();
+    walk ? lepasDaftar() : vSiap();
   } catch (e) { S.ralat = e.message; sibuk(btn, false); vHadir(); }
 }
 
@@ -946,7 +1034,7 @@ function vUtama() {
     '<div class="menu">' +
     (lgBuka() ? '<button id="b-giliran"><div class="mi">' + ik('jam', 'ik-e') + '</div><div><b>Semak Giliran</b><span>Bila anak anda naik pentas</span></div>' + ik('kanan', 'ik pn') + '</button>' : '') +
     '<button id="b-daftar"><div class="mi">' + ik('daftar', 'ik-e') + '</div><div><b>Daftar Kehadiran</b><span>Guna no. telefon bancian</span></div>' + ik('kanan', 'ik pn') + '</button>' +
-    (CFG.buku ? '<a href="' + esc(CFG.buku) + '" target="_blank" rel="noopener"><div class="mi">' + ik('buku', 'ik-e') + '</div><div><b>Buku Program</b><span>Buka dalam Google Drive</span></div>' + ik('pautan', 'ik pn') + '</a>' : '') +
+    (CFG.buku && !dewanBuka() ? '<a href="' + esc(CFG.buku) + '" target="_blank" rel="noopener"><div class="mi">' + ik('buku', 'ik-e') + '</div><div><b>Buku Program</b><span>Buka dalam Google Drive</span></div>' + ik('pautan', 'ik pn') + '</a>' : '') +
     '</div></div>');
   $('b-daftar').onclick = () => vDaftarTel();
   if ($('b-giliran')) $('b-giliran').onclick = () => vGiliran(false);
@@ -980,12 +1068,13 @@ async function cariTel() {
     const k = await baca(pKel(tel), MEDAN_KEL);
     if (k) { await asingSorok(k); muatKeluarga(k); }
     if (!k || !S.anak.length) { S = baru(); S.ralat = 'Tiada bancian dengan no. telefon ini. Cuba no. lain, atau cari dengan No. KP anak.'; return vDaftarTel(); }
-    vDaftarKel();
+    keKeluarga();
   } catch (e) { S.ralat = e.message; vDaftarTel(); }
 }
 
 function vDaftarKel() {
   const k = S.asal, d = k.daftar;
+  if (k.masuk) return vDaftarSiap();          // 🚪 sudah masuk dewan — bilangan dikunci
   if (d && d.bil) S.bil = d.bil;
   else S.bil = Math.max(1, (k.hadir !== false ? (k.dewasa || 0) + (k.kanak || 0) : 0) || 1);
   const had = hadMaks();
@@ -1017,20 +1106,21 @@ async function daftar() {
     await commit([wSet(pKel(k.telefon), { daftar: d, hadir: true }, ['daftar', 'hadir'])]);
     localStorage.setItem(SIMPAN, k.telefon);
     k.daftar = d; k.hadir = true;
-    vDaftarSiap();
+    lepasDaftar();
   } catch (e) { S.ralat = e.message; vDaftarKel(); }
 }
 function vDaftarSiap() {
-  const k = S.asal, d = k.daftar || {};
-  lukis(kepalaKecil('semak', 'PENDAFTARAN', 'Selamat datang') +
+  const k = S.asal, d = k.daftar || {}, mk = k.masuk;
+  lukis(kepalaKecil('semak', mk ? 'MASUK DEWAN' : 'PENDAFTARAN', 'Selamat datang') +
     '<div class="badan tengah" data-laman>' +
-    '<div class="besar-ok">' + ik('pingat') + '</div>' +
-    '<div><b style="font-size:18px">Berdaftar · ' + (d.bil || 0) + ' orang</b><div class="kecil">' + esc(jam(masaJadi(d.masa) || new Date())) + '</div></div>' +
+    '<div class="besar-ok"' + (mk ? ' style="background:linear-gradient(135deg,#7FC79E,var(--hijau))"' : '') + '>' + ik('pingat') + '</div>' +
+    (mk ? '<div><b style="font-size:18px;color:var(--hijau)">✓ Disahkan masuk · ' + (mk.bil || 0) + ' orang</b><div class="kecil">' + esc(jam(masaJadi(mk.masa) || new Date())) + '</div></div>'
+        : '<div><b style="font-size:18px">Berdaftar · ' + (d.bil || 0) + ' orang</b><div class="kecil">' + esc(jam(masaJadi(d.masa) || new Date())) + '</div></div>') +
     '<div class="kecil">Tahniah atas kecemerlangan<br><b style="color:var(--teks)">' +
       S.anak.map(m => esc(sorok(m.nama).split(' ').slice(0, 2).join(' '))).join(' & ') + '</b></div>' +
     kadLg() + kadMajlis(true) + '<div style="flex:1"></div>' +
-    (lgBuka() ? '<button class="btn emas" id="b-giliran">' + ik('jam') + 'Semak Giliran Anak</button>' : '') +
-    (CFG.buku ? bukuBtn() : '') +
+    (lgBuka() ? '<button class="btn emas" id="b-giliran">' + ik('jam') + (mk ? 'Teruskan ke giliran anak' : 'Semak Giliran Anak') + '</button>' : '') +
+    (CFG.buku && (mk || !dewanBuka()) ? bukuBtn() : '') +      // 🚪 Buku Program selepas disahkan
     '<button class="btn garis pejal" id="b-utama">Laman utama</button></div>');
   $('b-utama').onclick = vUtama;
   if ($('b-giliran')) $('b-giliran').onclick = () => vGiliran(false);

@@ -1,8 +1,8 @@
 # Port Pendaftaran Masuk Dewan → Anugerah ESIS (BELUM DIBINA)
 
 Status 9 Nov 2026: **nombor giliran berjalan DIBINA** (Peserta → ibu bapa, lihat
-`docs/ANUGERAH.md` › 📣 Giliran Ibu Bapa). **KIV:** pendaftaran dewan + PIN AJK,
-kumpul semula keluarga (soalan 5), panduan PDF.
+`docs/ANUGERAH.md` › 📣 Giliran Ibu Bapa). **Pas Masuk Dewan + PIN DIBINA 10 Nov** tanpa Cloud Functions (`docs/ANUGERAH.md` ›
+🚪 Pas Masuk Dewan). **KIV:** kumpul semula keluarga (soalan 5), panduan PDF.
 
 Sumber: `~/Desktop/appsKO-suratKebenaran/PORT-ESIS-PENDAFTARAN-DEWAN.md`
 (suratkebenaranko, commit `46ceea4` → `0b73844`). Seni bina berbeza — port
