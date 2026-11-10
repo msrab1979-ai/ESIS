@@ -164,14 +164,41 @@ input.medan.teks{letter-spacing:0;text-transform:uppercase}
 .gno span.kini{background:var(--emas);border-color:var(--emas-b);color:var(--gelap);font-weight:700}
 .gno span.ok{background:var(--hijau-bg);border-color:#BFD8C8;color:var(--hijau)}
 .gno span.lepas{color:var(--kelabu)}
-/* ✓ Cap getah (10 Nov 2026) — status yang sudah selesai, bukan butang */
-.cap-getah{display:inline-block;margin:6px auto 2px;padding:10px 20px 8px;border:3px double var(--hijau);border-radius:10px;
-  color:var(--hijau);transform:rotate(-6deg);text-align:center;background:rgba(47,107,79,.04);
-  box-shadow:inset 0 0 0 1px rgba(47,107,79,.25);animation:capTekan .35s ease-out}
-.cap-getah b{display:block;font-size:22px;font-weight:900;letter-spacing:.14em;line-height:1.1}
-.cap-getah small{display:block;font-size:11.5px;font-weight:700;letter-spacing:.12em;margin-top:3px;opacity:.85}
-.cap-getah.emas{border-color:var(--emas-b);color:var(--emas-tua);background:rgba(198,168,103,.06);box-shadow:inset 0 0 0 1px rgba(169,135,74,.3)}
-@keyframes capTekan{0%{transform:rotate(-6deg) scale(1.6);opacity:0}70%{transform:rotate(-6deg) scale(.95);opacity:1}100%{transform:rotate(-6deg) scale(1)}}
+/* 🎟 Tiket kehormat (10 Nov 2026, pengguna pilih "A") — skrin status
+   (sudah daftar / pas / disahkan masuk / bancian diterima). */
+.tiket{background:#fff;border:1px solid var(--garis);border-radius:18px;position:relative;box-shadow:0 10px 30px rgba(27,27,32,.08)}
+.tiket::before{content:"";position:absolute;left:16px;right:16px;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--emas),transparent)}
+.tk-atas{padding:22px 18px 14px;text-align:center}
+.tk-lbl{font-size:10px;letter-spacing:.22em;font-weight:700;color:var(--emas-tua);text-transform:uppercase}
+.meterai{width:86px;height:86px;margin:0 auto 10px;border-radius:50%;display:grid;place-items:center;
+  background:radial-gradient(circle at 35% 30%,#F6E7BF,var(--emas) 55%,var(--emas-b));
+  box-shadow:0 0 0 4px #fff,0 0 0 5px var(--emas),0 8px 22px rgba(169,135,74,.35);animation:mtr .5s ease-out}
+.meterai>div{width:66px;height:66px;border-radius:50%;border:1.5px dashed rgba(27,27,32,.35);display:grid;place-items:center}
+.meterai svg{width:34px;height:34px;stroke:var(--gelap);stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.meterai.hijau{background:radial-gradient(circle at 35% 30%,#CDEBD8,#4E9A6F 55%,var(--hijau));box-shadow:0 0 0 4px #fff,0 0 0 5px var(--emas),0 8px 22px rgba(47,107,79,.35)}
+.meterai.hijau svg{stroke:#fff}
+.meterai.hijau>div{border-color:rgba(255,255,255,.55)}
+@keyframes mtr{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.06);opacity:1}100%{transform:scale(1)}}
+.tk-status{font-family:var(--serif);font-size:23px;font-weight:600;margin-top:2px}
+.tk-status.hijau{color:var(--hijau)}
+.tk-masa{font-size:12.5px;color:var(--kelabu);margin-top:2px}
+.tebuk{position:relative;border-top:1.5px dashed var(--garis);margin:0 14px}
+.tebuk::before,.tebuk::after{content:"";position:absolute;top:-12px;width:22px;height:22px;border-radius:50%;background:var(--gading);border:1px solid var(--garis)}
+.tebuk::before{left:-26px;clip-path:inset(0 0 0 50%)}
+.tebuk::after{right:-26px;clip-path:inset(0 50% 0 0)}
+.tk-isi{padding:14px 20px}
+.tk-isi .tk-lbl{margin-bottom:8px}
+.pn{padding:7px 0}
+.pn+.pn{border-top:1px solid #F1ECE0}
+.pn b{display:block;font-family:var(--serif);font-size:17px;font-weight:600;line-height:1.3}
+.pn span{font-size:12.5px;color:var(--kelabu);letter-spacing:.02em}
+.tk-kaki{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:10px;padding:14px 20px 18px}
+.tk-kaki small{display:block;font-size:9.5px;letter-spacing:.18em;font-weight:700;color:var(--emas-tua);text-transform:uppercase}
+.tk-kaki b{display:block;font-size:14px;line-height:1.3;margin-top:2px}
+.tk-majlis{background:var(--gelap);color:var(--gading);border-radius:0 0 17px 17px;padding:12px 20px;font-size:12.5px;line-height:1.7}
+.tk-majlis div{display:flex;gap:8px;align-items:center}
+.tk-majlis svg{width:15px;height:15px;flex:0 0 auto}
+.tk-bil{font-family:var(--serif);font-size:52px;line-height:1;font-weight:700;color:var(--emas-tua)}
 .uji-bar{position:sticky;top:0;z-index:30;background:#7A3E00;color:#FFE9C7;font-size:12.5px;padding:8px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center}
 .uji-bar select{font:inherit;font-size:12.5px;border-radius:7px;border:0;padding:4px 6px}
 .lg-ubah{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:20;width:calc(100% - 36px);max-width:444px;
@@ -626,13 +653,10 @@ const lepasDaftar = () => (dewanBuka() && !S.asal.masuk ? vPas() : vDaftarSiap()
 
 function vPas() {
   const k = S.asal, bil = (k.daftar && k.daftar.bil) || 1;
-  lukis(kepalaKecil('kad', 'PAS MASUK DEWAN', 'Tunjuk kepada AJK') +
-    '<div class="badan">' +
-    '<div class="kad">' + S.anak.map(a =>
-      '<div class="anak"><div class="av">' + ik('topi') + '<svg class="bt"><use href="#i-bintang"/></svg></div>' +
-      '<div><b>' + esc(a.nama) + '</b><span>' + esc(kelasPapar(a.tahun, a.kelas)) + '</span></div></div>').join('') +
-    '<div class="anak"><div class="av">' + ik('orang') + '</div><div><span>Penjaga berdaftar</span><b>' + esc((k.wakil || {}).nama || '') + '</b></div></div></div>' +
-    '<div class="lg"><small>BILANGAN MASUK</small><div class="no">' + bil + '</div><div class="ket">orang</div></div>' +
+  lukis(kepalaBesar() + '<div class="badan">' +
+    tiket({ atas: '<div class="tk-lbl">Pas Masuk Dewan</div><div class="tk-bil" style="margin-top:8px">' + bil + '</div>' +
+      '<div class="tk-masa">orang · tunjuk kepada AJK di pintu dewan</div>',
+      kaki: [['Penjaga', tajukNama((k.wakil || {}).nama || '')], ['Hadir', bil + ' orang'], ['Status', 'Belum masuk']] }) +
     '<div><div class="lab">' + ik('kad') + 'PIN AJK / guru</div>' +
     '<input class="medan" id="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="Diisi oleh AJK di pintu dewan"></div>' +
     ralatHTML() +
@@ -813,16 +837,42 @@ function vTutup() {
     (FASA === 'selesai' && CFG.buku ? bukuBtn() : '') +
     '<div class="garis-emas"></div>' + kadMajlis(false) + '</div>');
 }
-/* ✓ Cap getah: teks atas (cth SUDAH DAFTAR) + tarikh/masa. */
-function capGetah(teks, masa, emas) {
-  const d = masaJadi(masa);
-  return '<div class="tengah"><div class="cap-getah' + (emas ? ' emas' : '') + '"><b>✓ ' + esc(teks) + '</b>' +
-    (d ? '<small>' + d.getDate() + ' ' + BULAN[d.getMonth()].toUpperCase() + ' · ' + esc(jam(d).toUpperCase()) + '</small>' : '') + '</div></div>';
+/* 🎟 Tiket kehormat. o = {meterai:'emas'|'hijau'|null, status, masa, atas(html ganti meterai),
+   kaki:[[label, nilai]...]}. Nama anak gaya serif huruf awal besar; maklumat
+   majlis dimampat 2 baris di kaki gelap. */
+const BIN = /^(BIN|BINTI|BT|BTE|B|A\/L|A\/P|AL|AP|@)$/;
+const tajukNama = n => String(n || '').split(/\s+/).map(w => BIN.test(w.toUpperCase()) ? w.toLowerCase()
+  : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+const tajukKelas = k => String(k || '').replace(/\(([^)]*)\)/g, (m, x) => '(' + x.toUpperCase() + ')')
+  .replace(/\b([A-Z])([A-Z]+)\b(?![^(]*\))/g, (m, a, b) => a + b.toLowerCase());
+function kelasTiket(a) {
+  const d = DARJAH[String(a.tahun || '').toUpperCase()] || Number(a.tahun) || '';
+  const k = String(a.kelas || '').trim().replace(new RegExp('^' + d + '\\s*'), '');
+  return (d ? 'Tahun ' + d + ' · ' : '') + tajukKelas(k);
+}
+function majlisRingkas() {
+  const b = barisMajlis(), cari = re => (b.find(x => re.test(x.label.toUpperCase())) || {}).nilai;
+  const masa = [cari(/HARI/), cari(/TARIKH/) || MJ.tarikh, cari(/MASA|WAKTU/)].filter(Boolean).map(tCap).join(' · ');
+  const tempat = cari(/TEMPAT|LOKASI|DEWAN|ALAMAT/);
+  if (!masa && !tempat) return '';
+  return '<div class="tk-majlis">' + (masa ? '<div>' + ik('kalendar', 'ik-e') + esc(masa) + '</div>' : '') +
+    (tempat ? '<div>' + ik('lokasi', 'ik-e') + esc(tCap(tempat)) + '</div>' : '') + '</div>';
+}
+function tiket(o) {
+  const d = masaJadi(o.masa);
+  const atas = o.atas || ('<div class="meterai' + (o.meterai === 'hijau' ? ' hijau' : '') + '"><div><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div></div>' +
+    '<div class="tk-status' + (o.meterai === 'hijau' ? ' hijau' : '') + '">' + esc(o.status) + '</div>' +
+    (d ? '<div class="tk-masa">' + d.getDate() + ' ' + BULAN[d.getMonth()] + ' ' + d.getFullYear() + ' · ' + esc(jam(d)) + '</div>' : ''));
+  return '<div class="tiket"><div class="tk-atas">' + atas + '</div><div class="tebuk"></div>' +
+    '<div class="tk-isi"><div class="tk-lbl">' + (S.anak.length > 1 ? 'Penerima anugerah · ' + S.anak.length + ' anak' : 'Penerima anugerah') + '</div>' +
+    S.anak.map(a => '<div class="pn"><b>' + esc(tajukNama(namaAnak(a.nama))) + '</b><span>' + esc(kelasTiket(a)) + '</span></div>').join('') + '</div>' +
+    '<div class="tebuk"></div><div class="tk-kaki">' + (o.kaki || []).map(([l, v]) =>
+      '<div><small>' + esc(l) + '</small><b>' + esc(v) + '</b></div>').join('') + '</div>' + majlisRingkas() + '</div>';
 }
 /* 📖 Buku Program hanya selepas keluarga DAFTAR (pengguna, 10 Nov 2026);
    bila 🚪 pas dibuka — selepas AJK sahkan masuk. */
 const bukuBoleh = k => !!(CFG.buku && k && k.daftar && k.daftar.bil && (!dewanBuka() || k.masuk));
-const bukuBtn = () => '<a class="btn gelap" href="' + esc(CFG.buku) + '" target="_blank" rel="noopener">' + ik('buku') + 'Buka Buku Program</a>';
+const bukuBtn = () => '<a class="btn emas" href="' + esc(CFG.buku) + '" target="_blank" rel="noopener">' + ik('buku') + 'Buka Buku Program</a>';
 
 /* ==========================================================================
    BANCIAN
@@ -1109,12 +1159,10 @@ function waKad() {
 }
 function vSiap() {
   const k = S.asal, hadir = k.hadir !== false;
-  lukis(kepalaKecil('pingat', 'TERIMA KASIH', 'Bancian diterima') +
-    '<div class="badan tengah" data-laman>' +
-    capGetah('BANCIAN DITERIMA', k.dikemaskini || k.dihantar, true) +
-    '<div><b style="font-size:17px">' + (hadir ? 'Hadir · ' + ((k.dewasa || 0) + (k.kanak || 0)) + ' orang' : 'Tidak hadir') + '</b>' +
-    '<div class="kecil">Wakil: ' + esc((k.wakil || {}).nama) + '</div></div>' +
-    '<div style="text-align:left">' + senaraiAnak(false) + '</div>' +
+  lukis(kepalaBesar() + '<div class="badan" data-laman>' +
+    tiket({ meterai: 'emas', status: 'Bancian Diterima', masa: k.dikemaskini || k.dihantar,
+      kaki: [['Penjaga', tajukNama((k.wakil || {}).nama || '')], ['Kehadiran', hadir ? 'Hadir' : 'Tidak hadir'],
+             ['Orang', hadir ? String((k.dewasa || 0) + (k.kanak || 0)) : '—']] }) +
     waKad() +
     (hadir ? '<div class="kad" style="text-align:left;padding:12px 15px"><div class="kecil"><b style="color:var(--teks)">Pada hari majlis:</b> buka link yang sama → <b>Daftar Kehadiran</b> → masukkan <b>' +
       esc(telPapar(k.telefon)) + '</b>.</div></div>' : '') +
@@ -1206,17 +1254,15 @@ async function daftar() {
 }
 function vDaftarSiap() {
   const k = S.asal, d = k.daftar || {}, mk = k.masuk;
-  lukis(kepalaKecil('semak', mk ? 'MASUK DEWAN' : 'PENDAFTARAN', mk ? 'Selamat datang' : 'Keluarga anda') +
-    '<div class="badan" data-laman>' +
-    (mk ? capGetah('SUDAH MASUK', mk.masa) : capGetah('SUDAH DAFTAR', d.masa)) +
-    senaraiAnak(false) +
-    '<div class="kecil tengah">Wakil: <b style="color:var(--teks)">' + esc((k.wakil || {}).nama || '') + '</b> · ' +
-      ((mk ? mk.bil : d.bil) || 0) + ' orang</div>' +
-    kadLg() + kadMajlis(true) + '<div style="flex:1"></div>' +
+  const mj = masaJadi(mk ? mk.masa : d.masa);
+  lukis(kepalaBesar() + '<div class="badan" data-laman>' +
+    tiket({ meterai: mk ? 'hijau' : 'emas', status: mk ? 'Disahkan Masuk' : 'Sudah Berdaftar', masa: mk ? mk.masa : d.masa,
+      kaki: [['Penjaga', tajukNama((k.wakil || {}).nama || '')], ['Hadir', ((mk ? mk.bil : d.bil) || 0) + ' orang'],
+             [mk ? 'Masuk' : 'Daftar', mj ? jam(mj) : '—']] }) +
+    kadLg() + '<div style="flex:1"></div>' +
     (lgBuka() ? '<button class="btn emas" id="b-giliran">' + ik('jam') + (mk ? 'Teruskan ke giliran anak' : 'Semak Giliran Anak') + '</button>' : '') +
     (bukuBoleh(k) ? bukuBtn() : '') +
-
-    '<button class="btn garis pejal" id="b-utama">Laman utama</button></div>');
+    '<button class="pautan" id="b-utama" style="align-self:center">Laman utama</button></div>');
   $('b-utama').onclick = vUtama;
   if ($('b-giliran')) $('b-giliran').onclick = () => vGiliran(false);
   ULANG = vDaftarSiap;
