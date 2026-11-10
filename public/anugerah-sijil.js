@@ -1370,6 +1370,27 @@ $('sj-peta').addEventListener('change', async e => {
    objek sub — baca() modal sub membina objek baharu dan akan memadamnya. */
 const SJ_NAMA_BUKA = new Set();
 
+/* ⚠ Nombor tahun dalam Nama pada Sijil mesti sama dengan darjah sub.
+   10 Nov 2026: Sahsiah Terpuji DARJAH 4/5/6 tertaip "TAHUN 3/4/5" (berganjak
+   satu baris) — sijil Tahun 4 tercetak TAHUN 3 tanpa sesiapa perasan.
+   Darjah sub: skop darjah → skopDarjah (skop kelas) → nombor dalam nama sub.
+   Tiada nombor di mana-mana pihak = tiada semakan (bukan amaran palsu). */
+const SJ_RE_TAHUN = /\b(?:DARJAH|TAHUN)\s*(\d|SATU|DUA|TIGA|EMPAT|LIMA|ENAM)\b/i;
+function sjNoTahun(teks) {
+  const m = String(teks || '').match(SJ_RE_TAHUN);
+  return m ? agWordDarjah(m[1]) : 0;
+}
+function sjDarjahSub(s) {
+  if (s.skopJenis === 'darjah' && agWordDarjah(s.skopNilai)) return agWordDarjah(s.skopNilai);
+  if (s.skopDarjah && agWordDarjah(s.skopDarjah)) return agWordDarjah(s.skopDarjah);
+  return sjNoTahun(s.nama);
+}
+/* Pulang {sub, sijil} bila bercanggah, atau null. */
+function sjSalahTahun(s, teks) {
+  const d = sjDarjahSub(s), t = sjNoTahun(teks);
+  return d && t && d !== t ? { sub: d, sijil: t } : null;
+}
+
 function sjLukisNama() {
   const bekas = $('sj-nama');
   const nm = sjSj().nama;
@@ -1383,20 +1404,36 @@ function sjLukisNama() {
     '</select>';
   const input = (k, asal) => '<input type="text" data-sj-nama="' + agEsc(k) + '" value="' + agEsc(nm[k] || '') +
     '" placeholder="' + agEsc(asal) + '" title="Kosong = ' + agEsc(asal) + '">';
-  bekas.innerHTML = senarai.map(a => {
+  let jumSalah = 0;
+  const html = senarai.map(a => {
     const subs = a.sub || [];
     const bil = subs.filter(s => nm[a.id + '::' + s.id] || pp[a.id + '::' + s.id]).length;
+    const salah = subs.filter(s => sjSalahTahun(s, nm[a.id + '::' + s.id]));
+    jumSalah += salah.length;
+    /* Ada yang salah → buka sendiri, supaya baris merah tidak tersorok dalam details tertutup. */
+    if (salah.length) SJ_NAMA_BUKA.add(a.id);
     return '<div class="sj-peta-an">' +
       '<div class="sj-peta-baris"><span class="nm">' + agEsc(a.nama) + '</span>' + input(a.id, a.nama) + pilih(a.id, false) + '</div>' +
       (subs.length
         ? '<details data-sj-nama-buka="' + agEsc(a.id) + '"' + (SJ_NAMA_BUKA.has(a.id) ? ' open' : '') + '>' +
-            '<summary>' + subs.length + ' sub' + (bil ? ' · ' + bil + ' diubah' : '') + '</summary>' +
-            subs.map(s => '<div class="sj-peta-baris sub"><span class="nm">' + agEsc(s.nama) + '</span>' +
-              input(a.id + '::' + s.id, s.nama) + pilih(a.id + '::' + s.id, true) + '</div>').join('') +
+            '<summary>' + subs.length + ' sub' + (bil ? ' · ' + bil + ' diubah' : '') +
+              (salah.length ? ' <strong style="color:var(--absen)">· ⚠ ' + salah.length + ' tahun tidak sepadan</strong>' : '') + '</summary>' +
+            subs.map(s => {
+              const x = sjSalahTahun(s, nm[a.id + '::' + s.id]);
+              return '<div class="sj-peta-baris sub"' + (x ? ' style="box-shadow:inset 3px 0 0 var(--absen);background:var(--absen-bg)"' : '') +
+                '><span class="nm">' + agEsc(s.nama) + '</span>' +
+                input(a.id + '::' + s.id, s.nama) + pilih(a.id + '::' + s.id, true) + '</div>' +
+                (x ? '<div class="hint" style="color:var(--absen);font-weight:700;margin:0 0 6px 14px">⚠ Sub ini DARJAH ' + x.sub +
+                  ' tetapi sijil akan mencetak TAHUN ' + x.sijil + '. Semak semula.</div>' : '');
+            }).join('') +
           '</details>'
         : '') +
     '</div>';
   }).join('');
+  bekas.innerHTML = (jumSalah
+    ? '<div class="nota ralat" style="margin:0 0 10px"><span class="sym">⚠</span><div><strong>' + jumSalah +
+      ' nama pada sijil tidak sepadan dengan darjah sub.</strong> Sijil akan mencetak tahun yang salah — baris merah di bawah.</div></div>'
+    : '') + html;
 }
 
 $('sj-nama').addEventListener('toggle', e => {
@@ -1431,7 +1468,11 @@ $('sj-nama').addEventListener('change', async e => {
   if (baru) nm[k] = baru; else delete nm[k];
   try {
     await sjTulis();
-    agToast(baru ? 'Nama pada sijil disimpan' : 'Kembali ke nama ESIS', 'ok');
+    const [anId, subId] = k.split('::');
+    const sb = subId && ((MAJLIS.anugerah || []).find(a => a.id === anId) || {}).sub;
+    const x = sb && sjSalahTahun(sb.find(s => s.id === subId) || {}, baru);
+    if (x) agToast('⚠ Disimpan, tetapi sub ini DARJAH ' + x.sub + ' — sijil akan mencetak TAHUN ' + x.sijil, 'ralat');
+    else agToast(baru ? 'Nama pada sijil disimpan' : 'Kembali ke nama ESIS', 'ok');
   } catch (er) {
     if (lama) nm[k] = lama; else delete nm[k];
     agToast('Gagal menyimpan: ' + er.message, 'ralat');

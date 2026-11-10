@@ -156,6 +156,8 @@ Disahkan 21 Okt 2026 pada majlis sebenar (15 anugerah, 92 sub): accordion buka 3
 
 #### 🎓 Sijil (tab, `anugerah-sijil.js`) — 29 Okt 2026
 
+> **⚠ Semakan tahun pada ✏️ Nama pada Sijil (10 Nov 2026).** Sahsiah Terpuji DARJAH 4/5/6 tertaip "TAHUN 3/4/5" (berganjak satu baris) — sijil Tahun 4 tercetak TAHUN 3; data murid/sub/giliran bersih. Dibetulkan terus (sandaran `anugerah_backup`). Kini `sjSalahTahun(s, teks)` membanding nombor DARJAH/TAHUN dalam teks dengan darjah sub (`skopNilai` → `skopDarjah` → nombor dalam nama sub); bercanggah → banner merah atas kad, baris merah + nota, `details` dibuka sendiri, toast amaran semasa simpan. Tiada nombor pada mana-mana pihak = tiada semakan.
+
 Tab ke-8 dalam `anugerah-admin.html`; kod dalam fail berasingan `anugerah-sijil.js` (dimuat **selepas** skrip utama, guna globalnya: `MAJLIS`, `PENERIMA`, `$`, `bukaModal`, `simpanMajlis`, `susunanAnugerah`). Fungsi `sj*`, DOM id `sj-`.
 
 **Satu sijil satu ANUGERAH** (bukan satu seorang seperti tiket) — murid menang 3 = 3 sijil. Senarai = `agBinaTurutan` disusun ikut nombor giliran; pilihan "ikut kelas & nama" untuk diedar guru kelas.
