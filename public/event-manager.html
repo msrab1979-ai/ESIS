@@ -40,6 +40,18 @@
 .em-senarai div{padding:3px 0;border-bottom:1px dashed var(--garis-halus)}
 .em-senarai .hint{margin-left:6px}
 .em-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+/* 📱 Telefon (10 Nov 2026) — KPI berisi teks (📣 "Panel ditutup") tidak terpotong;
+   butang 🏁 turun ke baris sendiri; bingkai panel diukur dengan JS (ukurBingkai). */
+.kpi.teks .angka{font-size:18px;line-height:1.25;word-break:break-word}
+@media (max-width:640px){
+  .kpi-grid{grid-template-columns:1fr 1fr;gap:9px}
+  .kpi .kecil{font-size:11px}
+  #t-ringkasan .kad-kepala .kanan{margin-left:0;width:100%}
+  #t-ringkasan .kad-kepala .kanan .btn{width:100%}
+  .em-bingkai{border-radius:8px;min-height:420px}
+  #em-jadual th,#em-jadual td{padding:8px 7px;font-size:12.5px}
+  .em-senarai .hint{display:block;margin:1px 0 0}
+}
 </style>
 </head>
 <body>
@@ -186,7 +198,7 @@ $('bar-tab').addEventListener('click', e => {
   $('t-panel').hidden = TAB === 'ringkasan';
   if (TAB === 'ringkasan') return lukis();
   Object.entries(IFRAME).forEach(([k, f]) => { f.hidden = k !== TAB; });
-  if (IFRAME[TAB]) return;
+  if (IFRAME[TAB]) return ukurBingkai();
   const kod = (MAJLIS.modPetugas || {})[AG_PERANAN_MEDAN[TAB]];
   if (!kod) {
     const p = document.createElement('div');
@@ -199,7 +211,17 @@ $('bar-tab').addEventListener('click', e => {
   f.title = b.textContent;
   IFRAME[TAB] = f;
   $('t-panel').appendChild(f);
+  ukurBingkai();
 });
+/* Bingkai mengisi baki skrin di bawah kepala + bar tab (tinggi kepala berbeza di telefon). */
+function ukurBingkai() {
+  Object.values(IFRAME).forEach(f => {
+    if (f.tagName !== 'IFRAME' || f.hidden) return;
+    const atas = f.getBoundingClientRect().top + window.scrollY;
+    f.style.height = Math.max(420, window.innerHeight - atas - 12) + 'px';
+  });
+}
+window.addEventListener('resize', ukurBingkai);
 
 /* ---------- 🏁 Majlis Selesai ----------
    SATU-SATUNYA tulisan halaman ini. `set(merge)` medan `selesai` sahaja pada
@@ -231,7 +253,7 @@ function lukisSelesai() {
 }
 
 /* ---------- ringkasan ---------- */
-const kpi = (angka, label, kecil, kls) => '<div class="kpi ' + (kls || '') + '"><div class="angka">' + angka +
+const kpi = (angka, label, kecil, kls) => '<div class="kpi ' + (kls || '') + (/^\d+$/.test(String(angka)) ? '' : ' teks') + '"><div class="angka">' + angka +
   '</div><div class="label">' + agEsc(label) + '</div>' + (kecil ? '<div class="kecil">' + kecil + '</div>' : '') + '</div>';
 
 function kira() {
