@@ -341,7 +341,7 @@ let S = baru();
 function baru(mod) {
   return { mod: mod || 'bancian', anak: [], asal: null, sasar: null,
            wakil: { nama: '', kp: '', tel: '' }, hadir: true, dewasa: 1, kanak: 0,
-           konflik: null, ralat: '' };
+           konflik: null, ralat: '', sorokAnak: [] };
 }
 const pKel = tel => 'anugerah_ibubapa/' + M_ID + '__' + tel;
 const pIdx = kp => 'anugerah_ibubapa_kp/' + M_ID + '__' + kp;
@@ -349,6 +349,33 @@ const pPen = kp => 'anugerah_penerima/' + M_ID + '__' + kp;
 /* 🧪 ID ujian (tab admin 👪 Ibu Bapa) — koleksi BERASINGAN supaya murid
    palsu tidak muncul dalam giliran/tiket/MC. Keluarga ditanda ujian:true. */
 const pUji = kp => 'anugerah_ibubapa_uji/' + M_ID + '__' + kp;
+/* 🎤/🙈 Sama dengan link petugas (agNaikPentas / agSorokPetugas): murid yang
+   SEMUA anugerahnya tidak naik pentas atau disorok admin TIDAK wujud di sini
+   (10 Nov 2026, pengguna). Paparan sahaja — anak tersorok dalam keluarga
+   sedia ada disimpan dalam S.sorokAnak dan ditulis semula, tidak dilepaskan,
+   supaya bila admin buka semula sub itu keluarga kekal lengkap.
+   Tiada struktur anugerah (bacaan gagal) → kelakuan lama: semua dipapar. */
+let SUB_ADA = null, SUB_OFF = null;
+function siapSub() {
+  if (!Array.isArray(MJ.anugerah)) return;
+  SUB_ADA = new Set(); SUB_OFF = new Set();
+  MJ.anugerah.forEach(a => (a.sub || []).forEach(s => {
+    SUB_ADA.add(s.id);
+    const pentas = typeof s.pentas === 'boolean' ? s.pentas : a.pentas !== false;
+    const sorok = typeof s.sorokPetugas === 'boolean' ? s.sorokPetugas : a.sorokPetugas === true;
+    if (!pentas || sorok) SUB_OFF.add(s.id);
+  }));
+}
+const subPapar = id => !SUB_ADA || (SUB_ADA.has(id) && !SUB_OFF.has(id));
+const penerimaPapar = p => !SUB_ADA || (p.anugerah || []).some(x => subPapar(x.subId));
+/* k._sorok = KP anak keluarga ini yang tersorok. Satu bacaan penerima per anak.
+   Bacaan gagal / tiada penerima (ID ujian) → dipapar. */
+async function asingSorok(k) {
+  if (!k || k._sorok || !SUB_ADA) return k;
+  const p = await Promise.all((k.murid || []).map(m => m.ujian ? null : baca(pPen(m.kp), ['anugerah']).catch(() => null)));
+  k._sorok = (k.murid || []).filter((m, i) => p[i] && !penerimaPapar(p[i])).map(m => m.kp);
+  return k;
+}
 const MEDAN_KEL = ['telefon', 'wakil', 'murid', 'hadir', 'dewasa', 'kanak', 'sumber', 'daftar', 'dihantar', 'ujian'];
 
 function fasaKini() {
@@ -441,7 +468,7 @@ async function mula() {
   if (!M_ID) return lukis(kepalaKecil('maklumat', 'RALAT', 'Link tidak lengkap') +
     '<div class="badan"><div class="ralat">Link ini tidak lengkap. Sila buka semula link yang dikongsi oleh pihak sekolah.</div></div>');
   try {
-    MJ = await baca('anugerah_majlis/' + M_ID, ['nama', 'sekolah', 'tarikh', 'kadBaris', 'kadKaki', 'ibubapa']);
+    MJ = await baca('anugerah_majlis/' + M_ID, ['nama', 'sekolah', 'tarikh', 'kadBaris', 'kadKaki', 'ibubapa', 'anugerah']);
   } catch (e) {
     return lukis(kepalaKecil('maklumat', 'RALAT', 'Tidak dapat dimuatkan') +
       '<div class="badan"><div class="ralat">' + esc(e.message) + '</div><button class="btn emas" onclick="location.reload()">Cuba lagi</button></div>');
@@ -449,6 +476,7 @@ async function mula() {
   if (!MJ) return lukis(kepalaKecil('maklumat', 'RALAT', 'Majlis tidak dijumpai') +
     '<div class="badan"><div class="ralat">Link ini sudah tidak sah. Sila hubungi pihak sekolah.</div></div>');
   CFG = MJ.ibubapa || {};
+  siapSub();
   document.title = tajuk().utama.replace(/\*/g, '') + ' — Ibu Bapa';
   laman();
 }
@@ -526,17 +554,19 @@ async function vGiliran(segar) {
   try {
     if (!k) k = await baca(pKel(tel), MEDAN_KEL);
     if (k) anak = await Promise.all((k.murid || []).map(async m => {
-      const p = await baca(pPen(m.kp), ['giliran']).catch(() => null);
+      const p = await baca(pPen(m.kp), ['giliran', 'anugerah']).catch(() => null);
       const lihat = {}, gil = [];
+      if (p && !penerimaPapar(p)) return { m, gil, sorok: true };     // 🎤/🙈 seluruhnya
       ((p && p.giliran) || []).forEach(g => {
-        if (typeof g.no !== 'number' || lihat[g.no]) return;   // gabung: satu nombor sekali
+        if (typeof g.no !== 'number' || lihat[g.no] || !subPapar(g.subId)) return;   // gabung: satu nombor sekali
         lihat[g.no] = 1; gil.push(g);
       });
       return { m, gil: gil.sort((x, y) => x.no - y.no) };
     }));
   } catch (e) { S.ralat = e.message; }
   if (!k && !S.ralat) { localStorage.removeItem(SIMPAN); return vGiliranTel(); }
-  if (k) muatKeluarga(k);
+  if (k) { k._sorok = anak.filter(x => x.sorok).map(x => x.m.kp); muatKeluarga(k); }
+  anak = anak.filter(x => !x.sorok);
   lukis(kepalaKecil('jam', 'GILIRAN', 'Semak giliran') + '<div class="badan">' + kadLg() +
     ralatHTML() +
     (anak.length ? '<div class="kad">' + anak.map(({ m, gil }) =>
@@ -570,7 +600,8 @@ function vGiliranTel() {
     const btn = $('b-cari'); sibuk(btn, true, 'Mencari…');
     try {
       const k = await baca(pKel(tel), MEDAN_KEL);
-      if (!k) { S.ralat = 'Tiada keluarga dengan no. telefon ini.'; return vGiliranTel(); }
+      if (k) await asingSorok(k);
+      if (!k || (k._sorok || []).length >= (k.murid || []).length) { S.ralat = 'Tiada keluarga dengan no. telefon ini.'; return vGiliranTel(); }
       localStorage.setItem(SIMPAN, tel);
       muatKeluarga(k);
       vGiliran(false);
@@ -616,7 +647,12 @@ async function mulaBancian() {
     lukis(kepalaBesar() + '<div class="memuat"><div class="pusing"></div>Memuatkan bancian anda…</div>');
     try {
       const k = await baca(pKel(tel), MEDAN_KEL);
-      if (k) { muatKeluarga(k); return vSiap(); }
+      if (k) {
+        await asingSorok(k); muatKeluarga(k);
+        if (S.anak.length) return vSiap();
+        S = baru();          // semua anak tersorok → mula baharu (keluarga kekal di DB)
+        return vKP();
+      }
       localStorage.removeItem(SIMPAN);
     } catch (e) { /* tunjuk borang biasa — ralat dipapar bila dia cuba simpan */ }
   }
@@ -624,7 +660,9 @@ async function mulaBancian() {
 }
 function muatKeluarga(k) {
   S.asal = k; S.sasar = null;
-  S.anak = (k.murid || []).map(x => Object.assign({}, x));
+  const sk = new Set(k._sorok || []);
+  S.anak = (k.murid || []).filter(x => !sk.has(x.kp)).map(x => Object.assign({}, x));
+  S.sorokAnak = (k.murid || []).filter(x => sk.has(x.kp)).map(x => Object.assign({}, x));
   S.wakil = { nama: (k.wakil || {}).nama || '', kp: (k.wakil || {}).kp || '', tel: k.telefon };
   S.hadir = k.hadir !== false;
   S.dewasa = Math.max(1, k.dewasa || 1);
@@ -678,14 +716,14 @@ async function cariAnak() {
   try {
     /* Walk-in hari majlis melalui KP: anak sudah ada keluarga → terus ke
        keluarga itu. Tiada → aliran bancian (wakil + bilangan) yang terus mendaftar. */
-    if (S.mod === 'walkin' && !S.anak.length) {
-      const i0 = await baca(pIdx(kp), ['telefon']);
-      const k0 = i0 && i0.telefon ? await baca(pKel(i0.telefon), MEDAN_KEL) : null;
-      if (k0) { muatKeluarga(k0); return vDaftarKel(); }
-    }
-    let [p, idx] = await Promise.all([baca(pPen(kp), ['nama', 'tahun', 'kelas', 'jenis']), baca(pIdx(kp), ['telefon'])]);
+    let [p, idx] = await Promise.all([baca(pPen(kp), ['nama', 'tahun', 'kelas', 'jenis', 'anugerah']), baca(pIdx(kp), ['telefon'])]);
     if (!p) { p = await baca(pUji(kp), ['nama', 'tahun', 'kelas']); if (p) p.ujian = true; }
-    if (!p || p.jenis === 'luar') { S.ralat = 'No. KP ini tiada dalam senarai penerima anugerah majlis ini. Sila semak semula.'; return vKP(); }
+    /* 🎤/🙈 semua anugerah tidak naik pentas / disorok = bukan penerima di sini */
+    if (!p || p.jenis === 'luar' || (!p.ujian && !penerimaPapar(p))) { S.ralat = 'No. KP ini tiada dalam senarai penerima anugerah majlis ini. Sila semak semula.'; return vKP(); }
+    if (S.mod === 'walkin' && !S.anak.length && idx && idx.telefon) {
+      const k0 = await baca(pKel(idx.telefon), MEDAN_KEL);
+      if (k0) { await asingSorok(k0); muatKeluarga(k0); return vDaftarKel(); }
+    }
     const telKini = [S.asal && S.asal.telefon, S.sasar && S.sasar.telefon].filter(Boolean);
     if (idx && idx.telefon && !telKini.includes(idx.telefon)) {
       /* Indeks lapuk (keluarga sudah dipadam) → anak bebas. */
@@ -705,6 +743,7 @@ async function sahKonflik() {
     if (!k) { S.konflik = null; S.ralat = 'Bancian itu tidak dijumpai. Cuba lagi.'; return vKP(); }
     const lain = S.anak.filter(a => !(k.murid || []).some(m => m.kp === a.kp));
     const asalLama = S.asal;
+    await asingSorok(k);
     muatKeluarga(k);
     /* Anak yang sudah ditaip tadi digabung masuk, tidak hilang. Keluarga
        lama (jika ada) dipadam semasa simpan — anaknya kini di sini. */
@@ -776,7 +815,12 @@ async function simpanWakil() {
       const k = await baca(pKel(tel), MEDAN_KEL);
       S.sasar = k || null;
       if (k) {
-        (k.murid || []).forEach(m => { if (!S.anak.some(a => a.kp === m.kp)) S.anak.push(Object.assign({}, m)); });
+        await asingSorok(k);
+        const sk = new Set(k._sorok || []);
+        (k.murid || []).forEach(m => {
+          if (S.anak.some(a => a.kp === m.kp) || S.sorokAnak.some(a => a.kp === m.kp)) return;
+          (sk.has(m.kp) ? S.sorokAnak : S.anak).push(Object.assign({}, m));
+        });
         S.hadir = k.hadir !== false; S.dewasa = Math.max(1, k.dewasa || 1); S.kanak = k.kanak || 0;
         S.gabung = true;
       }
@@ -838,7 +882,9 @@ async function hantar() {
   const doc = {
     majlisId: M_ID, telefon: tel,
     wakil: { nama: S.wakil.nama, kp: S.wakil.kp },
-    murid: S.anak.map(a => Object.assign({ kp: a.kp, nama: a.nama, tahun: a.tahun, kelas: a.kelas }, a.ujian ? { ujian: true } : {})),
+    /* anak tersorok (S.sorokAnak) DITULIS SEMULA — tidak dilepaskan dari keluarga */
+    murid: S.anak.concat(S.sorokAnak.filter(h => !S.anak.some(a => a.kp === h.kp)))
+      .map(a => Object.assign({ kp: a.kp, nama: a.nama, tahun: a.tahun, kelas: a.kelas }, a.ujian ? { ujian: true } : {})),
     ujian: S.anak.some(a => a.ujian),
     hadir: walk ? true : S.hadir,
     dewasa: (walk || S.hadir) ? S.dewasa : 0,
@@ -861,6 +907,7 @@ async function hantar() {
   try {
     await commit(writes);
     localStorage.setItem(SIMPAN, tel);
+    doc._sorok = S.sorokAnak.map(a => a.kp);
     S.asal = doc; S.sasar = null; S.lama = null; S.gabung = false;
     walk ? vDaftarSiap() : vSiap();
   } catch (e) { S.ralat = e.message; sibuk(btn, false); vHadir(); }
@@ -931,8 +978,8 @@ async function cariTel() {
   const btn = $('b-cari'); sibuk(btn, true, 'Mencari…');
   try {
     const k = await baca(pKel(tel), MEDAN_KEL);
-    if (!k) { S.ralat = 'Tiada bancian dengan no. telefon ini. Cuba no. lain, atau cari dengan No. KP anak.'; return vDaftarTel(); }
-    muatKeluarga(k);
+    if (k) { await asingSorok(k); muatKeluarga(k); }
+    if (!k || !S.anak.length) { S = baru(); S.ralat = 'Tiada bancian dengan no. telefon ini. Cuba no. lain, atau cari dengan No. KP anak.'; return vDaftarTel(); }
     vDaftarKel();
   } catch (e) { S.ralat = e.message; vDaftarTel(); }
 }
@@ -980,7 +1027,7 @@ function vDaftarSiap() {
     '<div class="besar-ok">' + ik('pingat') + '</div>' +
     '<div><b style="font-size:18px">Berdaftar · ' + (d.bil || 0) + ' orang</b><div class="kecil">' + esc(jam(masaJadi(d.masa) || new Date())) + '</div></div>' +
     '<div class="kecil">Tahniah atas kecemerlangan<br><b style="color:var(--teks)">' +
-      (k.murid || []).map(m => esc(sorok(m.nama).split(' ').slice(0, 2).join(' '))).join(' & ') + '</b></div>' +
+      S.anak.map(m => esc(sorok(m.nama).split(' ').slice(0, 2).join(' '))).join(' & ') + '</b></div>' +
     kadLg() + kadMajlis(true) + '<div style="flex:1"></div>' +
     (lgBuka() ? '<button class="btn emas" id="b-giliran">' + ik('jam') + 'Semak Giliran Anak</button>' : '') +
     (CFG.buku ? bukuBtn() : '') +

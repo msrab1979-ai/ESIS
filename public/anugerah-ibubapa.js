@@ -300,14 +300,37 @@ async function ibMuat(paksa) {
     kosong($('ib-kpi'), 'Gagal memuatkan: ' + e.message);
   }
 }
-function ibMuridPenerima() {
-  return PENERIMA.filter(p => !agAdalahLuar(p) && p.no_kp);
+/* 🎤/🙈 (10 Nov 2026, pengguna) — peraturan SAMA dengan link petugas
+   (agPenerimaPentas + agTapisPenerimaPetugas): murid yang tiada satu pun
+   anugerah naik pentas & tidak disorok, DISOROK dari tab ini (KPI, jadual,
+   senarai kelas, CSV). Paparan sahaja — doc keluarga tidak diubah, jadi
+   bila admin buka semula sub itu murid & keluarganya kembali. */
+function ibKpSorok() {
+  const pentas = agSubPentas(MAJLIS), sorok = agSubSorok(MAJLIS), set = new Set();
+  PENERIMA.forEach(p => {
+    if (agAdalahLuar(p) || !p.no_kp) return;
+    if (!(p.anugerah || []).some(x => pentas.has(x.subId) && !sorok.has(x.subId))) set.add(p.no_kp);
+  });
+  return set;
 }
-/* Keluarga ujian (ada anak ID ujian) tidak dikira dalam statistik/CSV sebenar. */
-const ibSebenar = () => IB_KEL.filter(k => !k.ujian);
+function ibMuridPenerima() {
+  const sk = ibKpSorok();
+  return PENERIMA.filter(p => !agAdalahLuar(p) && p.no_kp && !sk.has(p.no_kp));
+}
+/* Keluarga ujian (ada anak ID ujian) tidak dikira dalam statistik/CSV sebenar.
+   Anak tersorok dibuang dari SALINAN; keluarga yang semua anaknya tersorok
+   tidak dikira. Tulisan admin memakai docId, bukan salinan ini. */
+const ibKelAsli = () => IB_KEL.filter(k => !k.ujian);
+function ibSebenar() {
+  const sk = ibKpSorok();
+  return ibKelAsli().map(k => {
+    const m = (k.murid || []).filter(a => !sk.has(a.kp));
+    return m.length === (k.murid || []).length ? k : (m.length ? { ...k, murid: m } : null);
+  }).filter(Boolean);
+}
 function ibPetaAnak() {
   const m = {};
-  ibSebenar().forEach(k => (k.murid || []).forEach(a => { m[a.kp] = k; }));
+  ibKelAsli().forEach(k => (k.murid || []).forEach(a => { m[a.kp] = k; }));
   return m;
 }
 function ibLukisStat() {
@@ -323,7 +346,8 @@ function ibLukisStat() {
     '</div><div class="label">' + label + '</div>' + (kecil ? '<div class="kecil">' + kecil + '</div>' : '') + '</div>';
   $('ib-kpi').innerHTML =
     kpi(KEL.length, 'Keluarga jawab', jawab + ' dari ' + murid.length + ' murid penerima' +
-      (IB_KEL.length > KEL.length ? ' · 🧪 ' + (IB_KEL.length - KEL.length) + ' ujian tidak dikira' : '')) +
+      (IB_KEL.length > ibKelAsli().length ? ' · 🧪 ' + (IB_KEL.length - ibKelAsli().length) + ' ujian tidak dikira' : '') +
+      (ibKelAsli().length > KEL.length ? ' · 🙈 ' + (ibKelAsli().length - KEL.length) + ' disorok (anak tidak naik pentas)' : '')) +
     kpi(orang, 'Orang dijangka hadir', hadirK.length + ' keluarga hadir · ' + (KEL.length - hadirK.length) + ' tidak', 'ok') +
     kpi(orangDaftar, 'Sudah daftar (hari majlis)', daftarK.length + ' keluarga' + (walk ? ' · ' + walk + ' walk-in' : ''), 'ok') +
     kpi(murid.length - jawab, 'Murid belum jawab', 'ibu bapa belum isi bancian', murid.length - jawab ? 'bahaya' : '');
