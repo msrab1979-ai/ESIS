@@ -902,3 +902,9 @@ Pengguna mahu menguji tanpa menukar tarikh (cara lama membuka skrin Daftar kepad
 - Bar oren `#uji-bar` (di luar `#app`) memilih wajah: Bancian / Hari majlis / Hari majlis + 🚪 Pas / Belum / Selesai (`UJI_PILIH`, `sessionStorage ib_uji_fasa`). `fasaKini()` dan `dewanBuka()` mengikut pilihan, bukan jam. Pas perlu PIN sudah ditetapkan (bar memberi amaran).
 - **Selamat walaupun link tersebar:** KP anak hanya dari `anugerah_ibubapa_uji` (penerima sebenar tidak dibaca); **`bacaKel(tel)`** — satu-satunya pembaca doc keluarga penuh — **melontar** bila keluarga bukan `ujian:true`, jadi keluarga sebenar tidak boleh dibuka, digabung atau ditindih (`hantar` sentiasa didahului `bacaKel` untuk telefon itu). Telefon diingati dalam kunci berasingan (`ib_<id>_uji_tel`).
 - Tulisan mod uji = keluarga `ujian:true` → dikecualikan dari KPI/CSV seperti biasa. Bersihkan dengan 🗑 padam ID ujian.
+
+#### ✓ Cap getah + Buku Program selepas daftar (10 Nov 2026)
+
+- **`capGetah(teks, masa, emas)`** — bingkai berganda senget (`.cap-getah`, animasi "tekan" sekali): **✓ SUDAH DAFTAR** / **✓ SUDAH MASUK** (hijau, `vDaftarSiap`) dan **✓ BANCIAN DITERIMA** (emas, `vSiap`).
+- **Keluarga yang sudah daftar tidak nampak borang lagi:** `keKeluarga()` → sudah daftar = `vDaftarSiap` (berstamp; pautan "Kemas kini bilangan" → `vDaftarKel`). `laman()` fasa daftar kini membaca keluarga bagi telefon diingati **setiap kali halaman dibuka** (dahulu hanya bila 🚪 pas dibuka) — 1 bacaan kecil.
+- **📖 Buku Program** (`bukuBoleh(k)`): hanya selepas `daftar` (dan selepas `masuk` bila pas dibuka). Dibuang dari menu laman utama — diganti nota "dibuka selepas anda daftar". Skrin Majlis selesai (`vTutup`) masih memaparkannya.

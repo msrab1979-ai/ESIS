@@ -164,6 +164,14 @@ input.medan.teks{letter-spacing:0;text-transform:uppercase}
 .gno span.kini{background:var(--emas);border-color:var(--emas-b);color:var(--gelap);font-weight:700}
 .gno span.ok{background:var(--hijau-bg);border-color:#BFD8C8;color:var(--hijau)}
 .gno span.lepas{color:var(--kelabu)}
+/* ✓ Cap getah (10 Nov 2026) — status yang sudah selesai, bukan butang */
+.cap-getah{display:inline-block;margin:6px auto 2px;padding:10px 20px 8px;border:3px double var(--hijau);border-radius:10px;
+  color:var(--hijau);transform:rotate(-6deg);text-align:center;background:rgba(47,107,79,.04);
+  box-shadow:inset 0 0 0 1px rgba(47,107,79,.25);animation:capTekan .35s ease-out}
+.cap-getah b{display:block;font-size:22px;font-weight:900;letter-spacing:.14em;line-height:1.1}
+.cap-getah small{display:block;font-size:11.5px;font-weight:700;letter-spacing:.12em;margin-top:3px;opacity:.85}
+.cap-getah.emas{border-color:var(--emas-b);color:var(--emas-tua);background:rgba(198,168,103,.06);box-shadow:inset 0 0 0 1px rgba(169,135,74,.3)}
+@keyframes capTekan{0%{transform:rotate(-6deg) scale(1.6);opacity:0}70%{transform:rotate(-6deg) scale(.95);opacity:1}100%{transform:rotate(-6deg) scale(1)}}
 .uji-bar{position:sticky;top:0;z-index:30;background:#7A3E00;color:#FFE9C7;font-size:12.5px;padding:8px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center}
 .uji-bar select{font:inherit;font-size:12.5px;border-radius:7px;border:0;padding:4px 6px}
 .lg-ubah{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:20;width:calc(100% - 36px);max-width:444px;
@@ -522,7 +530,8 @@ async function laman() {
   if (FASA === 'daftar') {
     await mulaLg();
     /* 🚪 Pas dibuka + telefon ini pernah daftar → terus ke pas (1 bacaan keluarga). */
-    const tel = dewanBuka() && localStorage.getItem(SIMPAN);
+    /* Telefon ini pernah daftar → terus ke skrin berstamp / pas (1 bacaan keluarga). */
+    const tel = localStorage.getItem(SIMPAN);
     if (tel) {
       DW_AUTO = true;
       lukis(kepalaBesar() + '<div class="memuat"><div class="pusing"></div>Memuatkan pas anda…</div>');
@@ -564,6 +573,7 @@ function keKeluarga() {
   const k = S.asal;
   if (k.masuk) return vDaftarSiap();
   if (dewanBuka() && k.daftar && k.daftar.bil) return vPas();
+  if (k.daftar && k.daftar.bil) return vDaftarSiap();     // ✓ cap SUDAH DAFTAR
   vDaftarKel();
 }
 const lepasDaftar = () => (dewanBuka() && !S.asal.masuk ? vPas() : vDaftarSiap());
@@ -758,6 +768,15 @@ function vTutup() {
     (FASA === 'selesai' && CFG.buku ? bukuBtn() : '') +
     '<div class="garis-emas"></div>' + kadMajlis(false) + '</div>');
 }
+/* ✓ Cap getah: teks atas (cth SUDAH DAFTAR) + tarikh/masa. */
+function capGetah(teks, masa, emas) {
+  const d = masaJadi(masa);
+  return '<div class="tengah"><div class="cap-getah' + (emas ? ' emas' : '') + '"><b>✓ ' + esc(teks) + '</b>' +
+    (d ? '<small>' + d.getDate() + ' ' + BULAN[d.getMonth()].toUpperCase() + ' · ' + esc(jam(d).toUpperCase()) + '</small>' : '') + '</div></div>';
+}
+/* 📖 Buku Program hanya selepas keluarga DAFTAR (pengguna, 10 Nov 2026);
+   bila 🚪 pas dibuka — selepas AJK sahkan masuk. */
+const bukuBoleh = k => !!(CFG.buku && k && k.daftar && k.daftar.bil && (!dewanBuka() || k.masuk));
 const bukuBtn = () => '<a class="btn gelap" href="' + esc(CFG.buku) + '" target="_blank" rel="noopener">' + ik('buku') + 'Buka Buku Program</a>';
 
 /* ==========================================================================
@@ -1046,7 +1065,7 @@ function vSiap() {
   const k = S.asal, hadir = k.hadir !== false;
   lukis(kepalaKecil('pingat', 'TERIMA KASIH', 'Bancian diterima') +
     '<div class="badan tengah" data-laman>' +
-    '<div class="besar-ok">' + ik('pingat') + '</div>' +
+    capGetah('BANCIAN DITERIMA', k.dikemaskini || k.dihantar, true) +
     '<div><b style="font-size:17px">' + (hadir ? 'Hadir · ' + ((k.dewasa || 0) + (k.kanak || 0)) + ' orang' : 'Tidak hadir') + '</b>' +
     '<div class="kecil">Wakil: ' + esc((k.wakil || {}).nama) + '</div></div>' +
     '<div style="text-align:left">' + senaraiAnak(false) + '</div>' +
@@ -1069,7 +1088,7 @@ function vUtama() {
     '<div class="menu">' +
     (lgBuka() ? '<button id="b-giliran"><div class="mi">' + ik('jam', 'ik-e') + '</div><div><b>Semak Giliran</b><span>Bila anak anda naik pentas</span></div>' + ik('kanan', 'ik pn') + '</button>' : '') +
     '<button id="b-daftar"><div class="mi">' + ik('daftar', 'ik-e') + '</div><div><b>Daftar Kehadiran</b><span>Guna no. telefon bancian</span></div>' + ik('kanan', 'ik pn') + '</button>' +
-    (CFG.buku && !dewanBuka() ? '<a href="' + esc(CFG.buku) + '" target="_blank" rel="noopener"><div class="mi">' + ik('buku', 'ik-e') + '</div><div><b>Buku Program</b><span>Buka dalam Google Drive</span></div>' + ik('pautan', 'ik pn') + '</a>' : '') +
+    (CFG.buku ? '<div class="kecil tengah">📖 Buku Program dibuka selepas anda <b>daftar</b>.</div>' : '') +
     '</div></div>');
   $('b-daftar').onclick = () => vDaftarTel();
   if ($('b-giliran')) $('b-giliran').onclick = () => vGiliran(false);
@@ -1146,19 +1165,20 @@ async function daftar() {
 }
 function vDaftarSiap() {
   const k = S.asal, d = k.daftar || {}, mk = k.masuk;
-  lukis(kepalaKecil('semak', mk ? 'MASUK DEWAN' : 'PENDAFTARAN', 'Selamat datang') +
-    '<div class="badan tengah" data-laman>' +
-    '<div class="besar-ok"' + (mk ? ' style="background:linear-gradient(135deg,#7FC79E,var(--hijau))"' : '') + '>' + ik('pingat') + '</div>' +
-    (mk ? '<div><b style="font-size:18px;color:var(--hijau)">✓ Disahkan masuk · ' + (mk.bil || 0) + ' orang</b><div class="kecil">' + esc(jam(masaJadi(mk.masa) || new Date())) + '</div></div>'
-        : '<div><b style="font-size:18px">Berdaftar · ' + (d.bil || 0) + ' orang</b><div class="kecil">' + esc(jam(masaJadi(d.masa) || new Date())) + '</div></div>') +
-    '<div class="kecil">Tahniah atas kecemerlangan<br><b style="color:var(--teks)">' +
-      S.anak.map(m => esc(sorok(m.nama).split(' ').slice(0, 2).join(' '))).join(' & ') + '</b></div>' +
+  lukis(kepalaKecil('semak', mk ? 'MASUK DEWAN' : 'PENDAFTARAN', mk ? 'Selamat datang' : 'Keluarga anda') +
+    '<div class="badan" data-laman>' +
+    (mk ? capGetah('SUDAH MASUK', mk.masa) : capGetah('SUDAH DAFTAR', d.masa)) +
+    senaraiAnak(false) +
+    '<div class="kecil tengah">Wakil: <b style="color:var(--teks)">' + esc((k.wakil || {}).nama || '') + '</b> · ' +
+      ((mk ? mk.bil : d.bil) || 0) + ' orang</div>' +
     kadLg() + kadMajlis(true) + '<div style="flex:1"></div>' +
     (lgBuka() ? '<button class="btn emas" id="b-giliran">' + ik('jam') + (mk ? 'Teruskan ke giliran anak' : 'Semak Giliran Anak') + '</button>' : '') +
-    (CFG.buku && (mk || !dewanBuka()) ? bukuBtn() : '') +      // 🚪 Buku Program selepas disahkan
+    (bukuBoleh(k) ? bukuBtn() : '') +
+    (!mk ? '<button class="pautan" id="b-ubah-bil" style="align-self:center">Kemas kini bilangan</button>' : '') +
     '<button class="btn garis pejal" id="b-utama">Laman utama</button></div>');
   $('b-utama').onclick = vUtama;
   if ($('b-giliran')) $('b-giliran').onclick = () => vGiliran(false);
+  if ($('b-ubah-bil')) $('b-ubah-bil').onclick = vDaftarKel;
   ULANG = vDaftarSiap;
 }
 
