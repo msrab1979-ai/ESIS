@@ -225,7 +225,7 @@ function ibBina() {
     <div class="gulung"><table id="ib-jadual"></table></div>
     <hr style="border:none;border-top:1px solid var(--garis-halus);margin:19px 0">
     <p class="eyebrow">Selepas pilot test / latihan</p>
-    <button class="btn sunyi kecil" id="ib-reset-masuk">🧹 Reset masuk dewan</button>
+    <button class="btn sunyi kecil" id="ib-reset-masuk" title="Kosongkan pendaftaran &amp; masuk dewan · bancian kekal">🧹 Reset hari majlis</button>
     <button class="btn bahaya kecil" id="ib-padam">🗑 Padam semua data ibu bapa majlis ini</button>
     <p class="hint" style="margin:8px 0 0">Memadam bancian &amp; pendaftaran sahaja (ID ujian kekal). Penerima, giliran dan tetapan di atas <strong>tidak</strong> disentuh.</p>
   </div>
@@ -763,20 +763,37 @@ async function ibUjiPadam(kp) {
 }
 
 /* 🔴 Taip PADAM, bukan confirm() — sama dengan reset penerima. */
-/* 🧹 Kosongkan `masuk` sahaja (selepas latihan) — bancian & daftar kekal. */
+/* 🧹 Reset hari majlis (selepas latihan): kosongkan `daftar` + `masuk`; bancian kekal.
+   Keluarga yang wujud HANYA kerana didaftar hari itu (walk-in / tambah admin, tiada
+   bancian) dipadam bersama indeks anaknya — jika dibiarkan ia kekal sebagai bancian palsu.
+   Jawapan "tidak hadir" yang ditukar ke hadir semasa daftar tidak dapat dipulihkan. */
 async function ibResetMasuk() {
-  const snap = await agDb.collection('anugerah_ibubapa').where('majlisId', '==', MAJLIS.id).get();
-  const ada = snap.docs.filter(d => d.data().masuk);
-  if (!ada.length) { agToast('Tiada tanda masuk dewan', 'ok'); return; }
-  const taip = prompt('Reset ' + ada.length + ' tanda masuk dewan? Bancian & pendaftaran kekal.\n\nTaip RESET untuk mengesahkan.');
+  const [kel, idx] = await Promise.all([
+    agDb.collection('anugerah_ibubapa').where('majlisId', '==', MAJLIS.id).get(),
+    agDb.collection('anugerah_ibubapa_kp').where('majlisId', '==', MAJLIS.id).get()
+  ]);
+  const hariItu = d => { const x = d.data(); return x.sumber === 'walkin' || x.sumber === 'admin'; };
+  const padam = kel.docs.filter(hariItu);
+  const kosong = kel.docs.filter(d => !hariItu(d) && (d.data().daftar || d.data().masuk));
+  const nDaftar = kosong.filter(d => d.data().daftar).length;
+  const nMasuk = kosong.filter(d => d.data().masuk).length;
+  if (!padam.length && !kosong.length) { agToast('Tiada data hari majlis untuk direset', 'ok'); return; }
+  const telPadam = new Set(padam.map(d => d.data().telefon));
+  const idxPadam = idx.docs.filter(d => telPadam.has(d.data().telefon));
+  const taip = prompt('Reset hari majlis?\n\n' +
+    '• ' + nDaftar + ' pendaftaran + ' + nMasuk + ' masuk dewan dikosongkan (bancian kekal)\n' +
+    '• ' + padam.length + ' keluarga walk-in / tambah admin (tiada bancian) dipadam\n\n' +
+    'Taip RESET untuk mengesahkan.');
   if (taip !== 'RESET') { if (taip !== null) agToast('Dibatalkan', 'ralat'); return; }
+  const ops = kosong.map(d => b => b.update(d.ref, { daftar: null, masuk: null }))
+    .concat(padam.concat(idxPadam).map(d => b => b.delete(d.ref)));
   try {
-    for (let i = 0; i < ada.length; i += 400) {
+    for (let i = 0; i < ops.length; i += 400) {
       const b = agDb.batch();
-      ada.slice(i, i + 400).forEach(d => b.update(d.ref, { masuk: null }));
+      ops.slice(i, i + 400).forEach(f => f(b));
       await b.commit();
     }
-    agToast(ada.length + ' tanda masuk dikosongkan', 'ok');
+    agToast('Hari majlis direset · ' + kosong.length + ' dikosongkan, ' + padam.length + ' walk-in dipadam', 'ok');
     ibMuat();
   } catch (e) { agToast('Gagal reset: ' + e.message, 'ralat'); }
 }
