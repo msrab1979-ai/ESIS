@@ -934,3 +934,13 @@ Satu link petugas baharu (tab 🔗 Link Petugas, baris 🎯) + **kata laluan** y
   - **Panel petugas** (Peserta, MC, Hadiah, Slaid, Guru Kelas — termasuk dalam iframe Event Manager): `agPantauSelesai(MAJLIS)` (`anugerah-kongsi.js`, satu `onSnapshot` doc kecil) → `agTiraiSelesai` = tirai penuh skrin `#ag-tirai-selesai` (CSS dalam `anugerah-kongsi.css`): 🏆 · sekolah · **Majlis Selesai** · "Terima kasih atas kerjasama dan komitmen menjayakan majlis “<MAJLIS.nama>”". Batal → tirai hilang sendiri.
   - **Apps ibu bapa**: `laman()` membaca doc itu sekali pada setiap muat (semua fasa) → `vSelesai()` menang atas jam; `semakLg` (fasa daftar) bertukar **terus** (tanpa butang merah) bila `selesai` hidup/mati. Buku Program kekal dipapar di skrin selesai.
   - **Admin juga** (tab 🔗 Link Petugas, `#selesai-status`, `lukisSelesaiAdmin`): ○ Berjalan → 🏁 Majlis Selesai / ● SELESAI → ↩ Buka semula majlis. Event Manager & admin memakai **satu laluan tulis** `agTulisSelesai(majlisId, ya)` (`anugerah-kongsi.js`).
+
+
+### 📲 Panduan & QR hari majlis (11 Nov 2026)
+
+Butang **📲 Panduan & QR** dalam kad 👪 Link Ibu Bapa → modal `ibPanduan()` (`anugerah-ibubapa.js`, fungsi `ibp*`). Tiga output untuk group WhatsApp ibu bapa: **Panduan PDF** (6 halaman 108×192mm: kulit + QR, 5 langkah dengan skrin contoh), **Poster QR** PNG 1080×1350, dan **teks WhatsApp** (boleh diubah dalam textarea sebelum disalin).
+
+- **Dibaca dari tetapan yang SUDAH DISIMPAN** (`MAJLIS.ibubapa`, `kadBaris`, `ibLink()`), bukan borang — majlis seterusnya terus betul tanpa ubah kod.
+- **Satu pelukis kanvas** (`ibpSemuaHalaman` / `ibpPoster`) untuk pratonton, PNG dan halaman PDF (JPEG dalam jsPDF). Pustaka dimuat bila modal dibuka sahaja: `qrcode-generator` 1.4.4 + `jspdf` 2.5.1 (cdnjs).
+- **Langkah 4 ikut `dewan.buka`**: ada → "Tunjuk pas di pintu dewan" (PIN AJK); tiada → "Tunjuk skrin Sudah Berdaftar". Langkah mengikut aliran `ibubapa.html` (`vUtama → vDaftarTel → vDaftarKel → vPas/vDaftarSiap → vGiliran`) — **ubah aliran di sana = kemas kini teks langkah di sini.**
+- Panduan **hari majlis sahaja** (pilihan pengguna); tiada versi bancian.

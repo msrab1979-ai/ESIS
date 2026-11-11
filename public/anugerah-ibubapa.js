@@ -100,6 +100,7 @@ function ibBina() {
       <div class="ib-link" id="ib-url"></div>
       <button class="btn sunyi kecil" id="ib-salin">📋 Salin link</button>
       <a class="btn sunyi kecil" id="ib-buka" target="_blank" rel="noopener">Buka</a>
+      <button class="btn emas kecil" id="ib-panduan">📲 Panduan &amp; QR</button>
     </div>
     <p class="hint" style="margin:9px 0 0">Satu link untuk semua fasa. Kongsi dalam group WhatsApp kelas — halaman bertukar sendiri ikut jadual di bawah.</p>
   </div>
@@ -817,6 +818,393 @@ async function ibPadamSemua() {
   } catch (e) { agToast('Gagal padam: ' + e.message, 'ralat'); }
 }
 
+/* ==========================================================================
+   📲 PANDUAN & QR — hari majlis (11 Nov 2026)
+   --------------------------------------------------------------------------
+   Untuk dihantar ke group WhatsApp ibu bapa: Panduan PDF (saiz telefon),
+   Poster QR (PNG) dan teks WhatsApp. Semua dibaca dari tetapan majlis
+   yang SUDAH DISIMPAN — majlis seterusnya terus betul tanpa ubah kod.
+   🔴 SATU PELUKIS kanvas untuk pratonton, PNG dan halaman PDF.
+   🔴 Langkah mengikut aliran sebenar ibubapa.html (vUtama → vDaftarTel →
+      vDaftarKel → vPas/vDaftarSiap → vGiliran). Ubah aliran di sana =
+      kemas kini langkah di sini.
+   ========================================================================== */
+const IBP_W = 1080, IBP_H = 1920;
+const IBP_WARNA = { emas: '#C6A867', emasTua: '#8C6D33', gading: '#FAF7F0', garis: '#E7E0D0', teks: '#1B1B20', kelabu: '#6B6A70', hijau: '#1F8F55' };
+const IBP_SERIF = 'Georgia, "Times New Roman", serif', IBP_SANS = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+
+function ibpSkrip(src, ada) {
+  if (ada()) return Promise.resolve();
+  return new Promise((ok, gagal) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = ok; s.onerror = () => gagal(new Error('Gagal memuat ' + src));
+    document.head.appendChild(s);
+  });
+}
+const ibpSedia = () => Promise.all([
+  ibpSkrip('https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js', () => window.qrcode),
+  ibpSkrip('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', () => window.jspdf)
+]);
+
+/* Maklumat majlis dari tetapan tersimpan. */
+function ibpMaklumat() {
+  const c = MAJLIS.ibubapa || {}, t = c.tajuk || {};
+  const baris = ibBarisMajlis().filter(x => !/BAJU|PAKAIAN|MAKLUMAT|NOTA/i.test(ibP(x.label)));
+  return {
+    sek: t.sek || MAJLIS.sekolah || '',
+    utama: ibP(t.utama || MAJLIS.nama || 'Majlis Anugerah').replace(/\*/g, ''),
+    info: t.info || ibInfoLalai(),
+    baris: baris.slice(0, 4),
+    daftar: c.daftar || {}, dewan: (c.dewan || {}).buka ? c.dewan : null,
+    buku: !!c.buku, link: ibLink()
+  };
+}
+const ibpJam = ms => new Date(ms).toLocaleTimeString('ms-MY', { hour: 'numeric', minute: '2-digit' }).replace(/\b(am|pm)\b/gi, x => x.toUpperCase());
+const ibpHari = ms => new Date(ms).toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+/* ---------- alat lukis ---------- */
+function ibpBalut(ctx, teks, lebar) {
+  const keluar = [];
+  ibP(teks).split('\n').forEach(p => {
+    let b = '';
+    p.split(/\s+/).forEach(k => {
+      const cuba = b ? b + ' ' + k : k;
+      if (ctx.measureText(cuba).width > lebar && b) { keluar.push(b); b = k; } else b = cuba;
+    });
+    keluar.push(b);
+  });
+  return keluar;
+}
+/* Tulis teks berbalut, pulang y selepas baris terakhir. */
+function ibpTeks(ctx, teks, x, y, o) {
+  ctx.font = o.font; ctx.fillStyle = o.warna || IBP_WARNA.teks; ctx.textAlign = o.align || 'center';
+  ctx.letterSpacing = o.jarak || '0px'; ctx.textBaseline = 'alphabetic';
+  const baris = ibpBalut(ctx, teks, o.lebar || 900);
+  baris.forEach((b, i) => ctx.fillText(b, x, y + i * o.tinggi));
+  ctx.letterSpacing = '0px';
+  return y + baris.length * o.tinggi;
+}
+function ibpSegi(ctx, x, y, w, h, r, isi, garis, tebal) {
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, r);
+  if (isi) { ctx.fillStyle = isi; ctx.fill(); }
+  if (garis) { ctx.strokeStyle = garis; ctx.lineWidth = tebal || 2; ctx.stroke(); }
+}
+function ibpGarisEmas(ctx, y, x1, x2) {
+  const g = ctx.createLinearGradient(x1, 0, x2, 0);
+  g.addColorStop(0, 'rgba(198,168,103,0)'); g.addColorStop(.5, IBP_WARNA.emas); g.addColorStop(1, 'rgba(198,168,103,0)');
+  ctx.fillStyle = g; ctx.fillRect(x1, y, x2 - x1, 2);
+}
+function ibpQR(ctx, teks, x, y, saiz) {
+  const q = window.qrcode(0, 'M'); q.addData(teks); q.make();
+  const n = q.getModuleCount(), m = saiz / (n + 8);
+  ctx.fillStyle = '#fff'; ctx.fillRect(x, y, saiz, saiz);
+  ctx.fillStyle = IBP_WARNA.teks;
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++)
+    if (q.isDark(r, c)) ctx.fillRect(Math.floor(x + (c + 4) * m), Math.floor(y + (r + 4) * m), Math.ceil(m), Math.ceil(m));
+}
+function ibpKanvas(w, h) {
+  const k = document.createElement('canvas'); k.width = w; k.height = h;
+  const ctx = k.getContext('2d');
+  ctx.fillStyle = IBP_WARNA.gading; ctx.fillRect(0, 0, w, h);
+  return [k, ctx];
+}
+/* Kepala majlis (sekolah + tajuk) — pulang y bawah. */
+function ibpKepala(ctx, M, y, w) {
+  const cx = w / 2;
+  ctx.font = '64px ' + IBP_SANS; ctx.textAlign = 'center'; ctx.fillText('🏆', cx, y + 60);
+  y += 120;
+  if (M.sek) y = ibpTeks(ctx, M.sek.toUpperCase(), cx, y, { font: '700 26px ' + IBP_SANS, warna: IBP_WARNA.emasTua, jarak: '6px', tinggi: 36, lebar: w - 160 }) + 14;
+  y = ibpTeks(ctx, M.utama, cx, y + 40, { font: '600 62px ' + IBP_SERIF, tinggi: 74, lebar: w - 160 });
+  ibpGarisEmas(ctx, y + 8, w * .2, w * .8);
+  return y + 40;
+}
+
+/* ---------- skrin telefon contoh ---------- */
+/* Rangka telefon; `isi(ctx, x, y, w)` melukis kandungan dari atas. */
+function ibpTelefon(ctx, x, y, w, h, isi) {
+  ctx.save();
+  ctx.shadowColor = 'rgba(27,27,32,.18)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 14;
+  ibpSegi(ctx, x, y, w, h, 56, IBP_WARNA.teks);
+  ctx.restore();
+  ibpSegi(ctx, x + 14, y + 14, w - 28, h - 28, 44, IBP_WARNA.gading);
+  ibpSegi(ctx, x + w / 2 - 70, y + 26, 140, 26, 13, IBP_WARNA.teks);
+  ctx.save(); ctx.beginPath(); ctx.roundRect(x + 14, y + 14, w - 28, h - 28, 44); ctx.clip();
+  isi(ctx, x + 50, y + 90, w - 100);
+  ctx.restore();
+}
+const ibpT = {
+  kecil(ctx, x, y, w, t) { return ibpTeks(ctx, t, x + w / 2, y + 26, { font: '700 20px ' + IBP_SANS, warna: IBP_WARNA.emasTua, jarak: '4px', tinggi: 28, lebar: w }); },
+  tajuk(ctx, x, y, w, t) { return ibpTeks(ctx, t, x + w / 2, y + 44, { font: '600 38px ' + IBP_SERIF, tinggi: 46, lebar: w }) + 10; },
+  label(ctx, x, y, w, t) { return ibpTeks(ctx, t.toUpperCase(), x, y + 22, { font: '700 18px ' + IBP_SANS, warna: IBP_WARNA.kelabu, align: 'left', jarak: '2px', tinggi: 24, lebar: w }) + 8; },
+  medan(ctx, x, y, w, t, diisi) {
+    ibpSegi(ctx, x, y, w, 76, 16, '#fff', IBP_WARNA.garis, 2);
+    ibpTeks(ctx, t, x + 24, y + 48, { font: (diisi ? '600 ' : '') + '28px ' + IBP_SANS, warna: diisi ? IBP_WARNA.teks : '#A9A7AE', align: 'left', tinggi: 30, lebar: w - 48 });
+    return y + 96;
+  },
+  butang(ctx, x, y, w, t, jenis, sorot) {
+    const isi = jenis === 'garis' ? '#fff' : jenis === 'hijau' ? IBP_WARNA.hijau : IBP_WARNA.emas;
+    ibpSegi(ctx, x, y, w, 84, 18, isi, jenis === 'garis' ? IBP_WARNA.garis : null, 2);
+    ibpTeks(ctx, t, x + w / 2, y + 54, { font: '700 30px ' + IBP_SANS, warna: jenis === 'garis' ? IBP_WARNA.teks : '#fff', tinggi: 32, lebar: w - 30 });
+    if (sorot) ibpSorot(ctx, x - 10, y - 10, w + 20, 104);
+    return y + 104;
+  },
+  menu(ctx, x, y, w, ikon, t, s, sorot) {
+    ibpSegi(ctx, x, y, w, 120, 20, '#fff', IBP_WARNA.garis, 2);
+    ctx.font = '44px ' + IBP_SANS; ctx.textAlign = 'center'; ctx.fillText(ikon, x + 64, y + 76);
+    ibpTeks(ctx, t, x + 120, y + 54, { font: '700 30px ' + IBP_SANS, align: 'left', tinggi: 32, lebar: w - 150 });
+    ibpTeks(ctx, s, x + 120, y + 90, { font: '22px ' + IBP_SANS, warna: IBP_WARNA.kelabu, align: 'left', tinggi: 26, lebar: w - 150 });
+    if (sorot) ibpSorot(ctx, x - 10, y - 10, w + 20, 140);
+    return y + 140;
+  },
+  nota(ctx, x, y, w, t) { return ibpTeks(ctx, t, x + w / 2, y + 26, { font: '22px ' + IBP_SANS, warna: IBP_WARNA.kelabu, tinggi: 30, lebar: w }) + 14; },
+  /* Tiket: bilangan besar + baris kaki */
+  tiket(ctx, x, y, w, atas, besar, bawah, kaki, warna) {
+    const h = 300 + kaki.length * 46;
+    ibpSegi(ctx, x, y, w, h, 26, '#fff', IBP_WARNA.garis, 2);
+    ctx.fillStyle = warna || IBP_WARNA.emas; ctx.fillRect(x + 30, y, w - 60, 4);
+    ibpTeks(ctx, atas.toUpperCase(), x + w / 2, y + 58, { font: '700 20px ' + IBP_SANS, warna: warna || IBP_WARNA.emasTua, jarak: '4px', tinggi: 26, lebar: w - 40 });
+    ibpTeks(ctx, besar, x + w / 2, y + 170, { font: '600 104px ' + IBP_SERIF, warna: warna || IBP_WARNA.teks, tinggi: 104, lebar: w - 40 });
+    ibpTeks(ctx, bawah, x + w / 2, y + 220, { font: '22px ' + IBP_SANS, warna: IBP_WARNA.kelabu, tinggi: 26, lebar: w - 40 });
+    ctx.setLineDash([8, 8]); ctx.strokeStyle = IBP_WARNA.garis; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x + 24, y + 252); ctx.lineTo(x + w - 24, y + 252); ctx.stroke(); ctx.setLineDash([]);
+    kaki.forEach(([l, v], i) => {
+      const yy = y + 296 + i * 46;
+      ibpTeks(ctx, l, x + 34, yy, { font: '22px ' + IBP_SANS, warna: IBP_WARNA.kelabu, align: 'left', tinggi: 26, lebar: w });
+      ibpTeks(ctx, v, x + w - 34, yy, { font: '700 22px ' + IBP_SANS, align: 'right', tinggi: 26, lebar: w });
+    });
+    return y + h + 20;
+  }
+};
+/* Bulatan merah "tekan di sini" */
+function ibpSorot(ctx, x, y, w, h) {
+  ibpSegi(ctx, x, y, w, h, 24, null, '#D9443A', 5);
+  ctx.font = '54px ' + IBP_SANS; ctx.textAlign = 'center'; ctx.fillText('👆', x + w - 20, y + h + 30);
+}
+
+/* ---------- halaman panduan (1080×1920) ---------- */
+function ibpHalaman(M, langkah, jumlah, tajuk, ket, telefon, kaki) {
+  const [k, ctx] = ibpKanvas(IBP_W, IBP_H), cx = IBP_W / 2;
+  ibpTeks(ctx, 'LANGKAH ' + langkah + ' / ' + jumlah, cx, 110, { font: '700 26px ' + IBP_SANS, warna: IBP_WARNA.emasTua, jarak: '8px', tinggi: 30 });
+  ibpSegi(ctx, cx - 56, 140, 112, 112, 56, IBP_WARNA.emas);
+  ibpTeks(ctx, String(langkah), cx, 222, { font: '600 70px ' + IBP_SERIF, warna: '#fff', tinggi: 70 });
+  let y = ibpTeks(ctx, tajuk, cx, 336, { font: '600 64px ' + IBP_SERIF, tinggi: 74, lebar: 940 });
+  y = ibpTeks(ctx, ket, cx, y + 20, { font: '32px ' + IBP_SANS, warna: IBP_WARNA.kelabu, tinggi: 44, lebar: 900 });
+  const tTel = 1100, yTel = Math.min(y + 40, IBP_H - tTel - 240);
+  ibpTelefon(ctx, cx - 300, yTel, 600, tTel, telefon);
+  if (kaki) {
+    ibpSegi(ctx, 90, IBP_H - 200, IBP_W - 180, 140, 24, '#fff', IBP_WARNA.garis, 2);
+    ibpTeks(ctx, kaki, cx, IBP_H - 146, { font: '28px ' + IBP_SANS, tinggi: 38, lebar: IBP_W - 260 });
+  }
+  ibpTeks(ctx, M.utama, cx, IBP_H - 24, { font: '20px ' + IBP_SANS, warna: '#A9A7AE', tinggi: 24, lebar: 980 });
+  return k;
+}
+/* Kepala mini dalam skrin telefon contoh */
+function ibpKepalaMini(ctx, M, x, y, w) {
+  ctx.font = '40px ' + IBP_SANS; ctx.textAlign = 'center'; ctx.fillText('🏆', x + w / 2, y + 40);
+  y += 56;
+  if (M.sek) y = ibpT.kecil(ctx, x, y, w, M.sek.toUpperCase());
+  y = ibpTeks(ctx, M.utama, x + w / 2, y + 44, { font: '600 34px ' + IBP_SERIF, tinggi: 40, lebar: w });
+  ibpGarisEmas(ctx, y + 4, x + w * .15, x + w * .85);
+  return y + 36;
+}
+
+function ibpSemuaHalaman(M) {
+  const pas = !!M.dewan, J = 5;
+  const H = [];
+  /* 0 — kulit */
+  {
+    const [k, ctx] = ibpKanvas(IBP_W, IBP_H), cx = IBP_W / 2;
+    let y = ibpKepala(ctx, M, 120, IBP_W);
+    y = ibpTeks(ctx, 'Panduan Pendaftaran', cx, y + 64, { font: '600 66px ' + IBP_SERIF, tinggi: 76 });
+    y = ibpTeks(ctx, 'Hari Majlis', cx, y, { font: 'italic 600 66px ' + IBP_SERIF, warna: IBP_WARNA.emasTua, tinggi: 76 });
+    y = ibpTeks(ctx, 'Panduan ringkas untuk ibu bapa & penjaga', cx, y + 10, { font: '30px ' + IBP_SANS, warna: IBP_WARNA.kelabu, tinggi: 40 });
+    const maklumat = M.baris.map(b => b.label + ': ' + b.nilai);
+    if (M.daftar.buka) maklumat.push('Pendaftaran dibuka: ' + ibpJam(M.daftar.buka) + ', ' + ibpHari(M.daftar.buka));
+    if (maklumat.length) {
+      const hk = 60 + maklumat.length * 52;
+      ibpSegi(ctx, 110, y + 40, IBP_W - 220, hk, 26, '#fff', IBP_WARNA.garis, 2);
+      maklumat.forEach((m, i) => ibpTeks(ctx, m, cx, y + 104 + i * 52, { font: '30px ' + IBP_SANS, tinggi: 36, lebar: IBP_W - 280 }));
+      y += 40 + hk;
+    }
+    /* Baris langkah ringkas + kaki dilabuh ke bawah; QR mengisi ruang yang tinggal. */
+    const sq = Math.max(240, Math.min(440, IBP_H - 400 - (y + 40)));
+    ibpQR(ctx, M.link, cx - sq / 2, y + 40, sq);
+    ibpTeks(ctx, 'Imbas QR atau tekan link dalam group WhatsApp', cx, y + sq + 90, { font: '700 28px ' + IBP_SANS, tinggi: 36, lebar: 900 });
+    const ringkas = ['Buka link', 'Daftar', 'Semak', pas ? 'Pas masuk' : 'Tunjuk AJK', 'Giliran'];
+    const lb = (IBP_W - 120) / ringkas.length, yr = IBP_H - 250;
+    ringkas.forEach((r, i) => {
+      const x = 60 + lb * i + lb / 2;
+      ibpSegi(ctx, x - 34, yr, 68, 68, 34, IBP_WARNA.emas);
+      ibpTeks(ctx, String(i + 1), x, yr + 48, { font: '700 32px ' + IBP_SANS, warna: '#fff', tinggi: 32 });
+      ibpTeks(ctx, r, x, yr + 106, { font: '24px ' + IBP_SANS, tinggi: 28, lebar: lb - 10 });
+    });
+    ibpTeks(ctx, 'Leret untuk langkah seterusnya ›', cx, IBP_H - 50, { font: '26px ' + IBP_SANS, warna: IBP_WARNA.kelabu, tinggi: 30 });
+    H.push(k);
+  }
+  /* 1 — buka link */
+  H.push(ibpHalaman(M, 1, J, 'Buka link majlis',
+    'Guna link yang sama semasa anda mengisi bancian. Pada hari majlis, tekan "Daftar Kehadiran".',
+    (ctx, x, y, w) => {
+      y = ibpKepalaMini(ctx, M, x, y, w);
+      if (M.baris.length) {
+        const hk = 40 + M.baris.length * 62;
+        ibpSegi(ctx, x, y, w, hk, 20, '#fff', IBP_WARNA.garis, 2);
+        M.baris.forEach((b, i) => {
+          ibpTeks(ctx, b.label.toUpperCase(), x + 26, y + 46 + i * 62, { font: '700 16px ' + IBP_SANS, warna: IBP_WARNA.kelabu, align: 'left', jarak: '2px', tinggi: 20, lebar: w - 50 });
+          ibpTeks(ctx, b.nilai, x + 26, y + 72 + i * 62, { font: '600 22px ' + IBP_SANS, align: 'left', tinggi: 26, lebar: w - 50 });
+        });
+        y += hk + 26;
+      }
+      ibpT.menu(ctx, x, y, w, '📝', 'Daftar Kehadiran', 'Guna no. telefon bancian', true);
+    },
+    '💡 Belum ada link? Imbas QR di muka depan panduan ini.'));
+  /* 2 — no. telefon */
+  H.push(ibpHalaman(M, 2, J, 'Masukkan no. telefon',
+    'Taip no. telefon yang anda guna semasa mengisi bancian, kemudian tekan "Cari".',
+    (ctx, x, y, w) => {
+      y = ibpT.kecil(ctx, x, y, w, 'PENDAFTARAN');
+      y = ibpT.tajuk(ctx, x, y, w, 'Daftar Kehadiran') + 30;
+      y = ibpT.label(ctx, x, y, w, '📞 No. telefon (semasa bancian)');
+      y = ibpT.medan(ctx, x, y, w, '0123456789', true);
+      y = ibpT.butang(ctx, x, y + 10, w, '🔍 Cari', 'emas', true) + 30;
+      ibpGarisEmas(ctx, y, x, x + w);
+      y = ibpT.nota(ctx, x, y + 20, w, 'Tidak isi bancian atau guna telefon lain?');
+      ibpTeks(ctx, 'Cari dengan No. KP anak →', x + w / 2, y + 26, { font: '700 24px ' + IBP_SANS, warna: IBP_WARNA.emasTua, tinggi: 28, lebar: w });
+    },
+    '🙋 Tidak isi bancian? Tekan "Cari dengan No. KP anak".'));
+  /* 3 — semak & daftar */
+  H.push(ibpHalaman(M, 3, J, 'Semak & tekan Daftar',
+    'Nama anak dan bilangan hadir (ikut bancian anda) dipaparkan. Semak, kemudian tekan "Daftar".',
+    (ctx, x, y, w) => {
+      y = ibpT.kecil(ctx, x, y, w, 'PENDAFTARAN');
+      y = ibpT.tajuk(ctx, x, y, w, 'Keluarga anda') + 20;
+      ['NAMA ANAK PERTAMA', 'NAMA ANAK KEDUA'].forEach((n, i) => {
+        ibpSegi(ctx, x, y, w, 96, 18, '#fff', IBP_WARNA.garis, 2);
+        ibpTeks(ctx, n, x + 26, y + 44, { font: '700 24px ' + IBP_SANS, align: 'left', tinggi: 28, lebar: w - 50 });
+        ibpTeks(ctx, (i ? '3' : '6') + ' KELAS', x + 26, y + 76, { font: '20px ' + IBP_SANS, warna: IBP_WARNA.kelabu, align: 'left', tinggi: 24, lebar: w - 50 });
+        y += 112;
+      });
+      y = ibpT.nota(ctx, x, y, w, 'Wakil: NAMA IBU / BAPA');
+      ibpSegi(ctx, x, y, w, 190, 22, '#fff', IBP_WARNA.emas, 2);
+      ibpTeks(ctx, 'BILANGAN HADIR', x + w / 2, y + 40, { font: '700 18px ' + IBP_SANS, warna: IBP_WARNA.emasTua, jarak: '3px', tinggi: 22 });
+      ibpTeks(ctx, '2', x + w / 2, y + 128, { font: '600 84px ' + IBP_SERIF, tinggi: 84 });
+      ibpTeks(ctx, 'orang · ikut bancian anda', x + w / 2, y + 168, { font: '20px ' + IBP_SANS, warna: IBP_WARNA.kelabu, tinggi: 24 });
+      y += 214;
+      y = ibpT.nota(ctx, x, y, w, 'Bilangan salah? Sila jumpa AJK di kaunter pendaftaran.');
+      ibpT.butang(ctx, x, y + 10, w, '✓ Daftar', 'emas', true);
+    },
+    '👨‍👩‍👧 Bilangan salah, atau bancian "tidak hadir"? Jumpa AJK di kaunter.'));
+  /* 4 — pas masuk / sudah berdaftar */
+  H.push(pas
+    ? ibpHalaman(M, 4, J, 'Tunjuk pas di pintu dewan',
+      'Skrin Pas Masuk Dewan muncul sendiri' + (M.dewan.buka ? ' mulai ' + ibpJam(M.dewan.buka) : '') + '. Serahkan telefon kepada AJK di pintu — AJK akan masukkan PIN.',
+      (ctx, x, y, w) => {
+        y = ibpKepalaMini(ctx, M, x, y, w);
+        y = ibpT.tiket(ctx, x, y, w, 'Pas Masuk Dewan', '2', 'orang · tunjuk kepada AJK di pintu dewan',
+          [['Penjaga', 'Nama Ibu / Bapa'], ['Status', 'Belum masuk']]);
+        y = ibpT.label(ctx, x, y, w, '🔑 PIN AJK / guru');
+        y = ibpT.medan(ctx, x, y, w, 'Diisi oleh AJK di pintu dewan');
+        ibpT.butang(ctx, x, y + 6, w, '✓ Sahkan Masuk', 'emas', true);
+      },
+      '🔒 PIN diisi oleh AJK sahaja. Selepas disahkan, skrin bertukar hijau — boleh masuk.')
+    : ibpHalaman(M, 4, J, 'Tunjuk skrin ini kepada AJK',
+      'Selepas daftar, skrin "Sudah Berdaftar" muncul. Tunjukkan kepada AJK sebelum masuk dewan.',
+      (ctx, x, y, w) => {
+        y = ibpKepalaMini(ctx, M, x, y, w);
+        ibpT.tiket(ctx, x, y, w, 'Sudah Berdaftar', '✓', 'Terima kasih kerana hadir',
+          [['Penjaga', 'Nama Ibu / Bapa'], ['Hadir', '2 orang'], ['Daftar', '7:45 PG']]);
+      },
+      '📱 Buka semula link bila-bila masa — skrin ini muncul semula sendiri.'));
+  /* 5 — semasa majlis */
+  H.push(ibpHalaman(M, 5, J, 'Semak giliran anak',
+    'Semasa majlis, tekan "Semak Giliran Anak" untuk tahu bila anak anda naik pentas.' + (M.buku ? ' Buku Program juga dibuka selepas daftar.' : ''),
+    (ctx, x, y, w) => {
+      y = ibpKepalaMini(ctx, M, x, y, w);
+      y = ibpT.tiket(ctx, x, y, w, 'Disahkan Masuk', '✓', 'Selamat datang', [['Penjaga', 'Nama Ibu / Bapa'], ['Hadir', '2 orang']], IBP_WARNA.hijau);
+      y = ibpT.butang(ctx, x, y, w, '⏰ Teruskan ke giliran anak', 'emas', true);
+      if (M.buku) ibpT.butang(ctx, x, y + 10, w, '📖 Buku Program', 'garis');
+    },
+    '🔴 Butang merah "Ada kemas kini" muncul? Tekan untuk nombor giliran terkini.'));
+  return H;
+}
+
+/* ---------- poster QR (1080×1350, sesuai WhatsApp) ---------- */
+function ibpPoster(M) {
+  const W = 1080, Hh = 1350, [k, ctx] = ibpKanvas(W, Hh), cx = W / 2;
+  ctx.strokeStyle = IBP_WARNA.emas; ctx.lineWidth = 3; ctx.strokeRect(36, 36, W - 72, Hh - 72);
+  let y = ibpKepala(ctx, M, 50, W);
+  if (M.info) y = ibpTeks(ctx, M.info, cx, y + 10, { font: '30px ' + IBP_SANS, warna: IBP_WARNA.kelabu, tinggi: 40, lebar: W - 200 });
+  y = ibpTeks(ctx, 'Imbas untuk daftar kehadiran', cx, y + 60, { font: '700 40px ' + IBP_SANS, tinggi: 48, lebar: W - 200 });
+  const sq = Math.max(320, Math.min(560, Hh - y - 250));
+  ibpSegi(ctx, cx - sq / 2 - 16, y + 24, sq + 32, sq + 32, 28, '#fff', IBP_WARNA.emas, 3);
+  ibpQR(ctx, M.link, cx - sq / 2, y + 40, sq);
+  y += sq + 110;
+  if (M.daftar.buka) y = ibpTeks(ctx, 'Pendaftaran dibuka ' + ibpJam(M.daftar.buka) + ' · ' + ibpHari(M.daftar.buka), cx, y, { font: '28px ' + IBP_SANS, tinggi: 36, lebar: W - 200 });
+  ibpTeks(ctx, 'Guna no. telefon yang sama semasa bancian', cx, y + 8, { font: '24px ' + IBP_SANS, warna: IBP_WARNA.kelabu, tinggi: 30, lebar: W - 200 });
+  return k;
+}
+
+/* ---------- teks WhatsApp ---------- */
+function ibpTeksWA(M) {
+  const b = M.baris.map(x => '▪️ ' + x.label + ': ' + x.nilai);
+  return [
+    '*' + M.utama.toUpperCase() + '*', M.sek, '',
+    'Assalamualaikum & salam sejahtera ibu bapa / penjaga.', '',
+    ...b, b.length ? '' : null,
+    '📝 *Pendaftaran kehadiran hari majlis*' + (M.daftar.buka ? ' dibuka ' + ibpJam(M.daftar.buka) + ', ' + ibpHari(M.daftar.buka) : ''),
+    '1️⃣ Buka link: ' + M.link,
+    '2️⃣ Tekan *Daftar Kehadiran*, masukkan no. telefon semasa bancian → *Cari*',
+    '3️⃣ Semak nama anak & bilangan hadir → *Daftar*',
+    M.dewan ? '4️⃣ Di pintu dewan, tunjuk *Pas Masuk Dewan* — AJK akan sahkan' : '4️⃣ Tunjuk skrin *Sudah Berdaftar* kepada AJK',
+    '5️⃣ Semasa majlis, tekan *Semak Giliran Anak* untuk tahu bila anak naik pentas', '',
+    'Tidak isi bancian? Tekan *Cari dengan No. KP anak* atau jumpa AJK di kaunter.',
+    'Panduan bergambar (PDF) dilampirkan. Terima kasih 🙏'
+  ].filter(x => x !== null).join('\n');
+}
+
+/* ---------- modal ---------- */
+async function ibPanduan() {
+  const lapis = bukaModal('<div class="kad-kepala"><h3>📲 Panduan & QR — hari majlis</h3>' +
+    '<button class="b-tutup" data-ibp="tutup" aria-label="Tutup">×</button></div>' +
+    '<div class="kad-isi" id="ibp-isi"><p class="hint">Memuatkan…</p></div>', 'luas');
+  lapis.querySelector('[data-ibp="tutup"]').onclick = tutupModal;
+  try { await ibpSedia(); }
+  catch (e) { $('ibp-isi').innerHTML = '<p class="hint">Gagal memuat pustaka (semak internet): ' + agEsc(e.message) + '</p>'; return; }
+  const M = ibpMaklumat(), d = M.daftar;
+  const amaran = [];
+  if (!d.buka || !d.tutup) amaran.push('② Pendaftaran Hari Majlis belum ditetapkan — link akan papar "tertutup" pada hari majlis.');
+  if (!M.dewan) amaran.push('🚪 Pas masuk dewan tidak ditetapkan — langkah 4 = "Tunjuk skrin kepada AJK".');
+  const H = ibpSemuaHalaman(M), poster = ibpPoster(M);
+  $('ibp-isi').innerHTML =
+    '<p class="hint" style="margin-top:0">Dibina dari tetapan yang <strong>sudah disimpan</strong>. Ubah tetapan → 💾 Simpan → buka semula modal ini.</p>' +
+    amaran.map(a => '<p class="hint" style="color:var(--absen)">⚠ ' + agEsc(a) + '</p>').join('') +
+    '<div style="display:flex;gap:10px;overflow-x:auto;padding:6px 0 12px" id="ibp-pra"></div>' +
+    '<div class="baris-input">' +
+    '<button class="btn emas kecil" id="ibp-pdf">⬇ Panduan PDF (' + H.length + ' halaman)</button>' +
+    '<button class="btn sunyi kecil" id="ibp-png">⬇ Poster QR (PNG)</button>' +
+    '<button class="btn sunyi kecil" id="ibp-salin">📋 Salin teks WhatsApp</button></div>' +
+    '<textarea id="ibp-wa" rows="14" style="width:100%;margin-top:12px;font:13px/1.5 ui-monospace,Menlo,monospace">' + agEsc(ibpTeksWA(M)) + '</textarea>' +
+    '<p class="hint" style="margin:6px 0 0">Teks boleh diubah di sini sebelum disalin. Di WhatsApp: hantar poster + PDF, kemudian tampal teks.</p>';
+  [poster].concat(H).forEach(k => {
+    const img = new Image(); img.src = k.toDataURL('image/jpeg', .8);
+    img.style.cssText = 'height:300px;border:1px solid var(--garis);border-radius:8px;flex:none';
+    $('ibp-pra').appendChild(img);
+  });
+  const nama = 'Panduan-Hari-Majlis-' + ibFail();
+  $('ibp-pdf').onclick = () => {
+    const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: [108, 192], orientation: 'portrait' });
+    H.forEach((k, i) => { if (i) pdf.addPage([108, 192], 'portrait'); pdf.addImage(k.toDataURL('image/jpeg', .9), 'JPEG', 0, 0, 108, 192); });
+    pdf.save(nama + '.pdf');
+  };
+  $('ibp-png').onclick = () => {
+    const a = document.createElement('a'); a.href = poster.toDataURL('image/png'); a.download = 'Poster-QR-' + ibFail() + '.png'; a.click();
+  };
+  $('ibp-salin').onclick = async () => {
+    try { await navigator.clipboard.writeText($('ibp-wa').value); agToast('Teks WhatsApp disalin', 'ok'); }
+    catch (e) { $('ibp-wa').select(); agToast('Tekan Ctrl+C untuk salin', 'ralat'); }
+  };
+}
+
 function ibInit() {
   if (!MAJLIS) return;
   if (!IB_SEDIA) {
@@ -830,6 +1218,7 @@ function ibInit() {
     $('ib-csv-belum').onclick = ibCSVBelum;
     $('ib-padam').onclick = ibPadamSemua;
     $('ib-reset-masuk').onclick = ibResetMasuk;
+    $('ib-panduan').onclick = ibPanduan;
     $('ib-u-tambah').onclick = ibUjiTambah;
     $('ib-u-kp').addEventListener('keydown', e => { if (e.key === 'Enter') ibUjiTambah(); });
     p.addEventListener('click', e => {
