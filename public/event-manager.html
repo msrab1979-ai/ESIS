@@ -43,7 +43,17 @@
 /* 📱 Telefon (10 Nov 2026) — KPI berisi teks (📣 "Panel ditutup") tidak terpotong;
    butang 🏁 turun ke baris sendiri; bingkai panel diukur dengan JS (ukurBingkai). */
 .kpi.teks .angka{font-size:18px;line-height:1.25;word-break:break-word}
+/* 📣 Jalur nombor semasa — kelihatan dalam SEMUA tab (12 Nov 2026, pengguna) */
+.em-lg{display:flex;align-items:center;gap:10px 18px;flex-wrap:wrap;margin-top:12px;padding:10px 14px;border-radius:10px;background:#121216;color:#FAF7F0}
+.em-lg .lbl{font-size:10.5px;letter-spacing:.18em;font-weight:700;color:#C6A867}
+.em-lg .no{font-family:Georgia,serif;font-size:30px;font-weight:700;line-height:1;color:#EAD7A4;font-variant-numeric:tabular-nums}
+.em-lg .no.teks{font-size:16px;color:#FAF7F0}
+.em-lg .sp{font-size:12.5px;color:rgba(250,247,240,.75)}
+.em-lg .sp b{color:#FAF7F0}
+.em-lg .bar{flex:1 1 140px;height:6px;border-radius:6px;background:rgba(250,247,240,.15);overflow:hidden}
+.em-lg .bar i{display:block;height:100%;background:#C6A867}
 @media (max-width:640px){
+  .em-lg .no{font-size:24px}
   .kpi-grid{grid-template-columns:1fr 1fr;gap:9px}
   .kpi .kecil{font-size:11px}
   #t-ringkasan .kad-kepala .kanan{margin-left:0;width:100%}
@@ -63,6 +73,7 @@
       <span class="cap">Majlis</span>
     </div>
     <p class="sari" id="sari">Memuatkan…</p>
+    <div class="em-lg" id="em-lg" hidden></div>
     <nav class="tab" role="tablist" id="bar-tab" hidden>
       <button role="tab" aria-selected="true" data-t="ringkasan">📊 Ringkasan</button>
       <button role="tab" aria-selected="false" data-t="peserta">✅ Peserta</button>
@@ -267,7 +278,39 @@ function kira() {
   return { murid, kel, peta, subPentas };
 }
 
+/* Kemajuan MC — satu nombor = satu giliran (pengikut gabung tidak dikira). */
+function kiraMC(subPentas) {
+  let gil = 0, gilMC = 0, hadirM = 0;
+  const pentas = PENERIMA.filter(p => agPenerimaPentas(p, subPentas));   // sama dengan Pengurus Peserta
+  pentas.forEach(p => {
+    const g = (p.giliran || []).filter(x => typeof x.no === 'number' && !agIkutSah(p.giliran, x));
+    gil += g.length; gilMC += g.filter(x => x.mc === true).length;
+    if ((p.giliran || []).some(x => x.hadir === true)) hadirM++;
+  });
+  return { gil, gilMC, hadirM, pentas };
+}
+/* Sama dengan kad SEDANG DIPANGGIL ibubapa.html: tiada doc = belum ✓ pertama;
+   langsung:false = Peserta ⏸ Tutup panel. */
+function teksLg() {
+  if (!LGS) return 'Belum bermula';
+  if (LGS.langsung === false) return 'Panel ditutup';
+  return LGS.mula ? LGS.mula + (LGS.akhir && LGS.akhir !== LGS.mula ? '–' + LGS.akhir : '') : 'Belum ditetapkan';
+}
+function lukisLg() {
+  if (!MAJLIS) return;
+  const { gil, gilMC } = kiraMC(agSubPentas(MAJLIS)), t = teksLg(), m = LGS && LGS.masa;
+  const ms = typeof m === 'number' ? m : m && m.toMillis ? m.toMillis() : 0;
+  const el = $('em-lg');
+  el.innerHTML = '<div><div class="lbl">📣 SEDANG DIPANGGIL</div><div class="no' + (/^\d/.test(t) ? '' : ' teks') + '">' + agEsc(t) + '</div></div>' +
+    '<div class="sp">🎤 <b>' + gilMC + '</b> dari ' + gil + ' giliran naik pentas' +
+    (ms ? ' · kemas kini ' + new Date(ms).toLocaleTimeString('ms-MY', { hour: 'numeric', minute: '2-digit' }) : '') + '</div>' +
+    '<div class="bar"><i style="width:' + (gil ? Math.round(gilMC / gil * 100) : 0) + '%"></i></div>';
+  el.hidden = false;
+  ukurBingkai();                // tinggi jalur boleh berubah (balut di telefon)
+}
+
 function lukis() {
+  lukisLg();
   if (TAB !== 'ringkasan' || !MAJLIS) return;
   lukisSelesai();
   const { murid, kel, peta, subPentas } = kira();
@@ -278,15 +321,8 @@ function lukis() {
   const belumDtg = kel.filter(k => !(k.daftar && k.daftar.bil) && k.hadir !== false).length;
   const tiadaBanc = murid.filter(p => !peta[p.no_kp]).length;
 
-  /* Murid hadir (Pengurus Peserta) + kemajuan MC — satu nombor = satu giliran (pengikut gabung tidak dikira). */
-  let gil = 0, gilMC = 0, hadirM = 0;
-  const pentas = PENERIMA.filter(p => agPenerimaPentas(p, subPentas));   // sama dengan Pengurus Peserta
-  pentas.forEach(p => {
-    const g = (p.giliran || []).filter(x => typeof x.no === 'number' && !agIkutSah(p.giliran, x));
-    gil += g.length; gilMC += g.filter(x => x.mc === true).length;
-    if ((p.giliran || []).some(x => x.hadir === true)) hadirM++;
-  });
-  const lg = LGS && LGS.langsung ? (LGS.mula ? LGS.mula + (LGS.akhir && LGS.akhir !== LGS.mula ? '–' + LGS.akhir : '') : 'Belum ditetapkan') : 'Panel ditutup';
+  /* Murid hadir (Pengurus Peserta) + kemajuan MC. */
+  const { gil, gilMC, hadirM, pentas } = kiraMC(subPentas), lg = teksLg();
 
   $('sari').textContent = (MAJLIS.nama || '') + (MAJLIS.tarikh ? ' · ' + MAJLIS.tarikh : '');
   $('em-kpi').innerHTML =
