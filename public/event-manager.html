@@ -68,8 +68,6 @@
       <button role="tab" aria-selected="false" data-t="peserta">✅ Peserta</button>
       <button role="tab" aria-selected="false" data-t="mc">🎤 MC</button>
       <button role="tab" aria-selected="false" data-t="hadiah">🎁 Hadiah</button>
-      <button role="tab" aria-selected="false" data-t="tayang">📺 Slaid</button>
-      <button role="tab" aria-selected="false" data-t="guruKelas">🏫 Guru Kelas</button>
     </nav>
   </div>
 </header>
@@ -129,7 +127,8 @@ let LGS = null;           // anugerah_langsung
 let BUKA_KELAS = '';      // baris kelas yang dikembangkan
 let TAB = 'ringkasan';
 const IFRAME = {};        // peranan → iframe (dibina sekali)
-const FAIL = { peserta: 'peserta.html', mc: 'mc.html', hadiah: 'hadiah.html', tayang: 'tayang.html', guruKelas: 'guru-kelas.html' };
+/* 📺 Slaid & 🏫 Guru Kelas dibuang dari Event Manager (11 Nov 2026, pengguna) — link sendiri kekal. */
+const FAIL = { peserta: 'peserta.html', mc: 'mc.html', hadiah: 'hadiah.html' };
 const $ = id => document.getElementById(id);
 
 /* ---------- mula: kod → kata laluan ---------- */
