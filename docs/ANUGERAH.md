@@ -944,3 +944,13 @@ Butang **📲 Panduan & QR** dalam kad 👪 Link Ibu Bapa → modal `ibPanduan()
 - **Satu pelukis kanvas** (`ibpSemuaHalaman` / `ibpPoster`) untuk pratonton, PNG dan halaman PDF (JPEG dalam jsPDF). Pustaka dimuat bila modal dibuka sahaja: `qrcode-generator` 1.4.4 + `jspdf` 2.5.1 (cdnjs).
 - **Langkah 4 ikut `dewan.buka`**: ada → "Tunjuk pas di pintu dewan" (PIN AJK); tiada → "Tunjuk skrin Sudah Berdaftar". Langkah mengikut aliran `ibubapa.html` (`vUtama → vDaftarTel → vDaftarKel → vPas/vDaftarSiap → vGiliran`) — **ubah aliran di sana = kemas kini teks langkah di sini.**
 - Panduan **hari majlis sahaja** (pilihan pengguna); tiada versi bancian.
+
+### 🖨 Senarai Kehadiran Ibu Bapa (11 Nov 2026)
+
+Butang **🖨 Senarai Kehadiran** dalam kad 📊 Bancian & Pendaftaran → modal `ibKehadiranModal()` (muat semula data dahulu, `ibMuat(true)`). Tapisan: Hadir sahaja (lalai) / Semua murid penerima / Tidak hadir sahaja. Output **PDF** (dialog cetak, A4 menegak, hitam putih — `ibkPDF`) dan **Excel .xlsx** (OOXML via JSZip, bentuk sama dengan Senarai Hadiah — `ibkExcel`). Kedua-duanya membaca **satu enjin** `ibKehadiran(tapis)`.
+
+- **Satu baris SEKELUARGA** (anak dalam satu sel) — bilangan hadir dikira sekali. Murid penerima tanpa bancian = satu baris seorang, "Tiada bancian".
+- **Susunan ikut masa daftar** (pilihan pengguna); tidak hadir di bawah ikut darjah → kelas → nama. Tiada lajur tandatangan (pengguna).
+- Lajur: Bil · Masa Daftar · Nama Murid · Kelas · Wakil · Telefon · Bancian · Hadir · Masuk Dewan.
+- **Ringkasan atas dikira atas SEMUA data**, bukan baris yang ditapis. Bancian "tidak hadir" yang kemudian didaftar dikenal dari `dewasa+kanak = 0` (`hadir` sudah ditulis true semasa daftar).
+- Ikut `ibSebenar()` / `ibMuridPenerima()` — keluarga ujian dan murid 🎤/🙈 tersorok tidak termasuk, sama dengan KPI & CSV.

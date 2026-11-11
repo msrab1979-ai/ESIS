@@ -220,6 +220,7 @@ function ibBina() {
       <button class="btn sunyi kecil" id="ib-muat">🔄 Muat semula</button>
       <button class="btn sunyi kecil" id="ib-csv">⬇ CSV keluarga</button>
       <button class="btn sunyi kecil" id="ib-csv-belum">⬇ CSV belum jawab</button>
+      <button class="btn emas kecil" id="ib-hadir">🖨 Senarai Kehadiran</button>
     </div></div>
   <div class="kad-isi">
     <div class="kpi-grid" id="ib-kpi"></div>
@@ -1205,6 +1206,205 @@ async function ibPanduan() {
   };
 }
 
+/* ==========================================================================
+   🖨 SENARAI KEHADIRAN IBU BAPA — selepas majlis (11 Nov 2026)
+   --------------------------------------------------------------------------
+   Satu baris SEKELUARGA (anak-anak dalam satu sel) — bilangan hadir dikira
+   sekali, bukan setiap anak. Susunan ikut MASA DAFTAR (pengguna); yang tidak
+   hadir di bawah, ikut kelas → nama. PDF (dialog cetak) dan Excel (.xlsx)
+   membaca SATU enjin (ibKehadiran) supaya dua fail tidak boleh berbeza.
+   🔴 Ringkasan dikira atas SEMUA data, bukan baris yang ditapis.
+   🔴 Bancian "tidak hadir" yang kemudian didaftar: `hadir` sudah ditulis
+      true semasa daftar, jadi dikenal daripada dewasa+kanak = 0.
+   ========================================================================== */
+const IBK_TAPIS = { hadir: 'Hadir sahaja', semua: 'Semua murid penerima', tidak: 'Tidak hadir sahaja' };
+
+function ibKehadiran(tapis) {
+  const KEL = ibSebenar(), murid = ibMuridPenerima(), peta = ibPetaAnak();
+  const penerimaKp = new Set(murid.map(p => p.no_kp));
+  const sudah = k => !!(k.daftar && k.daftar.bil);
+  const orangB = k => (k.dewasa || 0) + (k.kanak || 0);
+  const jam = x => { const m = ibMasa(x); return m ? m.toLocaleTimeString('ms-MY', { hour: 'numeric', minute: '2-digit' }) : ''; };
+  const penuh = x => { const m = ibMasa(x); return m ? m.toLocaleString('ms-MY') : ''; };
+  const kelasAnak = a => agDarjahKelas(a.tahun, a.kelas);
+  const bancianTeks = k => k.sumber === 'walkin' ? 'Walk-in' : k.sumber === 'admin' ? 'Daftar admin'
+    : orangB(k) > 0 ? orangB(k) + ' orang' : 'Tidak hadir';
+
+  const baris = KEL.map(k => ({
+    hadir: sudah(k), masaMs: sudah(k) ? (ibMasa(k.daftar.masa) || new Date(0)).getTime() : 0,
+    anak: (k.murid || []).map(a => ({ nama: a.nama, kelas: kelasAnak(a), d: agWordDarjah(a.tahun) })),
+    wakil: (k.wakil || {}).nama || '', tel: k.telefon || '',
+    bancian: bancianTeks(k), bil: sudah(k) ? k.daftar.bil : '',
+    masa: sudah(k) ? jam(k.daftar.masa) : '', masaPenuh: sudah(k) ? penuh(k.daftar.masa) : '',
+    masuk: k.masuk ? jam(k.masuk.masa) : '', masukPenuh: k.masuk ? penuh(k.masuk.masa) : ''
+  }));
+  /* Murid penerima tanpa bancian langsung — satu baris seorang. */
+  murid.filter(p => !peta[p.no_kp]).forEach(p => baris.push({
+    hadir: false, masaMs: 0, anak: [{ nama: p.nama, kelas: agDarjahKelas(p.tahun, p.kelas), d: agWordDarjah(p.tahun) }],
+    wakil: '', tel: '', bancian: 'Tiada bancian', bil: '', masa: '', masaPenuh: '', masuk: '', masukPenuh: ''
+  }));
+  const kunci = b => (b.anak[0] || {});
+  baris.sort((a, b) => (b.hadir - a.hadir) || (a.masaMs - b.masaMs) ||
+    ((kunci(a).d || 9) - (kunci(b).d || 9)) || ibP(kunci(a).kelas).localeCompare(ibP(kunci(b).kelas)) ||
+    ibP(kunci(a).nama).localeCompare(ibP(kunci(b).nama)));
+
+  const hadirK = KEL.filter(sudah), masukK = KEL.filter(k => k.masuk);
+  const diwakili = new Set(); hadirK.forEach(k => (k.murid || []).forEach(a => { if (penerimaKp.has(a.kp)) diwakili.add(a.kp); }));
+  const ringkas = [
+    ['Murid penerima', murid.length + ' murid'],
+    ['Hadir (daftar)', hadirK.length + ' keluarga · ' + hadirK.reduce((j, k) => j + (k.daftar.bil || 0), 0) + ' orang'],
+    ['Masuk dewan', masukK.length + ' keluarga · ' + masukK.reduce((j, k) => j + ((k.masuk || {}).bil || 0), 0) + ' orang'],
+    ['Murid diwakili ibu bapa', diwakili.size + ' dari ' + murid.length + ' murid'],
+    ['Walk-in / daftar admin', hadirK.filter(k => k.sumber === 'walkin' || k.sumber === 'admin').length + ' keluarga'],
+    ['Bancian hadir, tidak datang', KEL.filter(k => !sudah(k) && k.sumber === 'bancian' && k.hadir !== false && orangB(k) > 0).length + ' keluarga'],
+    ['Tiada bancian', murid.filter(p => !peta[p.no_kp]).length + ' murid']
+  ];
+  const dipilih = baris.filter(b => tapis === 'semua' || (tapis === 'hadir' ? b.hadir : !b.hadir));
+  return { baris: dipilih, ringkas, jumOrang: dipilih.reduce((j, b) => j + (b.bil || 0), 0) };
+}
+
+const ibkTajuk = () => ({
+  sek: ((MAJLIS.ibubapa || {}).tajuk || {}).sek || MAJLIS.sekolah || '',
+  nama: ibP(MAJLIS.nama || 'Majlis Anugerah').replace(/\*/g, ''),
+  info: ((MAJLIS.ibubapa || {}).tajuk || {}).info || ibInfoLalai() || MAJLIS.tarikh || ''
+});
+
+function ibkPDF(tapis) {
+  const r = ibKehadiran(tapis), T = ibkTajuk();
+  if (!r.baris.length) { agToast('Tiada rekod untuk dicetak', 'ralat'); return; }
+  const w = window.open('', '_blank');
+  if (!w) { agToast('Benarkan pop-up untuk mencetak', 'ralat'); return; }
+  const E = agEsc;
+  const tr = r.baris.map((b, i) => '<tr' + (b.hadir ? '' : ' class="x"') + '><td class="n">' + (i + 1) + '</td>' +
+    '<td class="n">' + E(b.masa || '—') + '</td>' +
+    '<td>' + b.anak.map(a => '<b>' + E(a.nama) + '</b>').join('<br>') + '</td>' +
+    '<td>' + b.anak.map(a => E(a.kelas)).join('<br>') + '</td>' +
+    '<td>' + E(b.wakil) + '</td><td class="n">' + E(b.tel) + '</td>' +
+    '<td>' + E(b.bancian) + '</td><td class="n"><b>' + (b.bil || '—') + '</b></td>' +
+    '<td class="n">' + E(b.masuk || '—') + '</td></tr>').join('');
+  w.document.write('<!doctype html><meta charset="utf-8"><title>Senarai Kehadiran Ibu Bapa</title>' +
+    '<style>body{font:10.5px/1.4 Arial,sans-serif;margin:0;color:#000}' +
+    '.kp{text-align:center;margin-bottom:10px}.kp .s{font-size:10px;letter-spacing:.18em;font-weight:700}' +
+    '.kp h1{font-size:16px;margin:3px 0}.kp .t{font-size:12px;font-weight:700;margin-top:6px}.kp .i{font-size:10px}' +
+    '.rk{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid #000;margin:8px 0 12px}' +
+    '.rk div{padding:5px 7px;border-right:1px solid #000;border-bottom:1px solid #000}.rk small{display:block;font-size:8.5px;text-transform:uppercase;letter-spacing:.04em}' +
+    '.rk b{font-size:11.5px}table{border-collapse:collapse;width:100%}thead{display:table-header-group}' +
+    'th,td{border:1px solid #000;padding:3px 5px;text-align:left;vertical-align:top}th{font-size:9px;text-transform:uppercase;background:#E5E5E5}' +
+    'td.n,th.n{text-align:center;white-space:nowrap}tr{page-break-inside:avoid}tr.x td{color:#555}' +
+    '.kaki{margin-top:8px;font-size:9px}@page{size:A4 portrait;margin:12mm}' +
+    '*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style>' +
+    '<div class="kp">' + (T.sek ? '<div class="s">' + E(T.sek.toUpperCase()) + '</div>' : '') +
+    '<h1>' + E(T.nama) + '</h1>' + (T.info ? '<div class="i">' + E(T.info) + '</div>' : '') +
+    '<div class="t">SENARAI KEHADIRAN IBU BAPA / PENJAGA — ' + E(IBK_TAPIS[tapis].toUpperCase()) + '</div></div>' +
+    '<div class="rk">' + r.ringkas.map(([l, v]) => '<div><small>' + E(l) + '</small><b>' + E(v) + '</b></div>').join('') +
+    '<div><small>Dalam senarai ini</small><b>' + r.baris.length + ' baris · ' + r.jumOrang + ' orang</b></div></div>' +
+    '<table><thead><tr><th class="n">Bil</th><th class="n">Masa Daftar</th><th>Nama Murid</th><th>Kelas</th><th>Wakil</th>' +
+    '<th class="n">Telefon</th><th>Bancian</th><th class="n">Hadir</th><th class="n">Masuk Dewan</th></tr></thead>' +
+    '<tbody>' + tr + '</tbody></table>' +
+    '<div class="kaki">Satu baris satu keluarga. Hadir = bilangan orang semasa daftar. Dicetak ' + E(new Date().toLocaleString('ms-MY')) + '.</div>');
+  w.document.close();
+  setTimeout(() => w.print(), 350);
+}
+
+async function ibkExcel(tapis) {
+  const r = ibKehadiran(tapis), T = ibkTajuk();
+  if (!r.baris.length) { agToast('Tiada rekod untuk dimuat turun', 'ralat'); return; }
+  if (typeof JSZip === 'undefined') await ibpSkrip('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', () => window.JSZip);
+  const X = s => agEsc(String(s == null ? '' : s).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ''));
+  const huruf = i => String.fromCharCode(65 + i);
+  /* s: 0 biasa · 1 tebal · 2 kepala lajur · 3 tajuk · 4 balut teks */
+  const sel = (ref, v, s = 0) => (v === '' || v == null) ? (s ? '<c r="' + ref + '" s="' + s + '"/>' : '')
+    : typeof v === 'number' ? '<c r="' + ref + '" s="' + s + '"><v>' + v + '</v></c>'
+      : '<c r="' + ref + '" s="' + s + '" t="inlineStr"><is><t xml:space="preserve">' + X(v) + '</t></is></c>';
+  const LAJUR = ['Bil', 'Masa Daftar', 'Nama Murid', 'Kelas', 'Wakil', 'Telefon', 'Bancian', 'Hadir (orang)', 'Masuk Dewan'];
+  const LEBAR = [6, 20, 42, 18, 32, 14, 14, 12, 20];
+  const rows = []; let n = 0;
+  const tambah = sels => { n++; rows.push('<row r="' + n + '">' + sels.map((x, i) => sel(huruf(i) + n, x[0], x[1])).join('') + '</row>'); };
+  tambah([[T.nama, 3]]);
+  tambah([['SENARAI KEHADIRAN IBU BAPA / PENJAGA — ' + IBK_TAPIS[tapis].toUpperCase(), 1]]);
+  tambah([[[T.sek, T.info, 'Dijana ' + new Date().toLocaleString('ms-MY')].filter(Boolean).join(' · ')]]);
+  r.ringkas.forEach(([l, v]) => tambah([[l, 0], [v, 1]]));
+  tambah([['Dalam senarai ini', 0], [r.baris.length + ' baris · ' + r.jumOrang + ' orang', 1]]);
+  const kepala = n + 2; n++;
+  tambah(LAJUR.map(l => [l, 2]));
+  r.baris.forEach((b, i) => tambah([[i + 1, 0], [b.masaPenuh, 0], [b.anak.map(a => a.nama).join('\n'), 4],
+    [b.anak.map(a => a.kelas).join('\n'), 4], [b.wakil, 0], [b.tel, 0], [b.bancian, 0],
+    [b.bil === '' ? '' : b.bil, 1], [b.masukPenuh, 0]]));
+  const akhir = huruf(LAJUR.length - 1), bawah = kepala + r.baris.length;
+  const helaian = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<sheetViews><sheetView workbookViewId="0"><pane ySplit="' + kepala + '" topLeftCell="A' + (kepala + 1) +
+      '" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
+    '<cols>' + LEBAR.map((w, i) => '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>').join('') + '</cols>' +
+    '<sheetData>' + rows.join('') + '</sheetData>' +
+    '<autoFilter ref="A' + kepala + ':' + akhir + bawah + '"/>' +
+    '<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/>' +
+    '<pageSetup paperSize="9" orientation="landscape" fitToHeight="0"/></worksheet>';
+  const gaya = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<fonts count="3"><font><sz val="11"/><name val="Arial"/></font><font><b/><sz val="11"/><name val="Arial"/></font>' +
+      '<font><b/><sz val="14"/><name val="Arial"/></font></fonts>' +
+    '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
+      '<fill><patternFill patternType="solid"><fgColor rgb="FFD9D9D9"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+    '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>' +
+      '<border><left/><right/><top/><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border></borders>' +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+      '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
+      '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>' +
+      '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
+      '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf>' +
+    '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+  const H = 'Kehadiran';
+  const zip = new JSZip();
+  zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+    '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>');
+  zip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  zip.file('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    '<sheets><sheet name="' + H + '" sheetId="1" r:id="rId1"/></sheets>' +
+    '<definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">' + H + '!$A$' + kepala + ':$' + akhir + '$' + bawah + '</definedName></definedNames></workbook>');
+  zip.file('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+    '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>');
+  zip.file('xl/worksheets/sheet1.xml', helaian);
+  zip.file('xl/styles.xml', gaya);
+  const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = 'Kehadiran-Ibu-Bapa-' + ibFail() + '.xlsx';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* Modal pilih tapisan. Data dimuat semula dahulu — senarai selepas majlis mesti terkini. */
+async function ibKehadiranModal() {
+  const lapis = bukaModal('<div class="kad-kepala"><h3>🖨 Senarai Kehadiran Ibu Bapa</h3>' +
+    '<button class="b-tutup" data-ibk="tutup" aria-label="Tutup">×</button></div>' +
+    '<div class="kad-isi" id="ibk-isi"><p class="hint">Memuatkan data terkini…</p></div>');
+  lapis.querySelector('[data-ibk="tutup"]').onclick = tutupModal;
+  await ibMuat(true);
+  if (!$('ibk-isi')) return;
+  const kira = t => ibKehadiran(t).baris.length;
+  $('ibk-isi').innerHTML =
+    Object.entries(IBK_TAPIS).map(([k, l], i) => '<label style="display:flex;gap:8px;align-items:center;margin:0 0 9px;cursor:pointer">' +
+      '<input type="radio" name="ibk-t" value="' + k + '"' + (i ? '' : ' checked') + '> ' + agEsc(l) +
+      ' <span class="hint">(' + kira(k) + ' baris)</span></label>').join('') +
+    '<p class="hint" style="margin:4px 0 14px">Susunan ikut masa daftar; yang tidak hadir di bawah ikut kelas. Satu baris satu keluarga.</p>' +
+    '<div class="baris-input"><button class="btn emas kecil" id="ibk-pdf">🖨 PDF / Cetak</button>' +
+    '<button class="btn sunyi kecil" id="ibk-xls">📊 Excel</button></div>';
+  const t = () => (document.querySelector('input[name="ibk-t"]:checked') || {}).value || 'hadir';
+  $('ibk-pdf').onclick = () => ibkPDF(t());
+  $('ibk-xls').onclick = () => ibkExcel(t()).catch(e => agToast('Gagal: ' + e.message, 'ralat'));
+}
+
 function ibInit() {
   if (!MAJLIS) return;
   if (!IB_SEDIA) {
@@ -1219,6 +1419,7 @@ function ibInit() {
     $('ib-padam').onclick = ibPadamSemua;
     $('ib-reset-masuk').onclick = ibResetMasuk;
     $('ib-panduan').onclick = ibPanduan;
+    $('ib-hadir').onclick = ibKehadiranModal;
     $('ib-u-tambah').onclick = ibUjiTambah;
     $('ib-u-kp').addEventListener('keydown', e => { if (e.key === 'Enter') ibUjiTambah(); });
     p.addEventListener('click', e => {
