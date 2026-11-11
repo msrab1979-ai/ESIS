@@ -704,7 +704,10 @@ async function sahPas() {
       yang sedang menaip ialah apa yang tidak boleh berlaku.
    ========================================================================== */
 const capLg = l => l ? [l.langsung ? 1 : 0, l.mula || '', l.akhir || ''].join('|') : '';
-const lgBuka = () => !!(LG && LG.langsung);
+/* Hari majlis: kad giliran SENTIASA dipapar (11 Nov 2026, pengguna) — sebelum ✓
+   pertama MC doc belum wujud → "Majlis akan bermula". Disorok hanya bila
+   Pengurus Peserta menekan ⏸ Tutup panel (langsung === false). */
+const lgBuka = () => !LG || LG.langsung !== false;
 async function bacaLg() {
   return baca('anugerah_langsung/' + M_ID, ['langsung', 'mula', 'akhir', 'masa', 'selesai']);
 }
@@ -735,7 +738,7 @@ document.addEventListener('visibilitychange', () => {
    skrin Semak Giliran sudah ada 🔄 Semak semula sendiri). */
 function kadLg(segar) {
   if (!lgBuka()) return '';
-  const m = LG.mula, a = LG.akhir || LG.mula;
+  const L = LG || {}, m = L.mula, a = L.akhir || L.mula;
   return '<div class="lg"><small>SEDANG DIPANGGIL</small>' +
     (m ? '<div class="no">' + m + (a !== m ? '<i>–</i>' + a : '') + '</div><div class="ket">Nombor giliran naik pentas</div>'
        : '<div class="no kecil">Majlis akan bermula</div><div class="ket">Nombor giliran akan dipapar di sini</div>') +
