@@ -158,6 +158,8 @@ input.medan.teks{letter-spacing:0;text-transform:uppercase}
 .lg .no i{font-style:normal;color:rgba(250,247,240,.45);padding:0 6px;font-size:40px}
 .lg .ket{font-size:12.5px;color:rgba(250,247,240,.7);margin-top:4px}
 .lg .no.kecil{font-size:22px;color:var(--gading)}
+.lg-segar{margin-top:12px;font-size:12.5px;font-weight:700;color:var(--emas-a);border:1px solid rgba(198,168,103,.55);border-radius:20px;padding:7px 16px}
+.lg-segar:disabled{opacity:.6}
 .gno{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .gno span{font-size:12px;border-radius:20px;padding:3px 9px;border:1px solid var(--garis);background:#fff;color:var(--teks)}
 .gno span b{font-variant-numeric:tabular-nums}
@@ -729,14 +731,27 @@ document.addEventListener('visibilitychange', () => {
 });
 
 /* Kad nombor besar. Majlis dibuka tetapi julat belum ditetapkan → teks. */
-function kadLg() {
+/* segar = butang 🔄 di bawah nombor (skrin yang memasang ULANG sahaja —
+   skrin Semak Giliran sudah ada 🔄 Semak semula sendiri). */
+function kadLg(segar) {
   if (!lgBuka()) return '';
   const m = LG.mula, a = LG.akhir || LG.mula;
   return '<div class="lg"><small>SEDANG DIPANGGIL</small>' +
     (m ? '<div class="no">' + m + (a !== m ? '<i>–</i>' + a : '') + '</div><div class="ket">Nombor giliran naik pentas</div>'
        : '<div class="no kecil">Majlis akan bermula</div><div class="ket">Nombor giliran akan dipapar di sini</div>') +
+    (segar ? '<button class="lg-segar" data-lg-segar>🔄 Semak nombor terkini</button>' : '') +
     '</div>';
 }
+/* 🔄 manual: satu bacaan doc kecil, kemudian lukis semula skrin semasa. */
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-lg-segar]');
+  if (!b) return;
+  b.disabled = true; b.textContent = 'Menyemak…';
+  try { LG = LG_BARU = await bacaLg(); } catch (err) { /* kekal yang lama */ }
+  $('b-lg').hidden = true;
+  if (LG && LG.selesai) return laman();
+  if (ULANG) ULANG(); else { b.disabled = false; b.textContent = '🔄 Semak nombor terkini'; }
+});
 /* Status satu nombor giliran anak berbanding julat semasa. */
 function statusNo(g) {
   const m = LG && LG.mula, a = LG && (LG.akhir || LG.mula);
@@ -1190,7 +1205,7 @@ function vSiap() {
    ========================================================================== */
 function vUtama() {
   S = baru();
-  lukis(kepalaBesar() + '<div class="badan" data-laman>' + kadLg() + kadMajlis(false) +
+  lukis(kepalaBesar() + '<div class="badan" data-laman>' + kadLg(true) + kadMajlis(false) +
     '<div class="menu">' +
     (lgBuka() ? '<button id="b-giliran"><div class="mi">' + ik('jam', 'ik-e') + '</div><div><b>Semak Giliran</b><span>Bila anak anda naik pentas</span></div>' + ik('kanan', 'ik pn') + '</button>' : '') +
     '<button id="b-daftar"><div class="mi">' + ik('daftar', 'ik-e') + '</div><div><b>Daftar Kehadiran</b><span>Guna no. telefon bancian</span></div>' + ik('kanan', 'ik pn') + '</button>' +
@@ -1271,7 +1286,7 @@ function vDaftarSiap() {
     tiket({ meterai: mk ? 'hijau' : 'emas', status: mk ? 'Disahkan Masuk' : 'Sudah Berdaftar', masa: mk ? mk.masa : d.masa,
       kaki: [['Penjaga', tajukNama((k.wakil || {}).nama || '')], ['Hadir', ((mk ? mk.bil : d.bil) || 0) + ' orang'],
              [mk ? 'Masuk' : 'Daftar', mj ? jam(mj) : '—']] }) +
-    kadLg() + '<div style="flex:1"></div>' +
+    kadLg(true) + '<div style="flex:1"></div>' +
     (lgBuka() ? '<button class="btn emas" id="b-giliran">' + ik('jam') + (mk ? 'Teruskan ke giliran anak' : 'Semak Giliran Anak') + '</button>' : '') +
     (bukuBoleh(k) ? bukuBtn() : '') +
     '<button class="pautan" id="b-utama" style="align-self:center">Laman utama</button></div>');
