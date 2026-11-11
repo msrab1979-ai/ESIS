@@ -160,6 +160,22 @@ input.medan.teks{letter-spacing:0;text-transform:uppercase}
 .lg .no.kecil{font-size:22px;color:var(--gading)}
 .lg-segar{margin-top:12px;font-size:12.5px;font-weight:700;color:var(--emas-a);border:1px solid rgba(198,168,103,.55);border-radius:20px;padding:7px 16px}
 .lg-segar:disabled{opacity:.6}
+/* Giliran anak dalam kad SEDANG DIPANGGIL */
+.ga{margin-top:14px;padding-top:12px;border-top:1px solid rgba(198,168,103,.35);text-align:left;display:flex;flex-direction:column;gap:12px}
+.ga>small{text-align:center;font-size:10px}
+.ga .nm{font-size:13px;font-weight:700;color:var(--gading)}
+.ga .nm span{font-weight:400;color:rgba(250,247,240,.55);font-size:11.5px;margin-left:5px}
+.ga .cip{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.ga .cip b{font-variant-numeric:tabular-nums;font-size:15px;min-width:44px;text-align:center;padding:5px 9px;border-radius:10px;border:1px solid rgba(250,247,240,.25);color:var(--gading)}
+.ga .cip b.ok{background:rgba(47,107,79,.35);border-color:#4F9A74;color:#BFE3CD}
+.ga .cip b.ok::before{content:"✓ ";font-size:11px}
+.ga .cip b.lepas{color:rgba(250,247,240,.45);border-style:dashed}
+.ga .cip b.next{background:var(--emas);border-color:var(--emas-a);color:var(--gelap)}
+.ga .cip b.kini{background:var(--emas-a);border-color:#fff;color:var(--gelap);animation:gaDenyut 1.2s infinite}
+@keyframes gaDenyut{50%{box-shadow:0 0 0 5px rgba(234,215,164,.35)}}
+.ga .st{font-size:12px;margin-top:6px;color:var(--emas-a)}
+.ga .st.kini{color:#fff;font-weight:700;background:var(--merah);border-radius:8px;padding:6px 8px;text-align:center}
+.ga .st.siap{color:#BFE3CD}
 .gno{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .gno span{font-size:12px;border-radius:20px;padding:3px 9px;border:1px solid var(--garis);background:#fff;color:var(--teks)}
 .gno span b{font-variant-numeric:tabular-nums}
@@ -742,8 +758,60 @@ function kadLg(segar) {
   return '<div class="lg"><small>SEDANG DIPANGGIL</small>' +
     (m ? '<div class="no">' + m + (a !== m ? '<i>–</i>' + a : '') + '</div><div class="ket">Nombor giliran naik pentas</div>'
        : '<div class="no kecil">Majlis akan bermula</div><div class="ket">Nombor giliran akan dipapar di sini</div>') +
-    (segar ? '<button class="lg-segar" data-lg-segar>🔄 Semak nombor terkini</button>' : '') +
+    (segar ? kadGA() + '<button class="lg-segar" data-lg-segar>🔄 Semak nombor terkini</button>' : '') +
     '</div>';
+}
+/* 👨‍👩‍👧 Giliran anak DALAM kad SEDANG DIPANGGIL (12 Nov 2026, pengguna) — nombor
+   pentas dan nombor anak dibaca serentak. Semua nombor dipapar sebagai cip
+   (✓ sudah naik · emas = seterusnya). GA dibaca SEKALI per telefon; semakan
+   30s hanya baca doc langsung — status cip dikira semula di telefon.
+   🔄 manual = baca semula penerima (✓ MC terkini). */
+let GA = null, GA_MUAT = false;
+async function bacaGilAnak(k) {
+  return Promise.all((k.murid || []).map(async m => {
+    const p = await baca(pPen(m.kp), ['giliran', 'anugerah']).catch(() => null);
+    const lihat = {}, gil = [];
+    if (p && !penerimaPapar(p)) return { m, gil, sorok: true };     // 🎤/🙈 seluruhnya
+    ((p && p.giliran) || []).forEach(g => {
+      if (typeof g.no !== 'number' || lihat[g.no] || !subPapar(g.subId)) return;   // gabung: satu nombor sekali
+      lihat[g.no] = 1; gil.push(g);
+    });
+    return { m, gil: gil.sort((x, y) => x.no - y.no) };
+  }));
+}
+const telGA = () => (S.asal && S.asal.telefon) || localStorage.getItem(SIMPAN) || '';
+/* Dipanggil selepas skrin dengan kadLg(true) dilukis. Selesai baca → lukis semula
+   skrin yang sama (jika ibu bapa masih di situ). */
+async function muatGA() {
+  const tel = telGA(), skrin = ULANG;
+  if (!tel || !lgBuka() || GA_MUAT || (GA && GA.tel === tel)) return;
+  GA_MUAT = true;
+  try {
+    const k = S.asal && S.asal.telefon === tel ? S.asal : await bacaKel(tel);
+    if (!k) return;
+    GA = { tel, anak: (await bacaGilAnak(k)).filter(x => !x.sorok && x.gil.length) };
+  } catch (e) { return; } finally { GA_MUAT = false; }
+  if (skrin && ULANG === skrin) skrin();
+}
+function kadGA() {
+  if (!GA || GA.tel !== telGA() || !GA.anak.length) return '';
+  const L = LG || {}, m = L.mula, a = L.akhir || L.mula;
+  const blok = GA.anak.map(({ m: mu, gil }) => {
+    const st = gil.map(g => g.mc === true ? 'ok' : m && g.no >= m && g.no <= a ? 'kini' : m && g.no < m ? 'lepas' : '');
+    const iNext = st.indexOf(''), selesai = st.filter(x => x === 'ok' || x === 'lepas').length;
+    if (iNext >= 0 && !st.includes('kini')) st[iNext] = 'next';
+    const nx = iNext >= 0 ? gil[iNext] : null, banyak = gil.length > 1;
+    let t, kk = '';
+    if (st.includes('kini')) { t = '🔔 SEDANG DIPANGGIL — sila bersedia'; kk = 'kini'; }
+    else if (!nx) { t = '✓ ' + (banyak ? 'Semua ' + gil.length + ' giliran' : 'Giliran') + ' selesai — tahniah!'; kk = 'siap'; }
+    else t = '⏳ ' + (banyak ? 'Seterusnya <b>' + nx.no + '</b> — ' : '') + (m ? (nx.no - a) + ' giliran lagi' : 'majlis belum bermula') +
+      (banyak ? ' · ' + selesai + ' dari ' + gil.length + ' selesai' : '');
+    const kunci = st.includes('kini') ? -1 : nx ? nx.no : 1e9;       // paling hampir naik di atas
+    return { kunci, h: '<div><div class="nm">' + esc(namaAnak(mu.nama)) + '<span>' + esc(kelasPapar(mu.tahun, mu.kelas)) + '</span></div>' +
+      '<div class="cip">' + gil.map((g, i) => '<b class="' + st[i] + '">' + g.no + '</b>').join('') + '</div>' +
+      '<div class="st ' + kk + '">' + t + '</div></div>' };
+  }).sort((x, y) => x.kunci - y.kunci);
+  return '<div class="ga"><small>GILIRAN ANAK ANDA</small>' + blok.map(x => x.h).join('') + '</div>';
 }
 /* 🔄 manual: satu bacaan doc kecil, kemudian lukis semula skrin semasa. */
 document.addEventListener('click', async e => {
@@ -752,6 +820,7 @@ document.addEventListener('click', async e => {
   b.disabled = true; b.textContent = 'Menyemak…';
   try { LG = LG_BARU = await bacaLg(); } catch (err) { /* kekal yang lama */ }
   $('b-lg').hidden = true;
+  GA = null;                    // baca semula ✓ MC anak
   if (LG && LG.selesai) return laman();
   if (ULANG) ULANG(); else { b.disabled = false; b.textContent = '🔄 Semak nombor terkini'; }
 });
@@ -776,20 +845,12 @@ async function vGiliran(segar) {
   let k = S.asal && S.asal.telefon === tel ? S.asal : null, anak = [];
   try {
     if (!k) k = await bacaKel(tel);
-    if (k) anak = await Promise.all((k.murid || []).map(async m => {
-      const p = await baca(pPen(m.kp), ['giliran', 'anugerah']).catch(() => null);
-      const lihat = {}, gil = [];
-      if (p && !penerimaPapar(p)) return { m, gil, sorok: true };     // 🎤/🙈 seluruhnya
-      ((p && p.giliran) || []).forEach(g => {
-        if (typeof g.no !== 'number' || lihat[g.no] || !subPapar(g.subId)) return;   // gabung: satu nombor sekali
-        lihat[g.no] = 1; gil.push(g);
-      });
-      return { m, gil: gil.sort((x, y) => x.no - y.no) };
-    }));
+    if (k) anak = await bacaGilAnak(k);
   } catch (e) { S.ralat = e.message; }
   if (!k && !S.ralat) { localStorage.removeItem(SIMPAN); return vGiliranTel(); }
   if (k) { k._sorok = anak.filter(x => x.sorok).map(x => x.m.kp); muatKeluarga(k); }
   anak = anak.filter(x => !x.sorok);
+  if (k) GA = { tel, anak: anak.filter(x => x.gil.length) };
   lukis(kepalaKecil('jam', 'GILIRAN', 'Semak giliran') + '<div class="badan">' + kadLg() +
     ralatHTML() +
     (anak.length ? '<div class="kad">' + anak.map(({ m, gil }) =>
@@ -1217,6 +1278,7 @@ function vUtama() {
   $('b-daftar').onclick = () => vDaftarTel();
   if ($('b-giliran')) $('b-giliran').onclick = () => vGiliran(false);
   ULANG = vUtama;
+  muatGA();
 }
 
 function vDaftarTel() {
@@ -1296,6 +1358,7 @@ function vDaftarSiap() {
   $('b-utama').onclick = vUtama;
   if ($('b-giliran')) $('b-giliran').onclick = () => vGiliran(false);
   ULANG = vDaftarSiap;
+  muatGA();
 }
 
 mula();
