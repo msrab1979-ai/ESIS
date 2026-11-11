@@ -954,3 +954,12 @@ Butang **🖨 Senarai Kehadiran** dalam kad 📊 Bancian & Pendaftaran → modal
 - Lajur: Bil · Masa Daftar · Nama Murid · Kelas · Wakil · Telefon · Bancian · Hadir · Masuk Dewan.
 - **Ringkasan atas dikira atas SEMUA data**, bukan baris yang ditapis. Bancian "tidak hadir" yang kemudian didaftar dikenal dari `dewasa+kanak = 0` (`hadir` sudah ditulis true semasa daftar).
 - Ikut `ibSebenar()` / `ibMuridPenerima()` — keluarga ujian dan murid 🎤/🙈 tersorok tidak termasuk, sama dengan KPI & CSV.
+
+### 📣 Giliran ibu bapa ikut ✓ MC (11 Nov 2026)
+
+Pengurus Peserta **ramai** dan menanda hadir **ikut kategori serentak** (Cikgu A kategori 1, Cikgu B kategori 2 …), jadi tanda hadir **tidak boleh** mewakili pentas — ia bermaksud "murid ada di belakang pentas", bukan "sedang naik". Dan tiada siapa sempat menekan ▶ Seterusnya. Pilihan pengguna: **ikut ✓ MC**.
+
+- `mc.html` `tandaSatu` → `jadualLgs()` (debounce 700ms, ✓ pukal = satu tulisan) → `tulisLgsMC()` menulis `anugerah_langsung/{id}` = `{majlisId, langsung:true, mula, akhir, auto:true, masa}` dengan **`set(merge)`** (`selesai` milik Event Manager kekal).
+- `mula` = giliran **selepas ✓ TERBESAR** yang belum ✓ dan tidak ✕; `akhir = mula + LGS_JULAT − 1` (5), dihadkan pada nombor terbesar. Semua selesai → `mula = akhir = maks`. **Dari ✓ terbesar, bukan ✓ pertama yang tertinggal** — MC terlupa ✓ seorang murid tidak boleh membekukan nombor ibu bapa.
+- **Bermula pada ✓ pertama** — tiada tulisan semasa panel dimuat. Tulisan dilangkau jika julat tidak berubah (`LGS_AKHIR`).
+- Menu 📣 manual Peserta kekal sebagai sandaran; tulisan terakhir menang (✓ MC seterusnya akan menindih julat manual).

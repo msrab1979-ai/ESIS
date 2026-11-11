@@ -657,6 +657,48 @@ function tandaSatu(baris, nilai, tanpaLukis) {
      di kepala kekal angka lama dan bercanggah dengan KPI di bawahnya. */
   if (!tanpaLukis) { lukis(); kemasSari(); }
   hantar(baris, nilai);
+  jadualLgs();
+}
+
+/* ---------- 📣 giliran ibu bapa ikut ✓ MC (11 Nov 2026) ----------
+   Setiap ✓ (atau batal ✓) → anugerah_langsung = giliran selepas ✓
+   TERBESAR yang belum ✓ & tidak ✕, julat LGS_JULAT nombor. Pengurus Peserta tidak perlu
+   menekan ▶ Seterusnya — ramai petugas menanda hadir ikut kategori serentak,
+   jadi tanda hadir tidak boleh mewakili pentas; ✓ MC boleh.
+   🔴 Bermula pada ✓ PERTAMA (tiada tulisan semasa memuat).
+   🔴 set(merge) — `selesai` milik Event Manager tidak disentuh.
+   🔴 Doc AWAM: nombor sahaja. Menu 📣 manual Peserta kekal sebagai sandaran
+      (tulisan terakhir menang). */
+const LGS_JULAT = 5;
+let LGS_PEMASA = null, LGS_AKHIR = '';
+function jadualLgs() {
+  clearTimeout(LGS_PEMASA);
+  LGS_PEMASA = setTimeout(tulisLgsMC, 700);     // ✓ pukal → satu tulisan
+}
+async function tulisLgsMC() {
+  /* Dari ✓ TERBESAR, bukan ✓ pertama yang tertinggal — MC terlupa ✓
+     seorang murid tidak boleh membekukan nombor di telefon ibu bapa. */
+  let maks = 0, tanda = 0, seterus = Infinity;
+  BARIS.forEach(b => {
+    if (typeof b.no !== 'number') return;
+    if (b.no > maks) maks = b.no;
+    if (b.mc === true && b.no > tanda) tanda = b.no;
+  });
+  if (!maks) return;
+  BARIS.forEach(b => {
+    if (typeof b.no === 'number' && b.no > tanda && b.hadir !== false && b.mc !== true && b.no < seterus) seterus = b.no;
+  });
+  const mula = seterus === Infinity ? maks : seterus;
+  const akhir = seterus === Infinity ? maks : Math.min(mula + LGS_JULAT - 1, maks);
+  const cap = mula + '-' + akhir;
+  if (cap === LGS_AKHIR) return;
+  try {
+    await agDb.collection('anugerah_langsung').doc(MAJLIS.id).set(
+      { majlisId: MAJLIS.id, langsung: true, mula, akhir, auto: true, masa: Date.now() }, { merge: true });
+    LGS_AKHIR = cap;
+  } catch (e) {
+    console.warn('Giliran ibu bapa (auto MC):', e.message);   // cuba lagi pada ✓ seterusnya
+  }
 }
 
 /* Tanda entri subId DAN pengikutnya (gaya GABUNG) — murid naik sekali,
