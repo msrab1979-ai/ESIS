@@ -8063,25 +8063,25 @@ async function resetTanda(medan, label) {
   if (medanArr.includes('mc')) {
     try { const d = await lgsRef.get(); lgs = d.exists ? d.data() : null; } catch (e) { /* teruskan reset tanda */ }
   }
-  const adaNo = !!(lgs && (lgs.mula || lgs.akhir));
-  const julatNo = () => lgs.mula + (lgs.akhir && lgs.akhir !== lgs.mula ? '–' + lgs.akhir : '');
-  const hapus = firebase.firestore.FieldValue.delete;
-  const kosongNo = () => lgs.selesai
-    ? lgsRef.update({ mula: hapus(), akhir: hapus(), auto: hapus(), masa: hapus() })   // 🏁 selesai kekal
-    : lgsRef.delete();                        // keadaan sebelum ✓ pertama
+  /* 🏁 Majlis Selesai juga dipadam (12 Nov 2026, pengguna) — reset MC =
+     kembali ke keadaan sebelum ✓ pertama, jadi seluruh doc dibuang. */
+  const adaNo = !!(lgs && (lgs.mula || lgs.akhir || lgs.selesai));
+  const julatNo = () => [lgs.mula ? 'nombor ' + lgs.mula + (lgs.akhir && lgs.akhir !== lgs.mula ? '–' + lgs.akhir : '') : '',
+    lgs.selesai ? '🏁 Majlis Selesai' : ''].filter(Boolean).join(' + ');
+  const kosongNo = () => lgsRef.delete();
 
   if (!bilTanda) {
     if (!adaNo) { agToast('Tiada tanda ' + label + ' untuk direset', 'ok'); return; }
-    if (!confirm('Tiada tanda ' + label + ' lagi, tetapi nombor SEDANG DIPANGGIL masih ' + julatNo() +
-      '.\n\nKosongkan nombor itu? (Event Manager & apps ibu bapa → "Majlis akan bermula")')) return;
-    try { await kosongNo(); agToast('Nombor SEDANG DIPANGGIL dikosongkan', 'ok'); }
+    if (!confirm('Tiada tanda ' + label + ' lagi, tetapi masih ada ' + julatNo() +
+      '.\n\nKosongkan? (Event Manager & apps ibu bapa → "Majlis akan bermula")')) return;
+    try { await kosongNo(); lukisSelesaiAdmin(); agToast('Nombor SEDANG DIPANGGIL & Majlis Selesai dikosongkan', 'ok'); }
     catch (e) { agToast('Gagal: ' + e.message, 'ralat'); }
     return;
   }
 
   const taip = prompt('Reset tanda ' + label + '?\n\n' +
     bilTanda + ' tanda pada ' + bilMurid + ' murid akan dikosongkan.\n' +
-    (adaNo ? 'Nombor SEDANG DIPANGGIL (' + julatNo() + ') juga dikosongkan.\n' : '') + '\n' +
+    (adaNo ? 'Juga dikosongkan: ' + julatNo() + '.\n' : '') + '\n' +
     'Selepas majlis sebenar, ini satu-satunya rekod siapa naik pentas.\n' +
     'TIADA UNDO.\n\n' +
     'Taip RESET untuk teruskan:');
@@ -8103,7 +8103,7 @@ async function resetTanda(medan, label) {
 
   try {
     await resetTulisPukal(ops);
-    if (adaNo) await kosongNo();
+    if (adaNo) { await kosongNo(); lukisSelesaiAdmin(); }
     PENERIMA = await agMuatPenerima(MAJLIS.id);
     lukisSemak(); lukisGiliran(); lukisResetStatus(); kemasSari();
     agToast(bilTanda + ' tanda ' + label + ' direset', 'ok');
