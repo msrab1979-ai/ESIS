@@ -905,7 +905,7 @@ function vSelesai() {
     '<h3 style="font-size:26px">Majlis Selesai</h3>' +
     '<div class="kecil">Terima kasih atas kerjasama dan komitmen menjayakan majlis<br>' +
     '<b style="color:var(--teks);font-family:var(--serif);font-size:16px">“' + esc(MJ.nama || tajuk().utama.replace(/\*/g, '')) + '”</b></div>' +
-    (CFG.buku ? bukuBtn() : '') + '</div>');
+    (CFG.buku ? bukuBtn() : '') + (mbUrl() ? mbBtn() : '') + '</div>');
 }
 function vTutup() {
   const b = CFG.bancian || {}, d = CFG.daftar || {};
@@ -926,6 +926,7 @@ function vTutup() {
     '<svg class="ik-e jam-besar"><use href="#i-' + (FASA === 'selesai' ? 'pingat' : 'jam') + '"/></svg>' +
     '<h3 style="font-size:24px">' + tjk + '</h3><div class="kecil">' + isi + '</div>' +
     (FASA === 'selesai' && CFG.buku ? bukuBtn() : '') +
+    (FASA === 'selesai' && mbUrl() ? mbBtn() : '') +
     '<div class="garis-emas"></div>' + kadMajlis(false) + '</div>');
 }
 /* 🎟 Tiket kehormat. o = {meterai:'emas'|'hijau'|null, status, masa, atas(html ganti meterai),
@@ -963,6 +964,12 @@ function tiket(o) {
 /* 📖 Buku Program hanya selepas keluarga DAFTAR (pengguna, 10 Nov 2026);
    bila 🚪 pas dibuka — selepas AJK sahkan masuk. */
 const bukuBoleh = k => !!(CFG.buku && k && k.daftar && k.daftar.bil && (!dewanBuka() || k.masuk));
+/* 📝 Borang maklum balas (12 Nov 2026, pengguna): CFG.mb = {url, bila}.
+   Skrin Majlis Selesai sentiasa papar; bila 'daftar' juga di Sudah Berdaftar
+   (bawah Buku Program) sebaik keluarga daftar. Tiada mb = kelakuan lama. */
+const mbUrl = () => (CFG.mb && /^https:\/\//i.test(CFG.mb.url || '')) ? CFG.mb.url : '';
+const mbBoleh = k => !!(mbUrl() && CFG.mb.bila === 'daftar' && k && k.daftar && k.daftar.bil);
+const mbBtn = () => '<a class="btn gelap" href="' + esc(mbUrl()) + '" target="_blank" rel="noopener">📝 Isi Borang Maklum Balas</a>';
 const bukuBtn = () => '<a class="btn emas" href="' + esc(CFG.buku) + '" target="_blank" rel="noopener">' + ik('buku') + 'Buka Buku Program</a>';
 
 /* ==========================================================================
@@ -1353,7 +1360,7 @@ function vDaftarSiap() {
              [mk ? 'Masuk' : 'Daftar', mj ? jam(mj) : '—']] }) +
     kadLg(true) + '<div style="flex:1"></div>' +
     (lgBuka() ? '<button class="btn emas" id="b-giliran">' + ik('jam') + (mk ? 'Teruskan ke giliran anak' : 'Semak Giliran Anak') + '</button>' : '') +
-    (bukuBoleh(k) ? bukuBtn() : '') +
+    (bukuBoleh(k) ? bukuBtn() : '') + (mbBoleh(k) ? mbBtn() : '') +
     '<button class="pautan" id="b-utama" style="align-self:center">Laman utama</button></div>');
   $('b-utama').onclick = vUtama;
   if ($('b-giliran')) $('b-giliran').onclick = () => vGiliran(false);

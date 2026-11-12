@@ -8,6 +8,7 @@
      bancian: { buka, tutup }             // ms epoch — halaman buka/tutup sendiri ikut jam
      daftar:  { buka, tutup }
      buku:    'https://drive.google.com/…'
+     mb:      { url, bila }                // 📝 borang maklum balas; bila 'selesai' (lalai) | 'daftar'
      wa:      { on, url, teks }
      had:     2                           // maksimum orang bagi SETIAP anak penerima (keluarga = had × bil. anak); 0/tiada = tiada had
    }
@@ -69,7 +70,7 @@ function ibBina() {
   .ib-chip.bahaya{background:var(--absen-bg);border-color:var(--absen);color:var(--absen)}
   .ib-medan{display:flex;flex-direction:column;gap:5px;margin-bottom:11px}
   .ib-medan label{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--neutral)}
-  .ib-medan input{width:100%}
+  .ib-medan input,.ib-medan select{width:100%}
   .ib-dua{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .ib-dua input[type=datetime-local]{font:inherit;font-size:14px;padding:7px 9px;border:1px solid var(--garis);border-radius:7px;width:100%;background:var(--kertas-2);color:var(--tinta)}
   .ib-pratonton{background:linear-gradient(165deg,#121216,#24232B);color:#FAF7F0;border-radius:12px;padding:22px 18px;text-align:center}
@@ -154,6 +155,16 @@ function ibBina() {
     <div class="kad-isi">
       <div class="ib-medan"><label for="ib-buku">Link Google Drive</label><input type="text" id="ib-buku" placeholder="https://drive.google.com/file/d/…/view"></div>
       <p class="hint" style="margin:0">Pastikan fail Drive dikongsi <strong>"Sesiapa yang mempunyai pautan"</strong>. Muncul pada hari majlis sahaja.</p>
+    </div>
+  </div>
+  <div class="kad">
+    <div class="kad-kepala"><h3>📝 Borang Maklum Balas</h3></div>
+    <div class="kad-isi">
+      <div class="ib-medan"><label for="ib-mb-url">Link borang</label><input type="text" id="ib-mb-url" placeholder="https://forms.gle/…"></div>
+      <div class="ib-medan"><label for="ib-mb-bila">Bila dipapar</label><select id="ib-mb-bila">
+        <option value="selesai">Selepas Majlis Selesai — semua ibu bapa</option>
+        <option value="daftar">Selepas daftar — bawah Buku Program</option></select></div>
+      <p class="hint" style="margin:0">Kosongkan link = butang hilang dari telefon ibu bapa. Kedua-dua pilihan turut papar di skrin Majlis Selesai.</p>
     </div>
   </div>
   <div class="kad">
@@ -249,6 +260,8 @@ function ibIsiBorang() {
   $('ib-d-buka').value = ibKeInput((c.daftar || {}).buka);
   $('ib-d-tutup').value = ibKeInput((c.daftar || {}).tutup);
   $('ib-buku').value = c.buku || '';
+  $('ib-mb-url').value = (c.mb || {}).url || '';
+  $('ib-mb-bila').value = (c.mb || {}).bila === 'daftar' ? 'daftar' : 'selesai';
   $('ib-wa-on').checked = !!w.on;
   $('ib-wa-url').value = w.url || '';
   $('ib-wa-teks').value = w.teks || '';
@@ -266,6 +279,7 @@ function ibBacaBorang() {
     bancian: { buka: ibDariInput(v('ib-b-buka')), tutup: ibDariInput(v('ib-b-tutup')) },
     daftar: { buka: ibDariInput(v('ib-d-buka')), tutup: ibDariInput(v('ib-d-tutup')) },
     buku: v('ib-buku'),
+    mb: { url: v('ib-mb-url'), bila: $('ib-mb-bila').value },
     wa: { on: $('ib-wa-on').checked, url: v('ib-wa-url'), teks: v('ib-wa-teks') },
     had: parseInt(v('ib-had'), 10) || 0,
     /* PIN disimpan sebagai cap SHA-256 sahaja (ibCapPin) — kotak kosong = kekal yang lama */
@@ -306,6 +320,7 @@ async function ibSimpan() {
     else if (w.buka && w.tutup <= w.buka) salah.push(n + ': masa tutup mesti selepas masa buka.');
   });
   if (c.buku && !/^https:\/\//i.test(c.buku)) salah.push('Link buku program mesti bermula https://');
+  if (c.mb.url && !/^https:\/\//i.test(c.mb.url)) salah.push('Link borang maklum balas mesti bermula https://');
   if (c.wa.url && !/^https:\/\/chat\.whatsapp\.com\/\S+/.test(c.wa.url)) salah.push('Link WhatsApp mesti bermula https://chat.whatsapp.com/');
   if (c.wa.on && !c.wa.url) salah.push('WhatsApp ON tetapi link group kosong.');
   if (c.had < 0 || c.had > 20) salah.push('Had kehadiran mesti 1–20, atau kosong (tiada had).');
