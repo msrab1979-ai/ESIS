@@ -65,6 +65,11 @@
   animation:denyut 1.6s ease-in-out infinite}
 #b-muat-apung[hidden]{display:none}
 @media (prefers-reduced-motion:reduce){#b-muat-apung{animation:none}}
+/* ☐ Belum ditanda = kotak kosong kelabu (12 Nov 2026, pengguna) — ✓ hijau
+   muda pada setiap baris disangka "sudah ditanda" selepas reset. ✓ hanya
+   muncul bila baris sudah naik (.baris.sudah — gaya kongsi kekal). */
+.baris:not(.sudah) .b-tanda{border:2px solid var(--neutral-lembut);background:var(--kertas-3);color:transparent}
+.baris:not(.sudah) .b-tanda:hover{border-color:var(--hadir)}
 </style>
 </head>
 <body>
