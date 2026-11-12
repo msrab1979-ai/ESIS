@@ -816,8 +816,10 @@ tr.pg-gab td{background:var(--amaran-bg)}
       </div>
       <div class="kad-isi">
         <div class="baris-input">
+          <div class="medan"><label for="sm-kelas">Kelas</label>
+            <select id="sm-kelas"></select></div>
           <div class="medan" style="flex:1 1 260px"><label for="sm-cari">Cari murid</label>
-            <input type="text" id="sm-cari" placeholder="Nama atau no. KP…"></div>
+            <input type="text" id="sm-cari" placeholder="No. giliran, nama atau no. KP…"></div>
         </div>
         <div id="sm-hasil"></div>
         <div id="sm-senarai"></div>
@@ -6550,15 +6552,31 @@ function lukisSorokMurid() {
     '<td class="kls">' + agEsc(agKelasPenerima(p)) + '</td>' +
     '<td class="kls">' + ((p.giliran || []).filter(g => g.no != null).map(g => '#' + g.no).join(' ') || '—') + '</td>' +
     '<td style="width:1%;white-space:nowrap">' + butang + '</td></tr>';
-  const cari = agPecahCarian($('sm-cari').value);
-  const jumpa = cari.kosong ? [] : PENERIMA.filter(p => !agAdalahLuar(p) && !agMuridSorok(p) &&
-    agPadanCarian(cari, p.nama, p.no_kp));
-  $('sm-hasil').innerHTML = cari.kosong ? '' : !jumpa.length
+  /* Kelas: nilai "TAHUN|KELAS" — nama kelas berulang merentas darjah.
+     Nombor 1–3 digit = nombor giliran TEPAT (KP 12 digit tidak bertembung). */
+  const kunciKls = p => String(p.tahun || '').toUpperCase() + '|' + String(p.kelas || '').toUpperCase();
+  const murid = PENERIMA.filter(p => !agAdalahLuar(p));
+  const sel = $('sm-kelas'), pilih = sel.value;
+  const kls = {};
+  murid.forEach(p => { if (p.kelas) kls[kunciKls(p)] = { w: agWordDarjah(p.tahun) || 0, t: agKelasPenerima(p) }; });
+  sel.innerHTML = '<option value="">— semua kelas —</option>' + Object.keys(kls)
+    .sort((a, b) => kls[a].w - kls[b].w || kls[a].t.localeCompare(kls[b].t))
+    .map(k => '<option value="' + agEsc(k) + '">' + agEsc(kls[k].t) + '</option>').join('');
+  if (pilih && kls[pilih]) sel.value = pilih;
+  const q = $('sm-cari').value.trim(), noGil = /^#?\d{1,3}$/.test(q) ? parseInt(q.replace('#', '')) : null;
+  const cari = agPecahCarian(noGil != null ? '' : q);
+  const ada = !!(sel.value || q);
+  const jumpa = !ada ? [] : murid.filter(p => !agMuridSorok(p) &&
+    (!sel.value || kunciKls(p) === sel.value) &&
+    (noGil != null ? (p.giliran || []).some(g => g.no === noGil) : agPadanCarian(cari, p.nama, p.no_kp)))
+    .sort((a, b) => sel.value && !q ? String(a.nama).localeCompare(String(b.nama)) : 0);
+  const had = sel.value ? 60 : 10;
+  $('sm-hasil').innerHTML = !ada ? '' : !jumpa.length
     ? '<p class="hint">Tiada murid padan (atau sudah disorok — lihat senarai di bawah).</p>'
-    : '<div class="murid-senarai"><table><tbody>' + jumpa.slice(0, 10).map(p =>
+    : '<div class="murid-senarai"><table><tbody>' + jumpa.slice(0, had).map(p =>
         baris(p, '<button class="btn sunyi kecil" data-sm-sorok="' + agEsc(p.docId) + '">🙈 Sorok</button>')).join('') +
       '</tbody></table></div>' +
-      (jumpa.length > 10 ? '<p class="hint">' + (jumpa.length - 10) + ' lagi — taip lebih spesifik.</p>' : '');
+      (jumpa.length > had ? '<p class="hint">' + (jumpa.length - had) + ' lagi — taip lebih spesifik.</p>' : '');
   $('sm-senarai').innerHTML = !sorok.length
     ? '<p class="hint" style="margin-top:8px">Tiada murid disorok.</p>'
     : '<p class="eyebrow" style="margin-top:12px">Sedang disorok (' + sorok.length + ')</p>' +
@@ -6578,7 +6596,7 @@ async function setSorokMurid(docId, nilai, btn) {
     await agDb.collection('anugerah_penerima').doc(docId)
       .update({ sorokPetugas: nilai ? true : firebase.firestore.FieldValue.delete() });
     if (nilai) p.sorokPetugas = true; else delete p.sorokPetugas;
-    if (nilai) $('sm-cari').value = '';
+    if (nilai && !$('sm-kelas').value) $('sm-cari').value = '';
     lukisSorokMurid(); lukisPokok();
     agToast(p.nama + (nilai ? ' disorok dari petugas' : ' dipapar semula'), 'ok');
   } catch (e) {
@@ -6587,6 +6605,7 @@ async function setSorokMurid(docId, nilai, btn) {
   }
 }
 $('sm-cari').addEventListener('input', lukisSorokMurid);
+$('sm-kelas').addEventListener('change', lukisSorokMurid);
 $('kad-sorok-murid').addEventListener('click', e => {
   const b = e.target.closest('button[data-sm-sorok],button[data-sm-papar]');
   if (!b) return;
