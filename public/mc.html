@@ -690,6 +690,19 @@ async function tulisLgsMC() {
     if (b.mc === true && b.no > tanda) tanda = b.no;
   });
   if (!maks) return;
+  /* ✓ dibatalkan sehingga tiada langsung ✓ (13 Nov 2026, pengguna) — padam
+     nombor, jangan tulis "1–5" sebelum majlis bermula. `selesai` & `mb`
+     milik Event Manager kekal. */
+  if (!tanda) {
+    if (LGS_AKHIR === 'kosong') return;
+    const del = firebase.firestore.FieldValue.delete();
+    try {
+      await agDb.collection('anugerah_langsung').doc(MAJLIS.id).set(
+        { majlisId: MAJLIS.id, langsung: del, mula: del, akhir: del, auto: del, masa: del }, { merge: true });
+      LGS_AKHIR = 'kosong';
+    } catch (e) { console.warn('Giliran ibu bapa (auto MC):', e.message); }
+    return;
+  }
   BARIS.forEach(b => {
     if (typeof b.no === 'number' && b.no > tanda && b.hadir !== false && b.mc !== true && b.no < seterus) seterus = b.no;
   });

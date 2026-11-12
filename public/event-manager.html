@@ -318,7 +318,7 @@ function kiraMC(subPentas) {
 /* Sama dengan kad SEDANG DIPANGGIL ibubapa.html: tiada doc = belum ✓ pertama;
    langsung:false = Peserta ⏸ Tutup panel. */
 function teksLg() {
-  if (!LGS) return 'Belum bermula';
+  if (!LGS || (LGS.langsung == null && !LGS.mula)) return 'Belum bermula';   // ✓ MC dibatalkan semua
   if (LGS.langsung === false) return 'Panel ditutup';
   return LGS.mula ? LGS.mula + (LGS.akhir && LGS.akhir !== LGS.mula ? '–' + LGS.akhir : '') : 'Belum ditetapkan';
 }
