@@ -253,15 +253,39 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-em-selesai]');
   if (b) tulisSelesai(b.dataset.emSelesai === '1');
 });
+/* ---------- 📝 Borang maklum balas (kecemasan) ----------
+   Tetapan `bila` tab 👪 kekal; butang ini membuka borang kepada SEMUA yang
+   membuka apps ibu bapa tanpa menamatkan majlis (13 Nov 2026, pengguna). */
+const mbUrlEM = () => { const u = ((MAJLIS.ibubapa || {}).mb || {}).url || ''; return /^https:\/\//i.test(u) ? u : ''; };
+async function tulisMB(ya) {
+  const b = document.querySelector('[data-em-mb]');
+  if (ya && !confirm('Buka Borang Maklum Balas kepada SEMUA ibu bapa sekarang?\n\nButang "📝 Isi Borang Maklum Balas" muncul dalam apps ibu bapa dalam masa ±30 saat. Majlis TIDAK ditamatkan.')) return;
+  if (!ya && !confirm('Tutup semula Borang Maklum Balas?\n\nApps ibu bapa kembali ikut tetapan asal di tab 👪.')) return;
+  if (b) b.disabled = true;
+  try {
+    await agTulisMB(MAJLIS.id, ya);
+    agToast(ya ? '📝 Borang maklum balas dibuka kepada ibu bapa' : 'Borang maklum balas ditutup', 'ok');
+  } catch (e) { agToast('Gagal: ' + e.message, 'ralat'); if (b) b.disabled = false; }
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-em-mb]');
+  if (b && !b.disabled) tulisMB(b.dataset.emMb === '1');
+});
+const masaPendek = t => agEsc(new Date(t).toLocaleString('ms-MY', { hour: 'numeric', minute: '2-digit', day: 'numeric', month: 'short' }));
 function lukisSelesai() {
-  const s = LGS && LGS.selesai;
-  $('em-selesai-btn').innerHTML = s
-    ? '<button class="btn sunyi kecil" data-em-selesai="0">↩ Batal Majlis Selesai</button>'
-    : '<button class="btn bahaya kecil" data-em-selesai="1">🏁 Majlis Selesai</button>';
-  $('em-selesai-nota').innerHTML = s
+  const s = LGS && LGS.selesai, mb = LGS && LGS.mb, url = mbUrlEM();
+  $('em-selesai-btn').innerHTML =
+    (mb ? '<button class="btn sunyi kecil" data-em-mb="0">↩ Tutup Borang</button>'
+        : '<button class="btn kecil" data-em-mb="1"' + (url ? '' : ' disabled title="Isi link borang di tab 👪 dahulu"') + '>📝 Buka Borang Maklum Balas</button>') + ' ' +
+    (s ? '<button class="btn sunyi kecil" data-em-selesai="0">↩ Batal Majlis Selesai</button>'
+       : '<button class="btn bahaya kecil" data-em-selesai="1">🏁 Majlis Selesai</button>');
+  $('em-selesai-nota').innerHTML = (s
     ? '<div class="nota" style="margin:0 0 14px"><span class="sym">🏁</span><div><strong>Majlis ditandakan SELESAI</strong> pada ' +
-      agEsc(new Date(s.masa).toLocaleString('ms-MY', { hour: 'numeric', minute: '2-digit', day: 'numeric', month: 'short' })) +
-      ' — semua link petugas & apps ibu bapa memaparkan tirai terima kasih.</div></div>' : '';
+      masaPendek(s.masa) + ' — semua link petugas & apps ibu bapa memaparkan tirai terima kasih.</div></div>' : '') +
+    (mb ? '<div class="nota" style="margin:0 0 14px"><span class="sym">📝</span><div><strong>Borang maklum balas DIBUKA</strong> pada ' +
+      masaPendek(mb.masa) + ' — semua yang membuka apps ibu bapa nampak butang borang.' +
+      (url ? '' : ' <b>⚠ Link borang belum diisi di tab 👪 — butang tidak akan muncul.</b>') + '</div></div>'
+      : (url ? '' : '<div class="kecil" style="margin:0 0 10px">📝 Borang maklum balas: isi link di tab 👪 admin untuk membolehkan butang ini.</div>'));
 }
 
 /* ---------- ringkasan ---------- */

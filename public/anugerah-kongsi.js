@@ -601,6 +601,12 @@ function agTulisSelesai(majlisId, ya) {
   return agDb.collection('anugerah_langsung').doc(majlisId)
     .set({ majlisId, selesai: ya ? { masa: Date.now() } : null }, { merge: true });
 }
+/* 🚨 Borang maklum balas kecemasan (13 Nov 2026) — Event Manager buka borang
+   kepada SEMUA ibu bapa tanpa menamatkan majlis. Link kekal dari tab 👪. */
+function agTulisMB(majlisId, ya) {
+  return agDb.collection('anugerah_langsung').doc(majlisId)
+    .set({ majlisId, mb: ya ? { masa: Date.now() } : null }, { merge: true });
+}
 function agTiraiSelesai(majlis) {
   let t = document.getElementById('ag-tirai-selesai');
   if (!majlis) { if (t) t.remove(); return; }

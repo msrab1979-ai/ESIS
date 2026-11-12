@@ -681,7 +681,7 @@ function vPas() {
     '<input class="medan" id="pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="Diisi oleh AJK di pintu dewan"></div>' +
     ralatHTML() +
     '<button class="btn emas" id="b-sah">' + ik('semak') + 'Sahkan Masuk</button>' +
-    '<div class="kecil tengah">Bilangan salah? Sila jumpa AJK di kaunter pendaftaran.</div></div>');
+    '<div class="kecil tengah">Bilangan salah? Sila jumpa AJK di kaunter pendaftaran.</div>' + mbSlot(false) + '</div>');
   S.ralat = '';
   $('pin').addEventListener('keydown', e => { if (e.key === 'Enter') sahPas(); });
   $('b-sah').onclick = sahPas;
@@ -725,7 +725,7 @@ const capLg = l => l ? [l.langsung ? 1 : 0, l.mula || '', l.akhir || ''].join('|
    Pengurus Peserta menekan ⏸ Tutup panel (langsung === false). */
 const lgBuka = () => !LG || LG.langsung !== false;
 async function bacaLg() {
-  return baca('anugerah_langsung/' + M_ID, ['langsung', 'mula', 'akhir', 'masa', 'selesai']);
+  return baca('anugerah_langsung/' + M_ID, ['langsung', 'mula', 'akhir', 'masa', 'selesai', 'mb']);
 }
 async function mulaLg() {
   try { LG_BARU = await bacaLg(); } catch (e) { LG_BARU = null; }
@@ -738,6 +738,15 @@ async function semakLg() {
   try { LG_BARU = await bacaLg(); } catch (e) { return; }   // gagal = cuba lagi 30s
   /* 🏁 Majlis selesai / dibatalkan → tukar terus (tiada borang yang perlu dijaga lagi) */
   if (!!(LG_BARU && LG_BARU.selesai) !== !!(LG && LG.selesai)) { LG = LG_BARU; return laman(); }
+  /* 🚨 Borang dibuka/ditutup dari Event Manager → slot sahaja, nombor giliran kekal butang merah. */
+  if (!!(LG_BARU && LG_BARU.mb) !== mbLgs()) {
+    LG = Object.assign({}, LG, { mb: LG_BARU ? LG_BARU.mb : null });
+    if (mbLgs() && !mbUrl()) {   // admin mungkin baru mengisi link selepas telefon ini dibuka
+      const t = await baca('anugerah_majlis/' + M_ID, ['ibubapa']).catch(() => null);
+      if (t && t.ibubapa) CFG = t.ibubapa;
+    }
+    kemasMB();
+  }
   $('b-lg').hidden = !(ULANG && capLg(LG_BARU) !== capLg(LG));
 }
 $('b-lg').onclick = () => {
@@ -863,7 +872,7 @@ async function vGiliran(segar) {
       }).join('') + '</div>' : '<div class="kecil">Tiada nombor giliran.</div>') +
       '</div></div>').join('') + '</div>' : '') +
     '<div class="kecil tengah">Paparan tidak bertukar sendiri. Butang merah akan muncul bila ada nombor baharu.</div>' +
-    '<button class="btn garis pejal" id="b-segar">🔄 Semak semula</button>' +
+    '<button class="btn garis pejal" id="b-segar">🔄 Semak semula</button>' + mbSlot(false) +
     '<div style="flex:1"></div><button class="btn garis pejal" id="b-utama">' + ik('kiri') + 'Kembali</button></div>');
   S.ralat = '';
   ULANG = () => vGiliran(false);
@@ -970,6 +979,16 @@ const bukuBoleh = k => !!(CFG.buku && k && k.daftar && k.daftar.bil && (!dewanBu
    (bawah Buku Program) sebaik keluarga daftar. Tiada mb = kelakuan lama. */
 const mbUrl = () => (CFG.mb && /^https:\/\//i.test(CFG.mb.url || '')) ? CFG.mb.url : '';
 const mbBoleh = k => !!(mbUrl() && CFG.mb.bila === 'daftar' && k && k.daftar && k.daftar.bil);
+/* 🚨 Event Manager boleh membuka borang bila-bila masa (13 Nov 2026, pengguna) —
+   langkah kecemasan di atas tetapan `bila`: anugerah_langsung.mb = {masa}.
+   Slot [data-mb] dikemas kini di tempat oleh semakLg (tiada lukis semula skrin). */
+const mbLgs = () => !!(LG && LG.mb);
+const mbSlot = asal => '<div data-mb="' + (asal ? 1 : 0) + '" style="display:contents">' + ((asal || mbLgs()) && mbUrl() ? mbBtn() : '') + '</div>';
+function kemasMB() {
+  document.querySelectorAll('[data-mb]').forEach(el => {
+    el.innerHTML = (el.dataset.mb === '1' || mbLgs()) && mbUrl() ? mbBtn() : '';
+  });
+}
 const mbBtn = () => '<a class="btn gelap" href="' + esc(mbUrl()) + '" target="_blank" rel="noopener">📝 Isi Borang Maklum Balas</a>';
 const bukuBtn = () => '<a class="btn emas" href="' + esc(CFG.buku) + '" target="_blank" rel="noopener">' + ik('buku') + 'Buka Buku Program</a>';
 
@@ -1282,7 +1301,7 @@ function vUtama() {
     (lgBuka() ? '<button id="b-giliran"><div class="mi">' + ik('jam', 'ik-e') + '</div><div><b>Semak Giliran</b><span>Bila anak anda naik pentas</span></div>' + ik('kanan', 'ik pn') + '</button>' : '') +
     '<button id="b-daftar"><div class="mi">' + ik('daftar', 'ik-e') + '</div><div><b>Daftar Kehadiran</b><span>Guna no. telefon bancian</span></div>' + ik('kanan', 'ik pn') + '</button>' +
     (CFG.buku ? '<div class="kecil tengah">📖 Buku Program dibuka selepas anda <b>daftar</b>.</div>' : '') +
-    '</div></div>');
+    '</div>' + mbSlot(false) + '</div>');
   $('b-daftar').onclick = () => vDaftarTel();
   if ($('b-giliran')) $('b-giliran').onclick = () => vGiliran(false);
   ULANG = vUtama;
@@ -1361,7 +1380,7 @@ function vDaftarSiap() {
              [mk ? 'Masuk' : 'Daftar', mj ? jam(mj) : '—']] }) +
     kadLg(true) + '<div style="flex:1"></div>' +
     (lgBuka() ? '<button class="btn emas" id="b-giliran">' + ik('jam') + (mk ? 'Teruskan ke giliran anak' : 'Semak Giliran Anak') + '</button>' : '') +
-    (bukuBoleh(k) ? bukuBtn() : '') + (mbBoleh(k) ? mbBtn() : '') +
+    (bukuBoleh(k) ? bukuBtn() : '') + mbSlot(mbBoleh(k)) +
     '<button class="pautan" id="b-utama" style="align-self:center">Laman utama</button></div>');
   $('b-utama').onclick = vUtama;
   if ($('b-giliran')) $('b-giliran').onclick = () => vGiliran(false);
