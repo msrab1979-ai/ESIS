@@ -690,8 +690,9 @@ Untuk anugerah kejutan (contoh Tokoh Murid). `a.rahsia === true` / `s.rahsia` (b
 Murid tidak datang saat akhir; tiket sudah dicetak. Pengguna: jangan Buang — sorok sahaja dari semua link petugas. **`p.sorokPetugas === true` pada doc `anugerah_penerima`** (satu `update()`; Papar semula = `FieldValue.delete()`). `anugerah[]`/`giliran[]` tidak disentuh → nombor giliran semua murid kekal, tiket sah, tiada Jana Semula. Murid hilang dari SEMUA anugerahnya (bukan pilih anugerah).
 
 - Penapis: `agMuridSorok(p)` dalam `agTapisPenerimaPetugas` (Peserta, MC, Hadiah, Tayang, Guru Kelas, Event Manager, Skrip MC, Senarai Hadiah) — **sebelum** cabang `!sorok.size`. `ibubapa.html` `penerimaPapar` + mask `sorokPetugas` pada 3 bacaan `pPen`. Tab 👪 `ibKpSorok`.
-- UI: kad **🙈 Murid Tidak Datang** dalam tab Giliran & Tiket (`lukisSorokMurid`/`setSorokMurid`, dipanggil dari `lukisGiliran`): cari nama/KP → 🙈 Sorok (`confirm`), senarai disorok → ↩ Papar semula. Pokok Jenis Anugerah papar 🙈 sebelah nama.
+- UI: kad **🙈 Murid Tidak Datang** dalam tab Giliran & Tiket (`lukisSorokMurid`/`setSorokMurid`, dipanggil dari `lukisGiliran`): cari ikut **no. giliran** (1–3 digit, `#12` atau `12` = padanan tepat pada `giliran[].no`), **dropdown Kelas** (`#sm-kelas`, nilai `TAHUN|KELAS` kerana nama kelas berulang merentas darjah; kelas sahaja = semua murid kelas ikut abjad, had 60, senarai kekal selepas 🙈) atau nama/KP → 🙈 Sorok (`confirm`), senarai disorok → ↩ Papar semula. Pokok Jenis Anugerah papar 🙈 sebelah nama.
 - KEKAL dalam admin, tiket, sijil, kad, Analisa.
+- Disahkan pengguna di live 12 Nov 2026 ("ok jalan").
 #### 📝 Nota Petugas (2 Nov 2026)
 
 > **4 Nov 2026: papan umum DIBUANG** dari Peserta, MC, Hadiah dan Admin (pengguna). Yang kekal: nota pada tajuk anugerah (＋ nota), 👤 penyelaras dan 🎭 acara — semuanya pada enjin yang sama. `agPasangNota(null, …)` = pendengar sahaja, tanpa papan. Butiran papan di bawah ialah sejarah.
