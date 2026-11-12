@@ -743,6 +743,7 @@ async function semakLg() {
 $('b-lg').onclick = () => {
   LG = LG_BARU;
   $('b-lg').hidden = true;
+  GA = null;                    // baca semula ✓ MC anak — tanpanya cip ✓ kekal selepas Reset MC
   if (ULANG) ULANG();
 };
 document.addEventListener('visibilitychange', () => {
