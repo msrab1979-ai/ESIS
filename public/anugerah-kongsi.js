@@ -978,13 +978,21 @@ function agMajlisPetugas(majlis) {
   return { ...majlis, anugerah, _penuh: majlis._penuh || majlis };
 }
 
+/* 🙈 SOROK MURID (12 Nov 2026, pengguna) — murid tidak datang saat akhir.
+   `p.sorokPetugas === true` pada doc anugerah_penerima: SEMUA anugerahnya
+   hilang dari setiap link petugas + apps ibu bapa. Lebih selamat daripada
+   Buang: rekod & nombor giliran kekal (tiket bercetak masih sah, tiada
+   Jana Semula), dan admin boleh papar semula bila-bila masa. */
+const agMuridSorok = p => !!(p && p.sorokPetugas === true);
+
 /* Penerima tanpa entri anugerah[]/giliran[] yang disorok. Murid tanpa
-   apa-apa anugerah tinggal → dibuang. */
+   apa-apa anugerah tinggal, atau murid 🙈 disorok → dibuang. */
 function agTapisPenerimaPetugas(majlis, penerima) {
   const sorok = agSubSorok(majlis);
-  if (!sorok.size) return penerima || [];
+  if (!sorok.size) return (penerima || []).filter(p => !agMuridSorok(p));
   const keluar = [];
   (penerima || []).forEach(p => {
+    if (agMuridSorok(p)) return;
     const anugerah = (p.anugerah || []).filter(x => !sorok.has(x.subId));
     if (!anugerah.length) return;
     keluar.push({ ...p, anugerah,

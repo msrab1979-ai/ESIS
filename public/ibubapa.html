@@ -464,12 +464,12 @@ function siapSub() {
   }));
 }
 const subPapar = id => !SUB_ADA || (SUB_ADA.has(id) && !SUB_OFF.has(id));
-const penerimaPapar = p => !SUB_ADA || (p.anugerah || []).some(x => subPapar(x.subId));
+const penerimaPapar = p => p.sorokPetugas !== true && (!SUB_ADA || (p.anugerah || []).some(x => subPapar(x.subId)));   // 🙈 murid disorok admin
 /* k._sorok = KP anak keluarga ini yang tersorok. Satu bacaan penerima per anak.
    Bacaan gagal / tiada penerima (ID ujian) → dipapar. */
 async function asingSorok(k) {
-  if (!k || k._sorok || !SUB_ADA) return k;
-  const p = await Promise.all((k.murid || []).map(m => m.ujian ? null : baca(pPen(m.kp), ['anugerah']).catch(() => null)));
+  if (!k || k._sorok) return k;
+  const p = await Promise.all((k.murid || []).map(m => m.ujian ? null : baca(pPen(m.kp), ['anugerah', 'sorokPetugas']).catch(() => null)));
   k._sorok = (k.murid || []).filter((m, i) => p[i] && !penerimaPapar(p[i])).map(m => m.kp);
   return k;
 }
@@ -769,7 +769,7 @@ function kadLg(segar) {
 let GA = null, GA_MUAT = false;
 async function bacaGilAnak(k) {
   return Promise.all((k.murid || []).map(async m => {
-    const p = await baca(pPen(m.kp), ['giliran', 'anugerah']).catch(() => null);
+    const p = await baca(pPen(m.kp), ['giliran', 'anugerah', 'sorokPetugas']).catch(() => null);
     const lihat = {}, gil = [];
     if (p && !penerimaPapar(p)) return { m, gil, sorok: true };     // 🎤/🙈 seluruhnya
     ((p && p.giliran) || []).forEach(g => {
@@ -1051,7 +1051,7 @@ async function cariAnak() {
   try {
     /* Walk-in hari majlis melalui KP: anak sudah ada keluarga → terus ke
        keluarga itu. Tiada → aliran bancian (wakil + bilangan) yang terus mendaftar. */
-    let [p, idx] = await Promise.all([UJI && UJI_DATA === 'uji' ? null : baca(pPen(kp), ['nama', 'tahun', 'kelas', 'jenis', 'anugerah']), baca(pIdx(kp), ['telefon'])]);
+    let [p, idx] = await Promise.all([UJI && UJI_DATA === 'uji' ? null : baca(pPen(kp), ['nama', 'tahun', 'kelas', 'jenis', 'anugerah', 'sorokPetugas']), baca(pIdx(kp), ['telefon'])]);
     if (!p) { p = await baca(pUji(kp), ['nama', 'tahun', 'kelas']); if (p) p.ujian = true; }
     if (UJI && UJI_DATA === 'uji' && !p) { S.ralat = '🧪 Mod uji: hanya ID ujian (tab 👪 › 🧪 ID Ujian) boleh dipakai.'; return vKP(); }
     /* 🎤/🙈 semua anugerah tidak naik pentas / disorok = bukan penerima di sini */

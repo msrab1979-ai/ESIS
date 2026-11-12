@@ -328,6 +328,7 @@ Peraturan paling berbahaya (ringkasan — butiran dalam `docs/ANUGERAH.md`):
 - **Reset tanda MC kosongkan `anugerah_langsung`** (12 Nov 2026): nombor SEDANG DIPANGGIL ialah doc BERASINGAN daripada tanda `mc` penerima — `resetTanda` (mc / kedua-dua) padam doc itu (atau medan julat sahaja bila `selesai` ada), juga bila tanda sudah kosong. Tanpanya Event Manager & apps ibu bapa kekal papar nombor lama.
 - **📝 Borang maklum balas + 🏆 anugerah dalam jalur EM** (12 Nov 2026): `MAJLIS.ibubapa.mb = {url, bila}` — `selesai` (lalai) = skrin Majlis Selesai sahaja; `daftar` = juga Sudah Berdaftar bawah Buku Program. Jalur `#em-lg` Event Manager papar nama anugerah bagi julat `mula..akhir` (`anugerahLg`).
 - **🎯 Event Manager** (`event-manager.html`, 10 Nov 2026): satu link + kata laluan (cap SHA-256 `modPetugas.pwEventManager`); Ringkasan BACA SAHAJA + panel Peserta/MC/Hadiah dalam iframe dari kod semasa (Slaid & Guru Kelas dibuang 11 Nov). Peraturan murid penerima sama dengan tab 👪.
+- **🙈 Murid Tidak Datang** (12 Nov 2026): `anugerah_penerima.sorokPetugas = true` sorok SEORANG murid (semua anugerahnya) dari semua link petugas + apps ibu bapa melalui `agMuridSorok` dalam `agTapisPenerimaPetugas` / `penerimaPapar`. Nombor giliran & tiket tidak berubah. Kad dalam tab Giliran & Tiket.
 - **Modul Anugerah TIDAK ditapis `diterbit`** (`agMuatMarkah`) dan **tiada dark mode** (termasuk `markah-guru.html`, yang berkongsi `anugerah-kongsi.css`).
 
 ### Markah Ujian Khas (`public/markah-guru.html` + `markah-guru.js`)

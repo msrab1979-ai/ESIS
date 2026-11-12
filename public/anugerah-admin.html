@@ -809,6 +809,20 @@ tr.pg-gab td{background:var(--amaran-bg)}
         <div id="susun-amaran"></div>
       </div>
     </div>
+    <div class="kad" id="kad-sorok-murid">
+      <div class="kad-kepala">
+        <h3>🙈 Murid Tidak Datang</h3>
+        <span class="sub">Sorok dari semua link petugas &amp; apps ibu bapa · nombor giliran &amp; tiket tidak berubah</span>
+      </div>
+      <div class="kad-isi">
+        <div class="baris-input">
+          <div class="medan" style="flex:1 1 260px"><label for="sm-cari">Cari murid</label>
+            <input type="text" id="sm-cari" placeholder="Nama atau no. KP…"></div>
+        </div>
+        <div id="sm-hasil"></div>
+        <div id="sm-senarai"></div>
+      </div>
+    </div>
     <div class="kad" id="kad-cetak">
       <div class="kad-kepala" id="bar-cetak">
         <h3>Tiket Giliran</h3>
@@ -1871,7 +1885,7 @@ function lukisMuridSub(s, baris, dalamModal) {
           '<td class="kls" style="width:1%" title="Nombor giliran">' +
           (b.no != null ? 'Giliran ' + b.no : '<span title="Belum bernombor — tekan Jana Semula">—</span>') +
           '</td>' : '') +
-        '<td>' + agEsc(b.p.nama) + '</td>' +
+        '<td>' + agEsc(b.p.nama) + (agMuridSorok(b.p) ? ' <span title="Disorok dari petugas (tab Giliran)">🙈</span>' : '') + '</td>' +
         '<td class="kls">' + agEsc(agKelasPenerima(b.p)) +
           (luar ? ' ⚠ luar skop' : '') + '</td>' +
         '<td style="width:1%;white-space:nowrap">' +
@@ -2054,7 +2068,7 @@ function lukisSusunManual(s, baris, dalamModal) {
           (luar ? ' class="luar"' : '') + '>' +
         (kunci ? '' : '<td class="pegang" title="Seret untuk susun">⠿</td>') +
         '<td class="ms-ked"><strong>' + (k + 1) + '</strong></td>' +
-        '<td' + (tip ? ' title="' + agEsc(tip) + '"' : '') + '>' + agEsc(b.p.nama) + '</td>' +
+        '<td' + (tip ? ' title="' + agEsc(tip) + '"' : '') + '>' + agEsc(b.p.nama) + (agMuridSorok(b.p) ? ' <span title="Disorok dari petugas (tab Giliran)">🙈</span>' : '') + '</td>' +
         '<td class="kls">' + agEsc(agKelasPenerima(b.p)) +
           (luar ? ' ⚠ luar skop' : '') + '</td>' +
         '<td style="width:1%;white-space:nowrap">' +
@@ -5599,6 +5613,7 @@ function lukisGiliran() {
      semula dua <select> setiap kali ialah kerja yang tidak perlu. */
   isiTapisTiket();
   lukisTiket();
+  lukisSorokMurid();
 }
 
 /* Satu sumber kebenaran untuk susunan anugerah — dipakai oleh render,
@@ -6521,6 +6536,64 @@ $('b-pulih').addEventListener('click', async () => {
 });
 
 /* ---------- tiket ---------- */
+/* ==========================================================================
+   🙈 MURID TIDAK DATANG (12 Nov 2026, pengguna) — `p.sorokPetugas` pada doc
+   penerima. Tapisan dalam agTapisPenerimaPetugas (semua link petugas) +
+   penerimaPapar (ibubapa.html) + ibKpSorok (tab 👪). Satu medan, satu
+   update(); anugerah[] / giliran[] tidak disentuh, jadi Papar semula
+   memulihkan segalanya dan tiket bercetak kekal sah.
+   ========================================================================== */
+function lukisSorokMurid() {
+  if (!$('sm-senarai')) return;
+  const sorok = PENERIMA.filter(agMuridSorok);
+  const baris = (p, butang) => '<tr><td>' + agEsc(p.nama) + '</td>' +
+    '<td class="kls">' + agEsc(agKelasPenerima(p)) + '</td>' +
+    '<td class="kls">' + ((p.giliran || []).filter(g => g.no != null).map(g => '#' + g.no).join(' ') || '—') + '</td>' +
+    '<td style="width:1%;white-space:nowrap">' + butang + '</td></tr>';
+  const cari = agPecahCarian($('sm-cari').value);
+  const jumpa = cari.kosong ? [] : PENERIMA.filter(p => !agAdalahLuar(p) && !agMuridSorok(p) &&
+    agPadanCarian(cari, p.nama, p.no_kp));
+  $('sm-hasil').innerHTML = cari.kosong ? '' : !jumpa.length
+    ? '<p class="hint">Tiada murid padan (atau sudah disorok — lihat senarai di bawah).</p>'
+    : '<div class="murid-senarai"><table><tbody>' + jumpa.slice(0, 10).map(p =>
+        baris(p, '<button class="btn sunyi kecil" data-sm-sorok="' + agEsc(p.docId) + '">🙈 Sorok</button>')).join('') +
+      '</tbody></table></div>' +
+      (jumpa.length > 10 ? '<p class="hint">' + (jumpa.length - 10) + ' lagi — taip lebih spesifik.</p>' : '');
+  $('sm-senarai').innerHTML = !sorok.length
+    ? '<p class="hint" style="margin-top:8px">Tiada murid disorok.</p>'
+    : '<p class="eyebrow" style="margin-top:12px">Sedang disorok (' + sorok.length + ')</p>' +
+      '<div class="murid-senarai"><table><tbody>' + sorok.map(p =>
+        baris(p, '<button class="btn sunyi kecil" data-sm-papar="' + agEsc(p.docId) + '">↩ Papar semula</button>')).join('') +
+      '</tbody></table></div>';
+}
+
+async function setSorokMurid(docId, nilai, btn) {
+  const p = PENERIMA.find(x => x.docId === docId);
+  if (!p) return agToast('Murid tidak dijumpai', 'ralat');
+  if (nilai && !confirm('Sorok ' + p.nama + ' dari semua link petugas & apps ibu bapa?\n\n' +
+    'Semua anugerahnya hilang dari Peserta, MC, Hadiah, Slaid dan Skrip MC. ' +
+    'Nombor giliran murid lain TIDAK berubah. Boleh papar semula bila-bila masa.')) return;
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    await agDb.collection('anugerah_penerima').doc(docId)
+      .update({ sorokPetugas: nilai ? true : firebase.firestore.FieldValue.delete() });
+    if (nilai) p.sorokPetugas = true; else delete p.sorokPetugas;
+    if (nilai) $('sm-cari').value = '';
+    lukisSorokMurid(); lukisPokok();
+    agToast(p.nama + (nilai ? ' disorok dari petugas' : ' dipapar semula'), 'ok');
+  } catch (e) {
+    if (btn) btn.disabled = false;
+    agToast('Gagal: ' + e.message, 'ralat');
+  }
+}
+$('sm-cari').addEventListener('input', lukisSorokMurid);
+$('kad-sorok-murid').addEventListener('click', e => {
+  const b = e.target.closest('button[data-sm-sorok],button[data-sm-papar]');
+  if (!b) return;
+  if (b.dataset.smSorok) setSorokMurid(b.dataset.smSorok, true, b);
+  else setSorokMurid(b.dataset.smPapar, false, b);
+});
+
 function lukisTiket() {
   const sel = $('t-tapis');
   const senarai = susunanAnugerah();

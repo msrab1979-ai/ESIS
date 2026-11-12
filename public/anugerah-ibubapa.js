@@ -379,6 +379,7 @@ function ibKpSorok() {
   const pentas = agSubPentas(MAJLIS), sorok = agSubSorok(MAJLIS), set = new Set();
   PENERIMA.forEach(p => {
     if (agAdalahLuar(p) || !p.no_kp) return;
+    if (agMuridSorok(p)) return set.add(p.no_kp);   // 🙈 murid disorok admin
     if (!(p.anugerah || []).some(x => pentas.has(x.subId) && !sorok.has(x.subId))) set.add(p.no_kp);
   });
   return set;
