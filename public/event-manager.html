@@ -50,6 +50,8 @@
 .em-lg .no.teks{font-size:16px;color:#FAF7F0}
 .em-lg .sp{font-size:12.5px;color:rgba(250,247,240,.75)}
 .em-lg .sp b{color:#FAF7F0}
+.em-lg .an{flex:1 0 100%;display:flex;flex-direction:column;gap:3px;font-size:13px;font-weight:600;color:#FAF7F0}
+.em-lg .an span{color:#C6A867;font-weight:400;font-variant-numeric:tabular-nums;margin-left:6px}
 .em-lg .bar{flex:1 1 140px;height:6px;border-radius:6px;background:rgba(250,247,240,.15);overflow:hidden}
 .em-lg .bar i{display:block;height:100%;background:#C6A867}
 @media (max-width:640px){
@@ -296,15 +298,36 @@ function teksLg() {
   if (LGS.langsung === false) return 'Panel ditutup';
   return LGS.mula ? LGS.mula + (LGS.akhir && LGS.akhir !== LGS.mula ? '–' + LGS.akhir : '') : 'Belum ditetapkan';
 }
+/* 🏆 Anugerah bagi julat SEDANG DIPANGGIL (12 Nov 2026, pengguna) — giliran
+   utama (bukan pengikut gabung) mula..akhir, dikumpul berturut ikut nama
+   (agNamaGiliran, sama dgn Peserta/MC). [{nama, dari, ke}] */
+function anugerahLg(pentas) {
+  if (!LGS || LGS.langsung === false || !LGS.mula) return [];
+  const mula = LGS.mula, akhir = LGS.akhir || LGS.mula, g = [];
+  pentas.forEach(p => (p.giliran || []).forEach(x => {
+    if (typeof x.no === 'number' && x.no >= mula && x.no <= akhir && !agIkutSah(p.giliran, x))
+      g.push({ no: x.no, nama: agNamaGiliran(x) });
+  }));
+  g.sort((a, b) => a.no - b.no);
+  const blok = [];
+  g.forEach(x => {
+    const b = blok[blok.length - 1];
+    if (b && b.nama === x.nama) b.ke = x.no; else blok.push({ nama: x.nama, dari: x.no, ke: x.no });
+  });
+  return blok;
+}
 function lukisLg() {
   if (!MAJLIS) return;
-  const { gil, gilMC } = kiraMC(agSubPentas(MAJLIS)), t = teksLg(), m = LGS && LGS.masa;
+  const { gil, gilMC, pentas } = kiraMC(agSubPentas(MAJLIS)), t = teksLg(), m = LGS && LGS.masa;
+  const an = anugerahLg(pentas);
   const ms = typeof m === 'number' ? m : m && m.toMillis ? m.toMillis() : 0;
   const el = $('em-lg');
   el.innerHTML = '<div><div class="lbl">📣 SEDANG DIPANGGIL</div><div class="no' + (/^\d/.test(t) ? '' : ' teks') + '">' + agEsc(t) + '</div></div>' +
     '<div class="sp">🎤 <b>' + gilMC + '</b> dari ' + gil + ' giliran naik pentas' +
     (ms ? ' · kemas kini ' + new Date(ms).toLocaleTimeString('ms-MY', { hour: 'numeric', minute: '2-digit' }) : '') + '</div>' +
-    '<div class="bar"><i style="width:' + (gil ? Math.round(gilMC / gil * 100) : 0) + '%"></i></div>';
+    '<div class="bar"><i style="width:' + (gil ? Math.round(gilMC / gil * 100) : 0) + '%"></i></div>' +
+    (an.length ? '<div class="an">' + an.map(b => '<div>🏆 ' + agEsc(b.nama) +
+      '<span>(' + b.dari + (b.ke !== b.dari ? '–' + b.ke : '') + ')</span></div>').join('') + '</div>' : '');
   el.hidden = false;
   ukurBingkai();                // tinggi jalur boleh berubah (balut di telefon)
 }
